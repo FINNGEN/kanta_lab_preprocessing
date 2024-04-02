@@ -35,4 +35,4 @@ for col in other_cols:
     random_values = np.random.choice(rej_values,size = random_idx.size, replace=True)
     df.loc[random_idx,col] = random_values
 
-df.to_csv(out_path,sep="\t",index=False)
+df.to_csv(out_path,sep="\t",index=False,compression='gzip')
