@@ -1,5 +1,14 @@
 import os,logging,sys,errno
 
+def progressBar(value, bar_length=20):
+    '''
+    Writes progress bar, given value (eg.current row) and endvalue(eg. total number of rows)
+    '''
+    spaces = ' ' * (bar_length - len(value))
+    sys.stdout.write("\rLines Processed: {0}".format(value + spaces))
+    sys.stdout.flush()
+
+
 def file_exists(fname):
     '''
     Function to pass to type in argparse
