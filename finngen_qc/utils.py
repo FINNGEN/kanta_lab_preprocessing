@@ -1,6 +1,9 @@
 import os,logging,sys,errno
 from itertools import islice,zip_longest
 
+
+    
+
 def batched(iterable, n):
     "Batch data into lists of length n. The last batch may be shorter."
     # batched('ABCDEFG', 3) --> ABC DEF G
