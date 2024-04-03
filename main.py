@@ -3,7 +3,7 @@ import argparse,logging,os
 from functools import partial
 import multiprocessing as mp
 import numpy as np
-from utils import file_exists,log_levels,configure_logging,make_sure_path_exists,progressBar
+from utils import file_exists,log_levels,configure_logging,make_sure_path_exists,progressBar,batched
 from filters.filter_minimal import filter_minimal 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
@@ -22,7 +22,7 @@ def chunk_reader(raw_file,chunk_size):
 
 
 def all_filters(df,args):
-    df.pipe(filter_minimal,args).pipe(filter_minimal,args).pipe(filter_minimal,args).pipe(filter_minimal,args)
+    df.pipe(filter_minimal,args)
     return df
 
 
@@ -51,8 +51,11 @@ def main(args):
     logger.info("END")
     return
 
-def multi_main(args):
 
+def multi_main(args):
+    """
+    Multiproc version
+    """
     logger.info(f"Input path:{args.raw_data}")
     out_file = os.path.join(args.out,f"{args.prefix}_munged.txt")
     ctx = mp.get_context('spawn')
@@ -61,18 +64,16 @@ def multi_main(args):
     multi_func = partial(all_filters,args=args)
     # read in chunk and apply further split
     logger.info("START")
-    for i,chunk in enumerate(chunk_reader(args.raw_data,args.chunk_size)):
-        df_split = np.array_split(chunk, args.jobs)
-        results = pool.imap(multi_func, df_split)
+    for i,chunks in enumerate(batched(chunk_reader(args.raw_data,int(args.chunk_size/args.jobs)),args.jobs)):
+        results = pool.imap(multi_func, chunks)
         df = pd.concat(list(results))
         # write header for first chunk along with df and print some info
         if i ==0:
-            logger.debug(f"before:{chunk.laboratoriotutkimusnimikeid}")
+            logger.debug(f"before:{df.laboratoriotutkimusnimikeid}")
             logger.debug(f"after:{df.laboratoriotutkimusnimikeid}")
             size = len(df)
             df.to_csv(out_file, mode='w', index=False, header=True,sep="\t")
             logger.info(f"chunksize:{len(df)}")
-            logger.info(f"sub chunk size:{len(df_split)}")
         else:
             size += len(df)
             df.to_csv(out_file, mode='a', index=False, header=False,sep="\t")

@@ -15,7 +15,7 @@ Here i make modifications to the few lines Vincent gave to try to reproduce issu
 """
 
 
-df = pd.read_csv(raw_path,sep = "\t")
+df = pd.read_csv(raw_path,sep = "\t",dtype = str)
 
 #build new lines randomly
 df = pd.concat([df,df.sample(n=N,replace=True)],ignore_index=True)
@@ -34,5 +34,12 @@ for col in other_cols:
         rej_values = ['Puuttuu','""',"TYHJÄ","_","NULL","-1"] 
     random_values = np.random.choice(rej_values,size = random_idx.size, replace=True)
     df.loc[random_idx,col] = random_values
+
+    # randomly add whitespace
+    random_idx = np.random.choice(df.index.values, size=int(df.index.size/10), replace=False)
+    v1,v2 = np.split(df.loc[random_idx,col].values,2)
+    v1 = [" " +elem for elem in map(str,v1)]
+    v2 = [elem + " " for elem in map(str,v2)]
+    df.loc[random_idx,col] = v1 + v2
 
 df.to_csv(out_path,sep="\t",index=False,compression='gzip')
