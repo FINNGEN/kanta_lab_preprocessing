@@ -10,24 +10,22 @@ def filter_minimal(df,args):
 
 
 def filter_measurement_status(df,args):
-    col='tutkimusvastauksentila'
-    problematic_values = ['K','W','X','I','D','P'] #these values are known to be unreliable
-    mask = df['tutkimusvastauksentila'].isin(problematic_values)
+    """
+    Here we deal with measurement statuses that are not final
+    """
+    col,problematic_values=args.config['problematic_status']
+    mask = df[col].isin(problematic_values)
     err_df = df[~mask]
     err_df = err_df.assign(err='measurement_status')
     err_df.to_csv(args.err_file, mode='a', index=False, header=False,sep="\t")
     return df[mask]
     
-
-    
-
 def filter_hetu(df,args):
     """
     Filters out if hetu root is incorrect
     """
     mask = df['hetu_root'] == args.config['hetu_kw']
     err_df = df[~mask]
-    err_df = err_df.assign(err='hetu_root')
     err_df.to_csv(args.err_file, mode='a', index=False, header=False,sep="\t")
     return df[mask]
     

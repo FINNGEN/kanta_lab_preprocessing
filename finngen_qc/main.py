@@ -16,52 +16,47 @@ def chunk_reader(raw_file,chunk_size,config):
     """
     cols = list(config['rename_cols'].keys()) + config['other_cols']
     logger.debug(cols)
+    size = 0
     with pd.read_csv(raw_file, chunksize=args.chunk_size,sep="\t",dtype=str,usecols = cols) as reader:
         for i,chunk in enumerate(reader):
+            size += len(chunk)
+            progressBar(str(size))
             if args.test and i==1:
                 break
             else:
                 yield chunk
-
+    
 
 def all_filters(df,args):
-    df.pipe(filter_minimal,args)
+    df = df.pipe(filter_minimal,args)
     return df
 
 def write_chunk(df,i,args):
     # write header for first chunk along with df and print some info
     out_file = os.path.join(args.out,f"{args.prefix}_munged.txt")
+    mode,header ='a',False
+    # write header and create new file if it's first chunk
     if i ==0:
-        print(df.head())
-        size = len(df)
+        logger.debug(df.head())
         mode = 'w'
         header = True
-        logger.info(f"chunksize:{len(df)}")
-    else:
-        size += len(df)
-        mode = 'a'
-        header = False
     df = df.rename(columns=config['rename_cols'])[args.config['out_cols']]
     df.to_csv(out_file, mode=mode, index=False, header=header,sep="\t")
-    return size
+    return len(df)
 
-def main(args):
-    logger.info(f"Input path:{args.raw_data}")
-    # read in chunk and apply further split
-    logger.info("START")
+
+
+def result_iterator(args):
+    """
+    Regular result iterator that applies the filter to each args.chunk_size sized chunk
+    """
     for i,chunk in enumerate(chunk_reader(args.raw_data,args.chunk_size,args.config)):
         df= all_filters(chunk,args)
-        size = write_chunk(df,i,args)
-        progressBar(str(size))
+        yield i,df
 
-    print('\nDone.')
-    logger.info("END")
-    return
-
-
-def multi_main(args):
+def result_iterator_multi(args):
     """
-    Multiproc version
+    Multiproc result iterator. It reads in the raw file in args.jobs chunks of args.chunk_size each
     """
     logger.info(f"Input path:{args.raw_data}")
     ctx = mp.get_context('spawn')
@@ -69,15 +64,21 @@ def multi_main(args):
     # get function with only df as input
     multi_func = partial(all_filters,args=args)
     # read in chunk and apply further split
-    logger.info("START")
     for i,chunks in enumerate(batched(chunk_reader(args.raw_data,int(args.chunk_size/args.jobs),args.config),args.jobs)):
         results = pool.imap(multi_func, chunks)
         df = pd.concat(list(results))
-        size = write_chunk(df,i,args)
-        progressBar(str(size))
+        yield i,df
+
+def main(args):
+    """
+    Multiproc version
+    """
+    res_it = result_iterator_multi if args.mp else result_iterator
+    size = 0
+    for i,df in res_it(args):
+        write_chunk(df,i,args)
         
     print('\nDone.')
-    logger.info("END")
     return
 
     
@@ -105,15 +106,12 @@ if __name__=='__main__':
     logger.debug(args.config)
     args.err_file = os.path.join(args.out,f"{args.prefix}_err.txt")
     with open(args.err_file,'wt') as o: o.write('\t'.join(pd.read_csv(args.raw_data,sep='\t', index_col=0, nrows=0).columns.tolist() + ['ERR']) + '\n')
-    logger.debug("START")
+    logger.info("START")
     if os.path.basename(args.raw_data) == "raw_data_test.txt":
         logger.warning("RUNNING IN TEST MODE")
-
     # make sure the chunk size is at least the size of the the jobs
     args.chunk_size = max(args.chunk_size,args.jobs)
-    if mp:
-        multi_main(args)
-    else:
-        main(args)
+
+    main(args)
         
-    logger.debug("END")
+    logger.info("END")

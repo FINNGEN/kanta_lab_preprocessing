@@ -20,6 +20,8 @@ config = {
     'NA_map' : {'tutkimustulosarvo':['Puuttuu','""',"TYHJÄ","_","NULL"]},
     # hetu_root required value
     'hetu_kw' : '1.2.246.21',
+    # MEASUREMENT STATUS
+    'problematic_status':  ('tutkimusvastauksentila',['K','W','X','I','D','P']),
 
 
 
