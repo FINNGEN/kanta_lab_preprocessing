@@ -27,12 +27,32 @@ Based on Kira's work the expected output should be formatted in the following wa
 
 The raw to output column mapping is as follows:
 
+| Column in raw file                                      | Column in clean file | Comment |
+|---------------------------------------------------------|----------------------|---------|
+| potilashenkilotunnus                                    | FINREGISTRYID        |         |
+| tutkimusaika                                            | LAB_DATE_TIME        |         |
+| palverluntuottaja_organisaatio                          | LAB_SERVICE_PROVIDER |         |
+| paikallinentutkimusnimikeid,laboratoriotutkimusnimikeid | LAB_ID               |         |
+| paikallinentutkimusnimikeid,laboratoriotutkimusnimikeid | LAB_ID_SOURCE        |         |
+| paikallinentutkimusnimike                               | LAB_ABBREVIATION     |         |
+| tutkimustulosarvo                                       | LAB_VALUE            |         |
+| tutkimustulosyksikkö                                    | LAB_UNIT             |         |
+| tuloksenpoikkeavuus                                     | LAB_ABNORMALITY      |         |
 
-The following columns are also needed
+The following columns are also needed for processing
 
-Other columns that might be needed?
-data_system, data_system_ver
+| Column in raw file      | Usage                                                                                |
+|-------------------------|--------------------------------------------------------------------------------------|
+| hetu_root               | Filter out if current hetu root is not 1.2.246.21 (they are manually assigned hetus) |
+| tutkimusvastauksentila  | Information about the status of the response. Needed to filter out results           |
 
+
+Possible other columns to include?
+
+| Column in raw file     | Description         |
+|------------------------|---------------------|
+| tietojarjestelmanimi   | DATA_SYSTEM_NAME    |
+| tietojarjestelmaversio | DATA_SYSTEM_VERSION |
 
 # How it works
 
@@ -43,9 +63,8 @@ The script reads in the data in chunks of  `--chunksize` length and it processes
 ## PRE-PROCECSSING STEPS
 
 Given the structure of the input data, we decided to do some preprocessing steps that will allows to shrink the data considerably.
-
 - We realized that it's best to subset the columns and remove duplicates in a pre-processing step.
-- We should first only keep the relevant columns (~ 1/3)
+- We should first only keep the relevant columns (~ 1/3: output + required for filtering)
 - Then we can sort by FINNGENID/DATE (should be doable in bash) and remove duplicates (~ 1/2 according to Kira)
 
 These steps are conceptually separate and should not interfere with the downstream analysis, but will help speed it up.

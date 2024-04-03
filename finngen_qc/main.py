@@ -9,6 +9,8 @@ dir_path = os.path.dirname(os.path.realpath(__file__))
 
 
 
+
+
 def chunk_reader(raw_file,chunk_size):
     """
     Iterator that spews out chunks and exits early in case of test
@@ -82,8 +84,7 @@ def multi_main(args):
     logger.info("END")
     return
 
-
-
+    
 if __name__=='__main__':
     
     parser=argparse.ArgumentParser(description="KANTA LAB preprocecssing/QC pipeline.")
@@ -103,7 +104,9 @@ if __name__=='__main__':
     logger = logging.getLogger(__name__)
     log_file = os.path.join(args.out,f"{args.prefix}_log.txt")
     configure_logging(logger,log_levels[args.log],log_file)
-    
+
+    args.err_file = os.path.join(args.out,f"{args.prefix}_err.txt")
+    with open(args.err_file,'wt') as o: o.write('\t'.join(pd.read_csv(args.raw_data,sep='\t', index_col=0, nrows=0).columns.tolist() + ['ERR']) + '\n')
     logger.debug("START")
     if os.path.basename(args.raw_data) == "raw_data_test.txt":
         logger.warning("RUNNING IN TEST MODE")
