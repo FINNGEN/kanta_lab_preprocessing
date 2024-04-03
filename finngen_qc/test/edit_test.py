@@ -39,15 +39,9 @@ df[col] = values
 
 # randomly replace
 # add random Puutttu values
-arvo_col = "tutkimustulosarvo"
-other_cols = df.columns.difference([arvo_col])
-for col in other_cols:
+for col in df.columns:
     random_idx = np.random.choice(df.index.values, size=int(df.index.size/10), replace=False)
-    rej_values = ['Puuttuu','""',"TYHJÄ","_","NULL"] 
-    if col == "tutkimustulosarvo":
-        rej_values = ['Puuttuu','""',"TYHJÄ","_","NULL"] 
-    else:
-        rej_values = ['Puuttuu','""',"TYHJÄ","_","NULL","-1"] 
+    rej_values = ['Puuttuu','""',"TYHJÄ","_","NULL","-1"] 
     random_values = np.random.choice(rej_values,size = random_idx.size, replace=True)
     df.loc[random_idx,col] = random_values
 

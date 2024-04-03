@@ -4,18 +4,19 @@ from functools import partial
 import multiprocessing as mp
 import numpy as np
 from utils import file_exists,log_levels,configure_logging,make_sure_path_exists,progressBar,batched
+from magic_config import config
 from filters.filter_minimal import filter_minimal 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
 
 
-
-
-def chunk_reader(raw_file,chunk_size):
+def chunk_reader(raw_file,chunk_size,config):
     """
     Iterator that spews out chunks and exits early in case of test
     """
-    with pd.read_csv(raw_file, chunksize=chunk_size,sep="\t",dtype=str) as reader:
+    cols = list(config['rename_cols'].keys()) + config['other_cols']
+    logger.debug(cols)
+    with pd.read_csv(raw_file, chunksize=args.chunk_size,sep="\t",dtype=str,usecols = cols) as reader:
         for i,chunk in enumerate(reader):
             if args.test and i==1:
                 break
@@ -27,28 +28,32 @@ def all_filters(df,args):
     df.pipe(filter_minimal,args)
     return df
 
+def write_chunk(df,i,args):
+    # write header for first chunk along with df and print some info
+    out_file = os.path.join(args.out,f"{args.prefix}_munged.txt")
+    if i ==0:
+        print(df.head())
+        size = len(df)
+        mode = 'w'
+        header = True
+        logger.info(f"chunksize:{len(df)}")
+    else:
+        size += len(df)
+        mode = 'a'
+        header = False
+    df = df.rename(columns=config['rename_cols'])[args.config['out_cols']]
+    df.to_csv(out_file, mode=mode, index=False, header=header,sep="\t")
+    return size
 
 def main(args):
     logger.info(f"Input path:{args.raw_data}")
-    out_file = os.path.join(args.out,f"{args.prefix}_munged.txt")
-   
-    # get function with only df as input
-    multi_func = partial(all_filters,args=args)
     # read in chunk and apply further split
     logger.info("START")
-    for i,chunk in enumerate(chunk_reader(args.raw_data,args.chunk_size)):
+    for i,chunk in enumerate(chunk_reader(args.raw_data,args.chunk_size,args.config)):
         df= all_filters(chunk,args)
-        # write header for first chunk along with df and print some info
-        if i ==0:
-            logger.debug(f"before:{chunk.laboratoriotutkimusnimikeid}")
-            logger.debug(f"after:{df.laboratoriotutkimusnimikeid}")
-            size = len(df)
-            df.to_csv(out_file, mode='w', index=False, header=True,sep="\t")
-            logger.info(f"chunksize:{len(df)}")
-        else:
-            size += len(df)
-            df.to_csv(out_file, mode='a', index=False, header=False,sep="\t")
+        size = write_chunk(df,i,args)
         progressBar(str(size))
+
     print('\nDone.')
     logger.info("END")
     return
@@ -59,27 +64,18 @@ def multi_main(args):
     Multiproc version
     """
     logger.info(f"Input path:{args.raw_data}")
-    out_file = os.path.join(args.out,f"{args.prefix}_munged.txt")
     ctx = mp.get_context('spawn')
     pool = ctx.Pool(args.jobs)
     # get function with only df as input
     multi_func = partial(all_filters,args=args)
     # read in chunk and apply further split
     logger.info("START")
-    for i,chunks in enumerate(batched(chunk_reader(args.raw_data,int(args.chunk_size/args.jobs)),args.jobs)):
+    for i,chunks in enumerate(batched(chunk_reader(args.raw_data,int(args.chunk_size/args.jobs),args.config),args.jobs)):
         results = pool.imap(multi_func, chunks)
         df = pd.concat(list(results))
-        # write header for first chunk along with df and print some info
-        if i ==0:
-            logger.debug(f"before:{df.laboratoriotutkimusnimikeid}")
-            logger.debug(f"after:{df.laboratoriotutkimusnimikeid}")
-            size = len(df)
-            df.to_csv(out_file, mode='w', index=False, header=True,sep="\t")
-            logger.info(f"chunksize:{len(df)}")
-        else:
-            size += len(df)
-            df.to_csv(out_file, mode='a', index=False, header=False,sep="\t")
+        size = write_chunk(df,i,args)
         progressBar(str(size))
+        
     print('\nDone.')
     logger.info("END")
     return
@@ -104,7 +100,9 @@ if __name__=='__main__':
     logger = logging.getLogger(__name__)
     log_file = os.path.join(args.out,f"{args.prefix}_log.txt")
     configure_logging(logger,log_levels[args.log],log_file)
-
+    # setup config
+    args.config = config
+    logger.debug(args.config)
     args.err_file = os.path.join(args.out,f"{args.prefix}_err.txt")
     with open(args.err_file,'wt') as o: o.write('\t'.join(pd.read_csv(args.raw_data,sep='\t', index_col=0, nrows=0).columns.tolist() + ['ERR']) + '\n')
     logger.debug("START")

@@ -4,7 +4,7 @@ def filter_minimal(df,args):
     """
     This function collects all functions here
     """
-    df = df.pipe(remove_spaces).pipe(fix_na).pipe(filter_hetu,args).pipe(filter_measurement_status,args)
+    df = df.pipe(remove_spaces).pipe(fix_na,args).pipe(filter_hetu,args).pipe(filter_measurement_status,args)
     return df
 
 
@@ -25,7 +25,7 @@ def filter_hetu(df,args):
     """
     Filters out if hetu root is incorrect
     """
-    mask = df['hetu_root'] == '1.2.246.21'
+    mask = df['hetu_root'] == args.config['hetu_kw']
     err_df = df[~mask]
     err_df = err_df.assign(err='hetu_root')
     err_df.to_csv(args.err_file, mode='a', index=False, header=False,sep="\t")
@@ -36,21 +36,22 @@ def remove_spaces(df):
     """
     Trim whitespace from ends of each value across all series in dataframe
     """
-    return df.map(lambda x: x.strip() if isinstance(x, str) else x)
+    for col in df.columns:
+        df[col] = df[col].str.strip()
+    return df
 
 
-def fix_na(df):
+def fix_na(df,args):
     """
     Fixes NAs across columns.
     -1 can be a valid entry for the actual result of the lab analysis so we need to skip that column
     """
 
-    # replace the basic one in the lab value
-    arvo_col = "tutkimustulosarvo"
-    rej_lines = ['Puuttuu','""',"TYHJÄ","_","NULL"]
-    df[arvo_col] = df[arvo_col].replace(rej_lines,"NA")
+    # get special exclusion values dictionary
+    exception_columns = set(args.config['NA_map'].keys())
+    for col in exception_columns:
+        df[col] = df[col].replace(args.config['NA_map'][col],"NA")
     #apply the basic one to all other columns
-    other_cols = df.columns.difference([arvo_col])
-    rej_lines = ['Puuttuu','""',"TYHJÄ","_","NULL","-1"]
-    df[other_cols] = df[other_cols].replace(rej_lines,"NA")
+    other_cols = df.columns.difference(exception_columns)
+    df[other_cols] = df[other_cols].replace(args.config['NA_kws'],"NA")
     return df

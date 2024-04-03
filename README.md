@@ -19,11 +19,9 @@ Based on Kira's work the expected output should be formatted in the following wa
 | 6   | `LAB_ABBREVIATION` | Laboratory abbreviation of the measurement from the data (local) or mapped using the THL map (national) |     | The map for the national (THL) IDs is in the [data folder](/finngen_qc//data/thl_lab_id_abbrv_map.tsv),  and was downloaded from [Kuntaliitto - Laboratoriotutkimusnimikkeistö](https://koodistopalvelu.kanta.fi/codeserver/pages/classification-view-page.xhtml?classificationKey=88&versionKey=120) |
 | 7   | `LAB_VALUE` | The value of the laboratory measurement |     |     |
 | 8   | `LAB_UNIT` | The unit of the labroatroy measurement from the data |     |     |
-| 9   | `OMOP_ID` | OMOP concept ID of the lab measurement | To be implemented. |
-| 10  | `OMOP_NAME` | Name of the OMOP concept |     |     |
-| 11  | `LAB_ABNORMALITY` | Abnormality of the lab measurement | Describes whether the test is result is normal or abnormal i.e. too high or low low based on the laboratories reference values. This is **not** a quality control variable but to state it simply and inaccurately denotes whether the patient is healthy or not. See [AR/LABRA - Poikkeustilanneviestit](https://91.202.112.142/codeserver/pages/publication-view-page.xhtml?distributionKey=10329&versionKey=324&returnLink=fromVersionPublicationList) for the abbreviations meanings. | The column contains a lot of missingness. |
-| 12  | `MEASUREMENT_STATUS` | The measurement status | The final data contains only `C` \- corrected results or `F` \- final result | See [Koodistopalvelu - AR/LABRA - Tutkimusvastauksien tulkintakoodit 1997](https://koodistopalvelu.kanta.fi/codeserver/pages/publication-view-page.xhtml?distributionKey=2637&versionKey=321&returnLink=fromVersionPublicationList) |
-| 13  | `REFERENCE_VALUE_TEXT` | The reference values for the measurement in text form | This can be used to define the lab abnormality with better coverage using regex expressions (-to be implemented for the whole data). |     |
+| 9   | `LAB_ABNORMALITY` | Abnormality of the lab measurement | Describes whether the test is result is normal or abnormal i.e. too high or low low based on the laboratories reference values. This is **not** a quality control variable but to state it simply and inaccurately denotes whether the patient is healthy or not. See [AR/LABRA - Poikkeustilanneviestit](https://91.202.112.142/codeserver/pages/publication-view-page.xhtml?distributionKey=10329&versionKey=324&returnLink=fromVersionPublicationList) for the abbreviations meanings. | The column contains a lot of missingness. |
+| 10  | `MEASUREMENT_STATUS` | The measurement status | The final data contains only `C` \- corrected results or `F` \- final result | See [Koodistopalvelu - AR/LABRA - Tutkimusvastauksien tulkintakoodit 1997](https://koodistopalvelu.kanta.fi/codeserver/pages/publication-view-page.xhtml?distributionKey=2637&versionKey=321&returnLink=fromVersionPublicationList) |
+| 11  | `REFERENCE_VALUE_TEXT` | The reference values for the measurement in text form | This can be used to define the lab abnormality with better coverage using regex expressions (-to be implemented for the whole data). |     |
 
 The raw to output column mapping is as follows:
 
@@ -36,15 +34,16 @@ The raw to output column mapping is as follows:
 | paikallinentutkimusnimikeid,laboratoriotutkimusnimikeid | LAB_ID_SOURCE        |         |
 | paikallinentutkimusnimike                               | LAB_ABBREVIATION     |         |
 | tutkimustulosarvo                                       | LAB_VALUE            |         |
-| tutkimustulosyksikkö                                    | LAB_UNIT             |         |
+| tutkimustulosyksikko                                    | LAB_UNIT             |         |
 | tuloksenpoikkeavuus                                     | LAB_ABNORMALITY      |         |
+| viitevaliteksti                                         | REFERENCE_VALUE_TEXT |         |
+| tutkimusvastauksentila                                  | MEASUREMENT_STATUS   |         |
 
 The following columns are also needed for processing
 
 | Column in raw file      | Usage                                                                                |
 |-------------------------|--------------------------------------------------------------------------------------|
 | hetu_root               | Filter out if current hetu root is not 1.2.246.21 (they are manually assigned hetus) |
-| tutkimusvastauksentila  | Information about the status of the response. Needed to filter out results           |
 
 
 Possible other columns to include?
