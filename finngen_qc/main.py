@@ -5,27 +5,30 @@ import multiprocessing as mp
 import numpy as np
 from utils import file_exists,log_levels,configure_logging,make_sure_path_exists,progressBar,batched
 from magic_config import config
+from datetime import datetime
 from filters.filter_minimal import filter_minimal 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
 
 
-def chunk_reader(raw_file,chunk_size,config):
+def chunk_reader(raw_file,chunk_size,config,err_file):
     """
     Iterator that spews out chunks and exits early in case of test
     """
-    cols = list(config['rename_cols'].keys()) + config['other_cols']
-    logger.debug(cols)
+    
+    logger.debug(args.config['cols'])
     size = 0
-    with pd.read_csv(raw_file, chunksize=args.chunk_size,sep="\t",dtype=str,usecols = cols) as reader:
+    with pd.read_csv(raw_file, chunksize=args.chunk_size,sep="\t",dtype=str,usecols = args.config['cols']) as reader:
         for i,chunk in enumerate(reader):
             size += len(chunk)
-            progressBar(str(size))
+            if i==0:
+                with open(err_file,'wt') as o: o.write('\t'.join(chunk.columns.to_list() + ['ERR']) + '\n')
             if args.test and i==1:
                 break
             else:
                 yield chunk
-    
+            progressBar(str(size))
+
 
 def all_filters(df,args):
     df = df.pipe(filter_minimal,args)
@@ -45,12 +48,11 @@ def write_chunk(df,i,args):
     return len(df)
 
 
-
 def result_iterator(args):
     """
     Regular result iterator that applies the filter to each args.chunk_size sized chunk
     """
-    for i,chunk in enumerate(chunk_reader(args.raw_data,args.chunk_size,args.config)):
+    for i,chunk in enumerate(chunk_reader(args.raw_data,args.chunk_size,args.config,args.err_file)):
         df= all_filters(chunk,args)
         yield i,df
 
@@ -64,21 +66,23 @@ def result_iterator_multi(args):
     # get function with only df as input
     multi_func = partial(all_filters,args=args)
     # read in chunk and apply further split
-    for i,chunks in enumerate(batched(chunk_reader(args.raw_data,int(args.chunk_size/args.jobs),args.config),args.jobs)):
+    for i,chunks in enumerate(batched(chunk_reader(args.raw_data,int(args.chunk_size/args.jobs),args.config,args.err_file),args.jobs)):
         results = pool.imap(multi_func, chunks)
         df = pd.concat(list(results))
         yield i,df
 
 def main(args):
     """
-    Multiproc version
+    Main functions that calls the iterators based on regular/multiproc version
     """
     res_it = result_iterator_multi if args.mp else result_iterator
     size = 0
+    start_time = datetime.now()
     for i,df in res_it(args):
         write_chunk(df,i,args)
-        
     print('\nDone.')
+    logger.info('Duration: {}'.format(datetime.now() - start_time))
+
     return
 
     
@@ -101,11 +105,14 @@ if __name__=='__main__':
     logger = logging.getLogger(__name__)
     log_file = os.path.join(args.out,f"{args.prefix}_log.txt")
     configure_logging(logger,log_levels[args.log],log_file)
+
     # setup config
     args.config = config
+    args.config['cols']  = list(config['rename_cols'].keys()) + config['other_cols']
     logger.debug(args.config)
+
+    # setup error file
     args.err_file = os.path.join(args.out,f"{args.prefix}_err.txt")
-    with open(args.err_file,'wt') as o: o.write('\t'.join(pd.read_csv(args.raw_data,sep='\t', index_col=0, nrows=0).columns.tolist() + ['ERR']) + '\n')
     logger.info("START")
     if os.path.basename(args.raw_data) == "raw_data_test.txt":
         logger.warning("RUNNING IN TEST MODE")

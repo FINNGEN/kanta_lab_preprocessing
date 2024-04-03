@@ -26,6 +26,7 @@ def filter_hetu(df,args):
     """
     mask = df['hetu_root'] == args.config['hetu_kw']
     err_df = df[~mask]
+    err_df = err_df.assign(err='hetu_root')
     err_df.to_csv(args.err_file, mode='a', index=False, header=False,sep="\t")
     return df[mask]
     
