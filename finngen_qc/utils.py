@@ -11,6 +11,9 @@ def read_thl_map(map_path):
             thl_lab_map[elem[0]] = elem[1]
     return thl_lab_map
 
+
+    
+
 def batched(iterable, n):
     "Batch data into lists of length n. The last batch may be shorter."
     # batched('ABCDEFG', 3) --> ABC DEF G

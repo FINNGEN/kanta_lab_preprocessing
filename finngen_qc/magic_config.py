@@ -1,4 +1,3 @@
-
 config = {
     # DIRECT COLUMN MAPPING
     'rename_cols' : {
@@ -25,6 +24,4 @@ config = {
     'problematic_status':  ('MEASUREMENT_STATUS',['K','W','X','I','D','P']),
     'thl_lab_map' : 'data/thl_lab_id_abbrv_map.tsv',
     'err_cols':['FINREGISTRYID','LAB_DATE_TIME','ERR','ERR_VALUE']
-    
 }
-

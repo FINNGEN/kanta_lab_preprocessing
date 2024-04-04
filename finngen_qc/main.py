@@ -6,18 +6,18 @@ import numpy as np
 from utils import file_exists,log_levels,configure_logging,make_sure_path_exists,progressBar,batched,read_thl_map
 from magic_config import config
 from datetime import datetime
+
 from filters.filter_minimal import filter_minimal 
 
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
-def chunk_reader(raw_file,chunk_size,config,err_file):
+def chunk_reader(raw_file,chunk_size,config):
     """
     Iterator that spews out chunks and exits early in case of test
     """
     
     logger.debug(args.config['cols'])
-    size = 0
     with pd.read_csv(raw_file, chunksize=args.chunk_size,sep="\t",dtype=str,usecols = args.config['cols']) as reader:
         for i,chunk in enumerate(reader):
             # INIT ERR AND ERR_VALUE columns
@@ -87,6 +87,7 @@ def main(args):
         size += write_chunk(df,i,args)
         progressBar(str(size))
 
+
     print('\nDone.')
     logger.info('Duration: {}'.format(datetime.now() - start_time))
 
@@ -125,6 +126,7 @@ if __name__=='__main__':
     args.err_file = os.path.join(args.out,f"{args.prefix}_err.txt")
     with open(args.err_file,'wt') as err:err.write('\t'.join(args.config['err_cols']) + '\n')
     logger.info("START")
+
     if os.path.basename(args.raw_data) == "raw_data_test.txt":
         logger.warning("RUNNING IN TEST MODE")
     # make sure the chunk size is at least the size of the the jobs

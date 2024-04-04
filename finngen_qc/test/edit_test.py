@@ -34,6 +34,7 @@ df.loc[random_idx,'laboratoriotutkimusoid'] = np.random.choice(lab_names,size = 
 IDS=np.random.randint(100,size=df.index.size)
 id_col = ["FAKE" +f'{n:04}' for n in IDS]
 df.loc[:,'potilashenkilotunnus'] = id_col
+
 # ADD MALFORMED het_root
 print("het root")
 random_idx = np.random.choice(df.index.values, size=int(df.index.size/10), replace=False)
