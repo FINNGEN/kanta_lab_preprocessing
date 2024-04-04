@@ -32,7 +32,7 @@ The raw to output column mapping is as follows:
 | palverluntuottaja_organisaatio                          | LAB_SERVICE_PROVIDER |         |
 | paikallinentutkimusnimikeid,laboratoriotutkimusnimikeid | LAB_ID               |         |
 | paikallinentutkimusnimikeid,laboratoriotutkimusnimikeid | LAB_ID_SOURCE        |         |
-| paikallinentutkimusnimike                               | LAB_ABBREVIATION     |         |
+| paikallinentutkimusnimike (ONLY IF LOCAL)               | LAB_ABBREVIATION     |         |
 | tutkimustulosarvo                                       | LAB_VALUE            |         |
 | tutkimustulosyksikko                                    | LAB_UNIT             |         |
 | tuloksenpoikkeavuus                                     | LAB_ABNORMALITY      |         |

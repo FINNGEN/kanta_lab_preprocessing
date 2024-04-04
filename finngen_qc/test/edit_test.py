@@ -21,6 +21,15 @@ df = pd.read_csv(raw_path,sep = "\t",dtype = str)
 df = pd.concat([df,df.sample(n=N,replace=True)],ignore_index=True)
 print(df)
 
+# get random values of lab id:
+lab_map=os.path.join(os.path.dirname(path),'data/thl_lab_id_abbrv_map.tsv')
+with open(lab_map) as i:
+    lab_names=[elem.strip().split()[0] for elem in i.readlines()]
+
+random_idx = np.random.choice(df.index.values, size=int(df.index.size*.9), replace=False)
+df.loc[random_idx,'laboratoriotutkimusoid'] = np.random.choice(lab_names,size = random_idx.size,replace=True)
+
+
 #GENERATE 100 samples IDS
 IDS=np.random.randint(100,size=df.index.size)
 id_col = ["FAKE" +f'{n:04}' for n in IDS]

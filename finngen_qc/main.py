@@ -3,13 +3,13 @@ import argparse,logging,os
 from functools import partial
 import multiprocessing as mp
 import numpy as np
-from utils import file_exists,log_levels,configure_logging,make_sure_path_exists,progressBar,batched
+from utils import file_exists,log_levels,configure_logging,make_sure_path_exists,progressBar,batched,read_thl_map
 from magic_config import config
 from datetime import datetime
 from filters.filter_minimal import filter_minimal 
+
+
 dir_path = os.path.dirname(os.path.realpath(__file__))
-
-
 
 def chunk_reader(raw_file,chunk_size,config,err_file):
     """
@@ -20,14 +20,13 @@ def chunk_reader(raw_file,chunk_size,config,err_file):
     size = 0
     with pd.read_csv(raw_file, chunksize=args.chunk_size,sep="\t",dtype=str,usecols = args.config['cols']) as reader:
         for i,chunk in enumerate(reader):
-            size += len(chunk)
-            if i==0:
-                with open(err_file,'wt') as o: o.write('\t'.join(chunk.columns.to_list() + ['ERR']) + '\n')
+            # INIT ERR AND ERR_VALUE columns
+            chunk['ERR'] = "0"
+            chunk['ERR_VALUE'] = "NA"
             if args.test and i==1:
                 break
-            else:
-                yield chunk
-            progressBar(str(size))
+
+            yield chunk.rename(columns=config['rename_cols'])
 
 
 def all_filters(df,args):
@@ -43,9 +42,15 @@ def write_chunk(df,i,args):
         logger.debug(df.head())
         mode = 'w'
         header = True
-    df = df.rename(columns=config['rename_cols'])[args.config['out_cols']]
+
+    # write err_df args.err
+    mask = df['ERR'] == '0'
+    err_df =df[~mask][args.config['err_cols']]
+    err_df.to_csv(args.err_file, mode='a', index=False, header=False,sep="\t")
+    # write final df to out_file
+    df = df[mask][args.config['out_cols']]
     df.to_csv(out_file, mode=mode, index=False, header=header,sep="\t")
-    return len(df)
+    return len(df)+len(err_df)
 
 
 def result_iterator(args):
@@ -79,7 +84,9 @@ def main(args):
     size = 0
     start_time = datetime.now()
     for i,df in res_it(args):
-        write_chunk(df,i,args)
+        size += write_chunk(df,i,args)
+        progressBar(str(size))
+
     print('\nDone.')
     logger.info('Duration: {}'.format(datetime.now() - start_time))
 
@@ -111,8 +118,12 @@ if __name__=='__main__':
     args.config['cols']  = list(config['rename_cols'].keys()) + config['other_cols']
     logger.debug(args.config)
 
+    # replace path with actual map
+    args.config['thl_lab_map'] = read_thl_map(os.path.join(dir_path,args.config['thl_lab_map']))
+    logger.debug(args.config['thl_lab_map'])
     # setup error file
     args.err_file = os.path.join(args.out,f"{args.prefix}_err.txt")
+    with open(args.err_file,'wt') as err:err.write('\t'.join(args.config['err_cols']) + '\n')
     logger.info("START")
     if os.path.basename(args.raw_data) == "raw_data_test.txt":
         logger.warning("RUNNING IN TEST MODE")
