@@ -1,5 +1,15 @@
 import os,logging,sys,errno
 from itertools import islice,zip_longest
+from collections import defaultdict as dd
+
+    
+def read_thl_map(map_path):
+    thl_lab_map = dd(lambda  : "MISSING")
+    with open(map_path) as i:
+        for elem in i:
+            elem = elem.strip().split()
+            thl_lab_map[elem[0]] = elem[1]
+    return thl_lab_map
 
 
     
