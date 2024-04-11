@@ -4,7 +4,7 @@ def filter_minimal(df,args):
     """
     This function collects all functions here
     """
-    df = df.pipe(remove_spaces).pipe(fix_na,args).pipe(filter_hetu,args).pipe(filter_measurement_status,args).pipe(lab_name_map,args).pipe(get_lab_abbrv,args)
+    df = df.pipe(initialize_out_cols,args).pipe(remove_spaces).pipe(fix_na,args).pipe(filter_hetu,args).pipe(filter_measurement_status,args).pipe(lab_name_map,args).pipe(get_lab_abbrv,args)
     return df
 
 
@@ -56,9 +56,12 @@ def get_lab_abbrv(df,args):
     df.loc[mask,'LAB_ABBREVIATION'] = [dd[elem] for elem in values]
 
     err_mask= df['LAB_ABBREVIATION'] =='MISSING'
-    df.loc[err_mask,'ERR'] = 'LAB_ABBREVIATION_missing'
-    df.loc[err_mask,'ERR_VALUE'] = df.loc[err_mask,'LAB_ID']
-    return df
+    err_df = df[err_mask]
+    err_df.loc[:,'ERR'] = 'LAB_ABBREVIATION_missing'
+    err_df.loc[:,'ERR_VALUE'] = err_df.loc[:,'LAB_ID']
+    err_df[args.config['err_cols']].to_csv(args.err_file, mode='a', index=False, header=False,sep="\t")
+
+    return df[~err_mask]
 
 def lab_name_map(df,args):
     """
@@ -74,20 +77,28 @@ def lab_name_map(df,args):
     df['LAB_ID'] = df['laboratoriotutkimusoid']
 
     # if id is local
-    mask = df['laboratoriotutkimusoid'] == "NA"
-    df.loc[mask,'LAB_ID_SOURCE'] = "0" # --> FLAG AS LOCAL
-    df.loc[mask,"LAB_ID"] = df.loc[mask,'paikallinentutkimusnimikeid'] #--> get values from local id
-    return df
+    err_mask = df['laboratoriotutkimusoid'] == "NA"
+    err_df = df[err_mask]
+    err_df.loc[:,'LAB_ID_SOURCE'] = "0" # --> FLAG AS LOCAL
+    err_df.loc[:,"LAB_ID"] = err_df.loc[:,'paikallinentutkimusnimikeid'] #--> get values from local id
+    err_df[args.config['err_cols']].to_csv(args.err_file, mode='a', index=False, header=False,sep="\t")
+
+    return df[~err_mask]
     
 def filter_measurement_status(df,args):
     """
-    Here we deal with measurement statuses that are not final
+    Here we remove values that are not in the accepted value list.
     """
     col,problematic_values=args.config['problematic_status']
+    
     err_mask = df[col].isin(problematic_values)
-    df.loc[err_mask,'ERR'] = 'measurement_status'
-    df.loc[err_mask,'ERR_VALUE'] = df.loc[err_mask,col]
-    return df
+    err_df = df[err_mask]
+    err_df.loc[:,'ERR'] = 'measurement_status'
+    err_df.loc[:,'ERR_VALUE'] = err_df.loc[err_mask,col]
+    err_df[args.config['err_cols']].to_csv(args.err_file, mode='a', index=False, header=False,sep="\t")
+
+
+    return df[~err_mask]
     
 
 def filter_hetu(df,args):
@@ -95,9 +106,12 @@ def filter_hetu(df,args):
     Filters out if hetu root is incorrect
     """
     err_mask = df['hetu_root'] != args.config['hetu_kw']
-    df.loc[err_mask,'ERR'] = 'hetu_root'
-    df.loc[err_mask,'ERR_VALUE'] = df.loc[err_mask,'hetu_root']
-    return df
+    err_df = df[err_mask]
+    err_df.loc[:,'ERR'] = 'hetu_root'
+    err_df.loc[:,'ERR_VALUE'] = err_df.loc[:,'hetu_root']
+    err_df[args.config['err_cols']].to_csv(args.err_file, mode='a', index=False, header=False,sep="\t")
+
+    return df[~err_mask]
     
 
 def remove_spaces(df):
@@ -122,4 +136,13 @@ def fix_na(df,args):
     #apply the basic one to all other columns
     other_cols = df.columns.difference(exception_columns)
     df[other_cols] = df[other_cols].replace(args.config['NA_kws'],"NA")
+    return df
+
+
+
+def initialize_out_cols(df,args):
+    for col in args.config['out_cols'] + args.config['err_cols']:
+        if col not in df.columns.tolist():
+            df[col] = ""
+            
     return df

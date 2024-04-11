@@ -1,19 +1,41 @@
 import os,logging,sys,errno
 from itertools import islice,zip_longest
 from collections import defaultdict as dd
+import mmap
 
+def mapcount(filename):
+
+    if not os.path.isfile(filename):
+        return 0
+    try:
+        return count_lines(filename)
+    except:
+        return 0
     
+def count_lines(filename):
+    '''
+    Counts line in file
+    '''
+    f = open(filename, "r+")
+    buf = mmap.mmap(f.fileno(), 0)
+    lines = 0
+    readline = buf.readline
+    while readline():
+        lines += 1
+    return lines
+
+
+# you need to definte it like this or the defaultdict is not pickable and multiprocessing can't use it
+def thl_default_():return "MISSING"
 def read_thl_map(map_path):
-    thl_lab_map = dd(lambda  : "MISSING")
+    thl_lab_map = dd(thl_default_)
     with open(map_path) as i:
         for elem in i:
             elem = elem.strip().split()
             thl_lab_map[elem[0]] = elem[1]
     return thl_lab_map
 
-
     
-
 def batched(iterable, n):
     "Batch data into lists of length n. The last batch may be shorter."
     # batched('ABCDEFG', 3) --> ABC DEF G
@@ -23,6 +45,7 @@ def batched(iterable, n):
         if not batch:
             return
         yield batch
+        
 def progressBar(value, bar_length=20):
     '''
     Writes progress bar, given value (eg.current row) and endvalue(eg. total number of rows)

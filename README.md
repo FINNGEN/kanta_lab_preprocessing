@@ -61,8 +61,7 @@ The script reads in the data in chunks of  `--chunksize` length and it processes
 
 ## PRE-PROCECSSING STEPS
 
-Given the structure of the input data, we decided to do some preprocessing steps that will allows to shrink the data considerably.
-- We realized that it's best to subset the columns and remove duplicates in a pre-processing step.
+Given the structure of the input data, we decided to do some preprocessing steps that will allows to shrink the data considerably. 
 - We should first only keep the relevant columns (~ 1/3: output + required for filtering)
 - Then we can sort by FINNGENID/DATE (should be doable in bash) and remove duplicates (~ 1/2 according to Kira)
 

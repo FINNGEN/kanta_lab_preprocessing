@@ -51,6 +51,7 @@ df[col] = values
 
 # randomly replace
 # add random Puutttu values
+print('random missing')
 for col in df.columns:
     random_idx = np.random.choice(df.index.values, size=int(df.index.size/10), replace=False)
     rej_values = ['Puuttuu','""',"TYHJÄ","_","NULL","-1"] 
