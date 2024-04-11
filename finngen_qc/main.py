@@ -112,16 +112,16 @@ if __name__=='__main__':
     args.config['cols']  = list(config['rename_cols'].keys()) + config['other_cols']
     logger.debug(args.config)
 
-
     args.config['thl_lab_map'] = read_thl_map(os.path.join(dir_path,args.config['thl_lab_map']))
     logger.debug(dict(list(args.config['thl_lab_map'].items())[0:2]))
     # setup error file
     args.err_file = os.path.join(args.out,f"{args.prefix}_err.txt")
     with open(args.err_file,'wt') as err:err.write('\t'.join(args.config['err_cols']) + '\n')
     logger.info("START")
-
+    
     if os.path.basename(args.raw_data) == "raw_data_test.txt":
         logger.warning("RUNNING IN TEST MODE")
+
     # make sure the chunk size is at least the size of the the jobs
     args.chunk_size = max(args.chunk_size,args.jobs)
     args.out_file = os.path.join(args.out,f"{args.prefix}_munged.txt")

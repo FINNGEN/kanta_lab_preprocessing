@@ -4,7 +4,16 @@ def filter_minimal(df,args):
     """
     This function collects all functions here
     """
-    df = df.pipe(initialize_out_cols,args).pipe(remove_spaces).pipe(fix_na,args).pipe(filter_hetu,args).pipe(filter_measurement_status,args).pipe(lab_name_map,args).pipe(get_lab_abbrv,args)
+    df = (
+        df
+        .pipe(initialize_out_cols,args)
+        .pipe(remove_spaces)
+        .pipe(fix_na,args)
+        .pipe(filter_hetu,args)
+        .pipe(filter_measurement_status,args)
+        .pipe(lab_name_map,args)
+        .pipe(get_lab_abbrv,args)
+    )
     return df
 
 
@@ -52,8 +61,8 @@ def get_lab_abbrv(df,args):
     # update values based on mapping
     dd=args.config['thl_lab_map']
     mask = df.LAB_ID_SOURCE != "0"
-    values = df.loc[mask,'LAB_ID']
-    df.loc[mask,'LAB_ABBREVIATION'] = [dd[elem] for elem in values]
+    # map values with THL map if source is NOT local
+    df.loc[mask,'LAB_ABBREVIATION'] = df.loc[mask,"LAB_ID"].map(dd)
 
     err_mask= df['LAB_ABBREVIATION'] =='MISSING'
     err_df = df[err_mask]
@@ -76,14 +85,12 @@ def lab_name_map(df,args):
     df =df.assign(LAB_ID_SOURCE='1')
     df['LAB_ID'] = df['laboratoriotutkimusoid']
 
-    # if id is local
-    err_mask = df['laboratoriotutkimusoid'] == "NA"
-    err_df = df[err_mask]
-    err_df.loc[:,'LAB_ID_SOURCE'] = "0" # --> FLAG AS LOCAL
-    err_df.loc[:,"LAB_ID"] = err_df.loc[:,'paikallinentutkimusnimikeid'] #--> get values from local id
-    err_df[args.config['err_cols']].to_csv(args.err_file, mode='a', index=False, header=False,sep="\t")
-
-    return df[~err_mask]
+    # if id is local assign local lab id
+    local_mask =  df['laboratoriotutkimusoid'] == 'NA'
+    df.loc[local_mask,"LAB_ID_SOURCE"] = "0"
+    df.loc[local_mask,"LAB_ID"] = df.loc[local_mask,"paikallinentutkimusnimikeid"]
+    
+    return df
     
 def filter_measurement_status(df,args):
     """
@@ -96,7 +103,6 @@ def filter_measurement_status(df,args):
     err_df.loc[:,'ERR'] = 'measurement_status'
     err_df.loc[:,'ERR_VALUE'] = err_df.loc[err_mask,col]
     err_df[args.config['err_cols']].to_csv(args.err_file, mode='a', index=False, header=False,sep="\t")
-
 
     return df[~err_mask]
     
@@ -141,6 +147,7 @@ def fix_na(df,args):
 
 
 def initialize_out_cols(df,args):
+    #Makes sure that the columns for output exist
     for col in args.config['out_cols'] + args.config['err_cols']:
         if col not in df.columns.tolist():
             df[col] = ""

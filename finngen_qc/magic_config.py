@@ -16,8 +16,8 @@ config = {
     # LIST OF OUTPUT COLUMNS TO INCLUDE (VALUES ABOVE PLUS NEWLY GENERATED COLUMNS)
     'out_cols' : ['FINREGISTRYID', 'LAB_DATE_TIME', 'LAB_SERVICE_PROVIDER', 'LAB_ID','LAB_ID_SOURCE','LAB_ABBREVIATION', 'LAB_VALUE', 'LAB_UNIT', 'LAB_ABNORMALITY', 'REFERENCE_VALUE_TEXT', 'MEASUREMENT_STATUS'],
     #REJECTION LINES
-    'NA_kws': ['Puuttuu','""',"TYHJÄ","_","NULL","-1"],
-    'NA_map' : {'LAB_VALUE':['Puuttuu','""',"TYHJÄ","_","NULL"]},
+    'NA_kws': ['Puuttuu','""',"TYHJÄ","_","NULL","-1"], # FOR ALL COLUMNS DEFAULT
+    'NA_map' : {'LAB_VALUE':['Puuttuu','""',"TYHJÄ","_","NULL"]}, #SPECIFIC COLUMN EXCEPTIONS
     # hetu_root required value
     'hetu_kw' : '1.2.246.21',
     # MEASUREMENT STATUS
