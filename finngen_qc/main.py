@@ -122,6 +122,9 @@ if __name__=='__main__':
     # setup error file
     args.err_file = os.path.join(args.out,f"{args.prefix}_err.txt")
     with open(args.err_file,'wt') as err:err.write('\t'.join(args.config['err_cols']) + '\n')
+    args.unit_file = os.path.join(args.out,f"{args.prefix}_unit.txt")
+    with open(args.unit_file,'wt') as unit:unit.write('\t'.join(['old_unit','new_unit']) + '\n')
+
     logger.info("START")
     
     if os.path.basename(args.raw_data) == "raw_data_test.txt":
