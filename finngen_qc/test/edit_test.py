@@ -58,6 +58,10 @@ random_idx = np.random.choice(df.index.values, size=int(df.index.size*.1), repla
 new_data = [elem + random.choice(values) for elem in df.loc[random_idx,col]]
 df.loc[random_idx,col] = new_data
 
+values = ["sudhe","lomake","liter","mmol","mol","inrarvo","kpl","arvio","umol","tilo","mg"]
+random_idx = np.random.choice(df.index.values, size=int(df.index.size*.8), replace=False)
+df.loc[random_idx,col] = np.random.choice(values,size = random_idx.size,replace=True) 
+
 
 col = 'tuloksenpoikkeavuus'
 values = ['A','AA','H','HH','L','N','NEG']
