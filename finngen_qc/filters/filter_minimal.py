@@ -1,4 +1,5 @@
 import pandas as pd
+import regex as re
 
 def filter_minimal(df,args):
     """
@@ -13,72 +14,74 @@ def filter_minimal(df,args):
         .pipe(filter_measurement_status,args)
         .pipe(lab_name_map,args)
         .pipe(get_lab_abbrv,args)
+        .pipe(get_service_provider_name,args)
+        .pipe(lab_unit_filter,args)
     )
     return df
 
+def unit_fixing(df,args):
+    """
+    Some fiddling with lab values units and stuff...
+    """
+    return df
 
+
+def regex_filter(df,args):
+    """
+    Should be just a cope paste of kira's python regex
+    """
+    return df
 
 def lab_unit_filter(df,args):
     '''
-    This fixes problematic chars in lab_unit value
-    lab_unit = remove_chars(lab_unit, ' ');
-    lab_unit = remove_chars(lab_unit, '_');
-    lab_unit = remove_chars(lab_unit, ',');
-    lab_unit = remove_chars(lab_unit, '.');
-    lab_unit = remove_chars(lab_unit, '-');
-    lab_unit = remove_chars(lab_unit, ')');
-    lab_unit = remove_chars(lab_unit, '(');
-    lab_unit = remove_chars(lab_unit, '{');
-    lab_unit = remove_chars(lab_unit, '}');
-    lab_unit = remove_chars(lab_unit, '\'');
-    lab_unit = remove_chars(lab_unit, '?');
-    lab_unit = remove_chars(lab_unit, '!');
+    Fixes strange characters in lab unit field
     '''
+    col = 'LAB_UNIT'
+    values = args.config['fix_units'][col]
+    regex = r'(' + '|'.join([re.escape(x) for x in values]) + r')'
+    df[col] = df[col].replace(regex,"",regex=True)
     return df
+
+
+def get_service_provider_name(df,args):
+    """
+    Updates LAB_SERVICE_PROVIDER based on mapping
+    """
+    df.loc[:,'LAB_SERVICE_PROVIDER'] = df.loc[:,"LAB_SERVICE_PROVIDER"].map(args.config['thl_sote_map'])
+    return df
+
 
 def get_lab_abbrv(df,args):
     """
-    if(lab_id_source == "0") {
-        lab_name = to_lower(lab_name);
-        lab_name = lab_name;
-        lab_abbrv = lab_name;
-    } else {
-        // Mapping lab IDs to abbreviations
-        if(thl_abbrv_map.find(lab_id) != thl_abbrv_map.end()) {
-            lab_abbrv = thl_abbrv_map[lab_id];
-        } else {
-            lab_abbrv = "NA";
-        }  
-    }  
-    return(lab_abbrv);
-
-    Looks like it assigns LAB_ABBREVIATION, keeping the name if source is local or mapping it if THL
+    get_lab_abbrv from Kira
+    It assigns LAB_ABBREVIATION, keeping the name if source is local or mapping it if THL
     N.B.LAB ABBREVIATION is already read on reading from paikallinentutkimusnimike (from config) so no need to create it, just update
     """
-    df['LAB_ABBREVIATION'] =df['LAB_ABBREVIATION'].str.lower()
+    col="LAB_ABBREVIATION"
+    
+    df[col] =df[col].str.lower().replace('"','')
+
     # now we need to update THL abbreviation from map
-
     # update values based on mapping
-    dd=args.config['thl_lab_map']
-    mask = df.LAB_ID_SOURCE != "0"
+    
     # map values with THL map if source is NOT local
-    df.loc[mask,'LAB_ABBREVIATION'] = df.loc[mask,"LAB_ID"].map(dd)
+    mask = df.LAB_ID_SOURCE != "0"
+    df.loc[mask,col] = df.loc[mask,"LAB_ID"].map(args.config['thl_lab_map'])
 
-    err_mask= df['LAB_ABBREVIATION'] =='MISSING'
+    # dump missing (?)
+    err_mask= df[col] =='MISSING'
     err_df = df[err_mask]
-    err_df.loc[:,'ERR'] = 'LAB_ABBREVIATION_missing'
+    err_df.loc[:,'ERR'] = 'col_missing'
     err_df.loc[:,'ERR_VALUE'] = err_df.loc[:,'LAB_ID']
     err_df[args.config['err_cols']].to_csv(args.err_file, mode='a', index=False, header=False,sep="\t")
 
+    
+    df[col] = df[col].str.replace('"', '')
     return df[~err_mask]
 
 def lab_name_map(df,args):
     """
-    Assings LAB_ID and LAB_ID_SOURCE to the DF
-    paikallinentutkimusnimikeid  --> std::string local_lab_abbrv = remove_chars(line_vec[31], ' ');
-    paikallinentutkimusnimike  --> std::string local_lab_id = remove_chars(line_vec[32], ' ');
-    laboratoriotutkimusoid --> std::string thl_lab_id = remove_chars(line_vec[0], ' ');
-
+    get_lab_id_and_source from Kira
     """
     # first assign local/finland wide THL id
     # initiate value as being valid and the THL id as being the laboratoriotutkimusoid

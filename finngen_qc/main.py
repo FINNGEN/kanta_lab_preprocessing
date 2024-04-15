@@ -7,15 +7,14 @@ from utils import file_exists,log_levels,configure_logging,make_sure_path_exists
 from magic_config import config
 from datetime import datetime
 from filters.filter_minimal import filter_minimal 
-
-
+from filters.lab_unit_regex import unit_fixing
 dir_path = os.path.dirname(os.path.realpath(__file__))
+
 
 def chunk_reader(raw_file,chunk_size,config):
     """
     Iterator that spews out chunks and exits early in case of test
     """
-    
     logger.debug(args.config['cols'])
     with pd.read_csv(raw_file, chunksize=chunk_size,sep="\t",dtype=str,usecols = args.config['cols']) as reader:
         for i,chunk in enumerate(reader):
@@ -25,7 +24,11 @@ def chunk_reader(raw_file,chunk_size,config):
 
 
 def all_filters(df,args):
-    df = df.pipe(filter_minimal,args)
+    df = (
+        df
+        .pipe(filter_minimal,args)
+        .pipe(unit_fixing,args)
+    )
     return df
 
 def write_chunk(df,i,args):
@@ -112,7 +115,9 @@ if __name__=='__main__':
     args.config['cols']  = list(config['rename_cols'].keys()) + config['other_cols']
     logger.debug(args.config)
 
-    args.config['thl_lab_map'] = read_thl_map(os.path.join(dir_path,args.config['thl_lab_map']))
+    args.config['thl_lab_map'] = read_thl_map(os.path.join(dir_path,args.config['thl_lab_map_file']),'MISSING')
+    args.config['thl_sote_map'] = read_thl_map(os.path.join(dir_path,args.config['thl_sote_map_file']),'NA')
+
     logger.debug(dict(list(args.config['thl_lab_map'].items())[0:2]))
     # setup error file
     args.err_file = os.path.join(args.out,f"{args.prefix}_err.txt")
