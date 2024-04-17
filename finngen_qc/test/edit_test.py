@@ -64,7 +64,7 @@ df.loc[random_idx,col] = np.random.choice(values,size = random_idx.size,replace=
 
 
 col = 'tuloksenpoikkeavuus'
-values = ['A','AA','H','HH','L','N','NEG']
+values = ['A','AA','H','HH','L','N','NEG','<','>','POS','NEG',"OTHER"]
 df.loc[:,col] = np.random.choice(values,size = df.index.size,replace=True)
 
 

@@ -25,7 +25,7 @@ config = {
     'thl_lab_map_file' : 'data/thl_lab_id_abbrv_map.tsv',
     'thl_sote_map_file' : 'data/thl_sote_map_named.tsv',
     'err_cols':['FINREGISTRYID','LAB_DATE_TIME','ERR','ERR_VALUE'],
-    'fix_units':{'LAB_UNIT':[' ','_',',','.','-','(',')','{','}',"\\",'?','!']},
+    'fix_units':{'LAB_UNIT':[' ','_',',','.','-','(',')','{','}',"\\",'?','!'],'LAB_ABNORMALITY':{'<':'L','>':'H',"POS":"A","NEG":"N"}},
     'unit_replacements' : [
         (r"(^\*+$|^$)","NA"),
         (r'(^(\b)?\d+(?=e\d+))',""),

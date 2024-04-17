@@ -7,7 +7,7 @@ from utils import file_exists,log_levels,configure_logging,make_sure_path_exists
 from magic_config import config
 from datetime import datetime
 from filters.filter_minimal import filter_minimal 
-from filters.lab_unit_regex import unit_fixing
+from filters.lab_unit import unit_fixing
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
 
