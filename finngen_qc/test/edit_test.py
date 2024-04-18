@@ -42,6 +42,32 @@ col='hetu_root'
 df =df.assign(hetu_root="1.2.246.21")
 df.loc[random_idx,col] = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(10))
 
+#UPDATE LAB PROVIDER
+lab_map=os.path.join(os.path.dirname(path),'data/thl_sote_map_named.tsv')
+with open(lab_map) as i:
+    lab_names=[elem.strip().split()[0] for elem in i.readlines()]
+
+random_idx = np.random.choice(df.index.values, size=int(df.index.size*.9), replace=False)
+df.loc[random_idx,'palveluntuottaja_organisaatio'] = np.random.choice(lab_names,size = random_idx.size,replace=True)
+
+
+
+col = 'tutkimustulosyksikko'
+values = [' ','_',',','.','-','(',')','{','}',"\\",'?','!']
+random_idx = np.random.choice(df.index.values, size=int(df.index.size*.1), replace=False)
+new_data = [elem + random.choice(values) for elem in df.loc[random_idx,col]]
+df.loc[random_idx,col] = new_data
+
+values = ["sudhe","lomake","liter","mmol","mol","inrarvo","kpl","arvio","umol","tilo","mg"]
+random_idx = np.random.choice(df.index.values, size=int(df.index.size*.8), replace=False)
+df.loc[random_idx,col] = np.random.choice(values,size = random_idx.size,replace=True) 
+
+
+col = 'tuloksenpoikkeavuus'
+values = ['A','AA','H','HH','L','N','NEG','<','>','POS','NEG',"OTHER"]
+df.loc[:,col] = np.random.choice(values,size = df.index.size,replace=True)
+
+
 # UPDATE MEASUREMENT STATUS
 print("measurement status")
 col='tutkimusvastauksentila'
@@ -51,6 +77,7 @@ df[col] = values
 
 # randomly replace
 # add random Puutttu values
+print('random missing')
 for col in df.columns:
     random_idx = np.random.choice(df.index.values, size=int(df.index.size/10), replace=False)
     rej_values = ['Puuttuu','""',"TYHJÄ","_","NULL","-1"] 
@@ -58,7 +85,7 @@ for col in df.columns:
     df.loc[random_idx,col] = random_values
 
     # randomly add whitespace
-    random_idx = np.random.choice(df.index.values, size=int(df.index.size/10), replace=False)
+    random_idx = np.random.choice(df.index.values, size=int(df.index.size/20), replace=False)
     v1,v2 = np.split(df.loc[random_idx,col].values,2)
     v1 = [" " +elem for elem in map(str,v1)]
     v2 = [elem + " " for elem in map(str,v2)]
