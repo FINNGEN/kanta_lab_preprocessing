@@ -58,14 +58,15 @@ def get_lab_abbrv(df,args):
     N.B.LAB ABBREVIATION is already read on reading from paikallinentutkimusnimike (from config) so no need to create it, just update
     """
     col="LAB_ABBREVIATION"
-    df[col] =df[col].str.lower().replace('"','')
+    #fix lab abbrevation in general before updated mapping
+    df[col] =df[col].str.lower()
 
     # update using lab_map dictionary in /data/   
     mask = df.LAB_ID_SOURCE != "0"
     df.loc[mask,col] = df.loc[mask,"LAB_ID"].map(args.config['thl_lab_map'])
-
+    # remove single quotes
     df[col] = df[col].str.replace('"', '')
-    return df[~err_mask]
+    return df
 
 def lab_name_map(df,args):
     """
