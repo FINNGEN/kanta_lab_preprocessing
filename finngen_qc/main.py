@@ -93,7 +93,7 @@ def main(args):
 if __name__=='__main__':
     
     parser=argparse.ArgumentParser(description="KANTA LAB preprocecssing/QC pipeline.")
-    parser.add_argument("--raw-data", type=file_exists, help =  "Path to input raw file", default = os.path.join(dir_path,"test","raw_data_test.txt"))
+    parser.add_argument("--raw-data", type=file_exists, help =  "Path to input raw file. File should be tsv.", default = os.path.join(dir_path,"test","raw_data_test.txt"))
     parser.add_argument("--log",  default="warning", choices = log_levels, help=(  "Provide logging level. Example --log debug', default='warning'"))
     parser.add_argument("--test",action='store_true',help="Reads first 1k lines only")
     parser.add_argument("--mp",action='store_true',help="Run multiproc")

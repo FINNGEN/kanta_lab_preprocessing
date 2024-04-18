@@ -54,17 +54,13 @@ def get_service_provider_name(df,args):
 def get_lab_abbrv(df,args):
     """
     get_lab_abbrv from Kira
-    It assigns LAB_ABBREVIATION, keeping the name if source is local or mapping it if THL
+    It assigns LAB_ABBREVIATION, keeping the local name if source is local (LAB_ID==0) or mapping it if source is THL (LAB_ID ==1)
     N.B.LAB ABBREVIATION is already read on reading from paikallinentutkimusnimike (from config) so no need to create it, just update
     """
     col="LAB_ABBREVIATION"
-    
     df[col] =df[col].str.lower().replace('"','')
 
-    # now we need to update THL abbreviation from map
-    # update values based on mapping
-    
-    # map values with THL map if source is NOT local
+    # update using lab_map dictionary in /data/   
     mask = df.LAB_ID_SOURCE != "0"
     df.loc[mask,col] = df.loc[mask,"LAB_ID"].map(args.config['thl_lab_map'])
 
@@ -81,18 +77,23 @@ def get_lab_abbrv(df,args):
 
 def lab_name_map(df,args):
     """
-    get_lab_id_and_source from Kira
-    """
-    # first assign local/finland wide THL id
-    # initiate value as being valid and the THL id as being the laboratoriotutkimusoid
-    df =df.assign(LAB_ID_SOURCE='1')
-    df['LAB_ID'] = df['laboratoriotutkimusoid']
+    1	laboratoriotutkimusnimikeid
+    11	laboratoriotutkimusoid
+    32	paikallinentutkimusnimike
+    33	paikallinentutkimusnimikeid
+    # from kira
+    std::string local_lab_abbrv = remove_chars(line_vec[31], ' ') --> paikallinentutkimusnimike
+    std::string local_lab_id = remove_chars(line_vec[32], ' ') -->    paikallinentutkimusnimikeid
+    std::string thl_lab_id = remove_chars(line_vec[0], ' ') -->       laboratoriotutkimusnimikeid
 
-    # if id is local assign local lab id
-    local_mask =  df['laboratoriotutkimusoid'] == 'NA'
+    In this function she uses local_lab_id and thl lab_id
+    """
+    # if id is local assign local lab id ekse assign national THL value
+    local_mask =  df['laboratoriotutkimusnimikeid'] == 'NA'
+    df.loc[~local_mask,"LAB_ID_SOURCE"] = "1"
+    df.loc[~local_mask,"LAB_ID"] = df.loc[local_mask,"laboratoriotutkimusnimikeid"]
     df.loc[local_mask,"LAB_ID_SOURCE"] = "0"
     df.loc[local_mask,"LAB_ID"] = df.loc[local_mask,"paikallinentutkimusnimikeid"]
-    
     return df
     
 def filter_measurement_status(df,args):
