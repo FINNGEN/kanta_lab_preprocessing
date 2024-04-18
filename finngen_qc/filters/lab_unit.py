@@ -6,6 +6,7 @@ def unit_fixing(df,args):
 
     df = (
         df
+        .pipe(lab_unit_filter,args)
         .pipe(regex_fix,args)
         .pipe(abnormality_fix,args)
         )
@@ -41,6 +42,16 @@ If the abbreviation is not one of these, it is replaced with NA.
     map_mask = ~df[col].isin(accepted_values)
     df.loc[map_mask,col] = "NA"
 
+    return df
+
+def lab_unit_filter(df,args):
+    '''
+    Fixes strange characters in lab unit field
+    '''
+    col = 'LAB_UNIT'
+    values = args.config['fix_units'][col]
+    regex = r'(' + '|'.join([re.escape(x) for x in values]) + r')'
+    df[col] = df[col].replace(regex,"",regex=True)
     return df
 
 

@@ -12,35 +12,13 @@ def filter_minimal(df,args):
         .pipe(fix_na,args)
         .pipe(filter_hetu,args)
         .pipe(filter_measurement_status,args)
-        .pipe(lab_name_map,args)
+        .pipe(lab_id_source,args)
         .pipe(get_lab_abbrv,args)
         .pipe(get_service_provider_name,args)
-        .pipe(lab_unit_filter,args)
+        
     )
     return df
 
-def unit_fixing(df,args):
-    """
-    Some fiddling with lab values units and stuff...
-    """
-    return df
-
-
-def regex_filter(df,args):
-    """
-    Should be just a cope paste of kira's python regex
-    """
-    return df
-
-def lab_unit_filter(df,args):
-    '''
-    Fixes strange characters in lab unit field
-    '''
-    col = 'LAB_UNIT'
-    values = args.config['fix_units'][col]
-    regex = r'(' + '|'.join([re.escape(x) for x in values]) + r')'
-    df[col] = df[col].replace(regex,"",regex=True)
-    return df
 
 
 def get_service_provider_name(df,args):
@@ -68,8 +46,9 @@ def get_lab_abbrv(df,args):
     df[col] = df[col].str.replace('"', '')
     return df
 
-def lab_name_map(df,args):
+def lab_id_source(df,args):
     """
+    # column idx/name mapping for kira's data
     1	laboratoriotutkimusnimikeid
     11	laboratoriotutkimusoid
     32	paikallinentutkimusnimike
@@ -79,14 +58,18 @@ def lab_name_map(df,args):
     std::string local_lab_id = remove_chars(line_vec[32], ' ') -->    paikallinentutkimusnimikeid
     std::string thl_lab_id = remove_chars(line_vec[0], ' ') -->       laboratoriotutkimusnimikeid
 
-    In this function she uses local_lab_id and thl lab_id
+    In this function she uses local_lab_id (paikallinentutkimusnimikeid)  and thl lab_id (laboratoriotutkimusnimikeid)
     """
     # if id is local assign local lab id ekse assign national THL value
     local_mask =  df['laboratoriotutkimusnimikeid'] == 'NA'
-    df.loc[~local_mask,"LAB_ID_SOURCE"] = "1"
-    df.loc[~local_mask,"LAB_ID"] = df.loc[local_mask,"laboratoriotutkimusnimikeid"]
     df.loc[local_mask,"LAB_ID_SOURCE"] = "0"
     df.loc[local_mask,"LAB_ID"] = df.loc[local_mask,"paikallinentutkimusnimikeid"]
+
+    # THL case
+    thl_mask = ~local_mask
+    df.loc[thl_mask,"LAB_ID_SOURCE"] = "1"
+    df.loc[thl_mask,"LAB_ID"] = df.loc[thl_mask,"laboratoriotutkimusnimikeid"]
+    
     return df
     
 def filter_measurement_status(df,args):
@@ -141,12 +124,10 @@ def fix_na(df,args):
     df[other_cols] = df[other_cols].replace(args.config['NA_kws'],"NA")
     return df
 
-
-
 def initialize_out_cols(df,args):
     #Makes sure that the columns for output exist
     for col in args.config['out_cols'] + args.config['err_cols']:
         if col not in df.columns.tolist():
-            df[col] = ""
+            df[col] = "NA"
             
     return df
