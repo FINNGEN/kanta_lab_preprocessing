@@ -29,7 +29,7 @@ The raw to output column mapping is as follows:
 |---------------------------------------------------------|----------------------|---------|
 | potilashenkilotunnus                                    | FINREGISTRYID        |         |
 | tutkimusaika                                            | LAB_DATE_TIME        |         |
-| palverluntuottaja_organisaatio                          | LAB_SERVICE_PROVIDER |         |
+| palveluntuottaja_organisaatio                           | LAB_SERVICE_PROVIDER |         |
 | paikallinentutkimusnimikeid,laboratoriotutkimusnimikeid | LAB_ID               |         |
 | paikallinentutkimusnimikeid,laboratoriotutkimusnimikeid | LAB_ID_SOURCE        |         |
 | paikallinentutkimusnimike (ONLY IF LOCAL)               | LAB_ABBREVIATION     |         |
