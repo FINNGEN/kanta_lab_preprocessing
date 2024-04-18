@@ -16,13 +16,12 @@ def filter_minimal(df,args):
         .pipe(lab_id_source,args)
         .pipe(get_lab_abbrv,args)
         .pipe(get_service_provider_name,args)
-        
     )
     return df
 
 def get_service_provider_name(df,args):
     """
-    Updates LAB_SERVICE_PROVIDER based on mapping
+    Updates LAB_SERVICE_PROVIDER based on mapping. NA is default
     """
     df.loc[:,'LAB_SERVICE_PROVIDER'] = df.loc[:,"LAB_SERVICE_PROVIDER"].map(args.config['thl_sote_map'])
     return df
@@ -30,19 +29,14 @@ def get_service_provider_name(df,args):
 
 def get_lab_abbrv(df,args):
     """
-    get_lab_abbrv from Kira
-    It assigns LAB_ABBREVIATION, keeping the local name if source is local (LAB_ID==0) or mapping it if source is THL (LAB_ID ==1)
+    It assigns LAB_ABBREVIATION, keeping the local name if source is local (LAB_ID==0) or mapping it if source is THL (LAB_ID ==1). If the value is missing from the mapping it will be mapped to NA
     N.B.LAB ABBREVIATION is already read on reading from paikallinentutkimusnimike (from config) so no need to create it, just update
     """
     col="LAB_ABBREVIATION"
-    #fix lab abbrevation in general before updated mapping
-    df[col] =df[col].str.lower()
-
-    # update using lab_map dictionary in /data/   
+    df[col] =df[col].str.lower()     #fix lab abbrevation in general before updated mapping
     mask = df.LAB_ID_SOURCE != "0"
     df.loc[mask,col] = df.loc[mask,"LAB_ID"].map(args.config['thl_lab_map'])
-    # remove single quotes
-    df[col] = df[col].str.replace('"', '')
+    df[col] = df[col].str.replace('"', '')     # remove single quotes
     return df
 
 def lab_id_source(df,args):
@@ -59,14 +53,10 @@ def lab_id_source(df,args):
 
     In this function she uses local_lab_id (paikallinentutkimusnimikeid)  and thl lab_id (laboratoriotutkimusnimikeid)
     """
-    # if id is local assign local lab id ekse assign national THL value
     
-    local_mask =  df['laboratoriotutkimusnimikeid'] == 'NA'
+    local_mask =  (df['laboratoriotutkimusnimikeid'] == 'NA')
     df["LAB_ID_SOURCE"] = np.where(local_mask,"0","1")
     df["LAB_ID"] = np.where(local_mask,df.paikallinentutkimusnimikeid,df.laboratoriotutkimusnimikeid)
-
-    #print(df[['LAB_ID_SOURCE',"LAB_ID","laboratoriotutkimusnimikeid","paikallinentutkimusnimikeid"]].value_counts().reset_index(name='count'))
-    #print(df[['LAB_ID_SOURCE',"LAB_ID","laboratoriotutkimusnimikeid","paikallinentutkimusnimikeid"]].value_counts().reset_index(name='count')['count'].sum(),len(df))
 
     return df
     
@@ -81,9 +71,7 @@ def filter_measurement_status(df,args):
     err_df.loc[:,'ERR'] = 'measurement_status'
     err_df.loc[:,'ERR_VALUE'] = err_df.loc[err_mask,col]
     err_df[args.config['err_cols']].to_csv(args.err_file, mode='a', index=False, header=False,sep="\t")
-
     return df[~err_mask]
-    
 
 def filter_hetu(df,args):
     """
@@ -94,10 +82,8 @@ def filter_hetu(df,args):
     err_df.loc[:,'ERR'] = 'hetu_root'
     err_df.loc[:,'ERR_VALUE'] = err_df.loc[:,'hetu_root']
     err_df[args.config['err_cols']].to_csv(args.err_file, mode='a', index=False, header=False,sep="\t")
-
     return df[~err_mask]
     
-
 def fix_na(df,args):
     """
     Fixes NAs across columns.
@@ -112,7 +98,6 @@ def fix_na(df,args):
     other_cols = df.columns.difference(exception_columns)
     df[other_cols] = df[other_cols].replace(args.config['NA_kws'],"NA")
 
-
     return df
 
 def remove_spaces(df):
@@ -125,7 +110,6 @@ def remove_spaces(df):
         df[col] = df[col].str.strip().fillna("NA")
 
     return df
-
 
 
 def initialize_out_cols(df,args):

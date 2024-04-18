@@ -7,7 +7,7 @@ def unit_fixing(df,args):
     df = (
         df
         .pipe(lab_unit_filter,args)
-        .pipe(regex_fix,args)
+        .pipe(lab_unit_regex,args)
         .pipe(abnormality_fix,args)
         )
     return df
@@ -44,6 +44,22 @@ If the abbreviation is not one of these, it is replaced with NA.
 
     return df
 
+
+def lab_unit_regex(df,args):
+
+    col ='LAB_UNIT'
+    # copy lab unit to new df before changing them
+    unit_df = df[[col]].copy()
+    for rep in args.config['unit_replacements']:
+        df[col] = df[col].replace(rep[0],rep[1],regex=True)
+
+    # LOG CHANGES
+    unit_df['new'] = df[col].copy()
+    unit_mask = (unit_df[col] != unit_df['new'])
+    unit_df[unit_mask][['LAB_UNIT','new']].to_csv(args.unit_file, mode='a', index=False, header=False,sep="\t")
+
+    return df
+
 def lab_unit_filter(df,args):
     '''
     Fixes strange characters in lab unit field
@@ -54,18 +70,3 @@ def lab_unit_filter(df,args):
     df[col] = df[col].replace(regex,"",regex=True)
     return df
 
-
-def regex_fix(df,args):
-
-    col ='LAB_UNIT'
-    replacements = args.config['unit_replacements']
-    unit_df = df[[col]].copy()
-    for rep in replacements:
-        df[col] = df[col].replace(rep[0],rep[1],regex=True)
-
-    # LOG CHANGES
-    unit_df['new'] = df[col].copy()
-    unit_mask = (unit_df[col] != unit_df['new'])
-    unit_df[unit_mask][['LAB_UNIT','new']].to_csv(args.unit_file, mode='a', index=False, header=False,sep="\t")
-
-    return df
