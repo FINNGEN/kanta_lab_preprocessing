@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 import re
 
 def filter_minimal(df,args):
@@ -18,8 +19,6 @@ def filter_minimal(df,args):
         
     )
     return df
-
-
 
 def get_service_provider_name(df,args):
     """
@@ -61,15 +60,14 @@ def lab_id_source(df,args):
     In this function she uses local_lab_id (paikallinentutkimusnimikeid)  and thl lab_id (laboratoriotutkimusnimikeid)
     """
     # if id is local assign local lab id ekse assign national THL value
-    local_mask =  df['laboratoriotutkimusnimikeid'] == 'NA'
-    df.loc[local_mask,"LAB_ID_SOURCE"] = "0"
-    df.loc[local_mask,"LAB_ID"] = df.loc[local_mask,"paikallinentutkimusnimikeid"]
-
-    # THL case
-    thl_mask = ~local_mask
-    df.loc[thl_mask,"LAB_ID_SOURCE"] = "1"
-    df.loc[thl_mask,"LAB_ID"] = df.loc[thl_mask,"laboratoriotutkimusnimikeid"]
     
+    local_mask =  df['laboratoriotutkimusnimikeid'] == 'NA'
+    df["LAB_ID_SOURCE"] = np.where(local_mask,"0","1")
+    df["LAB_ID"] = np.where(local_mask,df.paikallinentutkimusnimikeid,df.laboratoriotutkimusnimikeid)
+
+    #print(df[['LAB_ID_SOURCE',"LAB_ID","laboratoriotutkimusnimikeid","paikallinentutkimusnimikeid"]].value_counts().reset_index(name='count'))
+    #print(df[['LAB_ID_SOURCE',"LAB_ID","laboratoriotutkimusnimikeid","paikallinentutkimusnimikeid"]].value_counts().reset_index(name='count')['count'].sum(),len(df))
+
     return df
     
 def filter_measurement_status(df,args):
@@ -100,15 +98,6 @@ def filter_hetu(df,args):
     return df[~err_mask]
     
 
-def remove_spaces(df):
-    """
-    Trim whitespace from ends of each value across all series in dataframe
-    """
-    for col in df.columns:
-        df[col] = df[col].str.strip()
-    return df
-
-
 def fix_na(df,args):
     """
     Fixes NAs across columns.
@@ -122,7 +111,22 @@ def fix_na(df,args):
     #apply the basic one to all other columns
     other_cols = df.columns.difference(exception_columns)
     df[other_cols] = df[other_cols].replace(args.config['NA_kws'],"NA")
+
+
     return df
+
+def remove_spaces(df):
+    """
+    Trim whitespace from ends of each value across all series in dataframe.
+    In testing sometimes fields are empty strings, so I will replace those cases with NA. Gotta check if it's the case with real data too
+ 
+    """
+    for col in df.columns:
+        df[col] = df[col].str.strip().fillna("NA")
+
+    return df
+
+
 
 def initialize_out_cols(df,args):
     #Makes sure that the columns for output exist
