@@ -95,12 +95,12 @@ if __name__=='__main__':
     parser=argparse.ArgumentParser(description="KANTA LAB preprocecssing/QC pipeline.")
     parser.add_argument("--raw-data", type=file_exists, help =  "Path to input raw file", default = os.path.join(dir_path,"test","raw_data_test.txt"))
     parser.add_argument("--log",  default="warning", choices = log_levels, help=(  "Provide logging level. Example --log debug', default='warning'"))
-    parser.add_argument("--test",action='store_true')
-    parser.add_argument("--mp",action='store_true',help="run multiproc")
+    parser.add_argument("--test",action='store_true',help="Reads first 1k lines only")
+    parser.add_argument("--mp",action='store_true',help="Run multiproc")
 
-    parser.add_argument("--jobs",default = os.cpu_count(),type = int, help ="number of jobs to run in parallel")
-    parser.add_argument('-o',"--out",type = str, help = "Folder in which to save the results", default = os.getcwd())
-    parser.add_argument("--prefix",type=str,default="kanta")
+    parser.add_argument("--jobs",default = os.cpu_count(),type = int, help ="Number of jobs to run in parallel (default = cpu count)")
+    parser.add_argument('-o',"--out",type = str, help = "Folder in which to save the results (default = cwd)", default = os.getcwd())
+    parser.add_argument("--prefix",type=str,default="kanta",help = "Prefix of the out files (default = kanta)")
     parser.add_argument("--chunk-size",type=int,help="Number of rows to be processed by each chunk",default = 100)
     args = parser.parse_args()
 

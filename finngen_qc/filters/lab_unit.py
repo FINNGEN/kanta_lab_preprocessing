@@ -1,5 +1,5 @@
 import pandas as pd
-import regex as re
+import re
 
 
 def unit_fixing(df,args):

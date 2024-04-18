@@ -1,5 +1,5 @@
 import pandas as pd
-import regex as re
+import re
 
 def filter_minimal(df,args):
     """
