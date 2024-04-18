@@ -64,14 +64,6 @@ def get_lab_abbrv(df,args):
     mask = df.LAB_ID_SOURCE != "0"
     df.loc[mask,col] = df.loc[mask,"LAB_ID"].map(args.config['thl_lab_map'])
 
-    # dump missing (?)
-    err_mask= df[col] =='MISSING'
-    err_df = df[err_mask]
-    err_df.loc[:,'ERR'] = 'col_missing'
-    err_df.loc[:,'ERR_VALUE'] = err_df.loc[:,'LAB_ID']
-    err_df[args.config['err_cols']].to_csv(args.err_file, mode='a', index=False, header=False,sep="\t")
-
-    
     df[col] = df[col].str.replace('"', '')
     return df[~err_mask]
 

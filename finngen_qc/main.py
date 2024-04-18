@@ -115,7 +115,7 @@ if __name__=='__main__':
     args.config['cols']  = list(config['rename_cols'].keys()) + config['other_cols']
     logger.debug(args.config)
 
-    args.config['thl_lab_map'] = read_thl_map(os.path.join(dir_path,args.config['thl_lab_map_file']),'MISSING')
+    args.config['thl_lab_map'] = read_thl_map(os.path.join(dir_path,args.config['thl_lab_map_file']),'NA')
     args.config['thl_sote_map'] = read_thl_map(os.path.join(dir_path,args.config['thl_sote_map_file']),'NA')
 
     logger.debug(dict(list(args.config['thl_lab_map'].items())[0:2]))
