@@ -89,7 +89,6 @@ def fix_na(df,args):
     Fixes NAs across columns.
     -1 can be a valid entry for the actual result of the lab analysis so we need to skip that column
     """
-
     # get special exclusion values dictionary
     exception_columns = set(args.config['NA_map'].keys())
     for col in exception_columns:
@@ -97,7 +96,6 @@ def fix_na(df,args):
     #apply the basic one to all other columns
     other_cols = df.columns.difference(exception_columns)
     df[other_cols] = df[other_cols].replace(args.config['NA_kws'],"NA")
-
     return df
 
 def remove_spaces(df):
@@ -107,8 +105,7 @@ def remove_spaces(df):
  
     """
     for col in df.columns:
-        df[col] = df[col].str.strip().fillna("NA")
-
+        df[col] = df[col].str.strip().replace(r'\s', '', regex=True).fillna("NA")
     return df
 
 
@@ -117,5 +114,4 @@ def initialize_out_cols(df,args):
     for col in args.config['out_cols'] + args.config['err_cols']:
         if col not in df.columns.tolist():
             df[col] = "NA"
-            
     return df
