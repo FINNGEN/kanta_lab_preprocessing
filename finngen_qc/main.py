@@ -35,22 +35,23 @@ def result_iterator(args):
     """
     Regular result iterator that applies the filter to each args.chunk_size sized chunk
     """
+    logger.info("Running in single mode")
     for i,chunk in enumerate(chunk_reader(args.raw_data,args.chunk_size,args.config,args.sep)):
         df= all_filters(chunk,args)
         yield i,df,len(chunk)
 
 def result_iterator_multi(args):
     """
-    Multiproc result iterator. It reads in the raw file in args.jobs chunks of args.chunk_size each
+    Multiproc result iterator. It reads in the raw file in args.mp chunks of args.chunk_size each
     """
-    logger.info(f"Input path:{args.raw_data}")
+    logger.info(f"Running in multiproc mode using {args.mp} cpus")
     ctx = mp.get_context('spawn')
-    pool = ctx.Pool(args.jobs)
+    pool = ctx.Pool(args.mp)
     # get function with only df as input
     multi_func = partial(all_filters,args=args)
     # read in chunk and apply further split
-    chunk_size = int(args.chunk_size/args.jobs)
-    for i,chunks in enumerate(batched(chunk_reader(args.raw_data,chunk_size,args.config,args.sep),args.jobs)):
+    chunk_size = int(args.chunk_size/args.mp)
+    for i,chunks in enumerate(batched(chunk_reader(args.raw_data,chunk_size,args.config,args.sep),args.mp)):
         results = pool.imap(multi_func, chunks)
         df = pd.concat(list(results))
         size = np.sum([len(elem) for elem in chunks])
@@ -64,6 +65,7 @@ def main(args):
     size = 0
     start_time = datetime.now()
     note,lines = estimate_lines(args.raw_data)
+    logger.info(f"Input path:{args.raw_data}")
     logger.info(f"{lines} input lines {note}")
     for i,df,tmp_size in res_it(args):
         write_chunk(df,i,args.out_file,args.config['out_cols'],logger)
@@ -86,16 +88,15 @@ if __name__=='__main__':
     parser=argparse.ArgumentParser(description="KANTA LAB preprocecssing/QC pipeline.")
     parser.add_argument("--raw-data", type=file_exists, help =  "Path to input raw file. File should be tsv.", default = os.path.join(dir_path,"test","raw_data_test.txt"))
     parser.add_argument("--log",  default="warning", choices = log_levels, help=(  "Provide logging level. Example --log debug', default='warning'"))
-    parser.add_argument("--test",action='store_true',help="Reads first 1k lines only")
-    parser.add_argument("--mp",action='store_true',help="Run multiproc")
+    parser.add_argument("--test",action='store_true',help="Reads first chunk only")
+    parser.add_argument("--mp",default =0,const=os.cpu_count(),nargs='?',type = int, help ="Number of jobs to run in parallel (default is 0. If nothing is passed, it defaults the cpu count)")
 
-    parser.add_argument("--jobs",default = os.cpu_count(),type = int, help ="Number of jobs to run in parallel (default = cpu count)")
     parser.add_argument('-o',"--out",type = str, help = "Folder in which to save the results (default = cwd)", default = os.getcwd())
     parser.add_argument("--prefix",type=str,default="kanta",help = "Prefix of the out files (default = kanta)")
     parser.add_argument("--sep",type=str,default="\\t",help = "Separator (default tab)")
     parser.add_argument("--chunk-size",type=int,help="Number of rows to be processed by each chunk",default = 100)
     args = parser.parse_args()
-
+    
     make_sure_path_exists(args.out)
     # setup logging
     logger = logging.getLogger(__name__)
@@ -123,7 +124,7 @@ if __name__=='__main__':
         logger.warning("RUNNING IN TEST MODE")
 
     # make sure the chunk size is at least the size of the the jobs
-    args.chunk_size = max(args.chunk_size,args.jobs)
+    args.chunk_size = max(args.chunk_size,args.mp)
     args.out_file = os.path.join(args.out,f"{args.prefix}_munged.txt")
 
     main(args)

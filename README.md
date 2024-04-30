@@ -57,6 +57,36 @@ Possible other columns to include?
 
 The script reads in the data in chunks of  `--chunksize` length and it processes the lines with python's pandas. With the flag `--mp` and `--jobs` the script runs each chunk into other smaller subchunks in parallel (efficiency TBD). The [filter folder](/finngen_qc/filters/) contains separate scripts that perform conceptually separate tasks. Each of them contains a global function of the same name of the script that gathers all individual functions that populate the script. In this way we can easily compartmentalize the munging/qc and add new features.
 
+Usage:
+
+```
+usage: main.py [-h] [--raw-data RAW_DATA] [--log {critical,error,warn,warning,info,debug}] [--test] [--mp] [--jobs JOBS] [-o OUT] [--prefix PREFIX] [--sep SEP]
+               [--chunk-size CHUNK_SIZE]
+
+KANTA LAB preprocecssing/QC pipeline.
+
+options:
+  -h, --help            show this help message and exit
+  --raw-data RAW_DATA   Path to input raw file. File should be tsv.
+  --log {critical,error,warn,warning,info,debug}
+                        Provide logging level. Example --log debug', default='warning'
+  --test                Reads first chunk only
+  --mp                  Run multiproc
+  --jobs JOBS           Number of jobs to run in parallel (default = cpu count)
+  -o OUT, --out OUT     Folder in which to save the results (default = cwd)
+  --prefix PREFIX       Prefix of the out files (default = kanta)
+  --sep SEP             Separator (default tab)
+  --chunk-size CHUNK_SIZE
+                        Number of rows to be processed by each chunk
+
+```
+
+E.g.
+
+```
+python3 main.py --log info --chunk-size 100000 --mp --out /mnt/disks/data/kanta/results/ --raw-data /mnt/disks/data/kanta/tests/mock_full.txt.gz --prefix kanta_full_mock 
+```
+
 
 
 ## PRE-PROCECSSING STEPS
