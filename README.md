@@ -60,8 +60,7 @@ The script reads in the data in chunks of  `--chunksize` length and it processes
 Usage:
 
 ```
-usage: main.py [-h] [--raw-data RAW_DATA] [--log {critical,error,warn,warning,info,debug}] [--test] [--mp] [--jobs JOBS] [-o OUT] [--prefix PREFIX] [--sep SEP]
-               [--chunk-size CHUNK_SIZE]
+usage: main.py [-h] [--raw-data RAW_DATA] [--log {critical,error,warn,warning,info,debug}] [--test] [--mp [MP]] [-o OUT] [--prefix PREFIX] [--sep SEP] [--chunk-size CHUNK_SIZE]
 
 KANTA LAB preprocecssing/QC pipeline.
 
@@ -71,8 +70,8 @@ options:
   --log {critical,error,warn,warning,info,debug}
                         Provide logging level. Example --log debug', default='warning'
   --test                Reads first chunk only
-  --mp                  Run multiproc
-  --jobs JOBS           Number of jobs to run in parallel (default = cpu count)
+  --mp [MP]             Flag for multiproc. Default is 0 (no multiproc). If passed it defaults to cpu count, but one can also specify the number of cpus to use: e.g. --mp or --mp
+                        4
   -o OUT, --out OUT     Folder in which to save the results (default = cwd)
   --prefix PREFIX       Prefix of the out files (default = kanta)
   --sep SEP             Separator (default tab)
@@ -86,7 +85,6 @@ E.g.
 ```
 python3 main.py --log info --chunk-size 100000 --mp --out /mnt/disks/data/kanta/results/ --raw-data /mnt/disks/data/kanta/tests/mock_full.txt.gz --prefix kanta_full_mock 
 ```
-
 
 
 ## PRE-PROCECSSING STEPS
