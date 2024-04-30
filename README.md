@@ -94,3 +94,13 @@ Given the structure of the input data, we decided to do some preprocessing steps
 - Then we can sort by FINNGENID/DATE (should be doable in bash) and remove duplicates (~ 1/2 according to Kira)
 
 These steps are conceptually separate and should not interfere with the downstream analysis, but will help speed it up.
+
+
+## OMOP mapping (check)
+
+`omop_check.py` is meant to have a preview of the future OMOP mapping.
+It takes the mapping from [here](https://docs.google.com/spreadsheets/d/1Rw8TnYSN2n5JUz5QCMX1k-ZoAQM5XEd-zJuUbhRiMuk/edit?usp=sharing) and pretty much replicates the main script by only applying the omop mapping to the desired columns. It splits the inputs in:
+- [ROOT]_omop_success.txt
+- [ROOT]_omop_failed.txt
+
+with an added `OMOP_ID` column, which is `NA` for the failed file.

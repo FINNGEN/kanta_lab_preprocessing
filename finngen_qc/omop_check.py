@@ -35,39 +35,38 @@ def get_omop_mapping(args):
               'Lab test abbreviation' : "LAB_ABBREVIATION",
               'Lab test unit' : "LAB_UNIT",
               'OMOP Concept ID' : "OMOP_ID"}
-    
-    df = pd.read_csv(out_file,sep = '\t',dtype=str).rename(columns = rename)
-    return df
+      
+    return  pd.read_csv(out_file,sep = '\t',dtype=str).rename(columns = rename)
 
 
 def omop_map(chunk,omop_df):
     """
     Returns the data that is *not* mapped
     """
-    # merge keeping index values
     merged=pd.merge(chunk,omop_df,on=["LAB_ID",'LAB_ABBREVIATION','LAB_UNIT'],how='left').fillna("NA")
-    
     return merged
 
 def result_iterator(args):
     """
     Regular result iterator that applies the filter to each args.chunk_size sized chunk
     """
+    print("Running in single mode")
     for i,chunk in enumerate(chunk_reader(args.raw_data,args.chunk_size)):
         df= omop_map(chunk,args.omop_df)
         yield i,df,len(chunk)
 
 def result_iterator_multi(args):
     """
-    Multiproc result iterator. It reads in the raw file in args.jobs chunks of args.chunk_size each
+    Multiproc result iterator. It reads in the raw file in args.mp chunks of args.chunk_size each
     """
+    print(f"Running in multiproc mode using {args.mp} cpus")
     ctx = mp.get_context('spawn')
-    pool = ctx.Pool(args.jobs)
+    pool = ctx.Pool(args.mp)
     # get function with only df as input
     multi_func = partial(omop_map,omop_df = args.omop_df)
     # read in chunk and apply further split
-    chunk_size = int(args.chunk_size/args.jobs)
-    for i,chunks in enumerate(batched(chunk_reader(args.raw_data,chunk_size),args.jobs)):
+    chunk_size = int(args.chunk_size/args.mp)
+    for i,chunks in enumerate(batched(chunk_reader(args.raw_data,chunk_size),args.mp)):
         results = pool.imap(multi_func, chunks)
         df = pd.concat(list(results))
         size = np.sum([len(elem) for elem in chunks])
@@ -97,8 +96,7 @@ if __name__=='__main__':
     parser.add_argument("--test",action='store_true',help="Reads first 1k lines only")
     parser.add_argument("--chunk-size",type=int,help="Number of rows to be processed by each chunk",default = 1000)
     parser.add_argument("--prefix",type=str,help = "Prefix of the out files (default = root of raw file)")
-    parser.add_argument("--jobs",default = os.cpu_count(),type = int, help ="Number of jobs to run in parallel (default = cpu count)")
-    parser.add_argument("--mp",action='store_true',help="Run multiproc")
+    parser.add_argument("--mp",default =0,const=os.cpu_count(),nargs='?',type = int, help ="Flag for multiproc. Default is 0 (no multiproc). If passed it defaults to cpu count, but one can also specify the number of cpus to use: e.g. --mp or --mp 4")
 
 
     args = parser.parse_args()
@@ -106,7 +104,7 @@ if __name__=='__main__':
         args.out = os.path.dirname(os.path.realpath(args.raw_data))
     if not args.prefix:
         args.prefix = os.path.splitext(os.path.basename(args.raw_data))[0]
-    args.chunk_size = max(args.chunk_size,args.jobs)
+    args.chunk_size = max(args.chunk_size,args.mp)
     args.failed_file = os.path.join(args.out,args.prefix +"_omop_failed.txt")
     args.success_file = os.path.join(args.out,args.prefix +"_omop_success.txt")
     
