@@ -31,6 +31,7 @@ def all_filters(df,args):
     )
     return df
 
+
 def result_iterator(args):
     """
     Regular result iterator that applies the filter to each args.chunk_size sized chunk
@@ -71,6 +72,7 @@ def main(args):
         write_chunk(df,i,args.out_file,args.config['out_cols'],logger)
         size += tmp_size
         progressBar(size,lines)
+
 
     print('\nDone.')
 
@@ -125,7 +127,5 @@ if __name__=='__main__':
     # make sure the chunk size is at least the size of the the jobs
     args.chunk_size = max(args.chunk_size,args.mp)
     args.out_file = os.path.join(args.out,f"{args.prefix}_munged.txt")
-
-    main(args)
-        
+    main(args)    
     logger.info("END")

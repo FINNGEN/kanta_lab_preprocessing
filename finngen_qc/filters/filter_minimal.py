@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import re
 
+
 def filter_minimal(df,args):
     """
     This function collects all functions here
@@ -39,6 +40,7 @@ def get_lab_abbrv(df,args):
     df[col] = df[col].str.replace('"', '')     # remove single quotes
     return df
 
+
 def lab_id_source(df,args):
     """
     # column idx/name mapping for kira's data
@@ -57,7 +59,6 @@ def lab_id_source(df,args):
     local_mask =  (df['laboratoriotutkimusnimikeid'] == 'NA')
     df["LAB_ID_SOURCE"] = np.where(local_mask,"0","1")
     df["LAB_ID"] = np.where(local_mask,df.paikallinentutkimusnimikeid,df.laboratoriotutkimusnimikeid)
-
     return df
     
 def filter_measurement_status(df,args):
@@ -65,7 +66,6 @@ def filter_measurement_status(df,args):
     Here we remove values that are not in the accepted value list.
     """
     col,problematic_values=args.config['problematic_status']
-    
     err_mask = df[col].isin(problematic_values)
     err_df = df[err_mask]
     err_df.loc[:,'ERR'] = 'measurement_status'

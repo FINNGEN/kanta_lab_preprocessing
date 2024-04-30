@@ -3,7 +3,6 @@ from itertools import islice,zip_longest
 from collections import defaultdict as dd
 from functools import partial
 
-
 def mapcount(filename):
 
     if not os.path.isfile(filename):
@@ -13,7 +12,6 @@ def mapcount(filename):
     except:
         return 0
 
-    
 def estimate_lines(f):
     """ Estimate the number of lines in the given f(s) """
 
@@ -40,7 +38,6 @@ def count_lines(filename):
     '''
     Counts line in file
     '''
-    
     f = open(filename, "r+")
     buf = mmap.mmap(f.fileno(), 0)
     lines = 0
@@ -83,7 +80,6 @@ def batched(iterable, n):
         if not batch:
             return
         yield batch
-        
 
 
 def file_exists(fname):
