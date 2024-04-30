@@ -6,15 +6,16 @@ config = {
         'palveluntuottaja_organisaatio':  'LAB_SERVICE_PROVIDER',
         'paikallinentutkimusnimike':      'LAB_ABBREVIATION',
         'tutkimustulosarvo':              'LAB_VALUE',
-        'tutkimustulosyksikko':           'LAB_UNIT',
+        'tutkimustulosyksikkö':           'LAB_UNIT',
         'tuloksenpoikkeavuus':            'LAB_ABNORMALITY',
         'viitevaliteksti':                'REFERENCE_VALUE_TEXT',
         'tutkimusvastauksentila':         'MEASUREMENT_STATUS'
     },
     # ACCESSORY COLUMNS
-    'other_cols' : ['paikallinentutkimusnimikeid','laboratoriotutkimusnimikeid','laboratoriotutkimusoid','hetu_root'],
+    'other_cols' : ['paikallinentutkimusnimikeid','laboratoriotutkimusnimikeid','hetu_root'],
     # LIST OF OUTPUT COLUMNS TO INCLUDE (VALUES ABOVE PLUS NEWLY GENERATED COLUMNS)
     'out_cols' : ['FINREGISTRYID', 'LAB_DATE_TIME', 'LAB_SERVICE_PROVIDER', 'LAB_ID','LAB_ID_SOURCE','LAB_ABBREVIATION', 'LAB_VALUE', 'LAB_UNIT', 'LAB_ABNORMALITY', 'REFERENCE_VALUE_TEXT', 'MEASUREMENT_STATUS'],
+    'err_cols':['FINREGISTRYID','LAB_DATE_TIME','ERR','ERR_VALUE'],
     #REJECTION LINES
     'NA_kws': ['Puuttuu','""',"TYHJÄ","_","NULL","-1"], # FOR ALL COLUMNS DEFAULT
     'NA_map' : {'LAB_VALUE':['Puuttuu','""',"TYHJÄ","_","NULL"]}, #SPECIFIC COLUMN EXCEPTIONS
@@ -22,10 +23,12 @@ config = {
     'hetu_kw' : '1.2.246.21',
     # MEASUREMENT STATUS
     'problematic_status':  ('MEASUREMENT_STATUS',['K','W','X','I','D','P']),
+    # DEFAULT PATHS TO MAP FILES FOR LAB ABBREVIATIONS/ID
     'thl_lab_map_file' : 'data/thl_lab_id_abbrv_map.tsv',
     'thl_sote_map_file' : 'data/thl_sote_map_named.tsv',
-    'err_cols':['FINREGISTRYID','LAB_DATE_TIME','ERR','ERR_VALUE'],
+    # VALUES TO REMOVE/FIX FOR LAB UNIT/ABNORMALITY
     'fix_units':{'LAB_UNIT':[' ','_',',','.','-','(',')','{','}',"\\",'?','!'],'LAB_ABNORMALITY':{'<':'L','>':'H',"POS":"A","NEG":"N"}},
+    # BIG REGEX FOR LAB UNIT
     'unit_replacements' : [
         (r"(^\*+$|^$)","NA"),
         (r'(^(\b)?\d+(?=e\d+))',""),

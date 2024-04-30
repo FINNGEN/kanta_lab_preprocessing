@@ -1,12 +1,12 @@
 import pandas as pd
-import regex as re
-
+import re
 
 def unit_fixing(df,args):
 
     df = (
         df
-        .pipe(regex_fix,args)
+        .pipe(lab_unit_filter,args)
+        .pipe(lab_unit_regex,args)
         .pipe(abnormality_fix,args)
         )
     return df
@@ -44,12 +44,12 @@ If the abbreviation is not one of these, it is replaced with NA.
     return df
 
 
-def regex_fix(df,args):
+def lab_unit_regex(df,args):
 
     col ='LAB_UNIT'
-    replacements = args.config['unit_replacements']
+    # copy lab unit to new df before changing them
     unit_df = df[[col]].copy()
-    for rep in replacements:
+    for rep in args.config['unit_replacements']:
         df[col] = df[col].replace(rep[0],rep[1],regex=True)
 
     # LOG CHANGES
@@ -58,3 +58,14 @@ def regex_fix(df,args):
     unit_df[unit_mask][['LAB_UNIT','new']].to_csv(args.unit_file, mode='a', index=False, header=False,sep="\t")
 
     return df
+
+def lab_unit_filter(df,args):
+    '''
+    Fixes strange characters in lab unit field
+    '''
+    col = 'LAB_UNIT'
+    values = args.config['fix_units'][col]
+    regex = r'(' + '|'.join([re.escape(x) for x in values]) + r')'
+    df[col] = df[col].replace(regex,"",regex=True)
+    return df
+

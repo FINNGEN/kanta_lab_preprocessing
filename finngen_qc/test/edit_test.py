@@ -28,6 +28,8 @@ with open(lab_map) as i:
 
 random_idx = np.random.choice(df.index.values, size=int(df.index.size*.9), replace=False)
 df.loc[random_idx,'laboratoriotutkimusoid'] = np.random.choice(lab_names,size = random_idx.size,replace=True)
+random_idx = np.random.choice(df.index.values, size=int(df.index.size*.9), replace=False)
+df.loc[random_idx,'laboratoriotutkimusnimikeid'] = np.random.choice(lab_names,size = random_idx.size,replace=True)
 
 
 #GENERATE 100 samples IDS
@@ -48,7 +50,7 @@ with open(lab_map) as i:
     lab_names=[elem.strip().split()[0] for elem in i.readlines()]
 
 random_idx = np.random.choice(df.index.values, size=int(df.index.size*.9), replace=False)
-df.loc[random_idx,'palveluntuottaja_organisaatio'] = np.random.choice(lab_names,size = random_idx.size,replace=True)
+df.loc[random_idx,'palvelutuottaja_organisaatio'] = np.random.choice(lab_names,size = random_idx.size,replace=True)
 
 
 

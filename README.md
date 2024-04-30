@@ -29,7 +29,7 @@ The raw to output column mapping is as follows:
 |---------------------------------------------------------|----------------------|---------|
 | potilashenkilotunnus                                    | FINREGISTRYID        |         |
 | tutkimusaika                                            | LAB_DATE_TIME        |         |
-| palverluntuottaja_organisaatio                          | LAB_SERVICE_PROVIDER |         |
+| palveluntuottaja_organisaatio                           | LAB_SERVICE_PROVIDER |         |
 | paikallinentutkimusnimikeid,laboratoriotutkimusnimikeid | LAB_ID               |         |
 | paikallinentutkimusnimikeid,laboratoriotutkimusnimikeid | LAB_ID_SOURCE        |         |
 | paikallinentutkimusnimike (ONLY IF LOCAL)               | LAB_ABBREVIATION     |         |
@@ -57,6 +57,34 @@ Possible other columns to include?
 
 The script reads in the data in chunks of  `--chunksize` length and it processes the lines with python's pandas. With the flag `--mp` and `--jobs` the script runs each chunk into other smaller subchunks in parallel (efficiency TBD). The [filter folder](/finngen_qc/filters/) contains separate scripts that perform conceptually separate tasks. Each of them contains a global function of the same name of the script that gathers all individual functions that populate the script. In this way we can easily compartmentalize the munging/qc and add new features.
 
+Usage:
+
+```
+usage: main.py [-h] [--raw-data RAW_DATA] [--log {critical,error,warn,warning,info,debug}] [--test] [--mp [MP]] [-o OUT] [--prefix PREFIX] [--sep SEP] [--chunk-size CHUNK_SIZE]
+
+KANTA LAB preprocecssing/QC pipeline.
+
+options:
+  -h, --help            show this help message and exit
+  --raw-data RAW_DATA   Path to input raw file. File should be tsv.
+  --log {critical,error,warn,warning,info,debug}
+                        Provide logging level. Example --log debug', default='warning'
+  --test                Reads first chunk only
+  --mp [MP]             Flag for multiproc. Default is 0 (no multiproc). If passed it defaults to cpu count, but one can also specify the number of cpus to use: e.g. --mp or --mp
+                        4
+  -o OUT, --out OUT     Folder in which to save the results (default = cwd)
+  --prefix PREFIX       Prefix of the out files (default = kanta)
+  --sep SEP             Separator (default tab)
+  --chunk-size CHUNK_SIZE
+                        Number of rows to be processed by each chunk
+
+```
+
+E.g.
+
+```
+python3 main.py --log info --chunk-size 100000 --mp --out /mnt/disks/data/kanta/results/ --raw-data /mnt/disks/data/kanta/tests/mock_full.txt.gz --prefix kanta_full_mock 
+```
 
 
 ## PRE-PROCECSSING STEPS
@@ -66,3 +94,21 @@ Given the structure of the input data, we decided to do some preprocessing steps
 - Then we can sort by FINNGENID/DATE (should be doable in bash) and remove duplicates (~ 1/2 according to Kira)
 
 These steps are conceptually separate and should not interfere with the downstream analysis, but will help speed it up.
+
+
+## OMOP mapping (check)
+
+`omop_check.py` is meant to have a preview of the future OMOP mapping.
+It takes the mapping from [here](https://docs.google.com/spreadsheets/d/1Rw8TnYSN2n5JUz5QCMX1k-ZoAQM5XEd-zJuUbhRiMuk/edit?usp=sharing) and pretty much replicates the main script by only applying the omop mapping to the desired columns. It splits the inputs in:
+- [ROOT]_omop_success.txt
+- [ROOT]_omop_failed.txt
+
+with an added `OMOP_ID` column, which is `NA` for the failed file.
+
+
+The usage is similar to the main script:
+```
+python3 ~/Dropbox/Projects/kanta_lab_preprocessing/finngen_qc/omop_check.py  --raw-data /mnt/disks/data/kanta/results/kanta_1M_munged.txt --chunk-size 320000 --mp
+```
+
+It will default produce the outputs in the same director of the input file and with the same prefix. Both parameters can be changed.

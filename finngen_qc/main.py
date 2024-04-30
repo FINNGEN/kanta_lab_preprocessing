@@ -3,7 +3,7 @@ import argparse,logging,os
 from functools import partial
 import multiprocessing as mp
 import numpy as np
-from utils import file_exists,log_levels,configure_logging,make_sure_path_exists,progressBar,batched,mapcount,read_thl_map
+from utils import file_exists,log_levels,configure_logging,make_sure_path_exists,progressBar,batched,mapcount,read_thl_map,estimate_lines,write_chunk
 from magic_config import config
 from datetime import datetime
 from filters.filter_minimal import filter_minimal 
@@ -11,12 +11,12 @@ from filters.lab_unit import unit_fixing
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
 
-def chunk_reader(raw_file,chunk_size,config):
+def chunk_reader(raw_file,chunk_size,config,separator):
     """
     Iterator that spews out chunks and exits early in case of test
     """
     logger.debug(args.config['cols'])
-    with pd.read_csv(raw_file, chunksize=chunk_size,sep="\t",dtype=str,usecols = args.config['cols']) as reader:
+    with pd.read_csv(raw_file, chunksize=chunk_size,sep=separator,dtype=str,usecols = args.config['cols'],engine='python') as reader:
         for i,chunk in enumerate(reader):
             if args.test and i==1:
                 break
@@ -31,37 +31,28 @@ def all_filters(df,args):
     )
     return df
 
-def write_chunk(df,i,args):
-    # write header for first chunk along with df and print some info
-    mode,header ='a',False
-    # write header and create new file if it's first chunk
-    if i ==0:
-        logger.debug(df.head())
-        mode = 'w'
-        header = True
-
-    df[args.config['out_cols']].to_csv(args.out_file, mode=mode, index=False, header=header,sep="\t")
 
 def result_iterator(args):
     """
     Regular result iterator that applies the filter to each args.chunk_size sized chunk
     """
-    for i,chunk in enumerate(chunk_reader(args.raw_data,args.chunk_size,args.config)):
+    logger.info("Running in single mode")
+    for i,chunk in enumerate(chunk_reader(args.raw_data,args.chunk_size,args.config,args.sep)):
         df= all_filters(chunk,args)
         yield i,df,len(chunk)
 
 def result_iterator_multi(args):
     """
-    Multiproc result iterator. It reads in the raw file in args.jobs chunks of args.chunk_size each
+    Multiproc result iterator. It reads in the raw file in args.mp chunks of args.chunk_size each
     """
-    logger.info(f"Input path:{args.raw_data}")
+    logger.info(f"Running in multiproc mode using {args.mp} cpus")
     ctx = mp.get_context('spawn')
-    pool = ctx.Pool(args.jobs)
+    pool = ctx.Pool(args.mp)
     # get function with only df as input
     multi_func = partial(all_filters,args=args)
     # read in chunk and apply further split
-    chunk_size = int(args.chunk_size/args.jobs)
-    for i,chunks in enumerate(batched(chunk_reader(args.raw_data,chunk_size,args.config),args.jobs)):
+    chunk_size = int(args.chunk_size/args.mp)
+    for i,chunks in enumerate(batched(chunk_reader(args.raw_data,chunk_size,args.config,args.sep),args.mp)):
         results = pool.imap(multi_func, chunks)
         df = pd.concat(list(results))
         size = np.sum([len(elem) for elem in chunks])
@@ -74,10 +65,14 @@ def main(args):
     res_it = result_iterator_multi if args.mp else result_iterator
     size = 0
     start_time = datetime.now()
+    note,lines = estimate_lines(args.raw_data)
+    logger.info(f"Input path:{args.raw_data}")
+    logger.info(f"{lines} input lines {note}")
     for i,df,tmp_size in res_it(args):
-        write_chunk(df,i,args)
+        write_chunk(df,i,args.out_file,args.config['out_cols'],logger)
         size += tmp_size
-        progressBar(str(size))
+        progressBar(size,lines)
+
 
     print('\nDone.')
 
@@ -93,17 +88,16 @@ def main(args):
 if __name__=='__main__':
     
     parser=argparse.ArgumentParser(description="KANTA LAB preprocecssing/QC pipeline.")
-    parser.add_argument("--raw-data", type=file_exists, help =  "Path to input raw file", default = os.path.join(dir_path,"test","raw_data_test.txt"))
+    parser.add_argument("--raw-data", type=file_exists, help =  "Path to input raw file. File should be tsv.", default = os.path.join(dir_path,"test","raw_data_test.txt"))
     parser.add_argument("--log",  default="warning", choices = log_levels, help=(  "Provide logging level. Example --log debug', default='warning'"))
-    parser.add_argument("--test",action='store_true')
-    parser.add_argument("--mp",action='store_true',help="run multiproc")
-
-    parser.add_argument("--jobs",default = os.cpu_count(),type = int, help ="number of jobs to run in parallel")
-    parser.add_argument('-o',"--out",type = str, help = "Folder in which to save the results", default = os.getcwd())
-    parser.add_argument("--prefix",type=str,default="kanta")
+    parser.add_argument("--test",action='store_true',help="Reads first chunk only")
+    parser.add_argument("--mp",default =0,const=os.cpu_count(),nargs='?',type = int, help ="Flag for multiproc. Default is 0 (no multiproc). If passed it defaults to cpu count, but one can also specify the number of cpus to use: e.g. --mp or --mp 4")
+    parser.add_argument('-o',"--out",type = str, help = "Folder in which to save the results (default = cwd)", default = os.getcwd())
+    parser.add_argument("--prefix",type=str,default="kanta",help = "Prefix of the out files (default = kanta)")
+    parser.add_argument("--sep",type=str,default="\\t",help = "Separator (default tab)")
     parser.add_argument("--chunk-size",type=int,help="Number of rows to be processed by each chunk",default = 100)
     args = parser.parse_args()
-
+    
     make_sure_path_exists(args.out)
     # setup logging
     logger = logging.getLogger(__name__)
@@ -115,7 +109,7 @@ if __name__=='__main__':
     args.config['cols']  = list(config['rename_cols'].keys()) + config['other_cols']
     logger.debug(args.config)
 
-    args.config['thl_lab_map'] = read_thl_map(os.path.join(dir_path,args.config['thl_lab_map_file']),'MISSING')
+    args.config['thl_lab_map'] = read_thl_map(os.path.join(dir_path,args.config['thl_lab_map_file']),'NA')
     args.config['thl_sote_map'] = read_thl_map(os.path.join(dir_path,args.config['thl_sote_map_file']),'NA')
 
     logger.debug(dict(list(args.config['thl_lab_map'].items())[0:2]))
@@ -131,9 +125,7 @@ if __name__=='__main__':
         logger.warning("RUNNING IN TEST MODE")
 
     # make sure the chunk size is at least the size of the the jobs
-    args.chunk_size = max(args.chunk_size,args.jobs)
+    args.chunk_size = max(args.chunk_size,args.mp)
     args.out_file = os.path.join(args.out,f"{args.prefix}_munged.txt")
-
-    main(args)
-        
+    main(args)    
     logger.info("END")

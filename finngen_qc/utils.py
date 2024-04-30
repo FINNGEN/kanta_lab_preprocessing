@@ -1,8 +1,7 @@
-import os,logging,sys,errno
+import os,logging,sys,errno,gzip,mmap,math
 from itertools import islice,zip_longest
 from collections import defaultdict as dd
 from functools import partial
-import mmap
 
 def mapcount(filename):
 
@@ -12,7 +11,29 @@ def mapcount(filename):
         return count_lines(filename)
     except:
         return 0
-    
+
+def estimate_lines(f):
+    """ Estimate the number of lines in the given f(s) """
+
+
+    # Get total size of all fs
+    LEARN_SIZE = int(math.pow(2,18))                                     
+    size = os.path.getsize(f)
+    open_func = gzip.open if f.endswith('.gz') else open
+    if size > 1000000000 or f.endswith('.gz') :
+        with open_func(f, 'rb') as i:
+            buf = i.read(LEARN_SIZE)
+            size /= (len(buf) // buf.count(b'\n'))
+        om = math.floor(math.log(size, 10))
+        note = 'estimated'
+        size = math.pow(10,om+1)
+    else:
+        note = 'exact'
+        size = mapcount(f)
+    return note,int(size)
+
+
+
 def count_lines(filename):
     '''
     Counts line in file
@@ -25,6 +46,18 @@ def count_lines(filename):
         lines += 1
     return lines
 
+
+def progressBar(value, endvalue, bar_length=20):
+    '''
+    Writes progress bar, given value (eg.current row) and endvalue(eg. total number of rows)
+    '''
+
+    percent = float(value) / endvalue
+    arrow = '-' * int(round(percent * bar_length)-1) + '>'
+    spaces = ' ' * (bar_length - len(arrow))
+
+    sys.stdout.write("\rPercent: [{0}] {1}%".format(arrow + spaces, int(round(percent * 100))))
+    sys.stdout.flush()
 
 # you need to definte it like this or the defaultdict is not pickable and multiprocessing can't use it
 def thl_default_(value):return value
@@ -47,14 +80,6 @@ def batched(iterable, n):
         if not batch:
             return
         yield batch
-        
-def progressBar(value, bar_length=20):
-    '''
-    Writes progress bar, given value (eg.current row) and endvalue(eg. total number of rows)
-    '''
-    spaces = ' ' * (bar_length - len(value))
-    sys.stdout.write("\rLines Processed: {0}".format(value + spaces))
-    sys.stdout.flush()
 
 
 def file_exists(fname):
@@ -98,3 +123,17 @@ def configure_logging(logger,log_level,log_file):
     fh.setLevel(logging.DEBUG)
     fh.setFormatter(formatter)
     logger.addHandler(fh)
+
+
+
+def write_chunk(df,i,out_file,out_cols,logger = None):
+    # write header for first chunk along with df and print some info
+    mode,header ='a',False
+    # write header and create new file if it's first chunk
+    if i ==0:
+        if logger:
+            logger.debug(df.head())
+        mode = 'w'
+        header = True
+
+    df[out_cols].to_csv(out_file, mode=mode, index=False, header=header,sep="\t")
