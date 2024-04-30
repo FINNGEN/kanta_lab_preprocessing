@@ -104,3 +104,11 @@ It takes the mapping from [here](https://docs.google.com/spreadsheets/d/1Rw8TnYS
 - [ROOT]_omop_failed.txt
 
 with an added `OMOP_ID` column, which is `NA` for the failed file.
+
+
+The usage is similar to the main script:
+```
+python3 ~/Dropbox/Projects/kanta_lab_preprocessing/finngen_qc/omop_check.py  --raw-data /mnt/disks/data/kanta/results/kanta_1M_munged.txt --chunk-size 320000 --mp
+```
+
+It will default produce the outputs in the same director of the input file and with the same prefix. Both parameters can be changed.
