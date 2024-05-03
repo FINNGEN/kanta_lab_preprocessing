@@ -16,6 +16,14 @@ def chunk_reader(raw_file,chunk_size,config,separator):
     Iterator that spews out chunks and exits early in case of test
     """
     logger.debug(args.config['cols'])
+
+    # TODO(Vincent 2024-05-03)
+    # Set engine='pyarrow' to enable faster parsing on multicore machines.
+    # It is currently not feature complete and is still experimental.
+    # For example, it currently doesn't support the 'chunksize' option.
+    #
+    # More info:
+    # https://pandas.pydata.org/pandas-docs/stable/whatsnew/v1.4.0.html#multi-threaded-csv-reading-with-a-new-csv-engine-based-on-pyarrow
     with pd.read_csv(raw_file, chunksize=chunk_size,sep=separator,dtype=str,usecols = args.config['cols'],engine='python') as reader:
         for i,chunk in enumerate(reader):
             if args.test and i==1:
@@ -57,6 +65,41 @@ def result_iterator_multi(args):
         df = pd.concat(list(results))
         size = np.sum([len(elem) for elem in chunks])
         yield i,df,size
+
+
+def setup_pandas():
+    """
+    Enable some pandas options for future-proofness and better performance.
+    """
+
+    # Strings backed by PyArrow instead of numpy will become a default in pandas 3.0.
+    # PyArrow strings improve performances.
+    #
+    # More info about this change:
+    # https://pandas.pydata.org/pandas-docs/stable/whatsnew/v2.2.0.html#dedicated-string-data-type-backed-by-arrow-by-default
+    #
+    # TODO(Vincent 2024-05-03) Remove explicitely setting this option once we have pandas 3.0 as a requirement.
+    pd.options.future.infer_string = True
+
+    # Silent downcasting will be removed in pandas 3.0
+    # TODO(Vincent 2024-05-03) Remove explicitely setting this option once we have pandas 3.0 as a requirement.
+    pd.options.future.no_silent_downcasting = True
+
+    # Copy-on-write (CoW) will be the default in pandas 3.0, set it now to be
+    # future-proof.
+    # It's easy to make mistake by updating a dataframe that is based on
+    # another one. CoW prevents these mistakes.
+    # This option enables raising an error if using soon-to-be-deprecated chained assignments.
+    #
+    # More info about the introduction of the setting:
+    # https://pandas.pydata.org/pandas-docs/stable/whatsnew/v2.2.0.html#copy-on-write
+    #
+    # More info about pandas CoW in general:
+    # https://pandas.pydata.org/pandas-docs/stable/user_guide/copy_on_write.html
+    #
+    # TODO(Vincent 2024-05-03) Remove explicitely setting this option once we have pandas 3.0 as a requirement.
+    pd.options.mode.copy_on_write = True
+
 
 def main(args):
     """
@@ -127,5 +170,9 @@ if __name__=='__main__':
     # make sure the chunk size is at least the size of the the jobs
     args.chunk_size = max(args.chunk_size,args.mp)
     args.out_file = os.path.join(args.out,f"{args.prefix}_munged.txt")
+
+    # Setup pandas
+    setup_pandas()
+
     main(args)    
     logger.info("END")
