@@ -130,15 +130,15 @@ def main(args):
     
 if __name__=='__main__':
     
-    parser=argparse.ArgumentParser(description="KANTA LAB preprocecssing/QC pipeline.")
-    parser.add_argument("--raw-data", type=file_exists, help =  "Path to input raw file. File should be tsv.", default = os.path.join(dir_path,"test","raw_data_test.txt"))
-    parser.add_argument("--log",  default="warning", choices = log_levels, help=(  "Provide logging level. Example --log debug', default='warning'"))
-    parser.add_argument("--test",action='store_true',help="Reads first chunk only")
-    parser.add_argument("--mp",default =0,const=os.cpu_count(),nargs='?',type = int, help ="Flag for multiproc. Default is 0 (no multiproc). If passed it defaults to cpu count, but one can also specify the number of cpus to use: e.g. --mp or --mp 4")
-    parser.add_argument('-o',"--out",type = str, help = "Folder in which to save the results (default = cwd)", default = os.getcwd())
-    parser.add_argument("--prefix",type=str,default="kanta",help = "Prefix of the out files (default = kanta)")
-    parser.add_argument("--sep",type=str,default="\\t",help = "Separator (default tab)")
-    parser.add_argument("--chunk-size",type=int,help="Number of rows to be processed by each chunk",default = 100)
+    parser=argparse.ArgumentParser(description="Kanta Lab preprocessing pipeline: raw data ⇒ clean data.")
+    parser.add_argument("--raw-data", type=file_exists, help="Path to input raw file. File should be tsv.", default=os.path.join(dir_path, "test", "raw_data_test.txt"))
+    parser.add_argument("--log", default="warning", choices=log_levels, help="Provide logging level. Example '--log debug', default = 'warning'")
+    parser.add_argument("--test", action='store_true', help="Reads first chunk only")
+    parser.add_argument("--mp", default=0, const=os.cpu_count(), nargs='?', type=int, help="Flag for multiproc. Default is '0' (no multiproc). If passed it defaults to cpu count, but one can also specify the number of cpus to use: e.g. '--mp' or '--mp 4'.")
+    parser.add_argument('-o', "--out", type=str, help="Folder in which to save the results (default = current working directory)", default=os.getcwd())
+    parser.add_argument("--prefix", type=str, default="kanta", help="Prefix of the out files (default = 'kanta')")
+    parser.add_argument("--sep", type=str, default="\\t", help="Separator (default = tab)")
+    parser.add_argument("--chunk-size", type=int, help="Number of rows to be processed by each chunk (default = '100').", default=100)
     args = parser.parse_args()
     
     make_sure_path_exists(args.out)
