@@ -4,46 +4,46 @@ find_suspicious_entryoids: bin/find_suspicious_entryoids.o bin/file_helpers.o bi
 	g++ $(FLAGS) bin/find_suspicious_entryoids.o bin/file_helpers.o bin/string_helpers.o bin/minimal_utils.o -o ../upload/exec/find_suspicious_entryoids
 
 bin/find_suspicious_entryoids.o: src/minimal/find_suspicious_entryoids.cpp
-	$(info Buildung Main minimal...)  g++ -c $(FLAGS) -o bin/find_suspicious_entryoids.o src/minimal/find_suspicious_entryoids.cpp
+	$(info Building Main minimal...)  g++ -c $(FLAGS) -o bin/find_suspicious_entryoids.o src/minimal/find_suspicious_entryoids.cpp
 
 filter_suspicious_entryoids: bin/filter_suspicious_entryoids.o bin/file_helpers.o bin/string_helpers.o  bin/minimal_utils.o
 	g++ $(FLAGS) bin/filter_suspicious_entryoids.o bin/file_helpers.o bin/string_helpers.o bin/minimal_utils.o -o ../upload/exec/filter_suspicious_entryoids
 
 bin/filter_suspicious_entryoids.o: src/minimal/filter_suspicious_entryoids.cpp
-	$(info Buildung Main minimal...)  g++ -c $(FLAGS) -o bin/filter_suspicious_entryoids.o src/minimal/filter_suspicious_entryoids.cpp
+	$(info Building Main minimal...)  g++ -c $(FLAGS) -o bin/filter_suspicious_entryoids.o src/minimal/filter_suspicious_entryoids.cpp
 
 transform: bin/transform.o bin/file_helpers.o bin/string_helpers.o  bin/minimal_utils.o
 	g++ $(FLAGS) bin/transform.o bin/file_helpers.o bin/string_helpers.o bin/minimal_utils.o -o ../upload/exec/transform
 
 bin/transform.o: src/transform.cpp
-	$(info Buildung Main minimal...)  g++ -c $(FLAGS) -o bin/transform.o src/transform.cpp
+	$(info Building Main minimal...)  g++ -c $(FLAGS) -o bin/transform.o src/transform.cpp
 
 ## Minimal
 minimal: bin/minimal_main.o bin/file_helpers.o bin/string_helpers.o  bin/minimal_utils.o
 	g++ $(FLAGS) bin/minimal_main.o bin/file_helpers.o bin/string_helpers.o bin/minimal_utils.o -o ../upload/exec/minimal
 
 bin/minimal_main.o: src/minimal/minimal_main.cpp
-	$(info Buildung Main minimal...)  g++ -c $(FLAGS) -o bin/minimal_main.o src/minimal/minimal_main.cpp
+	$(info Building Main minimal...)  g++ -c $(FLAGS) -o bin/minimal_main.o src/minimal/minimal_main.cpp
 
 bin/minimal_utils.o: src/minimal/minimal_utils.cpp
-	$(info Buildung Main minimal...)  g++ -c $(FLAGS) -o bin/minimal_utils.o src/minimal/minimal_utils.cpp
+	$(info Building Main minimal...)  g++ -c $(FLAGS) -o bin/minimal_utils.o src/minimal/minimal_utils.cpp
 
 ## Mapping OMOP
 map_omop: bin/main_map_omop.o bin/file_helpers.o bin/string_helpers.o bin/map_omop_utils.o 
 	g++ $(FLAGS) bin/main_map_omop.o bin/file_helpers.o bin/string_helpers.o bin/map_omop_utils.o -o ../upload/exec/map_omop
 
 bin/main_map_omop.o: src/map_omop/map_omop_main.cpp
-	$(info Buildung Main map_omop...)  g++ -c $(FLAGS) -o bin/main_map_omop.o src/map_omop/map_omop_main.cpp 
+	$(info Building Main map_omop...)  g++ -c $(FLAGS) -o bin/main_map_omop.o src/map_omop/map_omop_main.cpp 
 
 bin/map_omop_utils.o: src/map_omop/map_omop_utils.cpp
-	$(info Buildung map_omop_utils...)  g++ -c $(FLAGS) -o bin/map_omop_utils.o src/map_omop/map_omop_utils.cpp
+	$(info Building map_omop_utils...)  g++ -c $(FLAGS) -o bin/map_omop_utils.o src/map_omop/map_omop_utils.cpp
 
 ## HELPERS
 bin/string_helpers.o: src/string_helpers.cpp
-	$(info Buildung String Helpers...)  g++ -c $(FLAGS) -o bin/string_helpers.o src/string_helpers.cpp
+	$(info Building String Helpers...)  g++ -c $(FLAGS) -o bin/string_helpers.o src/string_helpers.cpp
 
 bin/file_helpers.o: src/file_helpers.cpp
-	$(info Buildung File Helpers...)  g++ -c $(FLAGS) -o bin/file_helpers.o src/file_helpers.cpp
+	$(info Building File Helpers...)  g++ -c $(FLAGS) -o bin/file_helpers.o src/file_helpers.cpp
 
 # Add OMOP Map
 run_map_omop: ../upload/exec/map_omop
@@ -54,38 +54,38 @@ final_fixing: bin/final_fixing_main.o bin/file_helpers.o bin/string_helpers.o  b
 	g++ $(FLAGS) bin/final_fixing_main.o bin/file_helpers.o bin/string_helpers.o bin/final_fixing_utils.o -o ../upload/exec/final_fixing
 
 bin/final_fixing_main.o: src/final_fixing/final_fixing_main.cpp
-	$(info Buildung Main final_fixing_main...)  g++ -c $(FLAGS) -o bin/final_fixing_main.o src/final_fixing/final_fixing_main.cpp
+	$(info Building Main final_fixing_main...)  g++ -c $(FLAGS) -o bin/final_fixing_main.o src/final_fixing/final_fixing_main.cpp
 
 bin/final_fixing_utils.o: src/final_fixing/final_fixing_utils.cpp
-	$(info Buildung Main final_fixing_utils...)  g++ -c $(FLAGS) -o bin/final_fixing_utils.o src/final_fixing/final_fixing_utils.cpp
+	$(info Building Main final_fixing_utils...)  g++ -c $(FLAGS) -o bin/final_fixing_utils.o src/final_fixing/final_fixing_utils.cpp
 
 ## Create lab OMOP maps
 create_lab_omop_map_overview: bin/create_lab_omop_map_overview_main.o bin/file_helpers.o bin/string_helpers.o
 	g++ $(FLAGS) bin/create_lab_omop_map_overview_main.o bin/file_helpers.o bin/string_helpers.o -o  ../upload/exec/create_lab_omop_map_overview
 
 bin/create_lab_omop_map_overview_main.o: src/sumstats/create_lab_omop_map_overview_main.cpp
-	$(info Buildung Main omop_sumstats...)  g++ -c $(FLAGS) -o bin/create_lab_omop_map_overview_main.o src/sumstats/create_lab_omop_map_overview_main.cpp
+	$(info Building Main omop_sumstats...)  g++ -c $(FLAGS) -o bin/create_lab_omop_map_overview_main.o src/sumstats/create_lab_omop_map_overview_main.cpp
 
 ## All Labs Main
 learn_lab_omop_map: bin/learn_lab_omop_map_main.o bin/file_helpers.o bin/string_helpers.o
 	g++ $(FLAGS) bin/learn_lab_omop_map_main.o bin/file_helpers.o bin/string_helpers.o -o  ../upload/exec/learn_lab_omop_map
 
 bin/learn_lab_omop_map_main.o: src/sumstats/learn_lab_omop_map_main.cpp
-	$(info Buildung Main omop_sumstats...)  g++ -c $(FLAGS) -o bin/learn_lab_omop_map_main.o src/sumstats/learn_lab_omop_map_main.cpp
+	$(info Building Main omop_sumstats...)  g++ -c $(FLAGS) -o bin/learn_lab_omop_map_main.o src/sumstats/learn_lab_omop_map_main.cpp
 
 ## Adding new omop concepts
 add_omop_concepts: bin/add_omop_concepts_main.o bin/file_helpers.o bin/string_helpers.o bin/map_omop_utils.o 
 	g++ $(FLAGS) bin/add_omop_concepts_main.o bin/file_helpers.o bin/string_helpers.o bin/map_omop_utils.o -o ../upload/exec/add_omop_concepts
 
 bin/add_omop_concepts_main.o: src/map_omop/add_omop_concepts_main.cpp 
-	$(info Buildung Main add_omop_concepts...)  g++ -c $(FLAGS) -o bin/add_omop_concepts_main.o src/map_omop/add_omop_concepts_main.cpp
+	$(info Building Main add_omop_concepts...)  g++ -c $(FLAGS) -o bin/add_omop_concepts_main.o src/map_omop/add_omop_concepts_main.cpp
 
 ## OMOP Sumstats
 omop_sumstats: bin/omop_sumstats_main.o bin/file_helpers.o bin/string_helpers.o bin/sumstats_utils.o
 	g++ $(FLAGS) bin/omop_sumstats_main.o bin/file_helpers.o bin/string_helpers.o bin/sumstats_utils.o -o ../upload/exec/omop_sumstats
 
 bin/omop_sumstats_main.o: src/sumstats/omop_sumstats_main.cpp
-	$(info Buildung Main omop_sumstats...)  g++ -c $(FLAGS) -o bin/omop_sumstats_main.o src/sumstats/omop_sumstats_main.cpp
+	$(info Building Main omop_sumstats...)  g++ -c $(FLAGS) -o bin/omop_sumstats_main.o src/sumstats/omop_sumstats_main.cpp
 
 bin/sumstats_utils.o: src/sumstats/sumstats_utils.cpp
-	$(info Buildung Main omop_sumstats...)  g++ -c $(FLAGS) -o bin/sumstats_utils.o src/sumstats/sumstats_utils.cpp
+	$(info Building Main omop_sumstats...)  g++ -c $(FLAGS) -o bin/sumstats_utils.o src/sumstats/sumstats_utils.cpp

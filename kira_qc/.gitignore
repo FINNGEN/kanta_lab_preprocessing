@@ -255,3 +255,16 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 data/*
+
+
+# Ignore binaries
+upload/exec/add_omop_concepts
+upload/exec/create_lab_omop_map_overview
+upload/exec/filter_suspicious_entryoids
+upload/exec/final_fixing
+upload/exec/find_suspicious_entryoids
+upload/exec/learn_lab_omop_map
+upload/exec/map_omop
+upload/exec/minimal
+upload/exec/omop_sumstats
+upload/exec/transform
