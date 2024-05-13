@@ -1,2 +1,7 @@
+# TODO(Vincent 2024-05-03) Upgrade to numpy 2.0.0, should be out soon.
 numpy==1.26.4
-pandas==2.2.2
+
+# TODO(Vincent 2024-05-03)
+# Could add the "compression" extra if we want to use the faster Zstandard compression.
+# More info: https://pandas.pydata.org/pandas-docs/stable/getting_started/install.html#compression
+pandas[pyarrow]==2.2.2
