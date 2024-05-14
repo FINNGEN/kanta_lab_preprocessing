@@ -3,10 +3,10 @@ config = {
     'rename_cols' : {
         'potilashenkilotunnus':           'FINREGISTRYID',
         'tutkimusaika':                   'LAB_DATE_TIME',
-        'palverluntuottaja_organisaatio': 'LAB_SERVICE_PROVIDER',
+        'palvelutuottaja_organisaatio'  : 'LAB_SERVICE_PROVIDER',
         'paikallinentutkimusnimike':      'LAB_ABBREVIATION',
         'tutkimustulosarvo':              'LAB_VALUE',
-        'tutkimustulosyksikkö':           'LAB_UNIT',
+        'tutkimustulosyksikko':           'LAB_UNIT',
         'tuloksenpoikkeavuus':            'LAB_ABNORMALITY',
         'viitevaliteksti':                'REFERENCE_VALUE_TEXT',
         'tutkimusvastauksentila':         'MEASUREMENT_STATUS'

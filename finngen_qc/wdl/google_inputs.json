@@ -1,0 +1,13 @@
+{
+    "google_labels":{
+        "project":"kanta",
+        "product":"core-analysis"
+    },
+
+    "default_runtime_attributes": {
+	"docker": "eu.gcr.io/finngen-refinery-dev/bioinformatics:0.8",
+	"zones": "europe-west1-b europe-west1-c europe-west1-d",
+	"cpu":4,
+	"memory" : "4 GB"
+    }
+}
