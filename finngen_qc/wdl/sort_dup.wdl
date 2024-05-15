@@ -3,6 +3,7 @@ version 1.0
 workflow kanta_sort_dup{
   input {
     File kanta_data
+    
   }
   call split {input:kanta_data = kanta_data}
 
@@ -36,25 +37,22 @@ task merge {
   
   command <<<
   df -h
-  SORT_COLS=$(cat ~{write_lines(sort_cols)} |   awk '{print "-k "$0}' | tr '\n' ' ')
-  echo $SORT_COLS
 
   # CONCAT PRE-SORTED FILES
-  sort -m  $SORT_COLS ~{sep=" " sorted_chunks} > tmp.txt
+  sort -m -k ~{sep=" -k " sort_cols}  ~{sep=" " sorted_chunks} > tmp.txt
   df -h
 
   # UNIQUE LINES
   echo "UNIQUE"
   cat ~{header} | gzip > ~{prefix}_unique.tsv.gz
   cat tmp.txt | awk '!seen[$~{sep =",$" sort_cols}]++' | gzip >> ~{prefix}_unique.tsv.gz
-  df -h
   
   # DUPLICATE LINES
   echo "DUPLICATE"
   cat ~{header} | gzip > ~{prefix}_duplicates.tsv.gz
   cat tmp.txt | awk 'seen[$~{sep =",$" sort_cols}]++' | gzip >> ~{prefix}_duplicates.tsv.gz
+
   df -h
-  
   ls *
   >>>
    runtime {
@@ -65,27 +63,22 @@ task merge {
   output {
     File uniuqe = prefix + "_unique.tsv.gz"
     File dups   = prefix + "_duplicates.tsv.gz"
-    
   }
-
 }
+
 task sort {
   input {
     File chunk
     Array[String] sort_cols
     Int index
   }
-  Int disk_size = ceil(size(chunk,"GB"))*3
   String out_file = "kanta_sorted_" + index
   command <<<
-  # get args for sort based off the column indices to sort over
-  SORT_COLS=$(cat ~{write_lines(sort_cols)} |   awk '{print "-k "$0}' | tr '\n' ' ')
-  echo $SORT_COLS
-  zcat ~{chunk} | sort  $SORT_COLS  > ~{out_file} 
+  zcat ~{chunk} | sort  -k ~{sep=" -k " sort_cols}  > ~{out_file} 
   >>>
 
   runtime {
-    disks:   "local-disk ~{disk_size} HDD"
+    disks:   "local-disk ~{ceil(size(chunk,'GB'))*3} HDD"
   }
 
   output {
@@ -96,19 +89,20 @@ task sort {
 task split {
   input {
     File kanta_data
+    String branch
     Int n_chunks
-    File columns
-    File sort_columns
   }
 
   Int disk_size = ceil(size(kanta_data,"GB"))*10*n_chunks
   
   command <<<
   echo "KANTA"
-  # get columns to cut
-  curl -s https://raw.githubusercontent.com/FINNGEN/kanta_lab_preprocessing/dev/finngen_qc/magic_config.py > config.py
-  python3 -c "import config;o= open('./cols.txt','wt') ;o.write('\n'.join(list(config.config['rename_cols'].keys())) + '\n');o.write('\n'.join(config.config['other_cols'])+ '\n')"
-  COLS=$(zcat ~{kanta_data} |  head -n1 | tr '\t' '\n'  | grep -wnf cols.txt | cut -f 1 -d ':' | tr '\n' ',' | rev | cut -c2- | rev)
+  # get columns to cut from repo
+  curl -s https://raw.githubusercontent.com/FINNGEN/kanta_lab_preprocessing/~{branch}/finngen_qc/magic_config.py > config.py
+  python3 -c "import config;o= open('./columns.txt','wt') ;o.write('\n'.join(list(config.config['rename_cols'].keys())) + '\n');o.write('\n'.join(config.config['other_cols'])+ '\n')"
+  python3 -c "import config;o= open('./sort_columns.txt','wt') ;o.write('\n'.join(config.config['sort_cols'])+ '\n')"
+
+  COLS=$(zcat ~{kanta_data} |  head -n1 | tr '\t' '\n'  | grep -wnf columns.txt | cut -f 1 -d ':' | tr '\n' ',' | rev | cut -c2- | rev)
   echo $COLS
   
   # uncompress and split new header from body
@@ -118,8 +112,8 @@ task split {
   # GET SORT COLS AND KEEP ORDER
   while read f;
   do
-      cat header.txt | head -n1 | tr '\t' '\n'|  grep -wf $f |  cut -f 1 -d ':' >> sort_cols.txt
-  done < <(cat ~{sort_columns})
+      cat header.txt | head -n1 | tr '\t' '\n'|  grep -wn $f |  cut -f 1 -d ':' >> sort_cols.txt
+  done <  sort_columns.txt
   cat sort_cols.txt
   
   # SPLIT INTO N FILES
@@ -128,7 +122,6 @@ task split {
 
   runtime {
     disks: "local-disk ~{disk_size} HDD"
-    memory: "32 GB"
   }
 
   output {

@@ -19,11 +19,14 @@ config = {
     },
     # ACCESSORY COLUMNS
     'other_cols' : ['paikallinentutkimusnimikeid','laboratoriotutkimusnimikeid','hetu_root'],
+    # Cols used for sorting in the wdl.
+    # N.B. the order is important as it is kept in the grepping!
     'sort_cols' : ['potilashenkilotunnus','tutkimusaika','paikallinentutkimusnimike'],
     
     # LIST OF OUTPUT COLUMNS TO INCLUDE (VALUES ABOVE PLUS NEWLY GENERATED COLUMNS)
     'out_cols' : ['FINREGISTRYID', 'TEST_DATE_TIME', 'TEST_SERVICE_PROVIDER', 'TEST_ID','TEST_ID_SOURCE','TEST_NAME_ABBREVIATION', 'MEASUREMENT_VALUE', 'MEASUREMENT_UNIT', 'RESULT_ABNORMALITY', 'TEST_REFERENCE_TEXT', 'MEASUREMENT_STATUS','TEST_REFERENCE_GROUP','TEST_REFERENCE_MIN_VALUE','TEST_REFERENCE_MIN_VALUE','TEST_REFERENCE_MIN_UNIT','TEST_REFERENCE_MAX_VALUE','TEST_REFERENCE_MAX_UNIT'],
     'err_cols':['FINREGISTRYID','TEST_DATE_TIME','ERR','ERR_VALUE'],
+    
     #REJECTION LINES
     'NA_kws': ['Puuttuu','""',"TYHJÄ","_","NULL","-1"], # FOR ALL COLUMNS DEFAULT
     'NA_map' : {'MEASUREMENT_VALUE':['Puuttuu','""',"TYHJÄ","_","NULL"]}, #SPECIFIC COLUMN EXCEPTIONS
