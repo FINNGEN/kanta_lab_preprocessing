@@ -31,28 +31,35 @@ task merge {
     Array[String] sort_cols
   }
 
-  Int disk_size = ceil(size(sorted_chunks,"GB"))*3
+  Int chunk_size = ceil(size(sorted_chunks,"GB"))
   String prefix = "kanta_sorted"
   
   command <<<
+  df -h
   SORT_COLS=$(cat ~{write_lines(sort_cols)} |   awk '{print "-k "$0}' | tr '\n' ' ')
   echo $SORT_COLS
 
   # CONCAT PRE-SORTED FILES
   sort -m  $SORT_COLS ~{sep=" " sorted_chunks} > tmp.txt
+  df -h
 
   # UNIQUE LINES
+  echo "UNIQUE"
   cat ~{header} | gzip > ~{prefix}_unique.tsv.gz
   cat tmp.txt | awk '!seen[$~{sep =",$" sort_cols}]++' | gzip >> ~{prefix}_unique.tsv.gz
-
+  df -h
+  
   # DUPLICATE LINES
+  echo "DUPLICATE"
   cat ~{header} | gzip > ~{prefix}_duplicates.tsv.gz
   cat tmp.txt | awk 'seen[$~{sep =",$" sort_cols}]++' | gzip >> ~{prefix}_duplicates.tsv.gz
-
+  df -h
+  
   ls *
   >>>
    runtime {
-    disks:   "local-disk ~{disk_size} HDD"
+     disks:   "local-disk ~{chunk_size*4} HDD"
+     mem : "~{chunk_size} GB"
   }
 
   output {
@@ -90,8 +97,8 @@ task split {
   input {
     File kanta_data
     Int n_chunks
-    Array[String] columns
-    Array[String] sort_columns
+    File columns
+    File sort_columns
   }
 
   Int disk_size = ceil(size(kanta_data,"GB"))*10*n_chunks
@@ -99,19 +106,22 @@ task split {
   command <<<
   echo "KANTA"
   # get columns to cut
-  COLS=$(zcat ~{kanta_data} |  head -n1 | tr '\t' '\n'  | grep -wnf ~{write_lines(columns)} | cut -f 1 -d ':' | tr '\n' ',' | rev | cut -c2- | rev)
+  COLS=$(zcat ~{kanta_data} |  head -n1 | tr '\t' '\n'  | grep -wnf ~{columns} | cut -f 1 -d ':' | tr '\n' ',' | rev | cut -c2- | rev)
   echo $COLS
   
   # uncompress and split new header from body
   zcat ~{kanta_data} | cut -f $COLS | head -n1  > header.txt
   zcat ~{kanta_data} | cut -f $COLS | sed -E 1d > tmp.tsv
   
-  # GET SORT COLS
-  cat header.txt | head -n1 | tr '\t' '\n'|  grep -wnf ~{write_lines(sort_columns)}|  cut -f 1 -d ':' > sort_cols.txt
+  # GET SORT COLS AND KEEP ORDER
+  while read f;
+  do
+      cat header.txt | head -n1 | tr '\t' '\n'|  grep -wf $f |  cut -f 1 -d ':' >> sort_cols.txt
+  done < <(cat ~{sort_columns})
   cat sort_cols.txt
   
   # SPLIT INTO N FILES
-  split tmp.tsv -n ~{n_chunks} -d kanta_chunk --filter='gzip > $FILE.gz'
+  split tmp.tsv -n l/~{n_chunks} -d kanta_chunk --filter='gzip > $FILE.gz'
   >>>
 
   runtime {

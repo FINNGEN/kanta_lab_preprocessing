@@ -22,21 +22,21 @@ def filter_minimal(df,args):
 
 def get_service_provider_name(df,args):
     """
-    Updates LAB_SERVICE_PROVIDER based on mapping. NA is default
+    Updates TEST_SERVICE_PROVIDER based on mapping. NA is default
     """
-    df.loc[:,'LAB_SERVICE_PROVIDER'] = df.loc[:,"LAB_SERVICE_PROVIDER"].map(args.config['thl_sote_map'])
+    df.loc[:,'TEST_SERVICE_PROVIDER'] = df.loc[:,"TEST_SERVICE_PROVIDER"].map(args.config['thl_sote_map'])
     return df
 
 
 def get_lab_abbrv(df,args):
     """
-    It assigns LAB_ABBREVIATION, keeping the local name if source is local (LAB_ID==0) or mapping it if source is THL (LAB_ID ==1). If the value is missing from the mapping it will be mapped to NA
+    It assigns TEST_NAME_ABBREVIATION, keeping the local name if source is local (TEST_ID==0) or mapping it if source is THL (TEST_ID ==1). If the value is missing from the mapping it will be mapped to NA
     N.B.LAB ABBREVIATION is already read on reading from paikallinentutkimusnimike (from config) so no need to create it, just update
     """
-    col="LAB_ABBREVIATION"
+    col="TEST_NAME_ABBREVIATION"
     df[col] =df[col].str.lower()     #fix lab abbrevation in general before updated mapping
-    mask = df.LAB_ID_SOURCE != "0"
-    df.loc[mask,col] = df.loc[mask,"LAB_ID"].map(args.config['thl_lab_map'])
+    mask = df.TEST_ID_SOURCE != "0"
+    df.loc[mask,col] = df.loc[mask,"TEST_ID"].map(args.config['thl_lab_map'])
     df[col] = df[col].str.replace('"', '')     # remove single quotes
     return df
 
@@ -57,8 +57,8 @@ def lab_id_source(df,args):
     """
     
     local_mask =  (df['laboratoriotutkimusnimikeid'] == 'NA')
-    df["LAB_ID_SOURCE"] = np.where(local_mask,"0","1")
-    df["LAB_ID"] = np.where(local_mask,df.paikallinentutkimusnimikeid,df.laboratoriotutkimusnimikeid)
+    df["TEST_ID_SOURCE"] = np.where(local_mask,"0","1")
+    df["TEST_ID"] = np.where(local_mask,df.paikallinentutkimusnimikeid,df.laboratoriotutkimusnimikeid)
     return df
     
 def filter_measurement_status(df,args):

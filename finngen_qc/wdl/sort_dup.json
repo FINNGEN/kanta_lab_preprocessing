@@ -1,10 +1,10 @@
 {
-    "kanta_sort_dup.kanta_data": "gs://fg-3/kanta/inputs/kanta_lab_synthetic_data_allcolumns_520k.samples_rand.dup.1pc_2024.05.07.tsv.gz",
-    #"kanta_sort_dup.kanta_data": "gs://fg-3/kanta/inputs/mock_test_100K.tsv.gz",
+    #"kanta_sort_dup.kanta_data": "gs://fg-3/kanta/inputs/kanta_lab_synthetic_data_allcolumns_520k.samples_rand.dup.1pc_2024.05.07.tsv.gz",
+    "kanta_sort_dup.kanta_data": "gs://fg-3/kanta/inputs/mock_test_10K.tsv.gz",
     
-    "kanta_sort_dup.split.n_chunks": 2,
-    "kanta_sort_dup.split.sort_columns": ["potilashenkilotunnus","tutkimusaika", "paikallinentutkimusnimike"],
-    "kanta_sort_dup.split.columns": ['hetu_root','laboratoriotutkimusnimikeid','paikallinentutkimusnimike','paikallinentutkimusnimikeid','palvelutuottaja_organisaatio','potilashenkilotunnus','tuloksenpoikkeavuus','tutkimustulosarvo','tutkimustulosyksikko','tutkimusvastauksentila', 'viitevaliteksti','tutkimusaika'],
+    "kanta_sort_dup.split.n_chunks": 15, #N.B it should be < 16
+    "kanta_sort_dup.split.sort_columns": "gs://fg-3/kanta/inputs/sort_columns.txt",
+    "kanta_sort_dup.split.columns":"gs://fg-3/kanta/inputs/columns.txt",
 
    
 }

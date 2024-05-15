@@ -2,23 +2,29 @@ config = {
     # DIRECT COLUMN MAPPING
     'rename_cols' : {
         'potilashenkilotunnus':           'FINREGISTRYID',
-        'tutkimusaika':                   'LAB_DATE_TIME',
-        'palvelutuottaja_organisaatio'  : 'LAB_SERVICE_PROVIDER',
-        'paikallinentutkimusnimike':      'LAB_ABBREVIATION',
-        'tutkimustulosarvo':              'LAB_VALUE',
-        'tutkimustulosyksikko':           'LAB_UNIT',
-        'tuloksenpoikkeavuus':            'LAB_ABNORMALITY',
-        'viitevaliteksti':                'REFERENCE_VALUE_TEXT',
-        'tutkimusvastauksentila':         'MEASUREMENT_STATUS'
+        'tutkimusaika':                   'TEST_DATE_TIME',
+        'palvelutuottaja_organisaatio'  : 'TEST_SERVICE_PROVIDER',
+        'paikallinentutkimusnimike':      'TEST_NAME_ABBREVIATION',
+        'tutkimustulosarvo':              'MEASUREMENT_VALUE',
+        'tutkimustulosyksikko':           'MEASUREMENT_UNIT',
+        'tutkimusvastauksentila':         'MEASUREMENT_STATUS',
+        'tuloksenpoikkeavuus':            'RESULT_ABNORMALITY',
+        'viitevaliteksti':                'TEST_REFERENCE_TEXT',
+        'viitearvoryhma':                 'TEST_REFERENCE_GROUP',
+        'viitevalialkuarvo':              'TEST_REFERENCE_MIN_VALUE',
+        'viitevalialkuyksikko':           'TEST_REFERENCE_MIN_UNIT',
+        'viitevaliloppuarvo':             'TEST_REFERENCE_MAX_VALUE',
+        'viitevaliloppuyksikko':          'TEST_REFERENCE_MAX_UNIT',
+        
     },
     # ACCESSORY COLUMNS
     'other_cols' : ['paikallinentutkimusnimikeid','laboratoriotutkimusnimikeid','hetu_root'],
     # LIST OF OUTPUT COLUMNS TO INCLUDE (VALUES ABOVE PLUS NEWLY GENERATED COLUMNS)
-    'out_cols' : ['FINREGISTRYID', 'LAB_DATE_TIME', 'LAB_SERVICE_PROVIDER', 'LAB_ID','LAB_ID_SOURCE','LAB_ABBREVIATION', 'LAB_VALUE', 'LAB_UNIT', 'LAB_ABNORMALITY', 'REFERENCE_VALUE_TEXT', 'MEASUREMENT_STATUS'],
-    'err_cols':['FINREGISTRYID','LAB_DATE_TIME','ERR','ERR_VALUE'],
+    'out_cols' : ['FINREGISTRYID', 'TEST_DATE_TIME', 'TEST_SERVICE_PROVIDER', 'TEST_ID','TEST_ID_SOURCE','TEST_NAME_ABBREVIATION', 'MEASUREMENT_VALUE', 'MEASUREMENT_UNIT', 'RESULT_ABNORMALITY', 'TEST_REFERENCE_TEXT', 'MEASUREMENT_STATUS','TEST_REFERENCE_GROUP','TEST_REFERENCE_MIN_VALUE','TEST_REFERENCE_MIN_VALUE','TEST_REFERENCE_MIN_UNIT','TEST_REFERENCE_MAX_VALUE','TEST_REFERENCE_MAX_UNIT'],
+    'err_cols':['FINREGISTRYID','TEST_DATE_TIME','ERR','ERR_VALUE'],
     #REJECTION LINES
     'NA_kws': ['Puuttuu','""',"TYHJÄ","_","NULL","-1"], # FOR ALL COLUMNS DEFAULT
-    'NA_map' : {'LAB_VALUE':['Puuttuu','""',"TYHJÄ","_","NULL"]}, #SPECIFIC COLUMN EXCEPTIONS
+    'NA_map' : {'MEASUREMENT_VALUE':['Puuttuu','""',"TYHJÄ","_","NULL"]}, #SPECIFIC COLUMN EXCEPTIONS
     # hetu_root required value
     'hetu_kw' : '1.2.246.21',
     # MEASUREMENT STATUS
@@ -27,7 +33,7 @@ config = {
     'thl_lab_map_file' : 'data/thl_lab_id_abbrv_map.tsv',
     'thl_sote_map_file' : 'data/thl_sote_map_named.tsv',
     # VALUES TO REMOVE/FIX FOR LAB UNIT/ABNORMALITY
-    'fix_units':{'LAB_UNIT':[' ','_',',','.','-','(',')','{','}',"\\",'?','!'],'LAB_ABNORMALITY':{'<':'L','>':'H',"POS":"A","NEG":"N"}},
+    'fix_units':{'MEASUREMENT_UNIT':[' ','_',',','.','-','(',')','{','}',"\\",'?','!'],'RESULT_ABNORMALITY':{'<':'L','>':'H',"POS":"A","NEG":"N"}},
     # BIG REGEX FOR LAB UNIT
     'unit_replacements' : [
         (r"(^\*+$|^$)","NA"),
