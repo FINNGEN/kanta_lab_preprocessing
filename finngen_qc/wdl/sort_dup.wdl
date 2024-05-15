@@ -106,7 +106,9 @@ task split {
   command <<<
   echo "KANTA"
   # get columns to cut
-  COLS=$(zcat ~{kanta_data} |  head -n1 | tr '\t' '\n'  | grep -wnf ~{columns} | cut -f 1 -d ':' | tr '\n' ',' | rev | cut -c2- | rev)
+  curl -s https://raw.githubusercontent.com/FINNGEN/kanta_lab_preprocessing/dev/finngen_qc/magic_config.py > config.py
+  python3 -c "import config;o= open('./cols.txt','wt') ;o.write('\n'.join(list(config.config['rename_cols'].keys())) + '\n');o.write('\n'.join(config.config['other_cols'])+ '\n')"
+  COLS=$(zcat ~{kanta_data} |  head -n1 | tr '\t' '\n'  | grep -wnf cols.txt | cut -f 1 -d ':' | tr '\n' ',' | rev | cut -c2- | rev)
   echo $COLS
   
   # uncompress and split new header from body
