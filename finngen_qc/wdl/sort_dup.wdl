@@ -22,7 +22,6 @@ workflow kanta_sort_dup{
     sort_cols = split.sort_cols,
     header = split.header
   }
-  
 }
 
 task merge {
@@ -33,36 +32,49 @@ task merge {
   }
 
   Int chunk_size = ceil(size(sorted_chunks,"GB"))
-  String prefix = "kanta_sorted"
+  String unique = "kanta_sorted_unique.tsv.gz"
+  String dups   = "kanta_sorted_duplicates.tsv.gz"
   
   command <<<
-  df -h
-
   # CONCAT PRE-SORTED FILES
-  sort -m -k ~{sep=" -k " sort_cols}  ~{sep=" " sorted_chunks} > tmp.txt
-  df -h
+  echo "SORT"
+  /usr/bin/time -v sort -m -k ~{sep=" -k " sort_cols}  ~{sep=" " sorted_chunks} > sorted.txt
 
-  # UNIQUE LINES
-  echo "UNIQUE"
-  cat ~{header} | gzip > ~{prefix}_unique.tsv.gz
-  cat tmp.txt | awk '!seen[$~{sep =",$" sort_cols}]++' | gzip >> ~{prefix}_unique.tsv.gz
-  
-  # DUPLICATE LINES
-  echo "DUPLICATE"
-  cat ~{header} | gzip > ~{prefix}_duplicates.tsv.gz
-  cat tmp.txt | awk 'seen[$~{sep =",$" sort_cols}]++' | gzip >> ~{prefix}_duplicates.tsv.gz
-
-  df -h
-  ls *
+  python3 <<EOF
+  from operator import itemgetter
+  import gzip
+  # get col indices
+  cols = [elem -1 for elem in [~{sep ="," sort_cols}]]
+  # initial empty values
+  values = ['']*len(cols)
+  with open('sorted.txt') as i,gzip.open('~{dups}','wt') as dup,gzip.open('~{unique}','wt') as out:
+    # copy header to out files
+    with open('~{header}') as tmp: head = tmp.read()
+    out.write(head),dup.write(head)
+    dup_count,count = 0,0
+    for line in i:
+        # read in new sort values to compare
+        new_values = itemgetter(*cols)(line.strip().split('\t'))
+        if new_values != values: # new value found, so update values and output to unique file   
+            values = new_values
+            f = out
+            count += 1
+        else:
+            f = dup
+            dup_count +=1
+        f.write(line)
+  print(count)
+  print(dup_count)
+  print(round(dup_count/(count+dup_count),4))
+  EOF
   >>>
    runtime {
      disks:   "local-disk ~{chunk_size*4} HDD"
-     mem : "~{chunk_size} GB"
   }
 
   output {
-    File uniuqe = prefix + "_unique.tsv.gz"
-    File dups   = prefix + "_duplicates.tsv.gz"
+    File unique_file = unique
+    File dup_file    = dups
   }
 }
 
