@@ -6,7 +6,7 @@ def unit_fixing(df,args):
     df = (
         df
         .pipe(lab_unit_filter,args)
-        .pipe(lab_unit_regex,args)
+        .pipe(lab_unit_map,args)
         .pipe(abnormality_fix,args)
         )
     return df
@@ -44,20 +44,42 @@ If the abbreviation is not one of these, it is replaced with NA.
     return df
 
 
-def lab_unit_regex(df,args):
 
+def lab_unit_regex(df,args,map_mask=None):
+    """
+    Fixes units based on approved mapping and uses regex for other
+    """
+    
     col ='MEASUREMENT_UNIT'
-    # copy lab unit to new df before changing them
-    unit_df = df[[col]].copy()
+    unit_df = df[['FINREGISTRYID', 'TEST_DATE_TIME','TEST_NAME_ABBREVIATION','MEASUREMENT_UNIT']].copy()
+    # REGEX SUBSTIUTION
     for rep in args.config['unit_replacements']:
-        df[col] = df[col].replace(rep[0],rep[1],regex=True)
+        if map_mask is not None:
+            df.loc[~map_mask,col] = df.loc[~map_mask,col].replace(rep[0],rep[1],regex=True)
+        else:
+            df.loc[:,col] = df.loc[:,col].replace(rep[0],rep[1],regex=True)
 
     # LOG CHANGES
+    
     unit_df['new'] = df[col].copy()
     unit_mask = (unit_df[col] != unit_df['new'])
-    unit_df[unit_mask][['MEASUREMENT_UNIT','new']].to_csv(args.unit_file, mode='a', index=False, header=False,sep="\t")
-
+    unit_df[unit_mask].to_csv(args.unit_file, mode='a', index=False, header=False,sep="\t")
+    
     return df
+
+
+def lab_unit_map(df,args):
+    """
+    Fixes units based on approved mapping and uses regex for other
+    """
+    
+    col ='MEASUREMENT_UNIT'
+    map_mask = df[col].isin(args.config['unit_map'])
+    df.loc[map_mask,col] = df.loc[map_mask,col].map(args.config['unit_map'])
+
+    df = lab_unit_regex(df,args,map_mask)
+    return df
+
 
 def lab_unit_filter(df,args):
     '''
@@ -66,6 +88,6 @@ def lab_unit_filter(df,args):
     col = 'MEASUREMENT_UNIT'
     values = args.config['fix_units'][col]
     regex = r'(' + '|'.join([re.escape(x) for x in values]) + r')'
-    df[col] = df[col].replace(regex,"",regex=True)
+    df[col] = df[col].replace(regex,"",regex=True).replace(r'^\s*$',"NA", regex=True)
     return df
 

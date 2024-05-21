@@ -24,7 +24,7 @@ def chunk_reader(raw_file,chunk_size,config,separator):
     #
     # More info:
     # https://pandas.pydata.org/pandas-docs/stable/whatsnew/v1.4.0.html#multi-threaded-csv-reading-with-a-new-csv-engine-based-on-pyarrow
-    with pd.read_csv(raw_file, chunksize=chunk_size,sep=separator,dtype=str,usecols = args.config['cols'],engine='python') as reader:
+    with pd.read_csv(raw_file, chunksize=chunk_size,sep=separator,dtype=str,usecols = args.config['cols'],engine='python',on_bad_lines='warn') as reader:
         for i,chunk in enumerate(reader):
             if args.test and i==1:
                 break
@@ -154,13 +154,14 @@ if __name__=='__main__':
 
     args.config['thl_lab_map'] = read_thl_map(os.path.join(dir_path,args.config['thl_lab_map_file']),'NA')
     args.config['thl_sote_map'] = read_thl_map(os.path.join(dir_path,args.config['thl_sote_map_file']),'NA')
+    args.config['unit_map'] = read_thl_map(os.path.join(dir_path,args.config['unit_map_file']),'NA')
 
     logger.debug(dict(list(args.config['thl_lab_map'].items())[0:2]))
     # setup error file
     args.err_file = os.path.join(args.out,f"{args.prefix}_err.txt")
     with open(args.err_file,'wt') as err:err.write('\t'.join(args.config['err_cols']) + '\n')
     args.unit_file = os.path.join(args.out,f"{args.prefix}_unit.txt")
-    with open(args.unit_file,'wt') as unit:unit.write('\t'.join(['old_unit','new_unit']) + '\n')
+    with open(args.unit_file,'wt') as unit:unit.write('\t'.join(['FINREGISTRYID','TEST_DATE_TIME','TEST_NAME_ABBREVIATION','old_unit','MEASUREMENT_UNIT']) + '\n')
 
     logger.info("START")
     

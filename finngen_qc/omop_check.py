@@ -19,31 +19,26 @@ def chunk_reader(raw_file,chunk_size):
             yield chunk
 
 def get_omop_mapping(args):
-    r = requests.get(OMOP_URL)
-    out_file = os.path.join(os.path.join(dir_path),'data/omop_mapping.txt')
-    if not os.path.isfile(out_file):
-        with open(out_file,'wt') as o:
-            content = r.content.decode().splitlines()
-            header = content[0].split(',') 
-            indices = [header.index(elem) for elem in header if elem in ['Lab test ID','Lab test abbreviation','Lab test unit','OMOP Concept ID']]
-            for line in content:
-                line = line.split(',')
-                out_line = [line[idx] for idx in indices]
-                o.write('\t'.join(out_line) + '\n')
 
-    rename = {'Lab test ID':"LAB_ID",
-              'Lab test abbreviation' : "LAB_ABBREVIATION",
-              'Lab test unit' : "LAB_UNIT",
-              'OMOP Concept ID' : "OMOP_ID"}
-      
-    return  pd.read_csv(out_file,sep = '\t',dtype=str).rename(columns = rename)
+    out_file = os.path.join(os.path.join(dir_path),'data/mapping_abbreviation_and_unit.tsv')
+    rename = {'abbreviation' : "TEST_NAME_ABBREVIATION",
+              'unit' : "MEASUREMENT_UNIT",
+              'concept_id' : "OMOP_ID"}
+
+    df =  pd.read_csv(out_file,sep = '\t',dtype=str,usecols=list(rename.keys())).rename(columns = rename)
+
+    dups = df[df.duplicated(['TEST_NAME_ABBREVIATION','MEASUREMENT_UNIT'])]
+    assert len(dups) == 0
+    
+
+    return  df.fillna("MISSING")
 
 
 def omop_map(chunk,omop_df):
     """
     Returns the data that is *not* mapped
     """
-    merged=pd.merge(chunk,omop_df,on=["LAB_ID",'LAB_ABBREVIATION','LAB_UNIT'],how='left').fillna("NA")
+    merged=pd.merge(chunk,omop_df,on=['TEST_NAME_ABBREVIATION','MEASUREMENT_UNIT'],how='left').fillna("NA")
     return merged
 
 def result_iterator(args):

@@ -38,7 +38,7 @@ task merge {
   command <<<
   # CONCAT PRE-SORTED FILES
   echo "SORT"
-  /usr/bin/time -v sort -m -k ~{sep=" -k " sort_cols}  ~{sep=" " sorted_chunks} > sorted.txt
+  /usr/bin/time -v sort -t $'\t' -m -k ~{sep=" -k " sort_cols}  ~{sep=" " sorted_chunks} > sorted.txt
 
   python3 <<EOF
   from operator import itemgetter
@@ -86,7 +86,7 @@ task sort {
   }
   String out_file = "kanta_sorted_" + index
   command <<<
-  zcat ~{chunk} | sort  -k ~{sep=" -k " sort_cols}  > ~{out_file} 
+  zcat ~{chunk} | sort -t $'\t'  -k ~{sep=" -k " sort_cols}  > ~{out_file} 
   >>>
 
   runtime {

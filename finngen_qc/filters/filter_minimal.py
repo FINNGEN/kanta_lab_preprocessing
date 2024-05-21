@@ -35,7 +35,7 @@ def get_lab_abbrv(df,args):
     """
     col="TEST_NAME_ABBREVIATION"
     df[col] =df[col].str.lower()     #fix lab abbrevation in general before updated mapping
-    mask = df.TEST_ID_SOURCE != "0"
+    mask = df.TEST_ID_SOURCE == "1"
     df.loc[mask,col] = df.loc[mask,"TEST_ID"].map(args.config['thl_lab_map'])
     df[col] = df[col].str.replace('"', '')     # remove single quotes
     return df
@@ -43,17 +43,8 @@ def get_lab_abbrv(df,args):
 
 def lab_id_source(df,args):
     """
-    # column idx/name mapping for kira's data
-    1	laboratoriotutkimusnimikeid
-    11	laboratoriotutkimusoid
-    32	paikallinentutkimusnimike
-    33	paikallinentutkimusnimikeid
-    # from kira
-    std::string local_lab_abbrv = remove_chars(line_vec[31], ' ') --> paikallinentutkimusnimike
-    std::string local_lab_id = remove_chars(line_vec[32], ' ') -->    paikallinentutkimusnimikeid
-    std::string thl_lab_id = remove_chars(line_vec[0], ' ') -->       laboratoriotutkimusnimikeid
-
-    In this function she uses local_lab_id (paikallinentutkimusnimikeid)  and thl lab_id (laboratoriotutkimusnimikeid)
+    Update/create TEST_ID and TEST_ID SOURCE.
+    In this function we uses local_lab_id (paikallinentutkimusnimikeid)  and thl lab_id (laboratoriotutkimusnimikeid) if possible.
     """
     
     local_mask =  (df['laboratoriotutkimusnimikeid'] == 'NA')
@@ -105,7 +96,7 @@ def remove_spaces(df):
  
     """
     for col in df.columns:
-        df[col] = df[col].str.strip().replace(r'\s', '', regex=True).fillna("NA")
+        df[col] = df[col].str.strip().str.replace(r'\s', '', regex=True).fillna("NA")
     return df
 
 
