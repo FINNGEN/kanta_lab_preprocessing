@@ -25,13 +25,12 @@ def get_omop_mapping(args):
               'unit' : "MEASUREMENT_UNIT",
               'concept_id' : "OMOP_ID"}
 
-    df =  pd.read_csv(out_file,sep = '\t',dtype=str,usecols=list(rename.keys())).rename(columns = rename)
+    df =  pd.read_csv(out_file,sep = '\t',dtype=str,usecols=list(rename.keys())).rename(columns = rename).fillna("MISSING")
 
-    dups = df[df.duplicated(['TEST_NAME_ABBREVIATION','MEASUREMENT_UNIT'])]
-    assert len(dups) == 0
+    # CHECK THAT THERE ARE NO DUPLICATE MAPPINGS
+    assert len(df[df.duplicated(['TEST_NAME_ABBREVIATION','MEASUREMENT_UNIT'])]) == 0
     
-
-    return  df.fillna("MISSING")
+    return  df
 
 
 def omop_map(chunk,omop_df):
@@ -76,8 +75,9 @@ def main(args):
     # i is index,df the filtered chunk and tmp_size the size of the original
     for i,df,tmp_size in res_it(args):
         omop_mask = df.OMOP_ID =="NA"
-        write_chunk(df[~omop_mask],i,args.success_file,df.columns)
-        write_chunk(df[omop_mask],i,args.failed_file,df.columns)
+        out_cols = ['FINREGISTRYID','TEST_NAME_ABBREVIATION','MEASUREMENT_UNIT','OMOP_ID']
+        write_chunk(df[~omop_mask],i,args.success_file,out_cols)
+        write_chunk(df[omop_mask],i,args.failed_file,out_cols)
         size += tmp_size
         progressBar(size,tot_lines)
         

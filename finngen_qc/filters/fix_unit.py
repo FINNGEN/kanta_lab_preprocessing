@@ -6,7 +6,7 @@ def unit_fixing(df,args):
     df = (
         df
         .pipe(lab_unit_filter,args)
-        .pipe(lab_unit_map,args)
+        .pipe(lab_unit_regex,args)
         .pipe(abnormality_fix,args)
         )
     return df
@@ -38,8 +38,7 @@ If the abbreviation is not one of these, it is replaced with NA.
     df.loc[map_mask,col] = df.loc[map_mask,col].map(args.config['fix_units'][col])
     accepted_values = [elem for elem in args.config['fix_units'][col].values()]
     accepted_values += [ elem + elem for elem in accepted_values]
-    map_mask = ~df[col].isin(accepted_values)
-    df.loc[map_mask,col] = "NA"
+    df.loc[~df[col].isin(accepted_values),col] = "NA"
 
     return df
 

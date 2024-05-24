@@ -96,7 +96,8 @@ def remove_spaces(df):
  
     """
     for col in df.columns:
-        df[col] = df[col].str.strip().str.replace(r'\s', '', regex=True).fillna("NA")
+        #df[col] = df[col].str.strip().str.replace(r'\s', '', regex=True).fillna("NA") # this removes ALL spaces
+        df[col] = df[col].str.strip().str.replace(r"^ +| +$", r"", regex=True).fillna("NA")
     return df
 
 
