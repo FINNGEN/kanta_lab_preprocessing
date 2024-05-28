@@ -82,11 +82,13 @@ def lab_unit_map(df,args):
 
 def lab_unit_filter(df,args):
     '''
-    Fixes strange characters in lab unit field
+    Fixes strange characters in lab unit field. Also moves to lower case for non NA values.
     '''
     col = 'MEASUREMENT_UNIT'
     values = args.config['fix_units'][col]
     regex = r'(' + '|'.join([re.escape(x) for x in values]) + r')'
     df[col] = df[col].replace(regex,"",regex=True).replace(r'^\s*$',"NA", regex=True)
+    na_mask = df[col] != "NA"
+    df.loc[na_mask,col] = df.loc[na_mask,col].str.lower()
     return df
 

@@ -20,7 +20,7 @@ def estimate_lines(f):
     LEARN_SIZE = int(math.pow(2,18))                                     
     size = os.path.getsize(f)
     open_func = gzip.open if f.endswith('.gz') else open
-    if size > 1000000000 or f.endswith('.gz') :
+    if f.endswith('.gz') :
         with open_func(f, 'rb') as i:
             buf = i.read(LEARN_SIZE)
             size /= (len(buf) // buf.count(b'\n'))

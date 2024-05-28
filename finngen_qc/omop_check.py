@@ -20,24 +20,24 @@ def chunk_reader(raw_file,chunk_size):
 
 def get_omop_mapping(args):
 
-    out_file = os.path.join(os.path.join(dir_path),'data/mapping_abbreviation_and_unit.tsv')
-    rename = {'abbreviation' : "TEST_NAME_ABBREVIATION",
-              'unit' : "MEASUREMENT_UNIT",
-              'concept_id' : "OMOP_ID"}
-
-    df =  pd.read_csv(out_file,sep = '\t',dtype=str,usecols=list(rename.keys())).rename(columns = rename).fillna("MISSING")
+    df =  pd.read_csv(args.omop_file,sep = '\t',dtype=str,on_bad_lines='warn').fillna("0")
 
     # CHECK THAT THERE ARE NO DUPLICATE MAPPINGS
-    assert len(df[df.duplicated(['TEST_NAME_ABBREVIATION','MEASUREMENT_UNIT'])]) == 0
+    args.mapping_columns = [col for col in df.columns if "OMOP" not in col]
+    print(args.mapping_columns)
+    if not len(df[df.duplicated(args.mapping_columns)]) == 0:
+        print('warning:duplicate columns')
+
+    df = df.drop_duplicates(subset = args.mapping_columns)
     
     return  df
 
 
-def omop_map(chunk,omop_df):
+def omop_map(chunk,args):
     """
     Returns the data that is *not* mapped
     """
-    merged=pd.merge(chunk,omop_df,on=['TEST_NAME_ABBREVIATION','MEASUREMENT_UNIT'],how='left').fillna("NA")
+    merged=pd.merge(chunk,args.omop_df,on=args.mapping_columns,how='left').fillna("NA")
     return merged
 
 def result_iterator(args):
@@ -46,7 +46,7 @@ def result_iterator(args):
     """
     print("Running in single mode")
     for i,chunk in enumerate(chunk_reader(args.raw_data,args.chunk_size)):
-        df= omop_map(chunk,args.omop_df)
+        df= omop_map(chunk,args)
         yield i,df,len(chunk)
 
 def result_iterator_multi(args):
@@ -57,7 +57,7 @@ def result_iterator_multi(args):
     ctx = mp.get_context('spawn')
     pool = ctx.Pool(args.mp)
     # get function with only df as input
-    multi_func = partial(omop_map,omop_df = args.omop_df)
+    multi_func = partial(omop_map,args=args)
     # read in chunk and apply further split
     chunk_size = int(args.chunk_size/args.mp)
     for i,chunks in enumerate(batched(chunk_reader(args.raw_data,chunk_size),args.mp)):
@@ -75,7 +75,7 @@ def main(args):
     # i is index,df the filtered chunk and tmp_size the size of the original
     for i,df,tmp_size in res_it(args):
         omop_mask = df.OMOP_ID =="NA"
-        out_cols = ['FINREGISTRYID','TEST_NAME_ABBREVIATION','MEASUREMENT_UNIT','OMOP_ID']
+        out_cols = ['FINREGISTRYID','TEST_DATE_TIME','TEST_ID','TEST_ID_SOURCE','TEST_NAME_ABBREVIATION','MEASUREMENT_UNIT','OMOP_ID']
         write_chunk(df[~omop_mask],i,args.success_file,out_cols)
         write_chunk(df[omop_mask],i,args.failed_file,out_cols)
         size += tmp_size
@@ -86,7 +86,8 @@ def main(args):
 if __name__=='__main__':
     
     parser=argparse.ArgumentParser(description="KANTA LAB preprocecssing/QC pipeline. OMOP check.")
-    parser.add_argument("--raw-data", help =  "Output of munging", required = True,type=file_exists)
+    parser.add_argument("--raw-data", help =  "Output of munging", required=True,type=file_exists)
+    parser.add_argument("--omop-file", help =  "Omop mapping (default in data)",  default = os.path.join(os.path.join(dir_path),'data/mapping_abbreviation_and_unit.tsv') ,type=file_exists)
     parser.add_argument('-o',"--out",type = str, help = "Folder in which to save the results, default is same as raw-data")
     parser.add_argument("--test",action='store_true',help="Reads first 1k lines only")
     parser.add_argument("--chunk-size",type=int,help="Number of rows to be processed by each chunk",default = 1000)
