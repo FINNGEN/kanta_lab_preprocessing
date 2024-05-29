@@ -3,11 +3,11 @@ import argparse,logging,os
 from functools import partial
 import multiprocessing as mp
 import numpy as np
-from utils import file_exists,log_levels,configure_logging,make_sure_path_exists,progressBar,batched,mapcount,read_thl_map,estimate_lines,write_chunk
+from utils import file_exists,log_levels,configure_logging,make_sure_path_exists,progressBar,batched,mapcount,read_map,estimate_lines,write_chunk
 from magic_config import config
 from datetime import datetime
 from filters.filter_minimal import filter_minimal 
-from filters.lab_unit import unit_fixing
+from filters.fix_unit import unit_fixing
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
 
@@ -24,7 +24,7 @@ def chunk_reader(raw_file,chunk_size,config,separator):
     #
     # More info:
     # https://pandas.pydata.org/pandas-docs/stable/whatsnew/v1.4.0.html#multi-threaded-csv-reading-with-a-new-csv-engine-based-on-pyarrow
-    with pd.read_csv(raw_file, chunksize=chunk_size,sep=separator,dtype=str,usecols = args.config['cols'],engine='python') as reader:
+    with pd.read_csv(raw_file, chunksize=chunk_size,sep=separator,dtype=str,usecols = args.config['cols'],engine='python',on_bad_lines='warn') as reader:
         for i,chunk in enumerate(reader):
             if args.test and i==1:
                 break
@@ -122,7 +122,7 @@ def main(args):
     # Read sizes of out files and make sure it adds up
     c1 =mapcount(args.out_file) 
     c2 =mapcount(args.err_file)
-    logger.info(f"{c1} {c2} {c1+c2-2}")
+    logger.info(f"{c1-1} {c2-1} {c1+c2-2}")
     logger.info('Duration: {}'.format(datetime.now() - start_time))
     
     return
@@ -152,15 +152,16 @@ if __name__=='__main__':
     args.config['cols']  = list(config['rename_cols'].keys()) + config['other_cols']
     logger.debug(args.config)
 
-    args.config['thl_lab_map'] = read_thl_map(os.path.join(dir_path,args.config['thl_lab_map_file']),'NA')
-    args.config['thl_sote_map'] = read_thl_map(os.path.join(dir_path,args.config['thl_sote_map_file']),'NA')
+    args.config['thl_lab_map'] = read_map(os.path.join(dir_path,args.config['thl_lab_map_file']),'NA')
+    args.config['thl_sote_map'] = read_map(os.path.join(dir_path,args.config['thl_sote_map_file']),'NA')
+    args.config['unit_map'] = read_map(os.path.join(dir_path,args.config['unit_map_file']),'NA')
 
     logger.debug(dict(list(args.config['thl_lab_map'].items())[0:2]))
     # setup error file
     args.err_file = os.path.join(args.out,f"{args.prefix}_err.txt")
     with open(args.err_file,'wt') as err:err.write('\t'.join(args.config['err_cols']) + '\n')
     args.unit_file = os.path.join(args.out,f"{args.prefix}_unit.txt")
-    with open(args.unit_file,'wt') as unit:unit.write('\t'.join(['old_unit','new_unit']) + '\n')
+    with open(args.unit_file,'wt') as unit:unit.write('\t'.join(['FINREGISTRYID','TEST_DATE_TIME','TEST_NAME_ABBREVIATION','old_unit','MEASUREMENT_UNIT']) + '\n')
 
     logger.info("START")
     

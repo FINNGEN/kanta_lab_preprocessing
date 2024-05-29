@@ -22,43 +22,34 @@ def filter_minimal(df,args):
 
 def get_service_provider_name(df,args):
     """
-    Updates LAB_SERVICE_PROVIDER based on mapping. NA is default
+    Updates TEST_SERVICE_PROVIDER based on mapping. NA is default
     """
-    df.loc[:,'LAB_SERVICE_PROVIDER'] = df.loc[:,"LAB_SERVICE_PROVIDER"].map(args.config['thl_sote_map'])
+    df.loc[:,'TEST_SERVICE_PROVIDER'] = df.loc[:,"TEST_SERVICE_PROVIDER"].map(args.config['thl_sote_map'])
     return df
 
 
 def get_lab_abbrv(df,args):
     """
-    It assigns LAB_ABBREVIATION, keeping the local name if source is local (LAB_ID==0) or mapping it if source is THL (LAB_ID ==1). If the value is missing from the mapping it will be mapped to NA
+    It assigns TEST_NAME_ABBREVIATION, keeping the local name if source is local (TEST_ID==0) or mapping it if source is THL (TEST_ID ==1). If the value is missing from the mapping it will be mapped to NA
     N.B.LAB ABBREVIATION is already read on reading from paikallinentutkimusnimike (from config) so no need to create it, just update
     """
-    col="LAB_ABBREVIATION"
+    col="TEST_NAME_ABBREVIATION"
     df[col] =df[col].str.lower()     #fix lab abbrevation in general before updated mapping
-    mask = df.LAB_ID_SOURCE != "0"
-    df.loc[mask,col] = df.loc[mask,"LAB_ID"].map(args.config['thl_lab_map'])
+    mask = df.TEST_ID_SOURCE == "1"
+    df.loc[mask,col] = df.loc[mask,"TEST_ID"].map(args.config['thl_lab_map'])
     df[col] = df[col].str.replace('"', '')     # remove single quotes
     return df
 
 
 def lab_id_source(df,args):
     """
-    # column idx/name mapping for kira's data
-    1	laboratoriotutkimusnimikeid
-    11	laboratoriotutkimusoid
-    32	paikallinentutkimusnimike
-    33	paikallinentutkimusnimikeid
-    # from kira
-    std::string local_lab_abbrv = remove_chars(line_vec[31], ' ') --> paikallinentutkimusnimike
-    std::string local_lab_id = remove_chars(line_vec[32], ' ') -->    paikallinentutkimusnimikeid
-    std::string thl_lab_id = remove_chars(line_vec[0], ' ') -->       laboratoriotutkimusnimikeid
-
-    In this function she uses local_lab_id (paikallinentutkimusnimikeid)  and thl lab_id (laboratoriotutkimusnimikeid)
+    Update/create TEST_ID and TEST_ID SOURCE.
+    In this function we uses local_lab_id (paikallinentutkimusnimikeid)  and thl lab_id (laboratoriotutkimusnimikeid) if possible.
     """
     
     local_mask =  (df['laboratoriotutkimusnimikeid'] == 'NA')
-    df["LAB_ID_SOURCE"] = np.where(local_mask,"0","1")
-    df["LAB_ID"] = np.where(local_mask,df.paikallinentutkimusnimikeid,df.laboratoriotutkimusnimikeid)
+    df["TEST_ID_SOURCE"] = np.where(local_mask,"0","1")
+    df["TEST_ID"] = np.where(local_mask,df.paikallinentutkimusnimikeid,df.laboratoriotutkimusnimikeid)
     return df
     
 def filter_measurement_status(df,args):
@@ -67,9 +58,9 @@ def filter_measurement_status(df,args):
     """
     col,problematic_values=args.config['problematic_status']
     err_mask = df[col].isin(problematic_values)
-    err_df = df[err_mask]
+    err_df = df[err_mask].copy()
     err_df.loc[:,'ERR'] = 'measurement_status'
-    err_df.loc[:,'ERR_VALUE'] = err_df.loc[err_mask,col]
+    err_df.loc[:,'ERR_VALUE'] = err_df.loc[:,col]
     err_df[args.config['err_cols']].to_csv(args.err_file, mode='a', index=False, header=False,sep="\t")
     return df[~err_mask]
 
@@ -78,7 +69,7 @@ def filter_hetu(df,args):
     Filters out if hetu root is incorrect
     """
     err_mask = df['hetu_root'] != args.config['hetu_kw']
-    err_df = df[err_mask]
+    err_df = df[err_mask].copy()
     err_df.loc[:,'ERR'] = 'hetu_root'
     err_df.loc[:,'ERR_VALUE'] = err_df.loc[:,'hetu_root']
     err_df[args.config['err_cols']].to_csv(args.err_file, mode='a', index=False, header=False,sep="\t")
@@ -105,7 +96,10 @@ def remove_spaces(df):
  
     """
     for col in df.columns:
-        df[col] = df[col].str.strip().replace(r'\s', '', regex=True).fillna("NA")
+        # removes all spaces (including inside text, kinda messess up date, but fixes issues across the board.
+        df[col] = df[col].str.strip().str.replace(r'\s', '', regex=True).fillna("NA") # this removes ALL spaces
+        # only trailing/leading
+        #df[col] = df[col].str.strip().str.replace(r"^ +| +$", r"", regex=True).fillna("NA")
     return df
 
 
