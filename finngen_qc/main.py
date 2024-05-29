@@ -3,7 +3,7 @@ import argparse,logging,os
 from functools import partial
 import multiprocessing as mp
 import numpy as np
-from utils import file_exists,log_levels,configure_logging,make_sure_path_exists,progressBar,batched,mapcount,read_thl_map,estimate_lines,write_chunk
+from utils import file_exists,log_levels,configure_logging,make_sure_path_exists,progressBar,batched,mapcount,read_map,estimate_lines,write_chunk
 from magic_config import config
 from datetime import datetime
 from filters.filter_minimal import filter_minimal 
@@ -122,7 +122,7 @@ def main(args):
     # Read sizes of out files and make sure it adds up
     c1 =mapcount(args.out_file) 
     c2 =mapcount(args.err_file)
-    logger.info(f"{c1} {c2} {c1+c2-2}")
+    logger.info(f"{c1-1} {c2-1} {c1+c2-2}")
     logger.info('Duration: {}'.format(datetime.now() - start_time))
     
     return
@@ -152,9 +152,9 @@ if __name__=='__main__':
     args.config['cols']  = list(config['rename_cols'].keys()) + config['other_cols']
     logger.debug(args.config)
 
-    args.config['thl_lab_map'] = read_thl_map(os.path.join(dir_path,args.config['thl_lab_map_file']),'NA')
-    args.config['thl_sote_map'] = read_thl_map(os.path.join(dir_path,args.config['thl_sote_map_file']),'NA')
-    args.config['unit_map'] = read_thl_map(os.path.join(dir_path,args.config['unit_map_file']),'NA')
+    args.config['thl_lab_map'] = read_map(os.path.join(dir_path,args.config['thl_lab_map_file']),'NA')
+    args.config['thl_sote_map'] = read_map(os.path.join(dir_path,args.config['thl_sote_map_file']),'NA')
+    args.config['unit_map'] = read_map(os.path.join(dir_path,args.config['unit_map_file']),'NA')
 
     logger.debug(dict(list(args.config['thl_lab_map'].items())[0:2]))
     # setup error file

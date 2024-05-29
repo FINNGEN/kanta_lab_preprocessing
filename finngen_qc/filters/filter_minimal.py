@@ -58,9 +58,9 @@ def filter_measurement_status(df,args):
     """
     col,problematic_values=args.config['problematic_status']
     err_mask = df[col].isin(problematic_values)
-    err_df = df[err_mask]
+    err_df = df[err_mask].copy()
     err_df.loc[:,'ERR'] = 'measurement_status'
-    err_df.loc[:,'ERR_VALUE'] = err_df.loc[err_mask,col]
+    err_df.loc[:,'ERR_VALUE'] = err_df.loc[:,col]
     err_df[args.config['err_cols']].to_csv(args.err_file, mode='a', index=False, header=False,sep="\t")
     return df[~err_mask]
 
@@ -69,7 +69,7 @@ def filter_hetu(df,args):
     Filters out if hetu root is incorrect
     """
     err_mask = df['hetu_root'] != args.config['hetu_kw']
-    err_df = df[err_mask]
+    err_df = df[err_mask].copy()
     err_df.loc[:,'ERR'] = 'hetu_root'
     err_df.loc[:,'ERR_VALUE'] = err_df.loc[:,'hetu_root']
     err_df[args.config['err_cols']].to_csv(args.err_file, mode='a', index=False, header=False,sep="\t")
@@ -96,7 +96,7 @@ def remove_spaces(df):
  
     """
     for col in df.columns:
-        # removes all spaces (including inside text, kinda messess up date, but solves aother issues
+        # removes all spaces (including inside text, kinda messess up date, but fixes issues across the board.
         df[col] = df[col].str.strip().str.replace(r'\s', '', regex=True).fillna("NA") # this removes ALL spaces
         # only trailing/leading
         #df[col] = df[col].str.strip().str.replace(r"^ +| +$", r"", regex=True).fillna("NA")

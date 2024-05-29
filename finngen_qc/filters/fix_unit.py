@@ -6,9 +6,18 @@ def unit_fixing(df,args):
     df = (
         df
         .pipe(lab_unit_filter,args)
-        .pipe(lab_unit_regex,args)
+        .pipe(lab_unit_map,args)
         .pipe(abnormality_fix,args)
+        .pipe(replace_abnormality,args)
         )
+    return df
+
+
+def replace_abnormality(df,args):
+    """
+    TODO:
+     Moves lab unit information on abnormality to lab abnormality column and lab abnormality information to lab value column for binary tests where abnormality is the only information.
+    """
     return df
 
 def abnormality_fix(df,args):
@@ -46,7 +55,7 @@ If the abbreviation is not one of these, it is replaced with NA.
 
 def lab_unit_regex(df,args,map_mask=None):
     """
-    Fixes units based on approved mapping and uses regex for other
+    Function that replaces unit values via regex. It can work standalone or conjoint with the replacement via map
     """
     
     col ='MEASUREMENT_UNIT'

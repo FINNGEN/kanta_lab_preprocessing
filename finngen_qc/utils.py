@@ -60,15 +60,15 @@ def progressBar(value, endvalue, bar_length=20):
     sys.stdout.flush()
 
 # you need to definte it like this or the defaultdict is not pickable and multiprocessing can't use it
-def thl_default_(value):return value
-def read_thl_map(map_path,default_value):
-    default_ = partial(thl_default_,default_value)
-    thl_lab_map = dd(default_)
+def map_default_(value):return value
+def read_map(map_path,default_value):
+    default_ = partial(map_default_,default_value)
+    map_dict = dd(default_)
     with open(map_path) as i:
         for elem in i:
             elem = elem.strip().split()
-            thl_lab_map[elem[0]] = elem[1]
-    return thl_lab_map
+            map_dict[elem[0]] = elem[1]
+    return map_dict
 
 
 def batched(iterable, n):

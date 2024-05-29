@@ -1,99 +1,126 @@
-umol/l	µmol/l
-ml/min/173m2	ml/min/1.73m2
-ug/l	µg/l
-ml/min/17	ml/min/1.73m2
-ml/min/A	ml/min/1.73m2
-ug/g	µg/g
-mosm/kgH2O	mosm/kgh2o
-tilos	osuus
-/nk	u/field
-sek	s
-ug/min	µg/min
-titteri	titre
-mosm/kgH2	mosm/kgh2o
-umol	µmol
-ml/min	ml/min/1.73m2
-kpl/nk	u/field
-ug/gulostetta	µg/g
-negat	N
-/synf	u/field
-ug/ml	mg/l
-tilosuus	osuus
-pg/ml	ng/l
-10*9/l	e9/l
-suhde	ratio
-mmo/l	mmol/l
-promil	promille
-ug/L	µg/L
-mosm/kg	mosm/kgh2o
-mmol/mo	mmol/mol
-kopiota/ml	u/ml
-ml/min/m2	ml/min/1.73m2
-10*12/l	e12/l
-kpl/100leuk	u/100leuk
-Kpl/vrk	Kpl/24h
-kpl/100L	u/100L
-pg/solu	pg/u
-kopiot/ml	u/ml
-tiitteri	titre
-umol/vrk	µmol/24h
-krt/min	times/min
-ml/min/a	ml/min/1.73m2
-kopio/ml	u/ml
-^9/l	e9/l
-kpl/vrk	u/24h
-ml/min/1	ml/min/1.73m2
-ug/gulost	µg/g
-ugEq/ml	µgEq/ml
-^12/l	e12/l
-yks/ml	u/ml
-lausunto	form
-umol/L	µmol/L
-mmmol/l	mmol/l
-f/l	fl
-umol/24h	µmol/24h
-o/oo	promille
-mmol/vrk	mmol/24h
-pisteet	u
-ymol/l	µmol/l
-/näkök	u/field
-kpl	u
-mg/mmo	mg/mmol
-solua/nk	u/field
-suhdeluku	ratioluku
-"+"	A
-µg/ml	mg/l
-synf	field
-liter	l
-kpl/100le	u/100le
-mg/vrk	mg/24h
-kpl/näkökenttä	u/field
-g/d	g/24h
-/synfält	u/field
-µmol/d	µmol/24h
-mmol/molkrea	mmol/mol
-mmmol/mol	mmol/mol
-lomake	form
-ug/gkrea	µg/g
-indeksi	index
-solu/nk	u/field
-kpl/500Ly	u/500Lµ
-ug/mlGMC	µg/mlGMC
-%lymfosyyteist	%lymfosµµteist
-kpl/ul	u/ul
-nmol/vrk	nmol/24h
-FMIAyks/ml	FMIAu/ml
-µmol/vrk	µmol/24h
-ug/mL	µg/mL
-mm//h	mm/h
-arvio	estimate
-µg/gkreatiniini	µg/gtiniini
-ug/mgKrea	µg/mgKrea
-Terveysl	Terveµsl
-S/COyks	S/COu
-g/vrk	g/24h
-Tehty	Tehtµ
-x10^9/l	e9/l
-ug/gKre	µg/gKre
-p/g	pg
-ml/min/	ml/min/1.73m2
+OLD_UNIT	MEASUREMENT_UNIT	COUNT
+umol/l	µmol/l	3986624
+10e9/l	e9/l	2445462
+ml/min/173m2	ml/min/1.73m2	708804
+10e12/l	e12/l	667862
+ug/l	µg/l	650972
+ml/min/17	ml/min/1.73m2	538417
+arvio	estimate	339544
+ml/min/a	ml/min/1.73m2	333321
+ku/l	u/ml	188098
+mmol/l/ph74	mmol/l	176794
+10e6/l	e6/l	168585
+mosm/kg	mosm/kgh2o	50016
+ug/g	µg/g	45759
+lomake	form	42694
+xe9/l	e9/l	34370
+tilos	osuus	26011
+mmol/l/ph7	mmol/l	22672
+mosm/kgh20	mosm/kgh2o	19281
+xe12/l	e12/l	15807
+titteri	titre	14186
+/nk	u/field	7561
+sek	s	6602
+ug/min	µg/min	5562
+x10e12/l	e12/l	5057
+lausunto	form	4864
+mosm/kgh2	mosm/kgh2o	4383
+umol	µmol	3880
+ml/min	ml/min/1.73m2	3486
+kpl/nk	u/field	3271
+suhde	ratio	2718
+ug/gulostetta	µg/g	2664
+negat	N	2578
+/synf	u/field	2429
+ug/ml	mg/l	2245
+ve/ml	responseequivalent/ml	2188
+tilosuus	osuus	2020
+pg/ml	ng/l	1808
+10*9/l	e9/l	1801
+mmo/l	mmol/l	1707
+promil	promille	1577
+inrarvo	inr	1536
+astec	aste	1185
+mmol/mo	mmol/mol	857
+nmol/mmolkrea	nmol/mmol	849
+kpl/vrk	u/24h	827
+kopiota/ml	u/ml	722
+ml/min/m2	ml/min/1.73m2	680
+10*12/l	e12/l	667
+kpl/100leuk	u/100leuk	608
+kpl/100l	u/100l	490
+pg/solu	pg/u	488
+tiitteri	titre	444
+e06/l	e6/l	438
+kopiot/ml	u/ml	363
+solua/nk	u/field	311
+mg/lfeu	mg/l	308
+umol/vrk	µmol/24h	302
+krt/min	times/min	298
+indeksi	index	298
+kopio/ml	u/ml	249
+^9/l	e9/l	243
+ml/min/1	ml/min/1.73m2	223
+ug/gulost	µg/g	201
+ve	responseequivalent	197
+ugeq/ml	µgeq/ml	197
+^12/l	e12/l	185
+g/molkrea	g/mol	164
+yks/ml	u/ml	153
+kpl	u	134
+mmmol/l	mmol/l	128
+f/l	fl	124
+umol/24h	µmol/24h	118
+o/oo	promille	107
+mmol/vrk	mmol/24h	101
+pisteet	u	91
+ymol/l	µmol/l	88
+caste	aste	87
+/näkök	u/field	83
+mg/mmo	mg/mmol	75
+suhdeluku	ratioluku	70
+u/l37c	u/l	62
+µg/ml	mg/l	53
++	A	53
+synf	field	48
+liter	l	47
+kpl/100le	u/100le	40
+mg/vrk	mg/24h	37
+kpl/näkökenttä	u/field	36
+g/d	g/24h	33
+x10e9/l	e9/l	29
+/synfält	u/field	29
+µmol/d	µmol/24h	28
+mg/mmolkrea	mg/mmol	21
+mmol/molkrea	mmol/mol	20
+mmmol/mol	mmol/mol	20
+ug/gkrea	µg/g	17
+aru	au	16
+solu/nk	u/field	15
+kpl/500ly	u/500ly	14
+eliau/m	eliau/ml	14
+ug/mlgmc	µg/mlgmc	12
+promill	promille	12
+%lymfosyyteist	%lymfosµµteist	9
+kpl/näköke	u/nke	8
+titter	titre	7
+kpl/ul	u/ul	7
+nmol/vrk	nmol/24h	6
+fmiayks/ml	fmiau/ml	6
+µmol/vrk	µmol/24h	5
+mm//h	mm/h	5
+µg/gkreatiniini	µg/gtiniini	4
+ug/mgkrea	µg/mg	4
+terveysl	terveµsl	4
+s/coyks	s/cou	4
+iy	iµ	3
+àe9/l	e9/l	2
+nmolbce/mmolkrea	nmol/mmol	2
+g/vrk	g/24h	2
+x10^9/l	e9/l	1
+ug/gkre	µg/gkre	1
+p/g	pg	1
+old_unit	MEASUREMENT_UNIT	1
+ml/min/	ml/min/1.73m2	1
+gag/krea	gag/	1
+<320titter	titre	1
