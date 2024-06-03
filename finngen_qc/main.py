@@ -3,7 +3,7 @@ import argparse,logging,os
 from functools import partial
 import multiprocessing as mp
 import numpy as np
-from utils import file_exists,log_levels,configure_logging,make_sure_path_exists,progressBar,batched,mapcount,read_map,estimate_lines,write_chunk
+from utils import file_exists,log_levels,configure_logging,make_sure_path_exists,progressBar,batched,mapcount,read_map,estimate_lines,write_chunk,init_log_files
 from magic_config import config
 from datetime import datetime
 from filters.filter_minimal import filter_minimal 
@@ -157,12 +157,7 @@ if __name__=='__main__':
     args.config['unit_map'] = read_map(os.path.join(dir_path,args.config['unit_map_file']),'NA')
 
     logger.debug(dict(list(args.config['thl_lab_map'].items())[0:2]))
-    # setup error file
-    args.err_file = os.path.join(args.out,f"{args.prefix}_err.txt")
-    with open(args.err_file,'wt') as err:err.write('\t'.join(args.config['err_cols']) + '\n')
-    args.unit_file = os.path.join(args.out,f"{args.prefix}_unit.txt")
-    with open(args.unit_file,'wt') as unit:unit.write('\t'.join(['FINREGISTRYID','TEST_DATE_TIME','TEST_NAME_ABBREVIATION','old_unit','MEASUREMENT_UNIT']) + '\n')
-
+    init_log_files(args)
     logger.info("START")
     
     if os.path.basename(args.raw_data) == "raw_data_test.txt":

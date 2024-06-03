@@ -105,6 +105,7 @@ config = {
         (r"^pg/ml$","ng/l"),
         (r"^(µ|u)g/ml$","mg/l"),
         (r'(^\s+$|^$)',"NA")
-    ]
+    ],
+    'percentage':{'pattern':"%$|^%",'values':['%','NA']}
 
 }

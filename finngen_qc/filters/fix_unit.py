@@ -9,9 +9,28 @@ def unit_fixing(df,args):
         .pipe(lab_unit_map,args)
         .pipe(abnormality_fix,args)
         .pipe(replace_abnormality,args)
+        .pipe(check_percentage,args)
         )
     return df
 
+
+
+def check_percentage(df,args):
+    """
+    Removes % sign from abbreviations ending with it but also checks that the unit is indeed % (or NA)
+    """
+    pattern = args.config['percentage']['pattern']
+    col = 'TEST_NAME_ABBREVIATION'
+    mask = (df[col].str.contains(pattern) & df['MEASUREMENT_UNIT'].isin(args.config['percentage']['values']))
+    
+    abb_df = df[['FINREGISTRYID', 'TEST_DATE_TIME','TEST_NAME_ABBREVIATION','MEASUREMENT_UNIT']].copy()
+    df.loc[mask,col] = df.loc[mask,col].replace(pattern,"",regex=True)
+    abb_df['new'] = df[col].copy()
+    unit_mask = (abb_df[col] != abb_df['new'])
+    abb_df[unit_mask].to_csv(args.abbr_file, mode='a', index=False, header=False,sep="\t")
+
+    
+    return df
 
 def replace_abnormality(df,args):
     """

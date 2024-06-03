@@ -3,6 +3,20 @@ from itertools import islice,zip_longest
 from collections import defaultdict as dd
 from functools import partial
 
+
+def init_log_files(args):
+    # setup error file
+    args.err_file = os.path.join(args.out,f"{args.prefix}_err.txt")
+    with open(args.err_file,'wt') as err:err.write('\t'.join(args.config['err_cols']) + '\n')
+    args.unit_file = os.path.join(args.out,f"{args.prefix}_unit.txt")
+    with open(args.unit_file,'wt') as unit:unit.write('\t'.join(['FINREGISTRYID','TEST_DATE_TIME','TEST_NAME_ABBREVIATION','old_unit','MEASUREMENT_UNIT']) + '\n')
+
+    args.abbr_file = os.path.join(args.out,f"{args.prefix}_abbr.txt")
+    with open(args.abbr_file,'wt') as abbr:abbr.write('\t'.join(['FINREGISTRYID','TEST_DATE_TIME','old_abbr','MEASUREMENT_UNIT','TEST_NAME_ABBREVIATION']) + '\n')
+    
+
+    
+
 def mapcount(filename):
 
     if not os.path.isfile(filename):
