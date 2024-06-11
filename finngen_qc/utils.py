@@ -1,27 +1,20 @@
-import os,logging,sys,errno,gzip,mmap,math,requests
+import os,logging,sys,errno,gzip,mmap,math
 from itertools import islice,zip_longest
 from collections import defaultdict as dd
 from functools import partial
-
+import urllib.request
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
 def init_harmonization(args):
-    usagi_units(args)
-
-def usagi_units(args):
-
     repo = args.config['harmonization_repo']
-    fname = args.config['usagi_units_path']
-    url = repo + fname
-    out_file = os.path.join(dir_path,'data',fname)
-    r = requests.get(url)
-    open(out_file , 'wb').write(r.content)
+    for key,value in args.config['harmonization_files'].items():
+        fname = value[1]
+        url = repo + fname
+        out_file = os.path.join(dir_path,'data',fname)
+        urllib.request.urlretrieve(url,out_file)
 
-    args.config['usagi_units'] = []
-    with open(out_file) as i:
-        next(i)
-        args.config['usagi_units'] = [line.strip().split(',')[0] for line in i]
+
 
 def init_log_files(args):
     # setup error file

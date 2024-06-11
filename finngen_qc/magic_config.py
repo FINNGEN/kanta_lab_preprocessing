@@ -114,6 +114,7 @@ config = {
         ',\\d{4}$',
     ],
     'harmonization_repo':'https://raw.githubusercontent.com/FINNGEN/kanta_lab_harmonisation_public/main/MAPPING_TABLES/',
-    'usagi_units_path':"UNITSfi.usagi.csv",
+    #list of harmonization files along with columns to use
+    'harmonization_files' : {'usagi_units':[['sourceCode'],'UNITSfi.usagi.csv'],'unit_abbreviation_fix':[None,'fix_unit_based_in_abbreviation.tsv'],'usagi_mapping':[['mappingStatus','sourceCode'],'LABfi_ALL.usagi.csv']}
     
 }

@@ -156,12 +156,20 @@ if __name__=='__main__':
     # setup config
     args.config = config
     args.config['cols']  = list(config['rename_cols'].keys()) + config['other_cols']
-    logger.debug(args.config)
 
+    init_harmonization(args)
     args.config['thl_lab_map'] = read_map(os.path.join(dir_path,args.config['thl_lab_map_file']),'NA')
     args.config['thl_sote_map'] = read_map(os.path.join(dir_path,args.config['thl_sote_map_file']),'NA')
     args.config['unit_map'] = read_map(os.path.join(dir_path,args.config['unit_map_file']))
+    args.config['usagi_units'] = pd.read_csv(os.path.join(dir_path,'data',args.config['harmonization_files']['usagi_units'][1]),usecols=args.config['harmonization_files']['usagi_units'][0])
+    args.config['usagi_mapping'] = pd.read_csv(os.path.join(dir_path,'data',args.config['harmonization_files']['usagi_mapping'][1]),usecols=args.config['harmonization_files']['usagi_mapping'][0])
+    args.config['unit_abbreviation_fix'] = pd.read_csv(os.path.join(dir_path,'data',args.config['harmonization_files']['unit_abbreviation_fix'][1]),sep='\t',usecols=args.config['harmonization_files']['unit_abbreviation_fix'][0])
 
+    logger.debug(args.config['usagi_units'])
+    logger.debug(args.config['usagi_mapping'])
+    logger.debug(args.config['unit_abbreviation_fix'])
+    
+    
     logger.debug(dict(list(args.config['thl_lab_map'].items())[0:2]))
     init_log_files(args)
     logger.info("START")
@@ -173,7 +181,6 @@ if __name__=='__main__':
     args.chunk_size = max(args.chunk_size,args.mp)
     args.out_file = os.path.join(args.out,f"{args.prefix}_munged.txt")
 
-    init_harmonization(args)
     # Setup pandas
     setup_pandas()
 
