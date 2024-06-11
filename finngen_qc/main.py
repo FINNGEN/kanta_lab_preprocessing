@@ -3,7 +3,7 @@ import argparse,logging,os
 from functools import partial
 import multiprocessing as mp
 import numpy as np
-from utils import file_exists,log_levels,configure_logging,make_sure_path_exists,progressBar,batched,mapcount,read_map,estimate_lines,write_chunk,init_log_files
+from utils import file_exists,log_levels,configure_logging,make_sure_path_exists,progressBar,batched,mapcount,read_map,estimate_lines,write_chunk,init_log_files,init_harmonization
 from magic_config import config
 from datetime import datetime
 from filters.filter_minimal import filter_minimal 
@@ -28,7 +28,8 @@ def chunk_reader(raw_file,chunk_size,config,separator):
         for i,chunk in enumerate(reader):
             if args.test and i==1:
                 break
-            yield chunk.rename(columns=config['rename_cols'])
+            yield chunk
+
 
 
 def all_filters(df,args):
@@ -108,7 +109,10 @@ def main(args):
     res_it = result_iterator_multi if args.mp else result_iterator
     size = 0
     start_time = datetime.now()
-    note,lines = estimate_lines(args.raw_data)
+    if args.lines:
+        note,lines = 'exact',args.lines
+    else:
+        note,lines = estimate_lines(args.raw_data)
     logger.info(f"Input path:{args.raw_data}")
     logger.info(f"{lines} input lines {note}")
     for i,df,tmp_size in res_it(args):
@@ -139,6 +143,8 @@ if __name__=='__main__':
     parser.add_argument("--prefix", type=str, default="kanta", help="Prefix of the out files (default = 'kanta')")
     parser.add_argument("--sep", type=str, default="\\t", help="Separator (default = tab)")
     parser.add_argument("--chunk-size", type=int, help="Number of rows to be processed by each chunk (default = '100').", default=100)
+    parser.add_argument("--lines", type=int, help="Number of lines in input file (calculated/estimated otherwise).")
+    parser.add_argument("--unit-map", type=str,choices = ['regex','map','none'],default='map', help ='How to replace units. Map uses the unit_mapping.txt mapping in data and regex after. Regex does only regex. none skips it entirely.' )
     args = parser.parse_args()
     
     make_sure_path_exists(args.out)
@@ -154,7 +160,7 @@ if __name__=='__main__':
 
     args.config['thl_lab_map'] = read_map(os.path.join(dir_path,args.config['thl_lab_map_file']),'NA')
     args.config['thl_sote_map'] = read_map(os.path.join(dir_path,args.config['thl_sote_map_file']),'NA')
-    args.config['unit_map'] = read_map(os.path.join(dir_path,args.config['unit_map_file']),'NA')
+    args.config['unit_map'] = read_map(os.path.join(dir_path,args.config['unit_map_file']))
 
     logger.debug(dict(list(args.config['thl_lab_map'].items())[0:2]))
     init_log_files(args)
@@ -167,6 +173,7 @@ if __name__=='__main__':
     args.chunk_size = max(args.chunk_size,args.mp)
     args.out_file = os.path.join(args.out,f"{args.prefix}_munged.txt")
 
+    init_harmonization(args)
     # Setup pandas
     setup_pandas()
 

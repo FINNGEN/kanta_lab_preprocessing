@@ -1,15 +1,34 @@
-import os,logging,sys,errno,gzip,mmap,math
+import os,logging,sys,errno,gzip,mmap,math,requests
 from itertools import islice,zip_longest
 from collections import defaultdict as dd
 from functools import partial
 
+
+dir_path = os.path.dirname(os.path.realpath(__file__))
+
+def init_harmonization(args):
+    usagi_units(args)
+
+def usagi_units(args):
+
+    repo = args.config['harmonization_repo']
+    fname = args.config['usagi_units_path']
+    url = repo + fname
+    out_file = os.path.join(dir_path,'data',fname)
+    r = requests.get(url)
+    open(out_file , 'wb').write(r.content)
+
+    args.config['usagi_units'] = []
+    with open(out_file) as i:
+        next(i)
+        args.config['usagi_units'] = [line.strip().split(',')[0] for line in i]
 
 def init_log_files(args):
     # setup error file
     args.err_file = os.path.join(args.out,f"{args.prefix}_err.txt")
     with open(args.err_file,'wt') as err:err.write('\t'.join(args.config['err_cols']) + '\n')
     args.unit_file = os.path.join(args.out,f"{args.prefix}_unit.txt")
-    with open(args.unit_file,'wt') as unit:unit.write('\t'.join(['FINREGISTRYID','TEST_DATE_TIME','TEST_NAME_ABBREVIATION','old_unit','MEASUREMENT_UNIT']) + '\n')
+    with open(args.unit_file,'wt') as unit:unit.write('\t'.join(['FINREGISTRYID','TEST_DATE_TIME','TEST_NAME_ABBREVIATION','old_unit','MEASUREMENT_UNIT','SOURCE']) + '\n')
 
     args.abbr_file = os.path.join(args.out,f"{args.prefix}_abbr.txt")
     with open(args.abbr_file,'wt') as abbr:abbr.write('\t'.join(['FINREGISTRYID','TEST_DATE_TIME','old_abbr','MEASUREMENT_UNIT','TEST_NAME_ABBREVIATION']) + '\n')
@@ -34,7 +53,7 @@ def estimate_lines(f):
     LEARN_SIZE = int(math.pow(2,18))                                     
     size = os.path.getsize(f)
     open_func = gzip.open if f.endswith('.gz') else open
-    if f.endswith('.gz') :
+    if f.endswith('.gz'):
         with open_func(f, 'rb') as i:
             buf = i.read(LEARN_SIZE)
             size /= (len(buf) // buf.count(b'\n'))
@@ -61,6 +80,7 @@ def count_lines(filename):
     return lines
 
 
+
 def progressBar(value, endvalue, bar_length=20):
     '''
     Writes progress bar, given value (eg.current row) and endvalue(eg. total number of rows)
@@ -75,9 +95,12 @@ def progressBar(value, endvalue, bar_length=20):
 
 # you need to definte it like this or the defaultdict is not pickable and multiprocessing can't use it
 def map_default_(value):return value
-def read_map(map_path,default_value):
-    default_ = partial(map_default_,default_value)
-    map_dict = dd(default_)
+def read_map(map_path,default_value="NA"):
+    if default_value:
+        default_ = partial(map_default_,default_value)
+        map_dict = dd(default_)
+    else:
+        map_dict = {}
     with open(map_path) as i:
         for elem in i:
             elem = elem.strip().split()

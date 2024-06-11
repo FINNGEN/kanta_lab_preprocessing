@@ -24,7 +24,7 @@ config = {
     'sort_cols' : ['potilashenkilotunnus','tutkimusaika','paikallinentutkimusnimike','tutkimusvastauksentila'],
     
     # LIST OF OUTPUT COLUMNS TO INCLUDE (VALUES ABOVE PLUS NEWLY GENERATED COLUMNS)
-    'out_cols' : ['FINREGISTRYID', 'TEST_DATE_TIME', 'TEST_SERVICE_PROVIDER', 'TEST_ID','TEST_ID_SOURCE','TEST_NAME_ABBREVIATION', 'MEASUREMENT_VALUE', 'MEASUREMENT_UNIT', 'RESULT_ABNORMALITY',  'MEASUREMENT_STATUS','TEST_REFERENCE_TEXT','TEST_REFERENCE_GROUP','TEST_REFERENCE_MIN_VALUE','TEST_REFERENCE_MIN_VALUE','TEST_REFERENCE_MIN_UNIT','TEST_REFERENCE_MAX_VALUE','TEST_REFERENCE_MAX_UNIT'],
+    'out_cols' : ['FINREGISTRYID', 'TEST_DATE_TIME', 'TEST_SERVICE_PROVIDER', 'TEST_ID','TEST_ID_SOURCE','TEST_NAME_ABBREVIATION', 'MEASUREMENT_VALUE', 'MEASUREMENT_UNIT', 'RESULT_ABNORMALITY',  'MEASUREMENT_STATUS','TEST_REFERENCE_TEXT','TEST_REFERENCE_GROUP','TEST_REFERENCE_MIN_VALUE','TEST_REFERENCE_MIN_VALUE','TEST_REFERENCE_MIN_UNIT','TEST_REFERENCE_MAX_VALUE','TEST_REFERENCE_MAX_UNIT','IS_UNIT_VALID','tutkimustulosyksikko','paikallinentutkimusnimike'],
     'err_cols':['FINREGISTRYID','TEST_DATE_TIME','ERR','ERR_VALUE'],
     
     #REJECTION LINES
@@ -43,20 +43,21 @@ config = {
     # BIG REGEX FOR LAB UNIT
     'unit_replacements' : [
         (r"(^\*+$|^$)","NA"),
+        (r"\bc\b","°c"),
         (r'(^(\b)?\d+(?=e\d+))',""),
         (r"(à?x?(10)?e0?(?=\d)|x?10(\^|\*)|^\^(?=[0-9]+.?l))","e"),
         (r"(y|µ)ks(ikkö)?","u"),
-        (r"y","µ"),
+        (r"y","u"),
         (r"lµ","ly"),
         (r"tehtµ","tehty"),
-        (r"ug","µg"),
-        (r"m([a-z]?)µ","mµ"),
-        (r"^mµ.?l$","mµ/l"),
-        (r"^µ.?l$","µ/l"),
+        (r"µg","ug"),
+        (r"m([a-z]?)µ","mu"),
+        (r"^mµ.?l$","mu/l"),
+        (r"^µ.?l$","u/l"),
         (r"^u.?l$","u/l"),
-        (r"umol","µmol"),
-        (r"^µmol.?l$","µmol/l"),
-        (r"^(µ|u)g.?l$","µg/l"),
+        (r"µmol","umol"),
+        (r"^µmol.?l$","umol/l"),
+        (r"^(µ|u)g.?l$","ug/l"),
         (r"^(m)?mmo(l)?/","mmol/"),
         (r"(mo(t|l|i)?(l)?)(?=$)|nol","mol"),
         (r"^mmol.?(l|i).?$","mmol/l"),
@@ -64,7 +65,7 @@ config = {
         (r"^mmol.?mol.?$","mmol/mol"),
         (r"(^(m)?m(h)?/h$|^mh.?h$)","mm/h"),
         (r"^.?mg.?l$","mg/l"),
-        (r"^ml/min.*","ml/min/1.73m2"),
+        (r"^ml/min.*","ml/min/173m2"),
         (r"^inrarvo$","inr"),
         (r"^mg/lfeu$","mg/l"),
         (r"^mo(l)?sm/kg.*$","mosm/kgh2o"),
@@ -77,7 +78,7 @@ config = {
         (r"^eliau/m$","eliau/ml"),
         (r"^a(u|µ)/ml$","au/ml"),
         (r"(gulos(t.*)$|gulo)","gstool"),
-        (r"((u|µ)g/g(\s+)?stool|(u|µ)g/g(f)?)","µg/g"),
+        (r"((u|µ)g/g(\s+)?stool|(u|µ)g/g(f)?)","ug/g"),
         (r"(^promil(l)?$|^o/oo$)","promille"),
         (r"(^\-$|^negat$|^neg$)","N"),
         (r"(^pos$|^\+$)","A"),
@@ -106,6 +107,13 @@ config = {
         (r"^(µ|u)g/ml$","mg/l"),
         (r'(^\s+$|^$)',"NA")
     ],
-    'percentage':{'pattern':"%$|^%",'values':['%','NA']}
-
+    #Regex for abbreviation (from Javier)
+    'abbreviation_replacements': [
+        '_|\\*|#|%',
+        '^\\d{4},',
+        ',\\d{4}$',
+    ],
+    'harmonization_repo':'https://raw.githubusercontent.com/FINNGEN/kanta_lab_harmonisation_public/main/MAPPING_TABLES/',
+    'usagi_units_path':"UNITSfi.usagi.csv",
+    
 }

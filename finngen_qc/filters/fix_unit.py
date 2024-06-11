@@ -1,36 +1,21 @@
 import pandas as pd
 import re
+import numpy as np
+
 
 def unit_fixing(df,args):
 
     df = (
         df
         .pipe(lab_unit_filter,args)
-        .pipe(lab_unit_map,args)
+        .pipe(lab_unit_mapping_func,args)
         .pipe(abnormality_fix,args)
         .pipe(replace_abnormality,args)
-        .pipe(check_percentage,args)
+        .pipe(check_usagi_unit,args)
         )
     return df
 
 
-
-def check_percentage(df,args):
-    """
-    Removes % sign from abbreviations ending with it but also checks that the unit is indeed % (or NA)
-    """
-    pattern = args.config['percentage']['pattern']
-    col = 'TEST_NAME_ABBREVIATION'
-    mask = (df[col].str.contains(pattern) & df['MEASUREMENT_UNIT'].isin(args.config['percentage']['values']))
-    
-    abb_df = df[['FINREGISTRYID', 'TEST_DATE_TIME','TEST_NAME_ABBREVIATION','MEASUREMENT_UNIT']].copy()
-    df.loc[mask,col] = df.loc[mask,col].replace(pattern,"",regex=True)
-    abb_df['new'] = df[col].copy()
-    unit_mask = (abb_df[col] != abb_df['new'])
-    abb_df[unit_mask].to_csv(args.abbr_file, mode='a', index=False, header=False,sep="\t")
-
-    
-    return df
 
 def replace_abnormality(df,args):
     """
@@ -38,6 +23,24 @@ def replace_abnormality(df,args):
      Moves lab unit information on abnormality to lab abnormality column and lab abnormality information to lab value column for binary tests where abnormality is the only information.
     """
     return df
+
+
+def fix_unit_based_on_abbreviation(df,args):
+    """
+    Harmonizes units to make sure all abbreviations with similar units are mapped to same one (e.g. mg --> mg/24h for du-prot).
+    """
+
+    return df
+
+def check_usagi_unit(df,args):
+    """
+    Populates IS_UNIT_VALID column based on whether the unit is in usagi list
+    """
+    col ='MEASUREMENT_UNIT'
+    map_mask = df[col].isin(args.config['usagi_units'])
+    df["IS_UNIT_VALID"] = np.where(map_mask,"1","0")
+    return df
+    
 
 def abnormality_fix(df,args):
 
@@ -71,7 +74,6 @@ If the abbreviation is not one of these, it is replaced with NA.
     return df
 
 
-
 def lab_unit_regex(df,args,map_mask=None):
     """
     Function that replaces unit values via regex. It can work standalone or conjoint with the replacement via map
@@ -89,6 +91,7 @@ def lab_unit_regex(df,args,map_mask=None):
     # LOG CHANGES
     
     unit_df['new'] = df[col].copy()
+    unit_df['SOURCE'] = "regex"    
     unit_mask = (unit_df[col] != unit_df['new'])
     unit_df[unit_mask].to_csv(args.unit_file, mode='a', index=False, header=False,sep="\t")
     
@@ -107,6 +110,14 @@ def lab_unit_map(df,args):
     df = lab_unit_regex(df,args,map_mask)
     return df
 
+
+def lab_unit_mapping_func(df,args):
+    if args.unit_map =="map":
+        return lab_unit_map(df,args)
+    elif args.unit_map == 'regex':
+        return lab_unit_regex(df,args)
+    else:
+        return df
 
 def lab_unit_filter(df,args):
     '''

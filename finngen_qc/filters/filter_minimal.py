@@ -17,8 +17,27 @@ def filter_minimal(df,args):
         .pipe(lab_id_source,args)
         .pipe(get_lab_abbrv,args)
         .pipe(get_service_provider_name,args)
+        .pipe(fix_abbreviation,args)
     )
     return df
+
+
+def fix_abbreviation(df,args):
+    """
+    Removes characthers from abbreviation
+    """
+    col = 'TEST_NAME_ABBREVIATION'
+    abb_df = df[['FINREGISTRYID', 'TEST_DATE_TIME','TEST_NAME_ABBREVIATION','MEASUREMENT_UNIT']].copy()
+    pattern = '|'.join(args.config['abbreviation_replacements'])
+    df[col] = df[col].replace(pattern,'',regex=True)
+    #log changes
+    abb_df['new'] = df[col].copy()
+    unit_mask = (abb_df[col] != abb_df['new'])
+    abb_df[unit_mask].to_csv(args.abbr_file, mode='a', index=False, header=False,sep="\t")
+    
+    return df
+
+
 
 def get_service_provider_name(df,args):
     """
@@ -105,6 +124,15 @@ def remove_spaces(df):
 
 def initialize_out_cols(df,args):
     #Makes sure that the columns for output exist
+
+    # These columns need be copied back to original name
+    for col in args.config['rename_cols']:
+        new_col = args.config['rename_cols'][col]
+        if col in args.config['out_cols']:
+            df[new_col] = df[col]
+        else:
+            df = df.rename(columns = {col:new_col})
+            
     for col in args.config['out_cols'] + args.config['err_cols']:
         if col not in df.columns.tolist():
             df[col] = "NA"
