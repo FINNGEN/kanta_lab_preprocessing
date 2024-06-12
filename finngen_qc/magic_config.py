@@ -24,7 +24,7 @@ config = {
     'sort_cols' : ['potilashenkilotunnus','tutkimusaika','paikallinentutkimusnimike','tutkimusvastauksentila'],
     
     # LIST OF OUTPUT COLUMNS TO INCLUDE (VALUES ABOVE PLUS NEWLY GENERATED COLUMNS)
-    'out_cols' : ['FINREGISTRYID', 'TEST_DATE_TIME', 'TEST_SERVICE_PROVIDER', 'TEST_ID','TEST_ID_SOURCE','TEST_NAME_ABBREVIATION', 'MEASUREMENT_VALUE', 'MEASUREMENT_UNIT', 'RESULT_ABNORMALITY',  'MEASUREMENT_STATUS','TEST_REFERENCE_TEXT','TEST_REFERENCE_GROUP','TEST_REFERENCE_MIN_VALUE','TEST_REFERENCE_MIN_VALUE','TEST_REFERENCE_MIN_UNIT','TEST_REFERENCE_MAX_VALUE','TEST_REFERENCE_MAX_UNIT','IS_UNIT_VALID','tutkimustulosyksikko','paikallinentutkimusnimike'],
+    'out_cols' : ['FINREGISTRYID', 'TEST_DATE_TIME', 'TEST_SERVICE_PROVIDER', 'TEST_ID','TEST_ID_SOURCE','TEST_NAME_ABBREVIATION', 'MEASUREMENT_VALUE', 'MEASUREMENT_UNIT', 'RESULT_ABNORMALITY',  'MEASUREMENT_STATUS','TEST_REFERENCE_TEXT','TEST_REFERENCE_GROUP','TEST_REFERENCE_MIN_VALUE','TEST_REFERENCE_MIN_VALUE','TEST_REFERENCE_MIN_UNIT','TEST_REFERENCE_MAX_VALUE','TEST_REFERENCE_MAX_UNIT','IS_UNIT_VALID','mappingStatus','sourceCode','conceptId','ADD_INFO:omopQuantity','tutkimustulosyksikko','paikallinentutkimusnimike'],
     'err_cols':['FINREGISTRYID','TEST_DATE_TIME','ERR','ERR_VALUE'],
     
     #REJECTION LINES
@@ -115,6 +115,6 @@ config = {
     ],
     'harmonization_repo':'https://raw.githubusercontent.com/FINNGEN/kanta_lab_harmonisation_public/main/MAPPING_TABLES/',
     #list of harmonization files along with columns to use
-    'harmonization_files' : {'usagi_units':[['sourceCode'],'UNITSfi.usagi.csv'],'unit_abbreviation_fix':[None,'fix_unit_based_in_abbreviation.tsv'],'usagi_mapping':[['mappingStatus','sourceCode'],'LABfi_ALL.usagi.csv']}
+    'harmonization_files' : {'usagi_units':[['sourceCode'],'UNITSfi.usagi.csv'],'unit_abbreviation_fix':[None,'fix_unit_based_in_abbreviation.tsv'],'usagi_mapping':[['mappingStatus','sourceCode','conceptId','ADD_INFO:omopQuantity'],'LABfi_ALL.usagi.csv']}
     
 }

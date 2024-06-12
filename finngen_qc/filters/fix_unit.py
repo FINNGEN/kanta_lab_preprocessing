@@ -11,8 +11,6 @@ def unit_fixing(df,args):
         .pipe(lab_unit_mapping_func,args)
         .pipe(abnormality_fix,args)
         .pipe(replace_abnormality,args)
-        .pipe(check_usagi_unit,args)
-        .pipe(fix_unit_based_on_abbreviation,args)
         )
     return df
 
@@ -24,32 +22,6 @@ def replace_abnormality(df,args):
     """
     return df
 
-
-def fix_unit_based_on_abbreviation(df,args):
-    """
-    Harmonizes units to make sure all abbreviations with similar units are mapped to same one (e.g. mg --> mg/24h for du-prot).
-    """
-
-    col = 'MEASUREMENT_UNIT'
-    df = pd.merge(df,args.config['unit_abbreviation_fix'],left_on = ['TEST_NAME_ABBREVIATION','MEASUREMENT_UNIT'],right_on=['TEST_NAME_ABBREVIATION','source_unit_valid'],how='left').fillna("NA")
-    mask = df['source_unit_valid_fix'] !="NA"
-    df.loc[mask,col] = df.loc[mask,'source_unit_valid_fix']
-    # LOG CHANGES
-    unit_df = df.loc[mask,['FINREGISTRYID', 'TEST_DATE_TIME','TEST_NAME_ABBREVIATION','source_unit_valid','MEASUREMENT_UNIT']].copy()
-    unit_df['SOURCE'] = "harmonization_fix"    
-    unit_df.to_csv(args.unit_file, mode='a', index=False, header=False,sep="\t")
-    
-    return df
-
-def check_usagi_unit(df,args):
-    """
-    Populates IS_UNIT_VALID column based on whether the unit is in usagi list
-    """
-    col ='MEASUREMENT_UNIT'
-    map_mask = df[col].isin(args.config['usagi_units']['sourceCode'])
-    df["IS_UNIT_VALID"] = np.where(map_mask,"1","0")
-    return df
-    
 
 def abnormality_fix(df,args):
 

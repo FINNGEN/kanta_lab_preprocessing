@@ -8,6 +8,7 @@ from magic_config import config
 from datetime import datetime
 from filters.filter_minimal import filter_minimal 
 from filters.fix_unit import unit_fixing
+from filters.harmonization import harmonization
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
 
@@ -37,6 +38,7 @@ def all_filters(df,args):
         df
         .pipe(filter_minimal,args)
         .pipe(unit_fixing,args)
+        .pipe(harmonization,args)
     )
     return df
 
@@ -157,14 +159,11 @@ if __name__=='__main__':
     args.config = config
     args.config['cols']  = list(config['rename_cols'].keys()) + config['other_cols']
 
-    init_harmonization(args)
+    args = init_harmonization(args)
     args.config['thl_lab_map'] = read_map(os.path.join(dir_path,args.config['thl_lab_map_file']),'NA')
     args.config['thl_sote_map'] = read_map(os.path.join(dir_path,args.config['thl_sote_map_file']),'NA')
     args.config['unit_map'] = read_map(os.path.join(dir_path,args.config['unit_map_file']))
-    args.config['usagi_units'] = pd.read_csv(os.path.join(dir_path,'data',args.config['harmonization_files']['usagi_units'][1]),usecols=args.config['harmonization_files']['usagi_units'][0])
-    args.config['usagi_mapping'] = pd.read_csv(os.path.join(dir_path,'data',args.config['harmonization_files']['usagi_mapping'][1]),usecols=args.config['harmonization_files']['usagi_mapping'][0])
-    args.config['unit_abbreviation_fix'] = pd.read_csv(os.path.join(dir_path,'data',args.config['harmonization_files']['unit_abbreviation_fix'][1]),sep='\t',usecols=args.config['harmonization_files']['unit_abbreviation_fix'][0])
-
+   
     logger.debug(args.config['usagi_units'])
     logger.debug(args.config['usagi_mapping'])
     logger.debug(args.config['unit_abbreviation_fix'])

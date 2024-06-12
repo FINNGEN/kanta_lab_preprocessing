@@ -2,6 +2,7 @@ import os,logging,sys,errno,gzip,mmap,math
 from itertools import islice,zip_longest
 from collections import defaultdict as dd
 from functools import partial
+import pandas as pd
 import urllib.request
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -15,7 +16,23 @@ def init_harmonization(args):
         urllib.request.urlretrieve(url,out_file)
 
 
+    args.config['usagi_units'] = pd.read_csv(os.path.join(dir_path,'data',args.config['harmonization_files']['usagi_units'][1]),usecols=args.config['harmonization_files']['usagi_units'][0])
+    args.config['usagi_mapping'] = pd.read_csv(os.path.join(dir_path,'data',args.config['harmonization_files']['usagi_mapping'][1]),usecols=args.config['harmonization_files']['usagi_mapping'][0])
+    args.config['unit_abbreviation_fix'] = pd.read_csv(os.path.join(dir_path,'data',args.config['harmonization_files']['unit_abbreviation_fix'][1]),sep='\t',usecols=args.config['harmonization_files']['unit_abbreviation_fix'][0])
 
+
+    #fix mapping
+    args.config['usagi_mapping'][['TEST_NAME_ABBREVIATION','MEASUREMENT_UNIT']] = args.config['usagi_mapping']['sourceCode'].str.replace(']','').str.split('[',expand=True)
+
+    args.config['usagi_mapping']['conceptId'] =args.config['usagi_mapping']['conceptId'].astype(int)
+    
+    approved_mask = args.config['usagi_mapping']['mappingStatus'] != "APPROVED"
+    
+    args.config['usagi_mapping'].loc[approved_mask,'conceptId'] = 0
+    
+    return args
+
+    
 def init_log_files(args):
     # setup error file
     args.err_file = os.path.join(args.out,f"{args.prefix}_err.txt")
