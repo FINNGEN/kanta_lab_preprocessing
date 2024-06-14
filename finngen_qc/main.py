@@ -159,15 +159,11 @@ if __name__=='__main__':
     # setup config
     args.config = config
     args.config['cols']  = list(config['rename_cols'].keys()) + config['other_cols']
-
     args = init_harmonization(args,logger)
     args.config['thl_lab_map'] = read_map(os.path.join(dir_path,args.config['thl_lab_map_file']),'NA')
     args.config['thl_sote_map'] = read_map(os.path.join(dir_path,args.config['thl_sote_map_file']),'NA')
     args.config['unit_map'] = read_map(os.path.join(dir_path,args.config['unit_map_file']))
    
-    logger.debug(args.config['usagi_units'])
-    logger.debug(args.config['usagi_mapping'])
-    logger.debug(args.config['unit_abbreviation_fix'])
     logger.debug(dict(list(args.config['thl_lab_map'].items())[0:2]))
     init_log_files(args)
     
