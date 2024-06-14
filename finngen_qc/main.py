@@ -154,12 +154,13 @@ if __name__=='__main__':
     logger = logging.getLogger(__name__)
     log_file = os.path.join(args.out,f"{args.prefix}_log.txt")
     configure_logging(logger,log_levels[args.log],log_file)
+    logger.info("START")
 
     # setup config
     args.config = config
     args.config['cols']  = list(config['rename_cols'].keys()) + config['other_cols']
 
-    args = init_harmonization(args)
+    args = init_harmonization(args,logger)
     args.config['thl_lab_map'] = read_map(os.path.join(dir_path,args.config['thl_lab_map_file']),'NA')
     args.config['thl_sote_map'] = read_map(os.path.join(dir_path,args.config['thl_sote_map_file']),'NA')
     args.config['unit_map'] = read_map(os.path.join(dir_path,args.config['unit_map_file']))
@@ -167,11 +168,8 @@ if __name__=='__main__':
     logger.debug(args.config['usagi_units'])
     logger.debug(args.config['usagi_mapping'])
     logger.debug(args.config['unit_abbreviation_fix'])
-    
-    
     logger.debug(dict(list(args.config['thl_lab_map'].items())[0:2]))
     init_log_files(args)
-    logger.info("START")
     
     if os.path.basename(args.raw_data) == "raw_data_test.txt":
         logger.warning("RUNNING IN TEST MODE")

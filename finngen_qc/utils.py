@@ -4,17 +4,35 @@ from collections import defaultdict as dd
 from functools import partial
 import pandas as pd
 import urllib.request
+import http.client as httplib
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
-def init_harmonization(args):
-    repo = args.config['harmonization_repo']
-    for key,value in args.config['harmonization_files'].items():
-        fname = value[1]
-        url = repo + fname
-        out_file = os.path.join(dir_path,'data',fname)
-        urllib.request.urlretrieve(url,out_file)
 
+def have_internet() -> bool:
+    conn = httplib.HTTPSConnection("8.8.8.8", timeout=5)
+    try:
+        conn.request("HEAD", "/")
+        return True
+    except Exception:
+        return False
+    finally:
+        conn.close()
+
+
+def init_harmonization(args,logger):
+
+    if not have_internet():
+        logger.warning("NO INTERNET CONNECTION,USAGI MAPPINS WILL NOT BE UPDATED!")
+
+    else:
+        logger.info("UPDATING USAGI")
+        repo = args.config['harmonization_repo']
+        for key,value in args.config['harmonization_files'].items():
+            fname = value[1]
+            url = repo + fname
+            out_file = os.path.join(dir_path,'data',fname)
+            urllib.request.urlretrieve(url,out_file)
 
     args.config['usagi_units'] = pd.read_csv(os.path.join(dir_path,'data',args.config['harmonization_files']['usagi_units'][1]),usecols=args.config['harmonization_files']['usagi_units'][0])
     args.config['usagi_mapping'] = pd.read_csv(os.path.join(dir_path,'data',args.config['harmonization_files']['usagi_mapping'][1]),usecols=args.config['harmonization_files']['usagi_mapping'][0])
@@ -25,12 +43,24 @@ def init_harmonization(args):
     args.config['usagi_mapping'][['TEST_NAME_ABBREVIATION','MEASUREMENT_UNIT']] = args.config['usagi_mapping']['sourceCode'].str.replace(']','').str.split('[',expand=True)
 
     args.config['usagi_mapping']['conceptId'] =args.config['usagi_mapping']['conceptId'].astype(int)
-    
     approved_mask = args.config['usagi_mapping']['mappingStatus'] != "APPROVED"
-    
     args.config['usagi_mapping'].loc[approved_mask,'conceptId'] = 0
-    
+
+    logger.debug(args.config['usagi_units'])
+    logger.debug(args.config['usagi_mapping'])
+    logger.debug(args.config['unit_abbreviation_fix'])
     return args
+
+
+def have_internet() -> bool:
+    conn = httplib.HTTPSConnection("8.8.8.8", timeout=5)
+    try:
+        conn.request("HEAD", "/")
+        return True
+    except Exception:
+        return False
+    finally:
+        conn.close()
 
     
 def init_log_files(args):
@@ -44,7 +74,17 @@ def init_log_files(args):
     with open(args.abbr_file,'wt') as abbr:abbr.write('\t'.join(['FINREGISTRYID','TEST_DATE_TIME','old_abbr','MEASUREMENT_UNIT','TEST_NAME_ABBREVIATION']) + '\n')
     
 
-    
+
+def have_internet() -> bool:
+    conn = httplib.HTTPSConnection("8.8.8.8", timeout=5)
+    try:
+        conn.request("HEAD", "/")
+        return True
+    except Exception:
+        return False
+    finally:
+        conn.close()
+
 
 def mapcount(filename):
 
