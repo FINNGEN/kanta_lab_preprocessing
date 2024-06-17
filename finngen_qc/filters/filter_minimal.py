@@ -126,13 +126,9 @@ def initialize_out_cols(df,args):
     #Makes sure that the columns for output exist
 
     # These columns need be copied back to original name
-    for col in args.config['rename_cols']:
-        new_col = args.config['rename_cols'][col]
-        if col in args.config['out_cols']:
-            df[new_col] = df[col]
-        else:
-            df = df.rename(columns = {col:new_col})
-            
+    df = df.rename(columns = args.config['rename_cols'])
+    for col in args.config['source_cols']:
+        df[col +"_SOURCE"] = df[col]
     for col in args.config['out_cols'] + args.config['err_cols']:
         if col not in df.columns.tolist():
             df[col] = "NA"
