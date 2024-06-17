@@ -10,7 +10,7 @@ def filter_minimal(df,args):
     df = (
         df
         .pipe(initialize_out_cols,args)
-        .pipe(remove_spaces)
+        .pipe(remove_spaces,args)
         .pipe(fix_na,args)
         .pipe(filter_hetu,args)
         .pipe(filter_measurement_status,args)
@@ -78,8 +78,8 @@ def filter_measurement_status(df,args):
     col,problematic_values=args.config['problematic_status']
     err_mask = df[col].isin(problematic_values)
     err_df = df[err_mask].copy()
-    err_df.loc[:,'ERR'] = 'measurement_status'
-    err_df.loc[:,'ERR_VALUE'] = err_df.loc[:,col]
+    err_df['ERR'] = 'measurement_status'
+    err_df['ERR_VALUE'] = err_df[col]
     err_df[args.config['err_cols']].to_csv(args.err_file, mode='a', index=False, header=False,sep="\t")
     return df[~err_mask]
 
@@ -89,8 +89,8 @@ def filter_hetu(df,args):
     """
     err_mask = df['hetu_root'] != args.config['hetu_kw']
     err_df = df[err_mask].copy()
-    err_df.loc[:,'ERR'] = 'hetu_root'
-    err_df.loc[:,'ERR_VALUE'] = err_df.loc[:,'hetu_root']
+    err_df['ERR'] = 'hetu_root'
+    err_df['ERR_VALUE'] = err_df['hetu_root']
     err_df[args.config['err_cols']].to_csv(args.err_file, mode='a', index=False, header=False,sep="\t")
     return df[~err_mask]
     
@@ -108,17 +108,22 @@ def fix_na(df,args):
     df[other_cols] = df[other_cols].replace(args.config['NA_kws'],"NA")
     return df
 
-def remove_spaces(df):
+def remove_spaces(df,args):
     """
     Trim whitespace from ends of each value across all series in dataframe.
     In testing sometimes fields are empty strings, so I will replace those cases with NA. Gotta check if it's the case with real data too
  
     """
+
+    
+    df['TEST_DATE_TIME'] = pd.to_datetime(df.TEST_DATE_TIME).dt.strftime(args.config['date_time_format'])
+
     for col in df.columns:
         # removes all spaces (including inside text, kinda messess up date, but fixes issues across the board.
         df[col] = df[col].str.strip().str.replace(r'\s', '', regex=True).fillna("NA") # this removes ALL spaces
         # only trailing/leading
         #df[col] = df[col].str.strip().str.replace(r"^ +| +$", r"", regex=True).fillna("NA")
+        
     return df
 
 

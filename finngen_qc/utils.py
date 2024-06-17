@@ -9,31 +9,21 @@ import http.client as httplib
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
 
-def have_internet() -> bool:
-    conn = httplib.HTTPSConnection("8.8.8.8", timeout=5)
-    try:
-        conn.request("HEAD", "/")
-        return True
-    except Exception:
-        return False
-    finally:
-        conn.close()
-
 
 def init_harmonization(args,logger):
 
-    if not have_internet():
-        logger.warning("NO INTERNET CONNECTION,USAGI MAPPINS WILL NOT BE UPDATED!")
 
-    else:
-        logger.info("UPDATING USAGI")
-        repo = args.config['harmonization_repo']
-        for key,value in args.config['harmonization_files'].items():
-            fname = value[1]
-            url = repo + fname
-            out_file = os.path.join(dir_path,'data',fname)
+    logger.info("UPDATING USAGI")
+    repo = args.config['harmonization_repo']
+    urls = [(repo+elem[1],os.path.join(dir_path,'data',elem[1])) for elem in args.config['harmonization_files'].values()]
+
+    try:
+        for url,out_file in urls:
             urllib.request.urlretrieve(url,out_file)
-
+    except:
+        logger.warning("COULD NOT DOWNLOAD FILES: USAGI FILES NOT UPDATED")
+        logger.warning(urls)
+        
     args.config['usagi_units'] = pd.read_csv(os.path.join(dir_path,'data',args.config['harmonization_files']['usagi_units'][1]),usecols=args.config['harmonization_files']['usagi_units'][0])
     args.config['usagi_mapping'] = pd.read_csv(os.path.join(dir_path,'data',args.config['harmonization_files']['usagi_mapping'][1]),usecols=args.config['harmonization_files']['usagi_mapping'][0])
     args.config['unit_abbreviation_fix'] = pd.read_csv(os.path.join(dir_path,'data',args.config['harmonization_files']['unit_abbreviation_fix'][1]),sep='\t',usecols=args.config['harmonization_files']['unit_abbreviation_fix'][0])
@@ -51,16 +41,6 @@ def init_harmonization(args,logger):
     logger.debug(args.config['unit_abbreviation_fix'])
     return args
 
-
-def have_internet() -> bool:
-    conn = httplib.HTTPSConnection("8.8.8.8", timeout=5)
-    try:
-        conn.request("HEAD", "/")
-        return True
-    except Exception:
-        return False
-    finally:
-        conn.close()
 
     
 def init_log_files(args):

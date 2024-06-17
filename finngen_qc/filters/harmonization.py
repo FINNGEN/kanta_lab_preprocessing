@@ -15,7 +15,9 @@ def harmonization(df,args):
 
 
 def omop_mapping(df,args):
-
+    """
+    Does omop mapping from UNITSfi.usagi.csv
+    """
     mapping_columns = ['TEST_NAME_ABBREVIATION','MEASUREMENT_UNIT']
     df_omop = args.config['usagi_mapping']
     # remove duplicate columns that will be overwritten. They are initialized as out_cols so they would get duplicaed with _x _y suffixes by the merging step
