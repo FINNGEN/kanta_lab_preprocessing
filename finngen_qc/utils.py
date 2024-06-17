@@ -23,12 +23,12 @@ def init_harmonization(args,logger):
     except:
         logger.warning("COULD NOT DOWNLOAD FILES: USAGI FILES NOT UPDATED")
         logger.warning(urls)
+
+    for key,value in args.config['harmonization_files'].items():
+        cols,fname = value
+        sep = ',' if fname.endswith('.csv') else '\t'
+        args.config[key] = pd.read_csv(os.path.join(dir_path,'data',fname),usecols = cols,sep = sep)
         
-    args.config['usagi_units'] = pd.read_csv(os.path.join(dir_path,'data',args.config['harmonization_files']['usagi_units'][1]),usecols=args.config['harmonization_files']['usagi_units'][0])
-    args.config['usagi_mapping'] = pd.read_csv(os.path.join(dir_path,'data',args.config['harmonization_files']['usagi_mapping'][1]),usecols=args.config['harmonization_files']['usagi_mapping'][0])
-    args.config['unit_abbreviation_fix'] = pd.read_csv(os.path.join(dir_path,'data',args.config['harmonization_files']['unit_abbreviation_fix'][1]),sep='\t',usecols=args.config['harmonization_files']['unit_abbreviation_fix'][0])
-
-
     #fix mapping
     args.config['usagi_mapping'][['TEST_NAME_ABBREVIATION','MEASUREMENT_UNIT']] = args.config['usagi_mapping']['sourceCode'].str.replace(']','').str.split('[',expand=True)
 
