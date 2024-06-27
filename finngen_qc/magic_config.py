@@ -1,31 +1,31 @@
 config = {
     # DIRECT COLUMN MAPPING
     'rename_cols' : {
-        'potilashenkilotunnus':           'FINREGISTRYID',
-        'tutkimusaika':                   'TEST_DATE_TIME',
-        'palvelutuottaja_organisaatio'  : 'TEST_SERVICE_PROVIDER',
+        'FINNGENID':                      'FINNGENID',
+        'EVENT_AGE' :                     'AGE_AT_MEASUREMENT',
+        'tutkimuskoodistonjarjestelmaid': 'TEST_SERVICE_PROVIDER',
         'paikallinentutkimusnimike':      'TEST_NAME_ABBREVIATION',
         'tutkimustulosarvo':              'MEASUREMENT_VALUE',
         'tutkimustulosyksikko':           'MEASUREMENT_UNIT',
-        'tutkimusvastauksentila':         'MEASUREMENT_STATUS',
-        'tuloksenpoikkeavuus':            'RESULT_ABNORMALITY',
-        'viitevaliteksti':                'TEST_REFERENCE_TEXT',
+        'tutkimusvastauksentilaid':       'MEASUREMENT_STATUS',
+        'tuloksenpoikkeavuusid':          'RESULT_ABNORMALITY',
         'viitearvoryhma':                 'TEST_REFERENCE_GROUP',
         'viitevalialkuarvo':              'TEST_REFERENCE_MIN_VALUE',
         'viitevalialkuyksikko':           'TEST_REFERENCE_MIN_UNIT',
         'viitevaliloppuarvo':             'TEST_REFERENCE_MAX_VALUE',
         'viitevaliloppuyksikko':          'TEST_REFERENCE_MAX_UNIT',
         
+        
     },
     "source_cols" : ['MEASUREMENT_VALUE','MEASUREMENT_UNIT','TEST_NAME_ABBREVIATION'],
     # ACCESSORY COLUMNS
-    'other_cols' : ['paikallinentutkimusnimikeid','laboratoriotutkimusnimikeid','hetu_root'],
+    'other_cols' : ['paikallinentutkimusnimikeid','laboratoriotutkimusnimikeid','APPROX_EVENT_DAY','TIME'],
     # Cols used for sorting in the wdl.
     # N.B. the order is important as it is kept in the grepping!
-    'sort_cols' : ['potilashenkilotunnus','tutkimusaika','paikallinentutkimusnimike','tutkimusvastauksentila'],
+    'sort_cols' : ['FINREGISTRYID','APPROX_EVENT_DAY','TIME','paikallinentutkimusnimike','tutkimusvastauksentilaid'],
     
     # LIST OF OUTPUT COLUMNS TO INCLUDE (VALUES ABOVE PLUS NEWLY GENERATED COLUMNS)
-    'out_cols' : ['FINREGISTRYID', 'TEST_DATE_TIME', 'TEST_SERVICE_PROVIDER', 'TEST_ID','TEST_ID_SOURCE','TEST_NAME_ABBREVIATION', 'MEASUREMENT_VALUE', 'MEASUREMENT_UNIT', 'RESULT_ABNORMALITY',  'MEASUREMENT_STATUS','TEST_REFERENCE_TEXT','TEST_REFERENCE_GROUP','TEST_REFERENCE_MIN_VALUE','TEST_REFERENCE_MIN_VALUE','TEST_REFERENCE_MIN_UNIT','TEST_REFERENCE_MAX_VALUE','TEST_REFERENCE_MAX_UNIT','IS_UNIT_VALID','mappingStatus','sourceCode','conceptId','ADD_INFO:omopQuantity','MEASUREMENT_VALUE_SOURCE','MEASUREMENT_UNIT_SOURCE','TEST_NAME_ABBREVIATION_SOURCE'],
+    'out_cols' : ['FINNGEN_ID', 'TEST_DATE_TIME','AGE_AT_MEASUREMENT','TEST_SERVICE_PROVIDER', 'TEST_ID','TEST_ID_SOURCE','TEST_NAME_ABBREVIATION', 'MEASUREMENT_VALUE', 'MEASUREMENT_UNIT', 'RESULT_ABNORMALITY',  'MEASUREMENT_STATUS','TEST_REFERENCE_GROUP','TEST_REFERENCE_MIN_VALUE','TEST_REFERENCE_MIN_VALUE','TEST_REFERENCE_MIN_UNIT','TEST_REFERENCE_MAX_VALUE','TEST_REFERENCE_MAX_UNIT','IS_UNIT_VALID','mappingStatus','sourceCode','conceptId','ADD_INFO:omopQuantity','MEASUREMENT_VALUE_SOURCE','MEASUREMENT_UNIT_SOURCE','TEST_NAME_ABBREVIATION_SOURCE'],
     'err_cols':['FINREGISTRYID','TEST_DATE_TIME','ERR','ERR_VALUE'],
     
     'date_time_format': "%Y-%m-%dT%H:%M:%S",

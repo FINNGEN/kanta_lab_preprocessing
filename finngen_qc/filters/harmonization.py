@@ -39,6 +39,8 @@ def fix_unit_based_on_abbreviation(df,args):
     df = pd.merge(df,args.config['unit_abbreviation_fix'],left_on = ['TEST_NAME_ABBREVIATION','MEASUREMENT_UNIT'],right_on=['TEST_NAME_ABBREVIATION','source_unit_valid'],how='left').fillna("NA")
     mask = df['source_unit_valid_fix'] !="NA"
     df.loc[mask,col] = df.loc[mask,'source_unit_valid_fix']
+    df.loc[mask,"IS_UNIT_VALID"] = "unit_fixed"
+    
     # LOG CHANGES
     unit_df = df.loc[mask,['FINREGISTRYID', 'TEST_DATE_TIME','TEST_NAME_ABBREVIATION','source_unit_valid','MEASUREMENT_UNIT']].copy()
     unit_df['SOURCE'] = "harmonization_fix"    

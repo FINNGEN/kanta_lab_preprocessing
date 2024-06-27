@@ -10,9 +10,10 @@ def filter_minimal(df,args):
     df = (
         df
         .pipe(initialize_out_cols,args)
+        .pipe(fix_date,args)
         .pipe(remove_spaces,args)
         .pipe(fix_na,args)
-        .pipe(filter_hetu,args)
+        #.pipe(filter_hetu,args)
         .pipe(filter_measurement_status,args)
         .pipe(lab_id_source,args)
         .pipe(get_lab_abbrv,args)
@@ -108,16 +109,19 @@ def fix_na(df,args):
     df[other_cols] = df[other_cols].replace(args.config['NA_kws'],"NA")
     return df
 
+
+def fix_date(df,args):
+    df['TEST_DATE_TIME'] = pd.to_datetime(df.APPROX_EVENT_DAY +" "+df.TIME).dt.strftime(args.config['date_time_format'])
+    return df
+
+
 def remove_spaces(df,args):
     """
     Trim whitespace from ends of each value across all series in dataframe.
     In testing sometimes fields are empty strings, so I will replace those cases with NA. Gotta check if it's the case with real data too
  
     """
-
-    
-    df['TEST_DATE_TIME'] = pd.to_datetime(df.TEST_DATE_TIME).dt.strftime(args.config['date_time_format'])
-
+   
     for col in df.columns:
         # removes all spaces (including inside text, kinda messess up date, but fixes issues across the board.
         df[col] = df[col].str.strip().str.replace(r'\s', '', regex=True).fillna("NA") # this removes ALL spaces
