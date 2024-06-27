@@ -42,7 +42,7 @@ def fix_unit_based_on_abbreviation(df,args):
     df.loc[mask,"IS_UNIT_VALID"] = "unit_fixed"
     
     # LOG CHANGES
-    unit_df = df.loc[mask,['FINREGISTRYID', 'TEST_DATE_TIME','TEST_NAME_ABBREVIATION','source_unit_valid','MEASUREMENT_UNIT']].copy()
+    unit_df = df.loc[mask,['FINNGENID', 'TEST_DATE_TIME','TEST_NAME_ABBREVIATION','source_unit_valid','MEASUREMENT_UNIT']].copy()
     unit_df['SOURCE'] = "harmonization_fix"    
     unit_df.to_csv(args.unit_file, mode='a', index=False, header=False,sep="\t")
     
