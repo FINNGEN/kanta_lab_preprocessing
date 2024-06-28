@@ -13,7 +13,6 @@ def filter_minimal(df,args):
         .pipe(fix_date,args)
         .pipe(remove_spaces,args)
         .pipe(fix_na,args)
-        #.pipe(filter_hetu,args)
         .pipe(filter_measurement_status,args)
         .pipe(lab_id_source,args)
         .pipe(get_lab_abbrv,args)
@@ -37,8 +36,6 @@ def fix_abbreviation(df,args):
     abb_df[unit_mask].to_csv(args.abbr_file, mode='a', index=False, header=False,sep="\t")
     
     return df
-
-
 
 def get_service_provider_name(df,args):
     """
@@ -84,16 +81,6 @@ def filter_measurement_status(df,args):
     err_df[args.config['err_cols']].to_csv(args.err_file, mode='a', index=False, header=False,sep="\t")
     return df[~err_mask]
 
-def filter_hetu(df,args):
-    """
-    Filters out if hetu root is incorrect
-    """
-    err_mask = df['hetu_root'] != args.config['hetu_kw']
-    err_df = df[err_mask].copy()
-    err_df['ERR'] = 'hetu_root'
-    err_df['ERR_VALUE'] = err_df['hetu_root']
-    err_df[args.config['err_cols']].to_csv(args.err_file, mode='a', index=False, header=False,sep="\t")
-    return df[~err_mask]
     
 def fix_na(df,args):
     """
@@ -111,8 +98,17 @@ def fix_na(df,args):
 
 
 def fix_date(df,args):
-    df['TEST_DATE_TIME'] = pd.to_datetime(df.APPROX_EVENT_DAY +" "+df.TIME).dt.strftime(args.config['date_time_format'])
-    return df
+
+
+    df['TEST_DATE_TIME'] = pd.to_datetime(df.APPROX_EVENT_DAY +" "+df.TIME,errors='coerce').dt.strftime(args.config['date_time_format'])
+
+    err_mask = df.TEST_DATE_TIME.isna()
+    err_df = df[err_mask].copy()
+    err_df['ERR'] = 'DATE'
+    err_df['ERR_VALUE'] = err_df.APPROX_EVENT_DAY +" "+err_df.TIME
+    err_df[args.config['err_cols']].to_csv(args.err_file, mode='a', index=False, header=False,sep="\t")
+    return df[~err_mask]
+
 
 
 def remove_spaces(df,args):

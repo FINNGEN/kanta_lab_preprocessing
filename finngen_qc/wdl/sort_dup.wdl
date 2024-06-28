@@ -34,12 +34,13 @@ task merge {
   Int chunk_size = ceil(size(sorted_chunks,"GB"))
   String unique = "kanta_sorted_unique.tsv.gz"
   String dups   = "kanta_sorted_duplicates.tsv.gz"
+  String errs   = "kanta_err.tsv.gz"
   
   command <<<
   # CONCAT PRE-SORTED FILES
   echo "SORT"
-  /usr/bin/time -v sort -t $'\t' -m -k ~{sep=" -k " sort_cols}  ~{sep=" " sorted_chunks} > sorted.txt
-
+  /usr/bin/time -v sort -t $'\t' -m -k ~{sep=" -k " sort_cols}  ~{sep=" " sorted_chunks}  > sorted.txt
+  
   python3 <<EOF
   from operator import itemgetter
   import gzip
@@ -47,23 +48,28 @@ task merge {
   cols = [elem -1 for elem in [~{sep ="," sort_cols}]]
   # initial empty values
   values = ['']*len(cols)
-  with open('sorted.txt') as i,gzip.open('~{dups}','wt') as dup,gzip.open('~{unique}','wt') as out:
+  with open('sorted.txt') as i,gzip.open('~{dups}','wt') as dup,gzip.open('~{unique}','wt') as out,gzip.open('~{errs}','wt') as err:
     # copy header to out files
     with open('~{header}') as tmp: head = tmp.read()
     out.write(head),dup.write(head)
-    dup_count,count = 0,0
+    dup_count,count,err_count = 0,0,0
     for line in i:
-        # read in new sort values to compare
+      # read in new sort values to compare
+      try:
         new_values = itemgetter(*cols)(line.strip().split('\t'))
         if new_values != values: # new value found, so update values and output to unique file   
-            values = new_values
-            f = out
-            count += 1
+          values = new_values
+          f = out
+          count += 1
         else:
-            f = dup
-            dup_count +=1
-        f.write(line)
+          f = dup
+          dup_count +=1
+      except:
+        f = err
+        err_count +=1
+      f.write(line)
   print(count)
+  print(err_count)
   print(dup_count)
   print(round(dup_count/(count+dup_count),4))
   EOF
@@ -75,6 +81,7 @@ task merge {
   output {
     File unique_file = unique
     File dup_file    = dups
+    File err_file    = errs
   }
 }
 
@@ -90,7 +97,7 @@ task sort {
   >>>
 
   runtime {
-    disks:   "local-disk ~{ceil(size(chunk,'GB'))*3} HDD"
+    disks:   "local-disk ~{ceil(size(chunk,'GB'))*3 + 10} HDD"
   }
 
   output {
