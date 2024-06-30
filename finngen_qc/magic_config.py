@@ -23,7 +23,6 @@ config = {
     # Cols used for sorting in the wdl.
     # N.B. the order is important as it is kept in the grepping!
     'sort_cols' : ['FINNGENID','APPROX_EVENT_DAY','TIME','laboratoriotutkimusnimikeid','paikallinentutkimusnimikeid','tutkimusvastauksentilaid','tutkimustulosarvo','tutkimustulosyksikko'],
-    
     # LIST OF OUTPUT COLUMNS TO INCLUDE (VALUES ABOVE PLUS NEWLY GENERATED COLUMNS)
     'out_cols' : ['FINNGENID', 'TEST_DATE_TIME','AGE_AT_MEASUREMENT','TEST_SERVICE_PROVIDER', 'TEST_ID','TEST_ID_SOURCE','TEST_NAME_ABBREVIATION', 'MEASUREMENT_VALUE', 'MEASUREMENT_UNIT', 'MEASUREMENT_VALUE_HARMONIZED','MEASUREMENT_UNIT_HARMONIZED','CONVERSION','RESULT_ABNORMALITY',  'MEASUREMENT_STATUS','TEST_REFERENCE_GROUP','TEST_REFERENCE_MIN_VALUE','TEST_REFERENCE_MIN_UNIT','TEST_REFERENCE_MAX_VALUE','TEST_REFERENCE_MAX_UNIT','IS_UNIT_VALID','mappingStatus','sourceCode','conceptId','ADD_INFO:omopQuantity','MEASUREMENT_VALUE_SOURCE','MEASUREMENT_UNIT_SOURCE','TEST_NAME_ABBREVIATION_SOURCE'],
     'err_cols':['FINNGENID','TEST_DATE_TIME','ERR','ERR_VALUE'],

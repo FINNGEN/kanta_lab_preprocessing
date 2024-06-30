@@ -16,12 +16,21 @@ def harmonization(df,args):
 
 
 def unit_harmonization(df,args):
-
+    """"
+    Creates two new columns for VALUE/UNIT harmonization
+    """
     if args.harmonization:
         df = df.drop(columns=[col for col in df.columns if col.endswith("HARMONIZED")] + ["CONVERSION"])
-        df = pd.merge(df,args.config['unit_conversion'],on=['conceptId','ADD_INFO:omopQuantity','MEASUREMENT_UNIT'],how='left').fillna("NA")
-        df['MEASUREMENT_VALUE_HARMONIZED'] = df.CONVERSION.replace({"NA": np.nan}).astype(float)*df.MEASUREMENT_VALUE.replace({"NA": np.nan}).astype(float)
-        df['MEASUREMENT_VALUE_HARMONIZED']=df['MEASUREMENT_VALUE_HARMONIZED'].fillna("NA")
+        # add CONVERSION column
+        df = pd.merge(df,args.config['unit_conversion'],on=['conceptId','ADD_INFO:omopQuantity','MEASUREMENT_UNIT'],how='left').fillna(np.nan)
+        # MAKE SURE MEASUREMENT VALUES is as float column
+        df['MEASUREMENT_VALUE'] =pd.to_numeric(df['MEASUREMENT_VALUE'],errors='coerce')
+        # MULTIPLY VALUE*CONVERSION
+        df['MEASUREMENT_VALUE_HARMONIZED'] = df.CONVERSION.astype(float)*df.MEASUREMENT_VALUE.astype(float)
+        #BRINGS BACK STR
+        df[['MEASUREMENT_VALUE_HARMONIZED','MEASUREMENT_VALUE']]=df[['MEASUREMENT_VALUE_HARMONIZED','MEASUREMENT_VALUE']].fillna("NA")
+        
+        
 
     return df
 

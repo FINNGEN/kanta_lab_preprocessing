@@ -44,7 +44,8 @@ def init_harmonization(args,logger):
         harmonization_counts = pd.read_csv(args.harmonization,sep='\t')
         logger.debug(args.config['unit_conversion'])
         args.config['unit_conversion'] = pd.merge(args.config['unit_conversion'],harmonization_counts,on=['ADD_INFO:omopQuantity','MEASUREMENT_UNIT_HARMONIZED'])
-        logger.debug(args.config['unit_conversion'])
+        mask = args.config['unit_conversion']['conceptId'] == 3010813
+        logger.debug(args.config['unit_conversion'][mask])
 
     logger.debug(args.config['usagi_units'])
     logger.debug(args.config['usagi_mapping'])
