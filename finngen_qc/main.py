@@ -147,6 +147,8 @@ if __name__=='__main__':
     parser.add_argument("--chunk-size", type=int, help="Number of rows to be processed by each chunk (default = '100').", default=100)
     parser.add_argument("--lines", type=int, help="Number of lines in input file (calculated/estimated otherwise).")
     parser.add_argument("--unit-map", type=str,choices = ['regex','map','none'],default='map', help ='How to replace units. Map uses the unit_mapping.txt mapping in data and regex after. Regex does only regex. none skips it entirely.' )
+    parser.add_argument("--harmonization", type=file_exists, help="Path to tsv with concept id and target unit.")
+    
     args = parser.parse_args()
     
     make_sure_path_exists(args.out)
@@ -164,7 +166,7 @@ if __name__=='__main__':
     args.config['thl_lab_map'] = read_map(os.path.join(dir_path,args.config['thl_lab_map_file']),'NA')
     args.config['thl_sote_map'] = read_map(os.path.join(dir_path,args.config['thl_sote_map_file']),'NA')
     args.config['unit_map'] = read_map(os.path.join(dir_path,args.config['unit_map_file']))
-   
+
     logger.debug(args.config['usagi_units'])
     logger.debug(args.config['usagi_mapping'])
     logger.debug(args.config['unit_abbreviation_fix'])

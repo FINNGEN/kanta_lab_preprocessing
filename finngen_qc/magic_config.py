@@ -25,7 +25,7 @@ config = {
     'sort_cols' : ['FINNGENID','APPROX_EVENT_DAY','TIME','laboratoriotutkimusnimikeid','paikallinentutkimusnimikeid','tutkimusvastauksentilaid','tutkimustulosarvo','tutkimustulosyksikko'],
     
     # LIST OF OUTPUT COLUMNS TO INCLUDE (VALUES ABOVE PLUS NEWLY GENERATED COLUMNS)
-    'out_cols' : ['FINNGENID', 'TEST_DATE_TIME','AGE_AT_MEASUREMENT','TEST_SERVICE_PROVIDER', 'TEST_ID','TEST_ID_SOURCE','TEST_NAME_ABBREVIATION', 'MEASUREMENT_VALUE', 'MEASUREMENT_UNIT', 'RESULT_ABNORMALITY',  'MEASUREMENT_STATUS','TEST_REFERENCE_GROUP','TEST_REFERENCE_MIN_VALUE','TEST_REFERENCE_MIN_UNIT','TEST_REFERENCE_MAX_VALUE','TEST_REFERENCE_MAX_UNIT','IS_UNIT_VALID','mappingStatus','sourceCode','conceptId','ADD_INFO:omopQuantity','MEASUREMENT_VALUE_SOURCE','MEASUREMENT_UNIT_SOURCE','TEST_NAME_ABBREVIATION_SOURCE'],
+    'out_cols' : ['FINNGENID', 'TEST_DATE_TIME','AGE_AT_MEASUREMENT','TEST_SERVICE_PROVIDER', 'TEST_ID','TEST_ID_SOURCE','TEST_NAME_ABBREVIATION', 'MEASUREMENT_VALUE', 'MEASUREMENT_UNIT', 'MEASUREMENT_VALUE_HARMONIZED','MEASUREMENT_UNIT_HARMONIZED','CONVERSION','RESULT_ABNORMALITY',  'MEASUREMENT_STATUS','TEST_REFERENCE_GROUP','TEST_REFERENCE_MIN_VALUE','TEST_REFERENCE_MIN_UNIT','TEST_REFERENCE_MAX_VALUE','TEST_REFERENCE_MAX_UNIT','IS_UNIT_VALID','mappingStatus','sourceCode','conceptId','ADD_INFO:omopQuantity','MEASUREMENT_VALUE_SOURCE','MEASUREMENT_UNIT_SOURCE','TEST_NAME_ABBREVIATION_SOURCE'],
     'err_cols':['FINNGENID','TEST_DATE_TIME','ERR','ERR_VALUE'],
     
     'date_time_format': "%Y-%m-%dT%H:%M:%S",
@@ -119,6 +119,6 @@ config = {
     ],
     'harmonization_repo':'https://raw.githubusercontent.com/FINNGEN/kanta_lab_harmonisation_public/main/MAPPING_TABLES/',
     #list of harmonization files along with columns to use
-    'harmonization_files' : {'usagi_units':[['sourceCode'],'UNITSfi.usagi.csv'],'unit_abbreviation_fix':[None,'fix_unit_based_in_abbreviation.tsv'],'usagi_mapping':[['mappingStatus','sourceCode','conceptId','ADD_INFO:omopQuantity'],'LABfi_ALL.usagi.csv']}
+    'harmonization_files' : {'usagi_units':[['sourceCode'],'UNITSfi.usagi.csv'],'unit_abbreviation_fix':[None,'fix_unit_based_in_abbreviation.tsv'],'usagi_mapping':[['mappingStatus','sourceCode','conceptId','ADD_INFO:omopQuantity'],'LABfi_ALL.usagi.csv'],'unit_conversion':[None,'quantity_source_unit_conversion.tsv']}
     
 }

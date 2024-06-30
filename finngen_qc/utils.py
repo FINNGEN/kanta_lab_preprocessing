@@ -36,9 +36,20 @@ def init_harmonization(args,logger):
     approved_mask = args.config['usagi_mapping']['mappingStatus'] != "APPROVED"
     args.config['usagi_mapping'].loc[approved_mask,'conceptId'] = 0
 
+    args.config['unit_conversion'] = args.config['unit_conversion'].rename(columns={'omop_quantity':'ADD_INFO:omopQuantity','source_unit_valid':"MEASUREMENT_UNIT",'to_source_unit_valid':"MEASUREMENT_UNIT_HARMONIZED",'conversion':"CONVERSION"})
+    
+    if args.harmonization:
+        #merges harmonization table from vincent with chosen target unit for each concept id
+        logger.debug('merge harmonization counts and table')
+        harmonization_counts = pd.read_csv(args.harmonization,sep='\t')
+        logger.debug(args.config['unit_conversion'])
+        args.config['unit_conversion'] = pd.merge(args.config['unit_conversion'],harmonization_counts,on=['ADD_INFO:omopQuantity','MEASUREMENT_UNIT_HARMONIZED'])
+        logger.debug(args.config['unit_conversion'])
+
     logger.debug(args.config['usagi_units'])
     logger.debug(args.config['usagi_mapping'])
     logger.debug(args.config['unit_abbreviation_fix'])
+    logger.debug(args.config['unit_conversion'])
     return args
 
 

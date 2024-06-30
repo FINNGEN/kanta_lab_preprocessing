@@ -9,10 +9,21 @@ def harmonization(df,args):
         .pipe(check_usagi_unit,args)
         .pipe(fix_unit_based_on_abbreviation,args)
         .pipe(omop_mapping,args)
+        .pipe(unit_harmonization,args)
     )
 
     return df
 
+
+def unit_harmonization(df,args):
+
+    if args.harmonization:
+        df = df.drop(columns=[col for col in df.columns if col.endswith("HARMONIZED")] + ["CONVERSION"])
+        df = pd.merge(df,args.config['unit_conversion'],on=['conceptId','ADD_INFO:omopQuantity','MEASUREMENT_UNIT'],how='left').fillna("NA")
+        df['MEASUREMENT_VALUE_HARMONIZED'] = df.CONVERSION.replace({"NA": np.nan}).astype(float)*df.MEASUREMENT_VALUE.replace({"NA": np.nan}).astype(float)
+        df['MEASUREMENT_VALUE_HARMONIZED']=df['MEASUREMENT_VALUE_HARMONIZED'].fillna("NA")
+
+    return df
 
 def omop_mapping(df,args):
     """
