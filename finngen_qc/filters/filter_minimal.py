@@ -39,9 +39,10 @@ def fix_abbreviation(df,args):
 
 def get_service_provider_name(df,args):
     """
-    Updates TEST_SERVICE_PROVIDER based on mapping. NA is default
+    Updates TEST_SERVICE_PROVIDER based on mapping. Keeps original if missing
     """
-    df.loc[:,'TEST_SERVICE_PROVIDER'] = df.loc[:,"TEST_SERVICE_PROVIDER"].map(args.config['thl_sote_map'])
+    col = 'TEST_SERVICE_PROVIDER'
+    df.loc[:,col] = df.loc[:,col].replace(args.config['thl_sote_map'])
     return df
 
 
@@ -98,10 +99,11 @@ def fix_na(df,args):
 
 
 def fix_date(df,args):
-
-
+    """
+    Joins day and time to make a single date field.
+    """
+    
     df['TEST_DATE_TIME'] = pd.to_datetime(df.APPROX_EVENT_DAY +" "+df.TIME,errors='coerce').dt.strftime(args.config['date_time_format'])
-
     err_mask = df.TEST_DATE_TIME.isna()
     err_df = df[err_mask].copy()
     err_df['ERR'] = 'DATE'
