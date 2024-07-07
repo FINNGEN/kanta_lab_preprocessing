@@ -137,10 +137,17 @@ def progressBar(value, endvalue, bar_length=20):
 
 # you need to definte it like this or the defaultdict is not pickable and multiprocessing can't use it
 def map_default_(value):return value
-def read_map(map_path,default_value="NA"):
+# dict where i can initialize value based on key
+class smart_dict(dict):
+    def __missing__(self, key):
+        return key
+
+def read_map(map_path,default_value="NA",keep_original=True):
     if default_value:
         default_ = partial(map_default_,default_value)
         map_dict = dd(default_)
+    if keep_original:
+        map_dict =smart_dict()
     else:
         map_dict = {}
     with open(map_path) as i:
@@ -149,7 +156,12 @@ def read_map(map_path,default_value="NA"):
             map_dict[elem[0]] = elem[1]
     return map_dict
 
+class DefaultDict(dd):
+    def __missing__(self, key):
+        return self.default_factory(key)
 
+
+    
 def batched(iterable, n):
     "Batch data into lists of length n. The last batch may be shorter."
     # batched('ABCDEFG', 3) --> ABC DEF G

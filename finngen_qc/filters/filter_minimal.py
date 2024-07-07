@@ -18,7 +18,22 @@ def filter_minimal(df,args):
         .pipe(get_lab_abbrv,args)
         .pipe(get_service_provider_name,args)
         .pipe(fix_abbreviation,args)
+        #.pipe(filter_missing,args)
+
     )
+    return df
+
+def filter_missing(df,args):
+    """
+    Removes entry if missing both value and abnormality are NAs
+    """
+    cols = ['MEASUREMENT_VALUE','RESULT_ABNORMALITY']
+    err_mask = (df[cols]=="NA").prod(axis=1).astype(bool)
+    err_df = df[err_mask].copy()
+    err_df['ERR'] = 'NA'
+    err_df['ERR_VALUE'] = err_df[cols[0]] + "_" +  err_df[cols[1]]
+    err_df[args.config['err_cols']].to_csv(args.err_file, mode='a', index=False, header=False,sep="\t")
+
     return df
 
 
@@ -42,7 +57,7 @@ def get_service_provider_name(df,args):
     Updates TEST_SERVICE_PROVIDER based on mapping. Keeps original if missing
     """
     col = 'TEST_SERVICE_PROVIDER'
-    df.loc[:,col] = df.loc[:,col].replace(args.config['thl_sote_map'])
+    df.loc[:,col] = df.loc[:,col].map(args.config['thl_sote_map'])
     return df
 
 
@@ -103,8 +118,9 @@ def fix_date(df,args):
     Joins day and time to make a single date field.
     """
     
-    df['TEST_DATE_TIME'] = pd.to_datetime(df.APPROX_EVENT_DAY +" "+df.TIME,errors='coerce').dt.strftime(args.config['date_time_format'])
-    err_mask = df.TEST_DATE_TIME.isna()
+    #df['TEST_DATE_TIME'] = pd.to_datetime(df.APPROX_EVENT_DAY +" "+df.TIME,errors='coerce').dt.strftime(args.config['date_time_format'])
+    df['TEST_DATE_TIME'] =df.APPROX_EVENT_DAY +"T"+df.TIME
+    err_mask = pd.to_datetime(df.TEST_DATE_TIME, format=args.config['date_time_format'], errors='coerce').notna()
     err_df = df[err_mask].copy()
     err_df['ERR'] = 'DATE'
     err_df['ERR_VALUE'] = err_df.APPROX_EVENT_DAY +" "+err_df.TIME
