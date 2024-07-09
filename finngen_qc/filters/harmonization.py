@@ -20,18 +20,17 @@ def unit_harmonization(df,args):
     Creates two new columns for VALUE/UNIT harmonization
     """
     if args.harmonization:
-        df = df.drop(columns=[col for col in df.columns if col.endswith("HARMONIZED")] + ["CONVERSION"])
+        to_be_droppped = ['harmonization_omop::' + elem for elem in ['CONVERSION_FACTOR','MEASUREMENT_VALUE','MEASUREMENT_UNIT']]
+        df = df.drop(columns = to_be_droppped)
         # add CONVERSION column
-        df = pd.merge(df,args.config['unit_conversion'],on=['conceptId','ADD_INFO:omopQuantity','MEASUREMENT_UNIT'],how='left').fillna(np.nan)
+        df = pd.merge(df,args.config['unit_conversion'],on=['harmonization_omop::OMOP_ID','harmonization_omop::omopQuantity','MEASUREMENT_UNIT'],how='left').fillna(np.nan)
         # MAKE SURE MEASUREMENT VALUES is as float column
         df['MEASUREMENT_VALUE'] =pd.to_numeric(df['MEASUREMENT_VALUE'],errors='coerce')
         # MULTIPLY VALUE*CONVERSION
-        df['MEASUREMENT_VALUE_HARMONIZED'] = df.CONVERSION.astype(float)*df.MEASUREMENT_VALUE.astype(float)
+        df['harmonization_omop::MEASUREMENT_VALUE'] = df['harmonization_omop::CONVERSION_FACTOR'].astype(float)*df.MEASUREMENT_VALUE.astype(float)
         #BRINGS BACK STR
-        df[['MEASUREMENT_VALUE_HARMONIZED','MEASUREMENT_VALUE','CONVERSION','MEASUREMENT_UNIT_HARMONIZED']]=df[['MEASUREMENT_VALUE_HARMONIZED','MEASUREMENT_VALUE','CONVERSION','MEASUREMENT_UNIT_HARMONIZED']].fillna("NA")
+        df[['harmonization_omop::MEASUREMENT_VALUE','MEASUREMENT_VALUE','harmonization_omop::CONVERSION_FACTOR','harmonization_omop::MEASUREMENT_UNIT']]=df[['harmonization_omop::MEASUREMENT_VALUE','MEASUREMENT_VALUE','harmonization_omop::CONVERSION_FACTOR','harmonization_omop::MEASUREMENT_UNIT']].fillna("NA")
         
-        
-
     return df
 
 def omop_mapping(df,args):
@@ -45,7 +44,7 @@ def omop_mapping(df,args):
     # save original types to prevent unwanted changes
     orig = df.dtypes.to_dict()
     orig.update(df_omop.dtypes.to_dict())
-    merged=pd.merge(df,df_omop,on=mapping_columns,how='left').fillna({'conceptId':-1}).fillna("NA")
+    merged=pd.merge(df,df_omop,on=mapping_columns,how='left').fillna({'harmonization_omop::OMOP_ID':-1}).fillna("NA")
     # plug back in the 
     df = merged.apply(lambda x: x.astype(orig[x.name]))
     return df
@@ -59,10 +58,9 @@ def fix_unit_based_on_abbreviation(df,args):
     df = pd.merge(df,args.config['unit_abbreviation_fix'],left_on = ['TEST_NAME_ABBREVIATION','MEASUREMENT_UNIT'],right_on=['TEST_NAME_ABBREVIATION','source_unit_valid'],how='left').fillna("NA")
     mask = df['source_unit_valid_fix'] !="NA"
     df.loc[mask,col] = df.loc[mask,'source_unit_valid_fix']
-    df.loc[mask,"IS_UNIT_VALID"] = "unit_fixed"
-    
+    df.loc[mask,"harmonization_omop::IS_UNIT_VALID"] = "unit_fixed"    
     # LOG CHANGES
-    unit_df = df.loc[mask,['FINNGENID', 'TEST_DATE_TIME','TEST_NAME_ABBREVIATION','source_unit_valid','MEASUREMENT_UNIT']].copy()
+    unit_df = df.loc[mask,['FINNGENID', 'APPROX_EVENT_DATETIME','TEST_NAME_ABBREVIATION','source_unit_valid','MEASUREMENT_UNIT']].copy()
     unit_df['SOURCE'] = "harmonization_fix"    
     unit_df.to_csv(args.unit_file, mode='a', index=False, header=False,sep="\t")
     
@@ -73,7 +71,7 @@ def check_usagi_unit(df,args):
     Populates IS_UNIT_VALID column based on whether the unit is in usagi list
     """
     col ='MEASUREMENT_UNIT'
-    map_mask = df[col].isin(args.config['usagi_units']['sourceCode'])
-    df["IS_UNIT_VALID"] = np.where(map_mask,"1","0")
+    map_mask = df[col].isin(args.config['usagi_units']['harmonization_omop::sourceCode'])
+    df["harmonization_omop::IS_UNIT_VALID"] = np.where(map_mask,"1","0")
     return df
     

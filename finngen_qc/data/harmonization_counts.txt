@@ -1,4 +1,4 @@
-conceptId	ADD_INFO:omopQuantity	MEASUREMENT_UNIT_HARMONIZED
+harmonization_omop::OMOP_ID	harmonization_omop::omopQuantity	harmonization_omop::MEASUREMENT_UNIT
 3002385	Ratio	%
 3010813	Number Concentration	e9/l
 3026361	Number Concentration	e12/l

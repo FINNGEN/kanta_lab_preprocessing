@@ -2,18 +2,18 @@ config = {
     # DIRECT COLUMN MAPPING
     'rename_cols' : {
         'FINNGENID':                      'FINNGENID',
-        'EVENT_AGE' :                     'AGE_AT_MEASUREMENT',
-        'tutkimuskoodistonjarjestelmaid': 'TEST_SERVICE_PROVIDER',
+        'EVENT_AGE' :                     'EVENT_AGE',
+        'tutkimuskoodistonjarjestelmaid': 'CODING_SYSTEM',
         'paikallinentutkimusnimike':      'TEST_NAME_ABBREVIATION',
         'tutkimustulosarvo':              'MEASUREMENT_VALUE',
         'tutkimustulosyksikko':           'MEASUREMENT_UNIT',
         'tutkimusvastauksentilaid':       'MEASUREMENT_STATUS',
         'tuloksenpoikkeavuusid':          'RESULT_ABNORMALITY',
-        'viitearvoryhma':                 'TEST_REFERENCE_GROUP',
-        'viitevalialkuarvo':              'TEST_REFERENCE_MIN_VALUE',
-        'viitevalialkuyksikko':           'TEST_REFERENCE_MIN_UNIT',
-        'viitevaliloppuarvo':             'TEST_REFERENCE_MAX_VALUE',
-        'viitevaliloppuyksikko':          'TEST_REFERENCE_MAX_UNIT',
+        'viitearvoryhma':                 'REFERENCE_GROUP_GROUP',
+        'viitevalialkuarvo':              'REFERENCE_GROUP_MIN_VALUE',
+        'viitevalialkuyksikko':           'REFERENCE_GROUP_MIN_UNIT',
+        'viitevaliloppuarvo':             'REFERENCE_GROUP_MAX_VALUE',
+        'viitevaliloppuyksikko':          'REFERENCE_GROUP_MAX_UNIT',
         
         
     },
@@ -24,8 +24,8 @@ config = {
     # N.B. the order is important as it is kept in the grepping!
     'sort_cols' : ['FINNGENID','APPROX_EVENT_DAY','TIME','laboratoriotutkimusnimikeid','paikallinentutkimusnimikeid','tutkimusvastauksentilaid','tutkimustulosarvo','tutkimustulosyksikko'],
     # LIST OF OUTPUT COLUMNS TO INCLUDE (VALUES ABOVE PLUS NEWLY GENERATED COLUMNS)
-    'out_cols' : ['FINNGENID', 'TEST_DATE_TIME','AGE_AT_MEASUREMENT','TEST_SERVICE_PROVIDER', 'TEST_ID','TEST_ID_SOURCE','TEST_NAME_ABBREVIATION', 'MEASUREMENT_VALUE', 'MEASUREMENT_UNIT', 'MEASUREMENT_VALUE_HARMONIZED','MEASUREMENT_UNIT_HARMONIZED','CONVERSION','RESULT_ABNORMALITY',  'MEASUREMENT_STATUS','TEST_REFERENCE_GROUP','TEST_REFERENCE_MIN_VALUE','TEST_REFERENCE_MIN_UNIT','TEST_REFERENCE_MAX_VALUE','TEST_REFERENCE_MAX_UNIT','IS_UNIT_VALID','mappingStatus','sourceCode','conceptId','ADD_INFO:omopQuantity','MEASUREMENT_VALUE_SOURCE','MEASUREMENT_UNIT_SOURCE','TEST_NAME_ABBREVIATION_SOURCE'],
-    'err_cols':['FINNGENID','TEST_DATE_TIME','ERR','ERR_VALUE'],
+    'out_cols' : ['FINNGENID', 'APPROX_EVENT_DATETIME','EVENT_AGE','CODING_SYSTEM', 'TEST_ID','TEST_ID_SYSTEM','TEST_NAME_ABBREVIATION', 'MEASUREMENT_VALUE', 'MEASUREMENT_UNIT', 'harmonization_omop::MEASUREMENT_VALUE','harmonization_omop::MEASUREMENT_UNIT','harmonization_omop::CONVERSION_FACTOR','RESULT_ABNORMALITY',  'MEASUREMENT_STATUS','REFERENCE_GROUP_GROUP','REFERENCE_GROUP_MIN_VALUE','REFERENCE_GROUP_MIN_UNIT','REFERENCE_GROUP_MAX_VALUE','REFERENCE_GROUP_MAX_UNIT','harmonization_omop::IS_UNIT_VALID','harmonization_omop::mappingStatus','harmonization_omop::sourceCode','harmonization_omop::OMOP_ID','harmonization_omop::omopQuantity','source::MEASUREMENT_VALUE','source::MEASUREMENT_UNIT','source::TEST_NAME_ABBREVIATION'],
+    'err_cols':['FINNGENID','APPROX_EVENT_DATETIME','ERR','ERR_VALUE'],
     
     'date_time_format': "%Y-%m-%dT%H:%M:%S",
 

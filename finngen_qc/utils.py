@@ -28,28 +28,34 @@ def init_harmonization(args,logger):
         cols,fname = value
         sep = ',' if fname.endswith('.csv') else '\t'
         args.config[key] = pd.read_csv(os.path.join(dir_path,'data',fname),usecols = cols,sep = sep)
+
+        
+    args.config['usagi_units'] = args.config['usagi_units'].rename(columns={'sourceCode':"harmonization_omop::sourceCode"})
         
     #fix mapping
     args.config['usagi_mapping'][['TEST_NAME_ABBREVIATION','MEASUREMENT_UNIT']] = args.config['usagi_mapping']['sourceCode'].str.replace(']','').str.split('[',expand=True)
 
-    args.config['usagi_mapping']['conceptId'] =args.config['usagi_mapping']['conceptId'].astype(int)
-    approved_mask = args.config['usagi_mapping']['mappingStatus'] != "APPROVED"
-    args.config['usagi_mapping'].loc[approved_mask,'conceptId'] = 0
+    args.config['usagi_mapping'] = args.config['usagi_mapping'].rename(columns={'mappingStatus':'harmonization_omop::mappingStatus','conceptId':'harmonization_omop::OMOP_ID','sourceCode':"harmonization_omop::sourceCode",'ADD_INFO:omopQuantity':"harmonization_omop::omopQuantity"})
+    args.config['usagi_mapping']['harmonization_omop::OMOP_ID'] =args.config['usagi_mapping']['harmonization_omop::OMOP_ID'].astype(int)
+    approved_mask = args.config['usagi_mapping']['harmonization_omop::mappingStatus'] != "APPROVED"
+    args.config['usagi_mapping'].loc[approved_mask,'harmonization_omop::OMOP_ID'] = 0
+    args.config['unit_conversion'] = args.config['unit_conversion'].rename(columns={'omop_quantity':'harmonization_omop::omopQuantity','source_unit_valid':"MEASUREMENT_UNIT",'to_source_unit_valid':"harmonization_omop::MEASUREMENT_UNIT",'conversion':"harmonization_omop::CONVERSION_FACTOR"})
 
-    args.config['unit_conversion'] = args.config['unit_conversion'].rename(columns={'omop_quantity':'ADD_INFO:omopQuantity','source_unit_valid':"MEASUREMENT_UNIT",'to_source_unit_valid':"MEASUREMENT_UNIT_HARMONIZED",'conversion':"CONVERSION"})
     
     if args.harmonization:
         #merges harmonization table from vincent with chosen target unit for each concept id
         logger.debug('merge harmonization counts and table')
         harmonization_counts = pd.read_csv(args.harmonization,sep='\t')
         logger.debug(args.config['unit_conversion'])
-        args.config['unit_conversion'] = pd.merge(args.config['unit_conversion'],harmonization_counts,on=['ADD_INFO:omopQuantity','MEASUREMENT_UNIT_HARMONIZED'])
-        mask = args.config['unit_conversion']['conceptId'] == 3010813
+        args.config['unit_conversion'] = pd.merge(args.config['unit_conversion'],harmonization_counts,on=['harmonization_omop::omopQuantity','harmonization_omop::MEASUREMENT_UNIT'])
+        mask = args.config['unit_conversion']['harmonization_omop::OMOP_ID'] == 3010813
         logger.debug(args.config['unit_conversion'][mask])
 
-    logger.debug(args.config['usagi_units'])
+    #logger.debug(args.config['usagi_units'])
+    logger.debug("USGAGI MAPPING")
     logger.debug(args.config['usagi_mapping'])
-    logger.debug(args.config['unit_abbreviation_fix'])
+    #logger.debug(args.config['unit_abbreviation_fix'])
+    logger.debug("UNIT CONVERSION")
     logger.debug(args.config['unit_conversion'])
     return args
 

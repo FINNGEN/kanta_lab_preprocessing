@@ -42,7 +42,7 @@ def fix_abbreviation(df,args):
     Removes characthers from abbreviation
     """
     col = 'TEST_NAME_ABBREVIATION'
-    abb_df = df[['FINNGENID', 'TEST_DATE_TIME','TEST_NAME_ABBREVIATION','MEASUREMENT_UNIT']].copy()
+    abb_df = df[['FINNGENID', 'APPROX_EVENT_DATETIME','TEST_NAME_ABBREVIATION','MEASUREMENT_UNIT']].copy()
     pattern = '|'.join(args.config['abbreviation_replacements'])
     df[col] = df[col].replace(pattern,'',regex=True)
     #log changes
@@ -54,9 +54,9 @@ def fix_abbreviation(df,args):
 
 def get_service_provider_name(df,args):
     """
-    Updates TEST_SERVICE_PROVIDER based on mapping. Keeps original if missing
+    Updates CODING_SYSTEM based on mapping. Keeps original if missing
     """
-    col = 'TEST_SERVICE_PROVIDER'
+    col = 'CODING_SYSTEM'
     df.loc[:,col] = df.loc[:,col].map(args.config['thl_sote_map'])
     return df
 
@@ -68,7 +68,7 @@ def get_lab_abbrv(df,args):
     """
     col="TEST_NAME_ABBREVIATION"
     df[col] =df[col].str.lower()     #fix lab abbrevation in general before updated mapping
-    mask = df.TEST_ID_SOURCE == "1"
+    mask = df.TEST_ID_SYSTEM == "1"
     df.loc[mask,col] = df.loc[mask,"TEST_ID"].map(args.config['thl_lab_map'])
     df[col] = df[col].str.replace('"', '')     # remove single quotes
     return df
@@ -81,7 +81,7 @@ def lab_id_source(df,args):
     """
     
     local_mask =  (df['laboratoriotutkimusnimikeid'] == 'NA')
-    df["TEST_ID_SOURCE"] = np.where(local_mask,"0","1")
+    df["TEST_ID_SYSTEM"] = np.where(local_mask,"0","1")
     df["TEST_ID"] = np.where(local_mask,df.paikallinentutkimusnimikeid,df.laboratoriotutkimusnimikeid)
     return df
     
@@ -118,9 +118,9 @@ def fix_date(df,args):
     Joins day and time to make a single date field.
     """
     
-    #df['TEST_DATE_TIME'] = pd.to_datetime(df.APPROX_EVENT_DAY +" "+df.TIME,errors='coerce').dt.strftime(args.config['date_time_format'])
-    df['TEST_DATE_TIME'] =df.APPROX_EVENT_DAY +"T"+df.TIME
-    err_mask = pd.to_datetime(df.TEST_DATE_TIME, format=args.config['date_time_format'], errors='coerce').notna()
+    #df['APPROX_EVENT_DATETIME'] = pd.to_datetime(df.APPROX_EVENT_DAY +" "+df.TIME,errors='coerce').dt.strftime(args.config['date_time_format'])
+    df['APPROX_EVENT_DATETIME'] =df.APPROX_EVENT_DAY +"T"+df.TIME
+    err_mask = pd.to_datetime(df.APPROX_EVENT_DATETIME, format=args.config['date_time_format'], errors='coerce').notna()
     err_df = df[err_mask].copy()
     err_df['ERR'] = 'DATE'
     err_df['ERR_VALUE'] = err_df.APPROX_EVENT_DAY +" "+err_df.TIME
@@ -148,10 +148,10 @@ def remove_spaces(df,args):
 def initialize_out_cols(df,args):
     #Makes sure that the columns for output exist
 
-    # These columns need be copied back to original name
     df = df.rename(columns = args.config['rename_cols'])
+    # These columns need be copied back to original name
     for col in args.config['source_cols']:
-        df[col +"_SOURCE"] = df[col]
+        df['source::'+col ] = df[col]
     for col in args.config['out_cols'] + args.config['err_cols']:
         if col not in df.columns.tolist():
             df[col] = "NA"
