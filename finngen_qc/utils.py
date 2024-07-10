@@ -24,29 +24,27 @@ def init_harmonization(args,logger):
         logger.warning("COULD NOT DOWNLOAD FILES: USAGI FILES NOT UPDATED")
         logger.warning(urls)
 
+    # READ IN JAVIER/USAGI FILES WITH PROPER RENAMING OF COLUMNS
     for key,value in args.config['harmonization_files'].items():
         cols,fname = value
         sep = ',' if fname.endswith('.csv') else '\t'
-        args.config[key] = pd.read_csv(os.path.join(dir_path,'data',fname),usecols = cols,sep = sep)
+        args.config[key] = pd.read_csv(os.path.join(dir_path,'data',fname),usecols = cols,sep = sep).rename(columns={col:new_col for col,new_col in args.config['harmonization_col_map'].items() if col in cols})
 
-        
-    args.config['usagi_units'] = args.config['usagi_units'].rename(columns={'sourceCode':"harmonization_omop::sourceCode"})
-        
-    #fix mapping
-    args.config['usagi_mapping'][['TEST_NAME_ABBREVIATION','MEASUREMENT_UNIT']] = args.config['usagi_mapping']['sourceCode'].str.replace(']','').str.split('[',expand=True)
+    # for some reason the file is malformed
+    for col in  args.config['unit_abbreviation_fix'].columns:
+        args.config['unit_abbreviation_fix'][col] = args.config['unit_abbreviation_fix'][col].str.strip()
 
-    args.config['usagi_mapping'] = args.config['usagi_mapping'].rename(columns={'mappingStatus':'harmonization_omop::mappingStatus','conceptId':'harmonization_omop::OMOP_ID','sourceCode':"harmonization_omop::sourceCode",'ADD_INFO:omopQuantity':"harmonization_omop::omopQuantity"})
+    args.config['unit_conversion']= args.config['unit_conversion'].rename(columns={'source_unit_valid':'MEASUREMENT_UNIT'})
+    args.config['usagi_mapping'][['TEST_NAME_ABBREVIATION','MEASUREMENT_UNIT']] = args.config['usagi_mapping']['harmonization_omop::sourceCode'].str.replace(']','').str.split('[',expand=True)
     args.config['usagi_mapping']['harmonization_omop::OMOP_ID'] =args.config['usagi_mapping']['harmonization_omop::OMOP_ID'].astype(int)
     approved_mask = args.config['usagi_mapping']['harmonization_omop::mappingStatus'] != "APPROVED"
     args.config['usagi_mapping'].loc[approved_mask,'harmonization_omop::OMOP_ID'] = 0
-    args.config['unit_conversion'] = args.config['unit_conversion'].rename(columns={'omop_quantity':'harmonization_omop::omopQuantity','source_unit_valid':"MEASUREMENT_UNIT",'to_source_unit_valid':"harmonization_omop::MEASUREMENT_UNIT",'conversion':"harmonization_omop::CONVERSION_FACTOR"})
 
     
     if args.harmonization:
         #merges harmonization table from vincent with chosen target unit for each concept id
         logger.debug('merge harmonization counts and table')
         harmonization_counts = pd.read_csv(args.harmonization,sep='\t')
-        logger.debug(args.config['unit_conversion'])
         args.config['unit_conversion'] = pd.merge(args.config['unit_conversion'],harmonization_counts,on=['harmonization_omop::omopQuantity','harmonization_omop::MEASUREMENT_UNIT'])
         mask = args.config['unit_conversion']['harmonization_omop::OMOP_ID'] == 3010813
         logger.debug(args.config['unit_conversion'][mask])
@@ -65,6 +63,9 @@ def init_log_files(args):
     # setup error file
     args.err_file = os.path.join(args.out,f"{args.prefix}_err.txt")
     with open(args.err_file,'wt') as err:err.write('\t'.join(args.config['err_cols']) + '\n')
+    args.warn_file = os.path.join(args.out,f"{args.prefix}_warn.txt")
+    with open(args.warn_file,'wt') as warn:warn.write('\t'.join(args.config['err_cols']) + '\n')
+
     args.unit_file = os.path.join(args.out,f"{args.prefix}_unit.txt")
     with open(args.unit_file,'wt') as unit:unit.write('\t'.join(['FINREGISTRYID','TEST_DATE_TIME','TEST_NAME_ABBREVIATION','old_unit','MEASUREMENT_UNIT','SOURCE']) + '\n')
 
@@ -152,7 +153,7 @@ def read_map(map_path,default_value="NA",keep_original=True):
     if default_value:
         default_ = partial(map_default_,default_value)
         map_dict = dd(default_)
-    if keep_original:
+    elif keep_original:
         map_dict =smart_dict()
     else:
         map_dict = {}

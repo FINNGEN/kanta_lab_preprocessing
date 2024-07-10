@@ -69,6 +69,16 @@ def get_lab_abbrv(df,args):
     col="TEST_NAME_ABBREVIATION"
     df[col] =df[col].str.lower()     #fix lab abbrevation in general before updated mapping
     mask = df.TEST_ID_SYSTEM == "1"
+
+    #log where id is present but cannot me mapped
+    map_mask = ~df["TEST_ID"].isin(args.config['thl_lab_map'].keys())
+
+    warn_mask = (mask & map_mask)
+    warn_df = df[warn_mask].copy()
+    warn_df['ERR'] = 'lab_mapping'
+    warn_df['ERR_VALUE'] = warn_df["TEST_ID"]
+    warn_df[args.config['err_cols']].to_csv(args.warn_file, mode='a', index=False, header=False,sep="\t")
+
     df.loc[mask,col] = df.loc[mask,"TEST_ID"].map(args.config['thl_lab_map'])
     df[col] = df[col].str.replace('"', '')     # remove single quotes
     return df

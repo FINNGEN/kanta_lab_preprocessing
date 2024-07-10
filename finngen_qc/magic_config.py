@@ -9,11 +9,11 @@ config = {
         'tutkimustulosyksikko':           'MEASUREMENT_UNIT',
         'tutkimusvastauksentilaid':       'MEASUREMENT_STATUS',
         'tuloksenpoikkeavuusid':          'RESULT_ABNORMALITY',
-        'viitearvoryhma':                 'REFERENCE_GROUP_GROUP',
-        'viitevalialkuarvo':              'REFERENCE_GROUP_MIN_VALUE',
-        'viitevalialkuyksikko':           'REFERENCE_GROUP_MIN_UNIT',
-        'viitevaliloppuarvo':             'REFERENCE_GROUP_MAX_VALUE',
-        'viitevaliloppuyksikko':          'REFERENCE_GROUP_MAX_UNIT',
+        'viitearvoryhma':                 'REFERENCE_RANGE_GROUP',
+        'viitevalialkuarvo':              'REFERENCE_RANGE_MIN_VALUE',
+        'viitevalialkuyksikko':           'REFERENCE_RANGE_MIN_UNIT',
+        'viitevaliloppuarvo':             'REFERENCE_RANGE_MAX_VALUE',
+        'viitevaliloppuyksikko':          'REFERENCE_RANGE_MAX_UNIT',
         
         
     },
@@ -24,7 +24,7 @@ config = {
     # N.B. the order is important as it is kept in the grepping!
     'sort_cols' : ['FINNGENID','APPROX_EVENT_DAY','TIME','laboratoriotutkimusnimikeid','paikallinentutkimusnimikeid','tutkimusvastauksentilaid','tutkimustulosarvo','tutkimustulosyksikko'],
     # LIST OF OUTPUT COLUMNS TO INCLUDE (VALUES ABOVE PLUS NEWLY GENERATED COLUMNS)
-    'out_cols' : ['FINNGENID', 'APPROX_EVENT_DATETIME','EVENT_AGE','CODING_SYSTEM', 'TEST_ID','TEST_ID_SYSTEM','TEST_NAME_ABBREVIATION', 'MEASUREMENT_VALUE', 'MEASUREMENT_UNIT', 'harmonization_omop::MEASUREMENT_VALUE','harmonization_omop::MEASUREMENT_UNIT','harmonization_omop::CONVERSION_FACTOR','RESULT_ABNORMALITY',  'MEASUREMENT_STATUS','REFERENCE_GROUP_GROUP','REFERENCE_GROUP_MIN_VALUE','REFERENCE_GROUP_MIN_UNIT','REFERENCE_GROUP_MAX_VALUE','REFERENCE_GROUP_MAX_UNIT','harmonization_omop::IS_UNIT_VALID','harmonization_omop::mappingStatus','harmonization_omop::sourceCode','harmonization_omop::OMOP_ID','harmonization_omop::omopQuantity','source::MEASUREMENT_VALUE','source::MEASUREMENT_UNIT','source::TEST_NAME_ABBREVIATION'],
+    'out_cols' : ['FINNGENID', 'APPROX_EVENT_DATETIME','EVENT_AGE','CODING_SYSTEM', 'TEST_ID','TEST_ID_SYSTEM','TEST_NAME_ABBREVIATION', 'MEASUREMENT_VALUE', 'MEASUREMENT_UNIT', 'harmonization_omop::MEASUREMENT_VALUE','harmonization_omop::MEASUREMENT_UNIT','harmonization_omop::CONVERSION_FACTOR','RESULT_ABNORMALITY',  'MEASUREMENT_STATUS','REFERENCE_RANGE_GROUP','REFERENCE_RANGE_MIN_VALUE','REFERENCE_RANGE_MIN_UNIT','REFERENCE_RANGE_MAX_VALUE','REFERENCE_RANGE_MAX_UNIT','harmonization_omop::IS_UNIT_VALID','harmonization_omop::mappingStatus','harmonization_omop::sourceCode','harmonization_omop::OMOP_ID','harmonization_omop::omopQuantity','source::MEASUREMENT_VALUE','source::MEASUREMENT_UNIT','source::TEST_NAME_ABBREVIATION'],
     'err_cols':['FINNGENID','APPROX_EVENT_DATETIME','ERR','ERR_VALUE'],
     
     'date_time_format': "%Y-%m-%dT%H:%M:%S",
@@ -118,6 +118,20 @@ config = {
     ],
     'harmonization_repo':'https://raw.githubusercontent.com/FINNGEN/kanta_lab_harmonisation_public/main/MAPPING_TABLES/',
     #list of harmonization files along with columns to use
-    'harmonization_files' : {'usagi_units':[['sourceCode'],'UNITSfi.usagi.csv'],'unit_abbreviation_fix':[None,'fix_unit_based_in_abbreviation.tsv'],'usagi_mapping':[['mappingStatus','sourceCode','conceptId','ADD_INFO:omopQuantity'],'LABfi_ALL.usagi.csv'],'unit_conversion':[None,'quantity_source_unit_conversion.tsv']}
+    'harmonization_files' : {
+        'usagi_units':[['sourceCode'],'UNITSfi.usagi.csv'],
+        'unit_abbreviation_fix':[['TEST_NAME_ABBREVIATION','source_unit_valid','source_unit_valid_fix'],'fix_unit_based_in_abbreviation.tsv'],
+        'usagi_mapping':[['mappingStatus','sourceCode','conceptId','ADD_INFO:omopQuantity'],'LABfi_ALL.usagi.csv'],
+        'unit_conversion':[['omop_quantity','source_unit_valid','to_source_unit_valid','conversion'],'quantity_source_unit_conversion.tsv']
+    },
     
+    'harmonization_col_map' : {
+        'mappingStatus':'harmonization_omop::mappingStatus',
+        'conceptId':'harmonization_omop::OMOP_ID',
+        'sourceCode':"harmonization_omop::sourceCode",
+        'ADD_INFO:omopQuantity':"harmonization_omop::omopQuantity",
+        "omop_quantity":"harmonization_omop::omopQuantity",
+        'to_source_unit_valid':"harmonization_omop::MEASUREMENT_UNIT",
+        'conversion':"harmonization_omop::CONVERSION_FACTOR",
+    }
 }
