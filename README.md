@@ -2,8 +2,6 @@
 
 Based on Kira Detrois' [existing repo](https://github.com/detroiki/kanta_lab).
 
-
-
 # TARGET OUTPUT
 
 Based on Kira's work the expected output should be formatted in the following way.
