@@ -18,7 +18,22 @@ def filter_minimal(df,args):
         .pipe(get_lab_abbrv,args)
         .pipe(get_service_provider_name,args)
         .pipe(fix_abbreviation,args)
+        #.pipe(filter_missing,args)
+
     )
+    return df
+
+def filter_missing(df,args):
+    """
+    Removes entry if missing both value and abnormality are NAs
+    """
+    cols = ['MEASUREMENT_VALUE','RESULT_ABNORMALITY']
+    err_mask = (df[cols]=="NA").prod(axis=1).astype(bool)
+    err_df = df[err_mask].copy()
+    err_df['ERR'] = 'NA'
+    err_df['ERR_VALUE'] = err_df[cols[0]] + "_" +  err_df[cols[1]]
+    err_df[args.config['err_cols']].to_csv(args.err_file, mode='a', index=False, header=False,sep="\t")
+
     return df
 
 
@@ -27,7 +42,7 @@ def fix_abbreviation(df,args):
     Removes characthers from abbreviation
     """
     col = 'TEST_NAME_ABBREVIATION'
-    abb_df = df[['FINNGENID', 'TEST_DATE_TIME','TEST_NAME_ABBREVIATION','MEASUREMENT_UNIT']].copy()
+    abb_df = df[['FINNGENID', 'APPROX_EVENT_DATETIME','TEST_NAME_ABBREVIATION','MEASUREMENT_UNIT']].copy()
     pattern = '|'.join(args.config['abbreviation_replacements'])
     df[col] = df[col].replace(pattern,'',regex=True)
     #log changes
@@ -39,9 +54,10 @@ def fix_abbreviation(df,args):
 
 def get_service_provider_name(df,args):
     """
-    Updates TEST_SERVICE_PROVIDER based on mapping. NA is default
+    Updates CODING_SYSTEM based on mapping. Keeps original if missing
     """
-    df.loc[:,'TEST_SERVICE_PROVIDER'] = df.loc[:,"TEST_SERVICE_PROVIDER"].map(args.config['thl_sote_map'])
+    col = 'CODING_SYSTEM'
+    df.loc[:,col] = df.loc[:,col].map(args.config['thl_sote_map'])
     return df
 
 
@@ -52,7 +68,17 @@ def get_lab_abbrv(df,args):
     """
     col="TEST_NAME_ABBREVIATION"
     df[col] =df[col].str.lower()     #fix lab abbrevation in general before updated mapping
-    mask = df.TEST_ID_SOURCE == "1"
+    mask = df.TEST_ID_SYSTEM == "1"
+
+    #log where id is present but cannot me mapped
+    map_mask = ~df["TEST_ID"].isin(args.config['thl_lab_map'].keys())
+
+    warn_mask = (mask & map_mask)
+    warn_df = df[warn_mask].copy()
+    warn_df['ERR'] = 'lab_mapping'
+    warn_df['ERR_VALUE'] = warn_df["TEST_ID"]
+    warn_df[args.config['err_cols']].to_csv(args.warn_file, mode='a', index=False, header=False,sep="\t")
+
     df.loc[mask,col] = df.loc[mask,"TEST_ID"].map(args.config['thl_lab_map'])
     df[col] = df[col].str.replace('"', '')     # remove single quotes
     return df
@@ -65,7 +91,7 @@ def lab_id_source(df,args):
     """
     
     local_mask =  (df['laboratoriotutkimusnimikeid'] == 'NA')
-    df["TEST_ID_SOURCE"] = np.where(local_mask,"0","1")
+    df["TEST_ID_SYSTEM"] = np.where(local_mask,"0","1")
     df["TEST_ID"] = np.where(local_mask,df.paikallinentutkimusnimikeid,df.laboratoriotutkimusnimikeid)
     return df
     
@@ -98,11 +124,13 @@ def fix_na(df,args):
 
 
 def fix_date(df,args):
-
-
-    df['TEST_DATE_TIME'] = pd.to_datetime(df.APPROX_EVENT_DAY +" "+df.TIME,errors='coerce').dt.strftime(args.config['date_time_format'])
-
-    err_mask = df.TEST_DATE_TIME.isna()
+    """
+    Joins day and time to make a single date field.
+    """
+    
+    #df['APPROX_EVENT_DATETIME'] = pd.to_datetime(df.APPROX_EVENT_DAY +" "+df.TIME,errors='coerce').dt.strftime(args.config['date_time_format'])
+    df['APPROX_EVENT_DATETIME'] =df.APPROX_EVENT_DAY +"T"+df.TIME
+    err_mask = pd.to_datetime(df.APPROX_EVENT_DATETIME, format=args.config['date_time_format'], errors='coerce').notna()
     err_df = df[err_mask].copy()
     err_df['ERR'] = 'DATE'
     err_df['ERR_VALUE'] = err_df.APPROX_EVENT_DAY +" "+err_df.TIME
@@ -130,10 +158,10 @@ def remove_spaces(df,args):
 def initialize_out_cols(df,args):
     #Makes sure that the columns for output exist
 
-    # These columns need be copied back to original name
     df = df.rename(columns = args.config['rename_cols'])
+    # These columns need be copied back to original name
     for col in args.config['source_cols']:
-        df[col +"_SOURCE"] = df[col]
+        df['source::'+col ] = df[col]
     for col in args.config['out_cols'] + args.config['err_cols']:
         if col not in df.columns.tolist():
             df[col] = "NA"

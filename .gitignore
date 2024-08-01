@@ -1,4 +1,5 @@
 finngen_qc/test/
+finngen_qc/scripts/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -3,6 +3,7 @@ import argparse,logging,os
 from functools import partial
 import multiprocessing as mp
 import numpy as np
+from datetime import datetime
 from utils import file_exists,log_levels,configure_logging,make_sure_path_exists,progressBar,batched,mapcount,read_map,estimate_lines,write_chunk,init_log_files,init_harmonization
 from magic_config import config
 from datetime import datetime
@@ -30,8 +31,6 @@ def chunk_reader(raw_file,chunk_size,config,separator):
             if args.test and i==1:
                 break
             yield chunk
-
-
 
 def all_filters(df,args):
     df = (
@@ -140,13 +139,16 @@ if __name__=='__main__':
     parser.add_argument("--raw-data", type=file_exists, help="Path to input raw file. File should be tsv.", default=os.path.join(dir_path, "test", "raw_data_test.txt"))
     parser.add_argument("--log", default="warning", choices=log_levels, help="Provide logging level. Example '--log debug', default = 'warning'")
     parser.add_argument("--test", action='store_true', help="Reads first chunk only")
+    parser.add_argument("--gz", action='store_true', help="Ouputs to gz")
     parser.add_argument("--mp", default=0, const=os.cpu_count(), nargs='?', type=int, help="Flag for multiproc. Default is '0' (no multiproc). If passed it defaults to cpu count, but one can also specify the number of cpus to use: e.g. '--mp' or '--mp 4'.")
     parser.add_argument('-o', "--out", type=str, help="Folder in which to save the results (default = current working directory)", default=os.getcwd())
-    parser.add_argument("--prefix", type=str, default="kanta", help="Prefix of the out files (default = 'kanta')")
+    parser.add_argument("--prefix", type=str, default=f"kanta_{datetime.today().strftime('%Y_%m_%d')}", help="Prefix of the out files (default = 'kanta_YYYY_MM_DD')")
     parser.add_argument("--sep", type=str, default="\\t", help="Separator (default = tab)")
     parser.add_argument("--chunk-size", type=int, help="Number of rows to be processed by each chunk (default = '100').", default=100)
     parser.add_argument("--lines", type=int, help="Number of lines in input file (calculated/estimated otherwise).")
     parser.add_argument("--unit-map", type=str,choices = ['regex','map','none'],default='map', help ='How to replace units. Map uses the unit_mapping.txt mapping in data and regex after. Regex does only regex. none skips it entirely.' )
+    parser.add_argument("--harmonization", type=file_exists, nargs = '?',help="Path to tsv with concept id and target unit.",const = os.path.join(dir_path,'data','harmonization_counts.txt') )
+    
     args = parser.parse_args()
     
     make_sure_path_exists(args.out)
@@ -161,10 +163,10 @@ if __name__=='__main__':
     args.config['cols']  = list(config['rename_cols'].keys()) + config['other_cols']
 
     args = init_harmonization(args,logger)
-    args.config['thl_lab_map'] = read_map(os.path.join(dir_path,args.config['thl_lab_map_file']),'NA')
-    args.config['thl_sote_map'] = read_map(os.path.join(dir_path,args.config['thl_sote_map_file']),'NA')
+    args.config['thl_lab_map'] = read_map(os.path.join(dir_path,args.config['thl_lab_map_file']),keep_original=True)
+    args.config['thl_sote_map'] = read_map(os.path.join(dir_path,args.config['thl_sote_map_file']),keep_original=True)
     args.config['unit_map'] = read_map(os.path.join(dir_path,args.config['unit_map_file']))
-   
+
     logger.debug(args.config['usagi_units'])
     logger.debug(args.config['usagi_mapping'])
     logger.debug(args.config['unit_abbreviation_fix'])
@@ -176,7 +178,8 @@ if __name__=='__main__':
 
     # make sure the chunk size is at least the size of the the jobs
     args.chunk_size = max(args.chunk_size,args.mp)
-    args.out_file = os.path.join(args.out,f"{args.prefix}_munged.txt")
+    args.out_file = os.path.join(args.out,f"{args.prefix}_munged.txt")  
+    if args.gz: args.out_file += ".gz"
 
     # Setup pandas
     setup_pandas()

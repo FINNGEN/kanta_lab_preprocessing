@@ -3,10 +3,16 @@ version 1.0
 workflow kanta_sort_dup{
   input {
     File kanta_data
-    
   }
-  call split {input:kanta_data = kanta_data}
 
+  call get_cols {}
+  call split {
+    input:
+    kanta_data = kanta_data,
+    cols = get_cols.cols,
+    s_cols = get_cols.s_cols
+  }
+  
   scatter (i in range(length(split.chunks))) {
     call sort {
       input :
@@ -22,6 +28,7 @@ workflow kanta_sort_dup{
     sort_cols = split.sort_cols,
     header = split.header
   }
+ 
 }
 
 task merge {
@@ -105,22 +112,43 @@ task sort {
   }
 }
 
-task split {
-  input {
-    File kanta_data
-    String branch
-    Int n_chunks
-  }
 
-  Int disk_size = ceil(size(kanta_data,"GB"))*10*n_chunks
-  
+task get_cols {
+  input {
+    String branch
+  }
   command <<<
-  echo "KANTA"
   # get columns to cut from repo
   curl -s https://raw.githubusercontent.com/FINNGEN/kanta_lab_preprocessing/~{branch}/finngen_qc/magic_config.py > config.py
   python3 -c "import config;o= open('./columns.txt','wt') ;o.write('\n'.join(list(config.config['rename_cols'].keys())) + '\n');o.write('\n'.join(config.config['other_cols'])+ '\n')"
   python3 -c "import config;o= open('./sort_columns.txt','wt') ;o.write('\n'.join(config.config['sort_cols'])+ '\n')"
+  >>>
+  runtime {
+    disks:   "local-disk 10 HDD"
+  }
+  output {
+    Array[String] cols = read_lines("columns.txt")
+    Array[String] s_cols = read_lines("sort_columns.txt")
+  }
+}
 
+  
+task split {
+  input {
+    File kanta_data
+    Int n_chunks
+    Array[String] cols
+    Array[String] s_cols
+  }
+ 
+  Int disk_size = ceil(size(kanta_data,"GB"))*10*n_chunks
+  
+  command <<<
+  echo "KANTA"
+
+  cat ~{write_lines(cols)} > columns.txt
+  cat ~{write_lines(s_cols)} > sort_columns.txt
+  
   COLS=$(zcat ~{kanta_data} |  head -n1 | tr '\t' '\n'  | grep -wnf columns.txt | cut -f 1 -d ':' | tr '\n' ',' | rev | cut -c2- | rev)
   echo $COLS
   

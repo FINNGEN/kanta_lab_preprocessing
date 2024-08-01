@@ -61,9 +61,9 @@ def lab_unit_regex(df,args,map_mask=None):
             df.loc[:,col] = df.loc[:,col].replace(rep[0],rep[1],regex=True)
 
     # LOG CHANGES
-    unit_df = df[['FINNGENID', 'TEST_DATE_TIME','TEST_NAME_ABBREVIATION','MEASUREMENT_UNIT_SOURCE','MEASUREMENT_UNIT']].copy()
+    unit_df = df[['FINNGENID', 'APPROX_EVENT_DATETIME','TEST_NAME_ABBREVIATION','source::MEASUREMENT_UNIT','MEASUREMENT_UNIT']].copy()
     unit_df['SOURCE'] = "regex"    
-    unit_mask = (unit_df[col] != unit_df['MEASUREMENT_UNIT_SOURCE'])
+    unit_mask = (unit_df[col] != unit_df['source::MEASUREMENT_UNIT'])
     unit_df[unit_mask].to_csv(args.unit_file, mode='a', index=False, header=False,sep="\t")
     return df
 
