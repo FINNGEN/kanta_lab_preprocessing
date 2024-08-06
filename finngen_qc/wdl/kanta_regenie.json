@@ -1,6 +1,8 @@
 {    "kanta_regenie.docker": "eu.gcr.io/finngen-refinery-dev/regenie:3.3_r12",
      "kanta_regenie.bgen_list": "gs://fg-3/kanta/inputs/bgen_list.txt",
+     "kanta_regenie.validate_hits": "gs://fg-3/kanta/inputs/hits.txt",
      "kanta_regenie.pheno_file": "gs://r12-data/pheno/R12_COV_PHENO_V2.FID.txt.gz",
+     
      "kanta_regenie.omop_id": 3001308,
      "kanta_regenie.pheno": "LDL",
      "kanta_regenie.kanta_data": "gs://fg-3/kanta/munged/kanta_2024_07_10_munged.txt.gz",

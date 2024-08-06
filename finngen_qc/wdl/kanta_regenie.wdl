@@ -10,6 +10,7 @@ workflow kanta_regenie {
     Boolean is_binary
     String sex_col_name
     File bgen_list
+    File? validate_hits
   }
 
   # EXTRACTS FROM HARMONIZED KANTA DATA THE ENTRIES WITH MATCHING OMOP
@@ -43,6 +44,7 @@ workflow kanta_regenie {
       input:
       docker = docker,
       bgen = bgen,
+      validate_hits=validate_hits,
       phenolist=[pheno],
       is_binary=is_binary,
       cov_pheno=create_pheno_file.pheno_file,
@@ -100,6 +102,7 @@ task step2 {
     String test
     Boolean is_binary
     File bgen
+    File? validate_hits
     File pred
     File firth_list
     Array[File] loco
@@ -140,6 +143,7 @@ task step2 {
       --phenoColList ~{sep="," phenolist} \
       --pred ~{pred} \
       ~{if is_binary then "--use-null-firth ~{firth_list}" else ""} \
+      ~{if defined(validate_hits) then "--extract ~{validate_hits}" else ""} \
       --bsize ~{bsize} \
       --threads $n_cpu \
       --gz \
