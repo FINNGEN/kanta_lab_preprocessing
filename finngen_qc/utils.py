@@ -28,26 +28,20 @@ def init_harmonization(args,logger):
     for key,value in args.config['harmonization_files'].items():
         cols,fname = value
         sep = ',' if fname.endswith('.csv') else '\t'
-        args.config[key] = pd.read_csv(os.path.join(dir_path,'data',fname),usecols = cols,sep = sep).rename(columns={col:new_col for col,new_col in args.config['harmonization_col_map'].items() if col in cols})
+        rename = {col:new_col for col,new_col in args.config['harmonization_col_map'].items() if col in cols}
+        args.config[key] = pd.read_csv(os.path.join(dir_path,'data',fname),usecols = cols,sep = sep).rename(columns=rename)
 
-    # for some reason the file is malformed
-    for col in  args.config['unit_abbreviation_fix'].columns:
-        args.config['unit_abbreviation_fix'][col] = args.config['unit_abbreviation_fix'][col].str.strip()
-
+    #SPECIFIC RENAMING NEEDED
     args.config['unit_conversion']= args.config['unit_conversion'].rename(columns={'source_unit_valid':'MEASUREMENT_UNIT'})
-    args.config['usagi_mapping'][['TEST_NAME_ABBREVIATION','MEASUREMENT_UNIT']] = args.config['usagi_mapping']['harmonization_omop::sourceCode'].str.replace(']','').str.split('[',expand=True)
     args.config['usagi_mapping']['harmonization_omop::OMOP_ID'] =args.config['usagi_mapping']['harmonization_omop::OMOP_ID'].astype(int)
-    approved_mask = args.config['usagi_mapping']['harmonization_omop::mappingStatus'] != "APPROVED"
-    args.config['usagi_mapping'].loc[approved_mask,'harmonization_omop::OMOP_ID'] = 0
 
-    
     if args.harmonization:
         #merges harmonization table from vincent with chosen target unit for each concept id
         logger.debug('merge harmonization counts and table')
         harmonization_counts = pd.read_csv(args.harmonization,sep='\t')
         args.config['unit_conversion'] = pd.merge(args.config['unit_conversion'],harmonization_counts,on=['harmonization_omop::omopQuantity','harmonization_omop::MEASUREMENT_UNIT'])
-        mask = args.config['unit_conversion']['harmonization_omop::OMOP_ID'] == 3010813
-        logger.debug(args.config['unit_conversion'][mask])
+        #DEBUG
+        logger.debug(args.config['unit_conversion'][args.config['unit_conversion']['harmonization_omop::OMOP_ID'] == 3010813])
 
     #logger.debug(args.config['usagi_units'])
     logger.debug("USGAGI MAPPING")

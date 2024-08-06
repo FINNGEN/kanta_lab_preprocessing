@@ -69,7 +69,7 @@ task gather {
   mkdir regenie munged
 
   echo -e "`date`\tconcatenating result pieces into regenie/$pheno.regenie.gz, sorting by chr pos just in case"
-  cat <(zcat ~{files[0]} | head -1)  <(for file in ~{sep=" " files};do zcat $file | tail -n+2 done | sort -k1,1g -k2,2g) | bgzip > regenie/$pheno.regenie.gz
+  cat <(zcat ~{files[0]} | head -1)  <(for file in ~{sep=" " files};do zcat $file | tail -n+2 ;done | sort -k1,1g -k2,2g) | bgzip > regenie/$pheno.regenie.gz
    echo -e "`date`\tconverting to munged/$pheno.gz to a format used for importing to pheweb"
    zcat regenie/$pheno.regenie.gz | awk 'BEGIN {FS=" "; OFS="\t"; split("CHROM GENPOS ALLELE0 ALLELE1 LOG10P BETA SE A1FREQ", REQUIRED_FIELDS)}  NR==1 {for(i=1;i<=NF;i++) h[$i]=i;for(i in REQUIRED_FIELDS) if (!(REQUIRED_FIELDS[i] in h)) {print REQUIRED_FIELDS[i]" expected in regenie header">>"/dev/stderr"; exit 1} print "#chrom","pos","ref","alt","pval","mlogp","beta","sebeta","af_alt"} NR>1  {print $h["CHROM"],$h["GENPOS"],$h["ALLELE0"],$h["ALLELE1"],10^-$h["LOG10P"],$h["LOG10P"],$h["BETA"],$h["SE"],$h["A1FREQ"]}'  | bgzip > munged/$pheno.gz
    
