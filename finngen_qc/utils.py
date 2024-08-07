@@ -143,12 +143,15 @@ class smart_dict(dict):
     def __missing__(self, key):
         return key
 
-def read_map(map_path,default_value="NA",keep_original=True):
+def read_map(map_path,keep_original=True,default_value=None):
+    # if a default value is passed it wil return a dict that initalizes such value as default
     if default_value:
         default_ = partial(map_default_,default_value)
         map_dict = dd(default_)
+    # this options intead keeps the original value if missing in the mapping
     elif keep_original:
         map_dict =smart_dict()
+    # standard dictionary
     else:
         map_dict = {}
     with open(map_path) as i:

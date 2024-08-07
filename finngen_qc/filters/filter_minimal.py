@@ -57,6 +57,7 @@ def get_service_provider_name(df,args):
     Updates CODING_SYSTEM based on mapping. Keeps original if missing
     """
     col = 'CODING_SYSTEM'
+    #mask = df[col].isin(args.config['thl_sote_map'])
     df.loc[:,col] = df.loc[:,col].map(args.config['thl_sote_map'])
     return df
 

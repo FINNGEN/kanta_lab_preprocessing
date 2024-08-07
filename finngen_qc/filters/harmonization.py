@@ -37,7 +37,7 @@ def unit_harmonization(df,args):
 
 def omop_mapping(df,args):
     """
-    Does omop mapping from UNITSfi.usagi.csv
+    Does omop mapping from LABfi_ALL.usagi.csv
     """
     mapping_columns = ['TEST_NAME_ABBREVIATION','MEASUREMENT_UNIT']
 
