@@ -116,6 +116,5 @@ options:
   --unit-map {regex,map,none}  How to replace units. Map uses the unit_mapping.txt mapping in data and regex after. Regex does only regex. none skips it entirely.
   --harmonization [HARMONIZATION]  Path to tsv with concept id and target unit.
 
-
 ```
 

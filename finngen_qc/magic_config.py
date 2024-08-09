@@ -137,11 +137,13 @@ config = {
         (r'(^\s+$|^$)',"NA")
     ],
     #Regex for abbreviation (from Javier)
-    'abbreviation_replacements': [
+    'abbreviation_deletions': [
         '_|\\*|#|%',
         '^\\d{4},',
-        ',\\d{4}$',
+        ',\\d{4}$'
     ],
+
+    'abbreviation_replacements': [(r'–','-')],
     'harmonization_repo':'https://raw.githubusercontent.com/FINNGEN/kanta_lab_harmonisation_public/main/MAPPING_TABLES/',
     #list of harmonization files along with columns to use
     'harmonization_files' : {

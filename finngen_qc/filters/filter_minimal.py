@@ -43,13 +43,23 @@ def fix_abbreviation(df,args):
     """
     col = 'TEST_NAME_ABBREVIATION'
     abb_df = df[['FINNGENID', 'APPROX_EVENT_DATETIME','TEST_NAME_ABBREVIATION','MEASUREMENT_UNIT']].copy()
-    pattern = '|'.join(args.config['abbreviation_replacements'])
+    pattern = '|'.join(args.config['abbreviation_deletions'])
     df[col] = df[col].replace(pattern,'',regex=True)
     #log changes
     abb_df['new'] = df[col].copy()
     unit_mask = (abb_df[col] != abb_df['new'])
     abb_df[unit_mask].to_csv(args.abbr_file, mode='a', index=False, header=False,sep="\t")
-    
+
+    # replace problematic characters in abbrevation (strange minus sign)
+    values = args.config['abbreviation_replacements']
+    abb_df = df[['FINNGENID', 'APPROX_EVENT_DATETIME','TEST_NAME_ABBREVIATION','MEASUREMENT_UNIT']].copy()
+    for rep in args.config['abbreviation_replacements']:
+        df.loc[:,col] = df.loc[:,col].replace(rep[0],rep[1],regex=True)
+     
+    abb_df['new'] = df[col].copy()
+    unit_mask = (abb_df[col] != abb_df['new'])
+    abb_df[unit_mask].to_csv(args.abbr_file, mode='a', index=False, header=False,sep="\t")
+   
     return df
 
 def get_service_provider_name(df,args):
