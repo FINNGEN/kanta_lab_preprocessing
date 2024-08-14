@@ -10,17 +10,10 @@ def unit_fixing(df,args):
         .pipe(lab_unit_filter,args)
         .pipe(lab_unit_mapping_func,args)
         .pipe(abnormality_fix,args)
-        .pipe(replace_abnormality,args)
         )
     return df
 
 
-def replace_abnormality(df,args):
-    """
-    TODO:
-    Moves lab unit information on abnormality to lab abnormality column and lab abnormality information to lab value column for binary tests where abnormality is the only information.
-    """
-    return df
 
 
 def abnormality_fix(df,args):

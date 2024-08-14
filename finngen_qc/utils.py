@@ -10,8 +10,8 @@ dir_path = os.path.dirname(os.path.realpath(__file__))
 
 
 
-def init_harmonization(args,logger):
 
+def init_harmonization(args,logger):
 
     logger.info("UPDATING USAGI")
     repo = args.config['harmonization_repo']
@@ -43,6 +43,8 @@ def init_harmonization(args,logger):
         #DEBUG
         logger.debug(args.config['unit_conversion'][args.config['unit_conversion']['harmonization_omop::OMOP_ID'] == 3010813])
 
+    # READ IN LOW/HIGH limits for imputed abnormality
+    args.ab_limits = pd.read_csv(os.path.join(dir_path,args.config['abnormality_table']),sep='\t',dtype={"ID":int,"LOWER":float,"UPPER":float,"LOW_VALID":int,"HIGH_VALID":int})
     #logger.debug(args.config['usagi_units'])
     logger.debug("USGAGI MAPPING")
     logger.debug(args.config['usagi_mapping'])
