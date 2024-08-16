@@ -79,7 +79,7 @@ def get_lab_abbrv(df,args):
     """
     col="TEST_NAME_ABBREVIATION"
     df[col] =df[col].str.lower()     #fix lab abbrevation in general before updated mapping
-    mask = df.TEST_ID_SYSTEM == "1"
+    mask = df.TEST_ID_IS_NATIONAL == "1"
 
     #log where id is present but cannot me mapped
     map_mask = ~df["TEST_ID"].isin(args.config['thl_lab_map'].keys())
@@ -102,7 +102,7 @@ def lab_id_source(df,args):
     """
     
     local_mask =  (df['laboratoriotutkimusnimikeid'] == 'NA')
-    df["TEST_ID_SYSTEM"] = np.where(local_mask,"0","1")
+    df["TEST_ID_IS_NATIONAL"] = np.where(local_mask,"0","1")
     df["TEST_ID"] = np.where(local_mask,df.paikallinentutkimusnimikeid,df.laboratoriotutkimusnimikeid)
     return df
     

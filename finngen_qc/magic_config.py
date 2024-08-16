@@ -29,7 +29,7 @@ config = {
      'EVENT_AGE',
      'APPROX_EVENT_DATETIME',
      'TEST_ID',
-     'TEST_ID_SYSTEM',
+     'TEST_ID_IS_NATIONAL',
      'CODING_SYSTEM',
      'TEST_OUTCOME',
      'imputed::TEST_OUTCOME',
