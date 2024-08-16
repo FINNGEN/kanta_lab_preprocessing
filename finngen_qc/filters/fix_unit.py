@@ -30,7 +30,7 @@ def abnormality_fix(df,args):
     
     if((lab_abnorm != "A") & (lab_abnorm != "AA") & (lab_abnorm != "H") & (lab_abnorm != "HH") & (lab_abnorm != "L") & (lab_abnorm != "LL") & (lab_abnorm != "N")) {lab_abnorm = "NA";}
     """
-    col = 'RESULT_ABNORMALITY'
+    col = 'TEST_OUTCOME'
     # update values based on mapping
     map_mask = df[col].isin(args.config['fix_units'][col])
     df.loc[map_mask,col] = df.loc[map_mask,col].map(args.config['fix_units'][col])

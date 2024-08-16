@@ -223,7 +223,7 @@ def configure_logging(logger,log_level,log_file):
 
 
 
-def write_chunk(df,i,out_file,out_cols,logger = None):
+def write_chunk(df,i,out_file,out_cols,final_rename,logger = None):
     # write header for first chunk along with df and print some info
     mode,header ='a',False
     # write header and create new file if it's first chunk
@@ -233,4 +233,5 @@ def write_chunk(df,i,out_file,out_cols,logger = None):
         mode = 'w'
         header = True
 
+    df.rename(columns = final_rename,inplace=True)
     df[out_cols].to_csv(out_file, mode=mode, index=False, header=header,sep="\t")

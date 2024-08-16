@@ -116,8 +116,10 @@ def main(args):
         note,lines = estimate_lines(args.raw_data)
     logger.info(f"Input path:{args.raw_data}")
     logger.info(f"{lines} input lines {note}")
+
+    final_rename = {col:f"cleaned::{col}" for col in args.config['cleaned_cols']}
     for i,df,tmp_size in res_it(args):
-        write_chunk(df,i,args.out_file,args.config['out_cols'],logger)
+        write_chunk(df,i,args.out_file,args.config['out_cols'],final_rename,logger)
         size += tmp_size
         progressBar(size,lines)
 

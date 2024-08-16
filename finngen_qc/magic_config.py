@@ -8,7 +8,7 @@ config = {
         'tutkimustulosarvo':              'MEASUREMENT_VALUE',
         'tutkimustulosyksikko':           'MEASUREMENT_UNIT',
         'tutkimusvastauksentilaid':       'MEASUREMENT_STATUS',
-        'tuloksenpoikkeavuusid':          'RESULT_ABNORMALITY',
+        'tuloksenpoikkeavuusid':          'TEST_OUTCOME',
         'viitearvoryhma':                 'REFERENCE_RANGE_GROUP',
         'viitevalialkuarvo':              'REFERENCE_RANGE_LOWER_VALUE',
         'viitevalialkuyksikko':           'REFERENCE_RANGE_LOWER_UNIT',
@@ -31,17 +31,17 @@ config = {
      'TEST_ID',
      'TEST_ID_SYSTEM',
      'CODING_SYSTEM',
-     'RESULT_ABNORMALITY',
-     'imputed::ABNORMALITY',
+     'TEST_OUTCOME',
+     'imputed::TEST_OUTCOME',
      'MEASUREMENT_STATUS',
      'REFERENCE_RANGE_GROUP',
      'REFERENCE_RANGE_LOWER_VALUE',
      'REFERENCE_RANGE_LOWER_UNIT',
      'REFERENCE_RANGE_UPPER_VALUE',
      'REFERENCE_RANGE_UPPER_UNIT',
-     'TEST_NAME_ABBREVIATION',
-     'MEASUREMENT_VALUE',
-     'MEASUREMENT_UNIT',
+     'cleaned::TEST_NAME_ABBREVIATION',
+     'cleaned::MEASUREMENT_VALUE',
+     'cleaned::MEASUREMENT_UNIT',
      'harmonization_omop::MEASUREMENT_VALUE',
      'harmonization_omop::MEASUREMENT_UNIT',
      'harmonization_omop::CONVERSION_FACTOR',
@@ -52,7 +52,14 @@ config = {
      'harmonization_omop::omopQuantity',
      'source::MEASUREMENT_VALUE',
      'source::MEASUREMENT_UNIT',
-     'source::TEST_NAME_ABBREVIATION'],
+     'source::TEST_NAME_ABBREVIATION'
+     ],
+    'cleaned_cols':
+    [
+        'TEST_NAME_ABBREVIATION',
+        'MEASUREMENT_VALUE',
+        'MEASUREMENT_UNIT',
+    ],
     
     'err_cols':['FINNGENID','APPROX_EVENT_DATETIME','ERR','ERR_VALUE'],
     'date_time_format': "%Y-%m-%dT%H:%M:%S",
@@ -69,7 +76,7 @@ config = {
     'thl_sote_map_file' : 'data/thl_sote_map_named.tsv',
     'unit_map_file' : 'data/unit_mapping.txt',
     # VALUES TO REMOVE/FIX FOR LAB UNIT/ABNORMALITY
-    'fix_units':{'MEASUREMENT_UNIT':[' ','_',',','.','-','(',')','{','}',"\\",'?','!'],'RESULT_ABNORMALITY':{'<':'L','>':'H',"POS":"A","NEG":"N"}},
+    'fix_units':{'MEASUREMENT_UNIT':[' ','_',',','.','-','(',')','{','}',"\\",'?','!'],'TEST_OUTCOME':{'<':'L','>':'H',"POS":"A","NEG":"N"}},
     # BIG REGEX FOR LAB UNIT
     'unit_replacements' : [
         (r"(^\*+$|^$)","NA"),

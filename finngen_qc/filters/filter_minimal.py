@@ -27,7 +27,7 @@ def filter_missing(df,args):
     """
     Removes entry if missing both value and abnormality are NAs
     """
-    cols = ['MEASUREMENT_VALUE','RESULT_ABNORMALITY']
+    cols = ['MEASUREMENT_VALUE','TEST_OUTCOME']
     err_mask = (df[cols]=="NA").prod(axis=1).astype(bool)
     err_df = df[err_mask].copy()
     err_df['ERR'] = 'NA'
@@ -173,7 +173,10 @@ def initialize_out_cols(df,args):
     # These columns need be copied back to original name
     for col in args.config['source_cols']:
         df['source::'+col ] = df[col]
-    for col in args.config['out_cols'] + args.config['err_cols']:
-        if col not in df.columns.tolist():
+        
+    to_be_initialized = [col for col in args.config['out_cols'] + args.config['err_cols']]
+    for col in to_be_initialized:
+        if col not in df.columns.tolist() and not col.startswith("cleaned::"):
             df[col] = "NA"
+            
     return df
