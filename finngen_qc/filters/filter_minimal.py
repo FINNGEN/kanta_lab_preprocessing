@@ -71,7 +71,11 @@ def get_service_provider_name(df,args):
     # FIRST ROUND
     df.loc[:,col] = df.loc[:,col].map(args.config['thl_sote_map'])
     # SECOND ROUND
-    df['CODING_SYSTEM'] =  df['CODING_SYSTEM'].str.replace("1.2.246.10.","").str.replace("1.2.246.537.10.","").str.split('.',expand=True,n=1)[0].map(args.config['thl_manual_map'])
+    # create column with mappable name
+    df['TMP_SYSTEM'] =  df['CODING_SYSTEM'].str.replace("1.2.246.10.","").str.replace("1.2.246.537.10.","").str.split('.',expand=True,n=1)[0]
+    # I need this step since i create some strange entries with value 1 for 1.2.246.537.6.3.2006 and of the sort
+    mask = df['TMP_SYSTEM'].isin(args.config['thl_manual_map'])
+    df.loc[mask,col] = df.loc[mask,'TMP_SYSTEM'].map(args.config['thl_manual_map'])
     return df
 
 
