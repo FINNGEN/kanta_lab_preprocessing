@@ -20,7 +20,7 @@ def impute_abnormality(df,args):
     """
     Creates new abnormality column based on
     """
-    col ='imputed::ABNORMALITY'
+    col ='imputed::TEST_OUTCOME'
     if args.harmonization:
         # merge df with low/high tables 
         df = pd.merge(df,args.ab_limits,how='left',left_on=['harmonization_omop::OMOP_ID'],right_on=['ID'])
@@ -38,7 +38,6 @@ def impute_abnormality(df,args):
         # NORMAL ONLY FOR NUMERICAL VALUES
         normal_mask = (float_df["LOW_LIMIT"] <= float_df['harmonization_omop::MEASUREMENT_VALUE']) & (float_df['harmonization_omop::MEASUREMENT_VALUE'] <= float_df["HIGH_LIMIT"])
         df.loc[normal_mask,col] = "N"
-    
     return df
 
 

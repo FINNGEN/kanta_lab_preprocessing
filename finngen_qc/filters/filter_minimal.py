@@ -68,7 +68,10 @@ def get_service_provider_name(df,args):
     """
     col = 'CODING_SYSTEM'
     #mask = df[col].isin(args.config['thl_sote_map'])
+    # FIRST ROUND
     df.loc[:,col] = df.loc[:,col].map(args.config['thl_sote_map'])
+    # SECOND ROUND
+    df['CODING_SYSTEM'] =  df['CODING_SYSTEM'].str.replace("1.2.246.10.","").str.replace("1.2.246.537.10.","").str.split('.',expand=True,n=1)[0].map(args.config['thl_manual_map'])
     return df
 
 

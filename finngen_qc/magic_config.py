@@ -74,6 +74,7 @@ config = {
     # DEFAULT PATHS TO MAP FILES FOR LAB ABBREVIATIONS/ID
     'thl_lab_map_file' : 'data/thl_lab_id_abbrv_map.tsv',
     'thl_sote_map_file' : 'data/thl_sote_map_named.tsv',
+    'thl_sote_manual_map' : 'data/thl_coding_manual_mapping.txt',
     'unit_map_file' : 'data/unit_mapping.txt',
     # VALUES TO REMOVE/FIX FOR LAB UNIT/ABNORMALITY
     'fix_units':{'MEASUREMENT_UNIT':[' ','_',',','.','-','(',')','{','}',"\\",'?','!'],'TEST_OUTCOME':{'<':'L','>':'H',"POS":"A","NEG":"N"}},
