@@ -354,7 +354,9 @@ task filter_omop {
 
   String out_file = pheno +"_min_count.txt"
   command <<<
-  zcat -f ~{kanta_data} |  awk '$23==~{omop_id}' | cut -f1,3,10,11 | grep -wv "NA" > tmp.txt
+  #COLUMNS SHUOLD BE #FINNGEND ID,EVENT_AGE,harmonization_omop::MEASUREMENT_VALUE,harmonization_omop::MEASUREMENT_UNIT
+  # awk filters for harmonization_omop::OMOP_ID
+  zcat -f ~{kanta_data} |  awk '$25==~{omop_id}' | cut -f1,2,19,20 | grep -wv "NA" > tmp.txt
   head tmp.txt
   join -t $'\t' tmp.txt <(cut -f 1 tmp.txt | sort | uniq -c | sort -nr | awk '{print $1"\t"$2}' | awk '$1>=~{min_count}' | cut -f2 | sort ) > ~{out_file}
   >>>
