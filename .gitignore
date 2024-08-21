@@ -1,6 +1,10 @@
 finngen_qc/test/
 finngen_qc/scripts/
 
+#EMACS FILES
+\#*\#
+.\#*
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

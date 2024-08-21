@@ -116,8 +116,10 @@ def main(args):
         note,lines = estimate_lines(args.raw_data)
     logger.info(f"Input path:{args.raw_data}")
     logger.info(f"{lines} input lines {note}")
+
+    final_rename = {col:f"cleaned::{col}" for col in args.config['cleaned_cols']}
     for i,df,tmp_size in res_it(args):
-        write_chunk(df,i,args.out_file,args.config['out_cols'],logger)
+        write_chunk(df,i,args.out_file,args.config['out_cols'],final_rename,logger)
         size += tmp_size
         progressBar(size,lines)
 
@@ -125,9 +127,8 @@ def main(args):
     print('\nDone.')
 
     # Read sizes of out files and make sure it adds up
-    c1 =mapcount(args.out_file) 
-    c2 =mapcount(args.err_file)
-    logger.info(f"{c1-1} {c2-1} {c1+c2-2}")
+    logger.info(f"{size} final entries")
+    logger.info(f"{mapcount(args.err_file) -1} err entries")
     logger.info('Duration: {}'.format(datetime.now() - start_time))
     
     return
@@ -144,7 +145,7 @@ if __name__=='__main__':
     parser.add_argument('-o', "--out", type=str, help="Folder in which to save the results (default = current working directory)", default=os.getcwd())
     parser.add_argument("--prefix", type=str, default=f"kanta_{datetime.today().strftime('%Y_%m_%d')}", help="Prefix of the out files (default = 'kanta_YYYY_MM_DD')")
     parser.add_argument("--sep", type=str, default="\\t", help="Separator (default = tab)")
-    parser.add_argument("--chunk-size", type=int, help="Number of rows to be processed by each chunk (default = '100').", default=100)
+    parser.add_argument("--chunk-size", type=int, help="Number of rows to be processed by each chunk (default = '1000*n_cpus').", default=1000*os.cpu_count())
     parser.add_argument("--lines", type=int, help="Number of lines in input file (calculated/estimated otherwise).")
     parser.add_argument("--unit-map", type=str,choices = ['regex','map','none'],default='map', help ='How to replace units. Map uses the unit_mapping.txt mapping in data and regex after. Regex does only regex. none skips it entirely.' )
     parser.add_argument("--harmonization", type=file_exists, nargs = '?',help="Path to tsv with concept id and target unit.",const = os.path.join(dir_path,'data','harmonization_counts.txt') )
@@ -165,13 +166,16 @@ if __name__=='__main__':
     args = init_harmonization(args,logger)
     args.config['thl_lab_map'] = read_map(os.path.join(dir_path,args.config['thl_lab_map_file']),keep_original=True)
     args.config['thl_sote_map'] = read_map(os.path.join(dir_path,args.config['thl_sote_map_file']),keep_original=True)
+    args.config['thl_manual_map'] = read_map(os.path.join(dir_path,args.config['thl_sote_manual_map']),keep_original=False)
     args.config['unit_map'] = read_map(os.path.join(dir_path,args.config['unit_map_file']))
 
     logger.debug(args.config['usagi_units'])
     logger.debug(args.config['usagi_mapping'])
     logger.debug(args.config['unit_abbreviation_fix'])
     logger.debug(dict(list(args.config['thl_lab_map'].items())[0:2]))
+    logger.debug(args.ab_limits)
     init_log_files(args)
+    
     
     if os.path.basename(args.raw_data) == "raw_data_test.txt":
         logger.warning("RUNNING IN TEST MODE")

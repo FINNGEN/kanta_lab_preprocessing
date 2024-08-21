@@ -1,9 +1,0 @@
-{
-    "kanta_sort_dup.kanta_data": "gs://fg-3/kanta/finngen_R12_kanta_laboratory_responses_internal_1.0.txt.gz",
-    #"kanta_sort_dup.kanta_data": "gs://fg-3/kanta/inputs/mock_test_10K.tsv.gz",
-    # dev or main branch
-    "kanta_sort_dup.get_cols.branch": "dev", 
-    
-    "kanta_sort_dup.split.n_chunks": 15, #N.B it should be < 16
-   
-}

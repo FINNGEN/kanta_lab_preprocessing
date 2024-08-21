@@ -10,8 +10,8 @@ dir_path = os.path.dirname(os.path.realpath(__file__))
 
 
 
-def init_harmonization(args,logger):
 
+def init_harmonization(args,logger):
 
     logger.info("UPDATING USAGI")
     repo = args.config['harmonization_repo']
@@ -28,27 +28,23 @@ def init_harmonization(args,logger):
     for key,value in args.config['harmonization_files'].items():
         cols,fname = value
         sep = ',' if fname.endswith('.csv') else '\t'
-        args.config[key] = pd.read_csv(os.path.join(dir_path,'data',fname),usecols = cols,sep = sep).rename(columns={col:new_col for col,new_col in args.config['harmonization_col_map'].items() if col in cols})
+        rename = {col:new_col for col,new_col in args.config['harmonization_col_map'].items() if col in cols}
+        args.config[key] = pd.read_csv(os.path.join(dir_path,'data',fname),usecols = cols,sep = sep).rename(columns=rename)
 
-    # for some reason the file is malformed
-    for col in  args.config['unit_abbreviation_fix'].columns:
-        args.config['unit_abbreviation_fix'][col] = args.config['unit_abbreviation_fix'][col].str.strip()
-
+    #SPECIFIC RENAMING NEEDED
     args.config['unit_conversion']= args.config['unit_conversion'].rename(columns={'source_unit_valid':'MEASUREMENT_UNIT'})
-    args.config['usagi_mapping'][['TEST_NAME_ABBREVIATION','MEASUREMENT_UNIT']] = args.config['usagi_mapping']['harmonization_omop::sourceCode'].str.replace(']','').str.split('[',expand=True)
     args.config['usagi_mapping']['harmonization_omop::OMOP_ID'] =args.config['usagi_mapping']['harmonization_omop::OMOP_ID'].astype(int)
-    approved_mask = args.config['usagi_mapping']['harmonization_omop::mappingStatus'] != "APPROVED"
-    args.config['usagi_mapping'].loc[approved_mask,'harmonization_omop::OMOP_ID'] = 0
 
-    
     if args.harmonization:
         #merges harmonization table from vincent with chosen target unit for each concept id
         logger.debug('merge harmonization counts and table')
         harmonization_counts = pd.read_csv(args.harmonization,sep='\t')
         args.config['unit_conversion'] = pd.merge(args.config['unit_conversion'],harmonization_counts,on=['harmonization_omop::omopQuantity','harmonization_omop::MEASUREMENT_UNIT'])
-        mask = args.config['unit_conversion']['harmonization_omop::OMOP_ID'] == 3010813
-        logger.debug(args.config['unit_conversion'][mask])
+        #DEBUG
+        logger.debug(args.config['unit_conversion'][args.config['unit_conversion']['harmonization_omop::OMOP_ID'] == 3010813])
 
+    # READ IN LOW/HIGH limits for imputed abnormality
+    args.ab_limits = pd.read_csv(os.path.join(dir_path,args.config['abnormality_table']),sep='\t',dtype={"ID":int,"LOWER":float,"UPPER":float,"LOW_VALID":int,"HIGH_VALID":int})
     #logger.debug(args.config['usagi_units'])
     logger.debug("USGAGI MAPPING")
     logger.debug(args.config['usagi_mapping'])
@@ -149,12 +145,15 @@ class smart_dict(dict):
     def __missing__(self, key):
         return key
 
-def read_map(map_path,default_value="NA",keep_original=True):
+def read_map(map_path,keep_original=True,default_value=None):
+    # if a default value is passed it wil return a dict that initalizes such value as default
     if default_value:
         default_ = partial(map_default_,default_value)
         map_dict = dd(default_)
+    # this options intead keeps the original value if missing in the mapping
     elif keep_original:
         map_dict =smart_dict()
+    # standard dictionary
     else:
         map_dict = {}
     with open(map_path) as i:
@@ -224,7 +223,7 @@ def configure_logging(logger,log_level,log_file):
 
 
 
-def write_chunk(df,i,out_file,out_cols,logger = None):
+def write_chunk(df,i,out_file,out_cols,final_rename,logger = None):
     # write header for first chunk along with df and print some info
     mode,header ='a',False
     # write header and create new file if it's first chunk
@@ -234,4 +233,5 @@ def write_chunk(df,i,out_file,out_cols,logger = None):
         mode = 'w'
         header = True
 
+    df.rename(columns = final_rename,inplace=True)
     df[out_cols].to_csv(out_file, mode=mode, index=False, header=header,sep="\t")

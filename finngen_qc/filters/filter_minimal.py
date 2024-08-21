@@ -27,7 +27,7 @@ def filter_missing(df,args):
     """
     Removes entry if missing both value and abnormality are NAs
     """
-    cols = ['MEASUREMENT_VALUE','RESULT_ABNORMALITY']
+    cols = ['MEASUREMENT_VALUE','TEST_OUTCOME']
     err_mask = (df[cols]=="NA").prod(axis=1).astype(bool)
     err_df = df[err_mask].copy()
     err_df['ERR'] = 'NA'
@@ -43,13 +43,23 @@ def fix_abbreviation(df,args):
     """
     col = 'TEST_NAME_ABBREVIATION'
     abb_df = df[['FINNGENID', 'APPROX_EVENT_DATETIME','TEST_NAME_ABBREVIATION','MEASUREMENT_UNIT']].copy()
-    pattern = '|'.join(args.config['abbreviation_replacements'])
+    pattern = '|'.join(args.config['abbreviation_deletions'])
     df[col] = df[col].replace(pattern,'',regex=True)
     #log changes
     abb_df['new'] = df[col].copy()
     unit_mask = (abb_df[col] != abb_df['new'])
     abb_df[unit_mask].to_csv(args.abbr_file, mode='a', index=False, header=False,sep="\t")
-    
+
+    # replace problematic characters in abbrevation (strange minus sign)
+    values = args.config['abbreviation_replacements']
+    abb_df = df[['FINNGENID', 'APPROX_EVENT_DATETIME','TEST_NAME_ABBREVIATION','MEASUREMENT_UNIT']].copy()
+    for rep in args.config['abbreviation_replacements']:
+        df.loc[:,col] = df.loc[:,col].replace(rep[0],rep[1],regex=True)
+     
+    abb_df['new'] = df[col].copy()
+    unit_mask = (abb_df[col] != abb_df['new'])
+    abb_df[unit_mask].to_csv(args.abbr_file, mode='a', index=False, header=False,sep="\t")
+   
     return df
 
 def get_service_provider_name(df,args):
@@ -57,7 +67,15 @@ def get_service_provider_name(df,args):
     Updates CODING_SYSTEM based on mapping. Keeps original if missing
     """
     col = 'CODING_SYSTEM'
+    #mask = df[col].isin(args.config['thl_sote_map'])
+    # FIRST ROUND
     df.loc[:,col] = df.loc[:,col].map(args.config['thl_sote_map'])
+    # SECOND ROUND
+    # create column with mappable name
+    col = "CODING_SYSTEM_MAP"
+    df["TMP_SYSTEM"] =  df['CODING_SYSTEM'].str.replace("1.2.246.10.","").str.replace("1.2.246.537.10.","").str.split('.',expand=True,n=1)[0]
+    # I need this step since i create some strange entries with value 1 for 1.2.246.537.6.3.2006 and of the sort
+    df[col] = df['TMP_SYSTEM'].map(args.config['thl_manual_map']).fillna("NA")
     return df
 
 
@@ -68,7 +86,7 @@ def get_lab_abbrv(df,args):
     """
     col="TEST_NAME_ABBREVIATION"
     df[col] =df[col].str.lower()     #fix lab abbrevation in general before updated mapping
-    mask = df.TEST_ID_SYSTEM == "1"
+    mask = df.TEST_ID_IS_NATIONAL == "1"
 
     #log where id is present but cannot me mapped
     map_mask = ~df["TEST_ID"].isin(args.config['thl_lab_map'].keys())
@@ -91,7 +109,7 @@ def lab_id_source(df,args):
     """
     
     local_mask =  (df['laboratoriotutkimusnimikeid'] == 'NA')
-    df["TEST_ID_SYSTEM"] = np.where(local_mask,"0","1")
+    df["TEST_ID_IS_NATIONAL"] = np.where(local_mask,"0","1")
     df["TEST_ID"] = np.where(local_mask,df.paikallinentutkimusnimikeid,df.laboratoriotutkimusnimikeid)
     return df
     
@@ -162,7 +180,10 @@ def initialize_out_cols(df,args):
     # These columns need be copied back to original name
     for col in args.config['source_cols']:
         df['source::'+col ] = df[col]
-    for col in args.config['out_cols'] + args.config['err_cols']:
-        if col not in df.columns.tolist():
+        
+    to_be_initialized = [col for col in args.config['out_cols'] + args.config['err_cols']]
+    for col in to_be_initialized:
+        if col not in df.columns.tolist() and not col.startswith("cleaned::"):
             df[col] = "NA"
+            
     return df

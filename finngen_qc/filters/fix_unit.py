@@ -10,17 +10,10 @@ def unit_fixing(df,args):
         .pipe(lab_unit_filter,args)
         .pipe(lab_unit_mapping_func,args)
         .pipe(abnormality_fix,args)
-        .pipe(replace_abnormality,args)
         )
     return df
 
 
-def replace_abnormality(df,args):
-    """
-    TODO:
-    Moves lab unit information on abnormality to lab abnormality column and lab abnormality information to lab value column for binary tests where abnormality is the only information.
-    """
-    return df
 
 
 def abnormality_fix(df,args):
@@ -37,7 +30,7 @@ def abnormality_fix(df,args):
     
     if((lab_abnorm != "A") & (lab_abnorm != "AA") & (lab_abnorm != "H") & (lab_abnorm != "HH") & (lab_abnorm != "L") & (lab_abnorm != "LL") & (lab_abnorm != "N")) {lab_abnorm = "NA";}
     """
-    col = 'RESULT_ABNORMALITY'
+    col = 'TEST_OUTCOME'
     # update values based on mapping
     map_mask = df[col].isin(args.config['fix_units'][col])
     df.loc[map_mask,col] = df.loc[map_mask,col].map(args.config['fix_units'][col])
@@ -63,7 +56,7 @@ def lab_unit_regex(df,args,map_mask=None):
     # LOG CHANGES
     unit_df = df[['FINNGENID', 'APPROX_EVENT_DATETIME','TEST_NAME_ABBREVIATION','source::MEASUREMENT_UNIT','MEASUREMENT_UNIT']].copy()
     unit_df['SOURCE'] = "regex"    
-    unit_mask = (unit_df[col] != unit_df['source::MEASUREMENT_UNIT'])
+    unit_mask = (unit_df[col] != unit_df['MEASUREMENT_UNIT'])
     unit_df[unit_mask].to_csv(args.unit_file, mode='a', index=False, header=False,sep="\t")
     return df
 
