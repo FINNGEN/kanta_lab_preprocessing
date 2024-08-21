@@ -70,29 +70,31 @@ def omop_mapping(df,args):
     mask = df_omop['harmonization_omop::mappingStatus'] == "APPROVED"
     df_omop = df_omop.loc[mask,:].fillna("NA")
 
-    # remove duplicate columns that will be overwritten. They are initialized as out_cols so they would get duplicaed with _x _y suffixes by the merging step
+    # remove duplicate columns that will be overwritten. They are initialized as out_cols so they would get duplicated with _x _y suffixes by the merging step
     df = df.drop(columns=[col for col in df.columns if col in df_omop.columns and col not in mapping_columns])
     # save original types to prevent unwanted changes
     orig = df.dtypes.to_dict()
     orig.update(df_omop.dtypes.to_dict())
     merged=pd.merge(df,df_omop,on=mapping_columns,how='left').fillna({'harmonization_omop::OMOP_ID':-1}).fillna("NA")
-    
-    # plug back in the 
+    # plug back in the types 
     df = merged.apply(lambda x: x.astype(orig[x.name]))
     return df
 
 def fix_unit_based_on_abbreviation(df,args):
     """
-    Harmonizes units to make sure all abbreviations with similar units are mapped to same one (e.g. mg --> mg/24h for du-prot).
+    Harmonizes units to make sure all abbreviations with similar units are mapped to same one (e.g. osuus --> ratio for b-hkr)
+    The df is merged with the unit_abbreviation_fix map and where there is a change MEASUREMENT_UNIT is updated
     """
     col = 'MEASUREMENT_UNIT'
     # this creates new column souce_unit_valid_fix if matching else NA
     df = pd.merge(df,args.config['unit_abbreviation_fix'],left_on = ['TEST_NAME_ABBREVIATION','MEASUREMENT_UNIT'],right_on=['TEST_NAME_ABBREVIATION','source_unit_clean'],how='left').fillna("NA")
     # check where there is a valid entry and put changed element back
     mask = df['source_unit_clean_fix'] !="NA"
-    df.loc[mask,"harmonization_omop::IS_UNIT_VALID"] = "unit_fixed"    
+    unit_df = df.loc[mask,['FINNGENID', 'APPROX_EVENT_DATETIME','TEST_NAME_ABBREVIATION','MEASUREMENT_UNIT','source_unit_clean_fix']].copy()
+    # CHANGES
+    df.loc[mask,"harmonization_omop::IS_UNIT_VALID"] = "unit_fixed"
+    df.loc[mask,col] = df.loc[mask,"source_unit_clean_fix"]
     # LOG CHANGES
-    unit_df = df.loc[mask,['FINNGENID', 'APPROX_EVENT_DATETIME','TEST_NAME_ABBREVIATION','source_unit_clean','MEASUREMENT_UNIT']].copy()
     unit_df['SOURCE'] = "harmonization_fix"    
     unit_df.to_csv(args.unit_file, mode='a', index=False, header=False,sep="\t")
     return df
@@ -111,7 +113,6 @@ def approve_status(df,args):
     """
     Updates mapping status
     """
-    
-    approved_mask = args.config['usagi_mapping']['harmonization_omop::mappingStatus'] != "APPROVED"
+        approved_mask = args.config['usagi_mapping']['harmonization_omop::mappingStatus'] != "APPROVED"
     args.config['usagi_mapping'].loc[approved_mask,'harmonization_omop::OMOP_ID'] = 0
     return df

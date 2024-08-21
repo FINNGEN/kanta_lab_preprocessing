@@ -63,7 +63,7 @@ def init_log_files(args):
     with open(args.warn_file,'wt') as warn:warn.write('\t'.join(args.config['err_cols']) + '\n')
 
     args.unit_file = os.path.join(args.out,f"{args.prefix}_unit.txt")
-    with gzip.open(args.unit_file,'wt') as unit:unit.write('\t'.join(['FINREGISTRYID','TEST_DATE_TIME','TEST_NAME_ABBREVIATION','old_unit','MEASUREMENT_UNIT','SOURCE']) + '\n')
+    with open(args.unit_file,'wt') as unit:unit.write('\t'.join(['FINREGISTRYID','TEST_DATE_TIME','TEST_NAME_ABBREVIATION','old_unit','MEASUREMENT_UNIT','SOURCE']) + '\n')
 
     args.abbr_file = os.path.join(args.out,f"{args.prefix}_abbr.txt")
     with open(args.abbr_file,'wt') as abbr:abbr.write('\t'.join(['FINREGISTRYID','TEST_DATE_TIME','old_abbr','MEASUREMENT_UNIT','TEST_NAME_ABBREVIATION']) + '\n')
