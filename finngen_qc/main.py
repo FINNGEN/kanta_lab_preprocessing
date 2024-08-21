@@ -166,7 +166,7 @@ if __name__=='__main__':
     args = init_harmonization(args,logger)
     args.config['thl_lab_map'] = read_map(os.path.join(dir_path,args.config['thl_lab_map_file']),keep_original=True)
     args.config['thl_sote_map'] = read_map(os.path.join(dir_path,args.config['thl_sote_map_file']),keep_original=True)
-    args.config['thl_manual_map'] = read_map(os.path.join(dir_path,args.config['thl_sote_manual_map']),keep_original=True)
+    args.config['thl_manual_map'] = read_map(os.path.join(dir_path,args.config['thl_sote_manual_map']),keep_original=False)
     args.config['unit_map'] = read_map(os.path.join(dir_path,args.config['unit_map_file']))
 
     logger.debug(args.config['usagi_units'])

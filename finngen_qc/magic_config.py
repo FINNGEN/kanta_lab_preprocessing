@@ -31,6 +31,7 @@ config = {
      'TEST_ID',
      'TEST_ID_IS_NATIONAL',
      'CODING_SYSTEM',
+     'CODING_SYSTEM_MAP',
      'TEST_OUTCOME',
      'imputed::TEST_OUTCOME',
      'MEASUREMENT_STATUS',
