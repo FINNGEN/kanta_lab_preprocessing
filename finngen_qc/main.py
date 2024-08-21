@@ -127,9 +127,8 @@ def main(args):
     print('\nDone.')
 
     # Read sizes of out files and make sure it adds up
-    c1 =mapcount(args.out_file) 
-    c2 =mapcount(args.err_file)
-    logger.info(f"{c1-1} {c2-1} {c1+c2-2}")
+    logger.info(f"{size} final entries")
+    logger.info(f"{mapcount(args.err_file) -1} err entries")
     logger.info('Duration: {}'.format(datetime.now() - start_time))
     
     return
