@@ -65,7 +65,6 @@ def omop_mapping(df,args):
     Does omop mapping from LABfi_ALL.usagi.csv
     """
     mapping_columns = ['TEST_NAME_ABBREVIATION','MEASUREMENT_UNIT']
-
     df_omop = args.config['usagi_mapping']
     mask = df_omop['harmonization_omop::mappingStatus'] == "APPROVED"
     df_omop = df_omop.loc[mask,:].fillna("NA")
@@ -113,6 +112,6 @@ def approve_status(df,args):
     """
     Updates mapping status
     """
-        approved_mask = args.config['usagi_mapping']['harmonization_omop::mappingStatus'] != "APPROVED"
+    approved_mask = args.config['usagi_mapping']['harmonization_omop::mappingStatus'] != "APPROVED"
     args.config['usagi_mapping'].loc[approved_mask,'harmonization_omop::OMOP_ID'] = 0
     return df
