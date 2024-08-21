@@ -77,22 +77,22 @@ The code then performs the following actions:
 - all type of NA/missing values (Puuttuu,"_" etc.) are replaced with "NA"
 - entries with invalid hetu root are removed (and logged)
 - entries with invalid measurement status are removed (and logged)
-- TEST_ID_SYSTEM is created checking if `laboratoriotutkimusnimikeid` is not NA (1 national/0 regional)
+- TEST_ID_IS_NATIONAL is created checking if `laboratoriotutkimusnimikeid` is not NA (1 national/0 regional)
 - TEST_ID is created assigning the regional id for regional labs and a 
 - TEST_NAME_ABBREVIATION is updated for national labs [through a mapping](/finngen_qc/data/thl_lab_id_abbrv_map.tsv)
 - CODING_SYSTEM is updated when available (problematic ATM, see table above)
+- CODING_SYSTEM_MAP is created from y-tunnukset in table
 - TEST_NAME_ABBREVIATIONs with problematic characters are edited (see `abbreviation_replacements` in the config)
-- TEST_OUTCOME values that are not in the accepted list are removed (and logged)
 
 [UNIT](/finngen_qc/filters/fix_unit.py)
--     Fixes strange characters in lab unit field. Also moves to lower case for non NA values.
+- Fixes strange characters in lab unit field. Also moves to lower case for non NA values.
 - Mapping of units. This can be done either via regex (from config) or [through a mapping](/finngen_qc/data/unit_mapping.txt)
 - TEST_OUTCOME is edited to be consistent with the standard definition see AR/LABRA - Poikkeustilanneviestit. This means replacing `<` with `L`, `>` with `H`, `POS` with `A` and `NEG` with `N`.
 
 [harmonization](/finngen_qc/filters/harmonization.py)
 - Mapping status is updated (internal thing)
--   IS_UNIT_VALID column is populated based on whether the unit is in usagi list
--   Harmonizes units to make sure all abbreviations with similar units are mapped to same one (e.g. mg --> mg/24h for du-prot). Based on [a table](/finngen_qc/data/fix_unit_based_in_abbreviation.tsv) 
+- IS_UNIT_VALID column is populated based on whether the unit is in usagi list
+- Harmonizes units to make sure all abbreviations with similar units are mapped to same one (e.g. mg --> mg/24h for du-prot). Based on [a table](/finngen_qc/data/fix_unit_based_in_abbreviation.tsv) 
 - OMOP mapping from [a table](/finngen_qc/data/LABfi_ALL.usagi.csv)
 - unit harmonization (optional) from [a table](/finngen_qc/data/quantity_source_unit_conversion.tsv)
 - impute_abnormality (with harmonization) from [a table]((/finngen_qc/data/abnormality_estimation.table.tsv)) generates an estimation for the test outcome.
