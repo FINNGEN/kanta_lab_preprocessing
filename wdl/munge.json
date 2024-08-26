@@ -1,0 +1,10 @@
+{
+    "kanta_munge.kanta_data": "gs://fg-3/kanta/inputs/munge/kanta_premunged_test.tsv.gz",
+    "kanta_munge.prefix": "kanta",   
+    
+    "kanta_munge.munge.kanta_docker": "eu.gcr.io/finngen-refinery-dev/kanta:test",
+    "kanta_munge.munge.cpus": 8,
+    "kanta_munge.split.n_chunks": 10,
+
+}
+
