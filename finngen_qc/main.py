@@ -118,17 +118,21 @@ def main(args):
     logger.info(f"{lines} input lines {note}")
 
     final_rename = {col:f"cleaned::{col}" for col in args.config['cleaned_cols']}
+    output_lines = 0
     for i,df,tmp_size in res_it(args):
         write_chunk(df,i,args.out_file,args.config['out_cols'],final_rename,logger)
         size += tmp_size
+        output_lines += len(df)
         progressBar(size,lines)
 
 
     print('\nDone.')
 
     # Read sizes of out files and make sure it adds up
-    logger.info(f"{size} final entries")
+    logger.info(f"{size} lines processed")
+    logger.info(f"{output_lines} final entries")
     logger.info(f"{mapcount(args.err_file) -1} err entries")
+    assert size == output_lines + mapcount(args.err_file) -1
     logger.info('Duration: {}'.format(datetime.now() - start_time))
     
     return

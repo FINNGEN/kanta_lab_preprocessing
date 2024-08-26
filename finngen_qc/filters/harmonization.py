@@ -12,6 +12,7 @@ def harmonization(df,args):
         .pipe(omop_mapping,args)
         .pipe(unit_harmonization,args)
         .pipe(impute_abnormality,args)
+
     )
 
     return df
@@ -75,10 +76,10 @@ def omop_mapping(df,args):
     # save original types to prevent unwanted changes
     orig = df.dtypes.to_dict()
     orig.update(df_omop.dtypes.to_dict())
-    merged=pd.merge(df,df_omop,on=mapping_columns,how='left').fillna({'harmonization_omop::OMOP_ID':-1}).fillna("NA")
-    # plug back in the types 
+    merged=pd.merge(df,df_omop,on=mapping_columns,how='left').fillna({'harmonization_omop::OMOP_ID':"-1"}).fillna("NA")
+    # plug back in the types
     df = merged.apply(lambda x: x.astype(orig[x.name]))
-    return df
+    return df.drop_duplicates()
 
 def fix_unit_based_on_abbreviation(df,args):
     """

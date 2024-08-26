@@ -8,9 +8,6 @@ import http.client as httplib
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
-
-
-
 def init_harmonization(args,logger):
 
     logger.info("UPDATING USAGI")
@@ -54,6 +51,8 @@ def init_harmonization(args,logger):
     logger.debug("UNIT CONVERSION")
     logger.debug(args.config['unit_conversion'])
     return args
+
+
 
 
     
