@@ -26,11 +26,14 @@ def init_harmonization(args,logger):
         cols,fname = value
         sep = ',' if fname.endswith('.csv') else '\t'
         rename = {col:new_col for col,new_col in args.config['harmonization_col_map'].items() if col in cols}
-        args.config[key] = pd.read_csv(os.path.join(dir_path,'data',fname),usecols = cols,sep = sep).rename(columns=rename)
-
+        args.config[key] = pd.read_csv(os.path.join(dir_path,'data',fname),usecols = cols,sep = sep).rename(columns=rename).drop_duplicates()
+        
     #SPECIFIC RENAMING NEEDED
     args.config['unit_conversion']= args.config['unit_conversion'].rename(columns={'source_unit_valid':'MEASUREMENT_UNIT'})
     args.config['usagi_mapping']['harmonization_omop::OMOP_ID'] =args.config['usagi_mapping']['harmonization_omop::OMOP_ID'].astype(int)
+
+    tmp_df = args.config['usagi_mapping'][args.config['usagi_mapping']["TEST_NAME_ABBREVIATION"] == 'p-vrab-o']
+    logger.debug(tmp_df)
 
     if args.harmonization:
         #merges harmonization table from vincent with chosen target unit for each concept id

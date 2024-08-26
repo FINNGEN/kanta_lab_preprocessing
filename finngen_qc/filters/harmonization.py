@@ -79,7 +79,7 @@ def omop_mapping(df,args):
     merged=pd.merge(df,df_omop,on=mapping_columns,how='left').fillna({'harmonization_omop::OMOP_ID':"-1"}).fillna("NA")
     # plug back in the types
     df = merged.apply(lambda x: x.astype(orig[x.name]))
-    return df.drop_duplicates()
+    return df
 
 def fix_unit_based_on_abbreviation(df,args):
     """
