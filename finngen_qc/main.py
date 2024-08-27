@@ -121,9 +121,10 @@ def main(args):
     output_lines,err_lines = 0,0
     for i,df,tmp_size in res_it(args):
         write_chunk(df,i,args.out_file,args.config['out_cols'],final_rename,logger)
-        size += tmp_size
-        output_lines += len(df)
-        diff_err = mapcount(args.err_file) -1 - err_lines
+        size += tmp_size #size of input df
+        output_lines += len(df) # size of output df
+        diff_err = mapcount(args.err_file) -1 - err_lines # size of err df
+        # dump if df sizes don't add up
         if size - output_lines - diff_err != 0:
             err_dump = os.path.join(args.out,f"{args.prefix}_duplicates_{i}.txt.gz")
             logger.critical(f"chunk {i}:lines don't add up")

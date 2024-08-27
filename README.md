@@ -95,7 +95,7 @@ The code then performs the following actions:
 - Harmonizes units to make sure all abbreviations with similar units are mapped to same one (e.g. mg --> mg/24h for du-prot). Based on [a table](/finngen_qc/data/fix_unit_based_in_abbreviation.tsv) 
 - OMOP mapping from [a table](/finngen_qc/data/LABfi_ALL.usagi.csv)
 - unit harmonization (optional) from [a table](/finngen_qc/data/quantity_source_unit_conversion.tsv)
-- impute_abnormality (with harmonization) from [a table]((/finngen_qc/data/abnormality_estimation.table.tsv)) generates an estimation for the test outcome.
+- impute_abnormality  (with harmonization) creates the column `imputed::TEST_OUTCOME` based on lower/upper limits from [a table]((/finngen_qc/data/abnormality_estimation.table.tsv)). The limits for different definitions are built using (a script)[/scripts/ab.py] and chosen by [another script](/scripts/impute_ab.py).
 
 ## How it works
 The script reads in the data in chunks of  `--chunksize` length and it processes the lines with python's pandas. With the flag `--mp` and `--jobs` the script runs each chunk into other smaller subchunks in parallel (efficiency TBD). The [filter folder](/finngen_qc/filters/) contains separate scripts that perform conceptually separate tasks. Each of them contains a global function of the same name of the script that gathers all individual functions that populate the script. In this way we can easily compartmentalize the munging/qc and add new features.
