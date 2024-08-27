@@ -41,12 +41,11 @@ def init_harmonization(args,logger):
         harmonization_counts = pd.read_csv(args.harmonization,sep='\t')
         args.config['unit_conversion'] = pd.merge(args.config['unit_conversion'],harmonization_counts,on=['harmonization_omop::omopQuantity','harmonization_omop::MEASUREMENT_UNIT'])
         #DEBUG
-        logger.debug(args.config['unit_conversion'][args.config['unit_conversion']['harmonization_omop::OMOP_ID'] == 3010813])
+        logger.debug(args.config['unit_conversion'][args.config['unit_conversion']['harmonization_omop::OMOP_ID'] == 3027238])
 
     # READ IN LOW/HIGH limits for imputed abnormality
     args.ab_limits = pd.read_csv(os.path.join(dir_path,args.config['abnormality_table']),sep='\t',dtype={"ID":int})
-    # remove * from problematic values
-    for column in ['LOW_LIMIT','HIGH_LIMIT']:args.ab_limits[column] = args.ab_limits[column].astype(str).str.extract(r'(\d+.\d+)').astype('float')
+
     #logger.debug(args.config['usagi_units'])
     logger.debug("USGAGI MAPPING")
     logger.debug(args.config['usagi_mapping'])

@@ -118,11 +118,17 @@ def main(args):
     logger.info(f"{lines} input lines {note}")
 
     final_rename = {col:f"cleaned::{col}" for col in args.config['cleaned_cols']}
-    output_lines = 0
+    output_lines,err_lines = 0,0
     for i,df,tmp_size in res_it(args):
         write_chunk(df,i,args.out_file,args.config['out_cols'],final_rename,logger)
         size += tmp_size
         output_lines += len(df)
+        diff_err = mapcount(args.err_file) -1 - err_lines
+        if size - output_lines - diff_err != 0:
+            err_dump = os.path.join(args.out,f"{args.prefix}_duplicates_{i}.txt.gz")
+            logger.critical(f"chunk {i}:lines don't add up")
+            write_chunk(df,0,err_dump,args.config['out_cols'],final_rename,logger)
+            
         progressBar(size,lines)
 
 

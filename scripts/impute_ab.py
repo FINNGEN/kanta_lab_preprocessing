@@ -27,8 +27,9 @@ with open(data_path) as i,open(data_path.replace(".txt",'.table.tsv'),'wt') as o
         low_problem  = 1 if '*' in low_col else 0
         high_problem = 1 if '*' in high_col else 0
         # map NAs to +- inf
-        low_res  =  -np.inf if low_col=="NA" else low_col
-        high_res  =  np.inf if high_col=="NA" else high_col
+        low_res  =  -np.inf if low_col=="NA" else low_col.replace("*",'')
+        high_res  =  np.inf if high_col=="NA" else high_col.replace("*",'')
+
         # write results
         o.write('\t'.join(map(str,[ID,low_res,high_res,low_problem,high_problem])) +'\n')
 
