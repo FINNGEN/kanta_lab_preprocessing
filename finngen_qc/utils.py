@@ -102,12 +102,19 @@ def estimate_lines(f):
     size = os.path.getsize(f)
     open_func = gzip.open if f.endswith('.gz') else open
     if f.endswith('.gz'):
-        with open_func(f, 'rb') as i:
-            buf = i.read(LEARN_SIZE)
-            size /= (len(buf) // buf.count(b'\n'))
-        om = math.floor(math.log(size, 10))
-        note = 'estimated'
-        size = math.pow(10,om+1)
+        # if file is large
+        if os.path.getsize(f)/(1024**3) > 1:
+            with open_func(f, 'rb') as i:
+                buf = i.read(LEARN_SIZE)
+                size /= (len(buf) // buf.count(b'\n'))
+            om = math.floor(math.log(size, 10))
+            note = 'estimated'
+            size = math.pow(10,om+1)
+        else:
+            with gzip.open(f, 'rb') as f:
+                for i, l in enumerate(f):pass
+            note = 'exact'
+            size = i+1
     else:
         note = 'exact'
         size = mapcount(f)

@@ -61,14 +61,18 @@ task merge_logs {
   cat ~{write_lines(logs)} > logs.txt
   # write headers
   for f in {err,warn,abbr,unit} ; do  cat logs.txt | grep $f | head -n1 | xargs head -n1 > ~{prefix}"_"$f".txt"; done
-  for f in {err,warn,abbr,unit} ;do while read i ;do cat $i | sed -E 1d >> ~{prefix}"_"$f".txt"; done < <(cat logs.txt | grep $f | sort -h);done
+  for f in {err,warn,abbr,unit,log} ;do while read i ;do cat $i | sed -E 1d >> ~{prefix}"_"$f".txt"; done < <(cat logs.txt | grep $f | sort -h);done
   >>>
   runtime {
     disks: "local-disk ~{ceil(size(logs,'GB')) * 4 + 10} HDD"
   }
 
   output {
-    Array[File] all_logs = glob("~{prefix}*txt")
+    File out_log  = "~{prefix}_log.txt"
+    File out_err  = "~{prefix}_err.txt"
+    File out_abbr = "~{prefix}_abbr.txt"
+    File out_unit = "~{prefix}_unit.txt"
+    File out_warn = "~{prefix}_warn.txt"
   }
 }
 
@@ -80,18 +84,20 @@ task munge {
     Int cpus
   }
   command <<<
-  python3 /finngen_qc/main.py  --out .  --raw-data ~{chunk} --log info --chunk-size 3200000 --mp --harmonization --gz --prefix ~{prefix}
-  ls *
+  set -euxo pipefail
+  python3 /finngen_qc/main.py  --out .  --raw-data ~{chunk} --log info --mp --harmonization --gz --prefix ~{prefix}
   >>>
   runtime {
     docker : "~{kanta_docker}"
     disks: "local-disk ~{ceil(size(chunk,'GB')) * 4 + 10} HDD"
+    mem: "~{cpus} GB"
     cpu : "~{cpus}"
   }
 
   output {
     File munged_chunk = "~{prefix}_munged.txt.gz"
     Array[File] logs = glob("./~{prefix}*txt")
+    Array[File] problematic = glob("./*duplicates*gz")
   }
 }
 
@@ -109,7 +115,7 @@ task split{
   >>>
 
   runtime {
-    disks: "local-disk ~{ceil(size(kanta_data,'GB')) * 4 + 10} HDD"
+    disks: "local-disk ~{ceil(size(kanta_data,'GB')) * 10 + 20} HDD"
   }
 
   output {
