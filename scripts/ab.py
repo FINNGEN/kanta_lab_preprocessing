@@ -159,7 +159,7 @@ if __name__ == "__main__":
     parser.add_argument('--min-count',default =1000,type=int)
     parser.add_argument('--percentile',default =5,type=int)
     parser.add_argument('--max-walk',default =.5,type = float)
-    parser.add_argument('--thresholds',default = [0.95],nargs='*',type=float)
+    parser.add_argument('--thresholds',default = [.9,.95,.99],nargs='*',type=float)
     parser.add_argument("--split", action='store_true', help="Splits the input file (needs to be run only once)")
     parser.add_argument("--test", action='store_true', help="Test run")
 

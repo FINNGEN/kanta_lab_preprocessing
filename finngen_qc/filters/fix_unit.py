@@ -15,7 +15,6 @@ def unit_fixing(df,args):
 
 
 
-
 def abnormality_fix(df,args):
 
     """
@@ -46,18 +45,20 @@ def lab_unit_regex(df,args,map_mask=None):
     """
     
     col ='MEASUREMENT_UNIT'
-    # REGEX SUBSTIUTION
+    # COPY SO THEN LATER I CAN LOG CHANGES
+    old_col = df[[col]].copy()
+    # do replacements based on whether a  mask is passed or not
     for rep in args.config['unit_replacements']:
         if map_mask is not None:
             df.loc[~map_mask,col] = df.loc[~map_mask,col].replace(rep[0],rep[1],regex=True)
         else:
             df.loc[:,col] = df.loc[:,col].replace(rep[0],rep[1],regex=True)
-
     # LOG CHANGES
-    unit_df = df[['FINNGENID', 'APPROX_EVENT_DATETIME','TEST_NAME_ABBREVIATION','source::MEASUREMENT_UNIT','MEASUREMENT_UNIT']].copy()
+    unit_df = df[['FINNGENID', 'APPROX_EVENT_DATETIME','TEST_NAME_ABBREVIATION','MEASUREMENT_UNIT']].copy()
+    unit_df['OLD'] = old_col
     unit_df['SOURCE'] = "regex"    
-    unit_mask = (unit_df[col] != unit_df['MEASUREMENT_UNIT'])
-    unit_df[unit_mask].to_csv(args.unit_file, mode='a', index=False, header=False,sep="\t")
+    unit_mask = (unit_df["OLD"] != unit_df[col])
+    unit_df[unit_mask][['FINNGENID', 'APPROX_EVENT_DATETIME','TEST_NAME_ABBREVIATION','OLD','MEASUREMENT_UNIT','SOURCE']].to_csv(args.unit_file, mode='a', index=False, header=False,sep="\t")
     return df
 
 def lab_unit_map(df,args):

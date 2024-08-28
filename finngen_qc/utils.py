@@ -8,9 +8,6 @@ import http.client as httplib
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
-
-
-
 def init_harmonization(args,logger):
 
     logger.info("UPDATING USAGI")
@@ -29,11 +26,14 @@ def init_harmonization(args,logger):
         cols,fname = value
         sep = ',' if fname.endswith('.csv') else '\t'
         rename = {col:new_col for col,new_col in args.config['harmonization_col_map'].items() if col in cols}
-        args.config[key] = pd.read_csv(os.path.join(dir_path,'data',fname),usecols = cols,sep = sep).rename(columns=rename)
-
+        args.config[key] = pd.read_csv(os.path.join(dir_path,'data',fname),usecols = cols,sep = sep).rename(columns=rename).drop_duplicates()
+        
     #SPECIFIC RENAMING NEEDED
     args.config['unit_conversion']= args.config['unit_conversion'].rename(columns={'source_unit_valid':'MEASUREMENT_UNIT'})
     args.config['usagi_mapping']['harmonization_omop::OMOP_ID'] =args.config['usagi_mapping']['harmonization_omop::OMOP_ID'].astype(int)
+
+    tmp_df = args.config['usagi_mapping'][args.config['usagi_mapping']["TEST_NAME_ABBREVIATION"] == 'p-vrab-o']
+    logger.debug(tmp_df)
 
     if args.harmonization:
         #merges harmonization table from vincent with chosen target unit for each concept id
@@ -41,10 +41,11 @@ def init_harmonization(args,logger):
         harmonization_counts = pd.read_csv(args.harmonization,sep='\t')
         args.config['unit_conversion'] = pd.merge(args.config['unit_conversion'],harmonization_counts,on=['harmonization_omop::omopQuantity','harmonization_omop::MEASUREMENT_UNIT'])
         #DEBUG
-        logger.debug(args.config['unit_conversion'][args.config['unit_conversion']['harmonization_omop::OMOP_ID'] == 3010813])
+        logger.debug(args.config['unit_conversion'][args.config['unit_conversion']['harmonization_omop::OMOP_ID'] == 3027238])
 
     # READ IN LOW/HIGH limits for imputed abnormality
-    args.ab_limits = pd.read_csv(os.path.join(dir_path,args.config['abnormality_table']),sep='\t',dtype={"ID":int,"LOWER":float,"UPPER":float,"LOW_VALID":int,"HIGH_VALID":int})
+    args.ab_limits = pd.read_csv(os.path.join(dir_path,args.config['abnormality_table']),sep='\t',dtype={"ID":int})
+
     #logger.debug(args.config['usagi_units'])
     logger.debug("USGAGI MAPPING")
     logger.debug(args.config['usagi_mapping'])
@@ -52,6 +53,8 @@ def init_harmonization(args,logger):
     logger.debug("UNIT CONVERSION")
     logger.debug(args.config['unit_conversion'])
     return args
+
+
 
 
     
@@ -99,12 +102,19 @@ def estimate_lines(f):
     size = os.path.getsize(f)
     open_func = gzip.open if f.endswith('.gz') else open
     if f.endswith('.gz'):
-        with open_func(f, 'rb') as i:
-            buf = i.read(LEARN_SIZE)
-            size /= (len(buf) // buf.count(b'\n'))
-        om = math.floor(math.log(size, 10))
-        note = 'estimated'
-        size = math.pow(10,om+1)
+        # if file is large
+        if os.path.getsize(f)/(1024**3) > 1:
+            with open_func(f, 'rb') as i:
+                buf = i.read(LEARN_SIZE)
+                size /= (len(buf) // buf.count(b'\n'))
+            om = math.floor(math.log(size, 10))
+            note = 'estimated'
+            size = math.pow(10,om+1)
+        else:
+            with gzip.open(f, 'rb') as f:
+                for i, l in enumerate(f):pass
+            note = 'exact'
+            size = i+1
     else:
         note = 'exact'
         size = mapcount(f)

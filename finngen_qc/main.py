@@ -118,17 +118,28 @@ def main(args):
     logger.info(f"{lines} input lines {note}")
 
     final_rename = {col:f"cleaned::{col}" for col in args.config['cleaned_cols']}
+    output_lines,err_lines = 0,0
     for i,df,tmp_size in res_it(args):
         write_chunk(df,i,args.out_file,args.config['out_cols'],final_rename,logger)
-        size += tmp_size
+        size += tmp_size #size of input df
+        output_lines += len(df) # size of output df
+        diff_err = mapcount(args.err_file) -1 - err_lines # size of err df
+        # dump if df sizes don't add up
+        if size - output_lines - diff_err != 0:
+            err_dump = os.path.join(args.out,f"{args.prefix}_duplicates_{i}.txt.gz")
+            logger.critical(f"chunk {i}:lines don't add up")
+            write_chunk(df,0,err_dump,args.config['out_cols'],final_rename,logger)
+            
         progressBar(size,lines)
 
 
     print('\nDone.')
 
     # Read sizes of out files and make sure it adds up
-    logger.info(f"{size} final entries")
+    logger.info(f"{size} lines processed")
+    logger.info(f"{output_lines} final entries")
     logger.info(f"{mapcount(args.err_file) -1} err entries")
+    assert size == output_lines + mapcount(args.err_file) -1
     logger.info('Duration: {}'.format(datetime.now() - start_time))
     
     return
@@ -145,7 +156,7 @@ if __name__=='__main__':
     parser.add_argument('-o', "--out", type=str, help="Folder in which to save the results (default = current working directory)", default=os.getcwd())
     parser.add_argument("--prefix", type=str, default=f"kanta_{datetime.today().strftime('%Y_%m_%d')}", help="Prefix of the out files (default = 'kanta_YYYY_MM_DD')")
     parser.add_argument("--sep", type=str, default="\\t", help="Separator (default = tab)")
-    parser.add_argument("--chunk-size", type=int, help="Number of rows to be processed by each chunk (default = '1000*n_cpus').", default=1000*os.cpu_count())
+    parser.add_argument("--chunk-size", type=int, help="Number of rows to be processed by each chunk (default = '1000*n_cpus').", default=10000*os.cpu_count())
     parser.add_argument("--lines", type=int, help="Number of lines in input file (calculated/estimated otherwise).")
     parser.add_argument("--unit-map", type=str,choices = ['regex','map','none'],default='map', help ='How to replace units. Map uses the unit_mapping.txt mapping in data and regex after. Regex does only regex. none skips it entirely.' )
     parser.add_argument("--harmonization", type=file_exists, nargs = '?',help="Path to tsv with concept id and target unit.",const = os.path.join(dir_path,'data','harmonization_counts.txt') )
