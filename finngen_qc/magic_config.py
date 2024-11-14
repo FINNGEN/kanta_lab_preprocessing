@@ -14,6 +14,8 @@ config = {
         'viitevalialkuyksikko':           'REFERENCE_RANGE_LOWER_UNIT',
         'viitevaliloppuarvo':             'REFERENCE_RANGE_UPPER_VALUE',
         'viitevaliloppuyksikko':          'REFERENCE_RANGE_UPPER_UNIT',
+        'tutkimuksenlisatieto' :          'MEASUREMENT_EXTRA_INFO',
+        'tutkimustulosteksti':            'MEASUREMENT_FREE_TEXT',
         
         
     },
@@ -53,7 +55,9 @@ config = {
         'harmonization_omop::omopQuantity',
         'source::MEASUREMENT_VALUE',
         'source::MEASUREMENT_UNIT',
-        'source::TEST_NAME_ABBREVIATION'
+        'source::TEST_NAME_ABBREVIATION',
+        'MEASUREMENT_EXTRA_INFO',
+        'MEASUREMENT_FREE_TEXT'
     ],
     'cleaned_cols':    [
         'TEST_NAME_ABBREVIATION',

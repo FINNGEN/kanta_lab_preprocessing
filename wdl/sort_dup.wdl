@@ -2,13 +2,14 @@ version 1.0
 
 workflow kanta_sort_dup{
   input {
-    File kanta_data
+    File kanta_list
   }
 
+  call pre_merge {input:kanta_list=kanta_list}
   call get_cols {}
   call split {
     input:
-    kanta_data = kanta_data,
+    kanta_data = pre_merge.kanta_data,
     cols = get_cols.cols,
     s_cols = get_cols.s_cols
   }
@@ -28,8 +29,62 @@ workflow kanta_sort_dup{
     sort_cols = split.sort_cols,
     header = split.header
   }
- 
 }
+
+task pre_merge {
+  
+  input {
+    File kanta_list
+  }
+
+  Array[File] kanta_files = read_lines(kanta_list)
+  Int disk = ceil(size(kanta_files,"GB"))*3 + 10
+  String out_file = "kanta_merged.txt.gz"
+  command <<<
+  echo "MERGE PART FILES"
+  merged_dir="/merged"
+  mkdir $merged_dir
+  # merge partial gz files
+  while read file;
+  do
+      echo $file
+      du -sb $file | awk '{$1=$1/2^30"GB"}1'
+      # Check if the file has multiple parts
+      if [[ $file == *".part"* ]]; then
+          # Get the base filename without the part number
+          base_filename=$(echo "$file" | sed 's/\.part[0-9][0-9]*//')    
+          # Concatenate the parts into a single file
+          cat "$file" >> "$merged_dir/$(basename "$base_filename")"
+      else
+          # Copy the single-part file to the merged directory
+          cp "$file" "$merged_dir"
+      fi
+  done  < ~{write_lines(kanta_files)}
+
+  echo "CHECK SIZE"
+  for file in $merged_dir/*;
+  do
+      echo $file
+      du -sb $file | awk '{$1=$1/2^30"GB"}1'
+      zcat $file | wc -l
+  done
+
+  echo "MERGE ALL"
+  ls $merged_dir
+  # merge files removing header from other files
+  zcat $merged_dir/*gz |  awk 'NR > 1 && /^FINNGENID/ { next } 1'| bgzip -c  > ~{out_file}
+  
+  >>>
+  runtime {
+    disks:   "local-disk ~{disk} HDD"
+  }
+
+  output {
+    File kanta_data = out_file
+  }
+
+}
+
 
 task merge {
   input {
