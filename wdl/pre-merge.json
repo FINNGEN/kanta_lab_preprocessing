@@ -1,0 +1,5 @@
+{
+    "pre_merge.kanta_list": "gs://fg-3/kanta_v2/inputs/kanta_file_list.txt",
+    "pre_merge.prefix": "finngen_R12_kanta_laboratory_responses_internal_VERSION.txt.gz",
+    "pre_merge.version": "2.0"
+}

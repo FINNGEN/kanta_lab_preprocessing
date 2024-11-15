@@ -1,8 +1,8 @@
 {
-    "kanta_munge.kanta_data": "gs://fg-3/kanta/pre-munged/kanta_sorted_unique_2024_07_04.tsv.gz",
+    "kanta_munge.kanta_data": "gs://fg-3/kanta_v2/pre-munged/kanta_sorted_2024_11_15_unique.tsv.gz",
     "kanta_munge.prefix": "kanta",   
     
-    "kanta_munge.munge.kanta_docker": "eu.gcr.io/finngen-refinery-dev/kanta:1.0",
+    "kanta_munge.munge.kanta_docker": "eu.gcr.io/finngen-refinery-dev/kanta:v2.0",
     "kanta_munge.munge.cpus": 8,
     "kanta_munge.split.n_chunks": 32,
 
