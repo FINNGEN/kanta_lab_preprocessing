@@ -16,7 +16,9 @@ config = {
         'viitevaliloppuyksikko':          'REFERENCE_RANGE_UPPER_UNIT',
         'tutkimuksenlisatieto' :          'MEASUREMENT_EXTRA_INFO',
         'tutkimustulosteksti':            'MEASUREMENT_FREE_TEXT',
-        
+        'antaja_organisaatioid':          'SERVICE_PROVIDER_ID',
+        'lausunnontilaid':                'OPINION_ID',
+   	'lausuntoteksti':                 'OPINION_TEXT'  
         
     },
     "source_cols" : ['MEASUREMENT_VALUE','MEASUREMENT_UNIT','TEST_NAME_ABBREVIATION'],
@@ -57,7 +59,10 @@ config = {
         'source::MEASUREMENT_UNIT',
         'source::TEST_NAME_ABBREVIATION',
         'MEASUREMENT_EXTRA_INFO',
-        'MEASUREMENT_FREE_TEXT'
+        'MEASUREMENT_FREE_TEXT',
+        'SERVICE_PROVIDER_ID',
+        'OPINION_ID',
+   	'OPINION_TEXT'  
     ],
     'cleaned_cols':    [
         'TEST_NAME_ABBREVIATION',

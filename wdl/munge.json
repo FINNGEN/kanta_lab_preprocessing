@@ -1,5 +1,7 @@
 {
+    "kanta_munge.test": True,
     "kanta_munge.kanta_data": "gs://fg-3/kanta_v2/pre-munged/kanta_sorted_2024_11_15_unique.tsv.gz",
+    "kanta_munge.sex_map.min_pheno": "gs://finngen-production-library-red/finngen_R12/phenotype_1.0/data/finngen_R12_minimum_1.0.txt.gz",
     "kanta_munge.prefix": "kanta",   
     
     "kanta_munge.munge.kanta_docker": "eu.gcr.io/finngen-refinery-dev/kanta:v2.0",
