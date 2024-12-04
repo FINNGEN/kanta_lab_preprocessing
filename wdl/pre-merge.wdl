@@ -9,19 +9,26 @@ workflow pre_merge {
     String prefix
     String version
   }
-  # sort report file based on key
+  ############
+  #--REPORTS--##
+  ############
+  # sort report file based on new multi column key
   call sort_file as sort_report {
     input:
     input_file = reports,
     sort_merge_cols = sort_merge_cols,
     test = false # i want to use all reports
   }
+  # merge the reports file where ids match so free text is just one column
+  call join_reports { input:reports= sort_report.sorted_file }
+
+  ##############
+  #--RESPONSES--##
+  ##############
   # merge the various chunks into single files for each year
   call merge_responses {input:kanta_list=kanta_list}
-
-  # for each file 
   scatter (responses_file in merge_responses.merged_responses) {
-    # sort it as in the other call
+    # sort it as in the other task
     call sort_file as sort_responses {
       input :
       test = test, # work with 10k lines only
@@ -29,31 +36,77 @@ workflow pre_merge {
       sort_merge_cols = sort_merge_cols,
       out_cols = merge_responses.responses_cols
     }
-    # join them!
-    call merge_reports_responses {input:reports = sort_report.sorted_file,responses = sort_responses.sorted_file}
+    # join each response with the pre sorted reports file
+    call merge_reports_responses {input:reports =join_reports.joined_reports ,responses = sort_responses.sorted_file}
   }
-
-  #MERGE THEM!
-  String out_file = sub(prefix,"VERSION",if test then version +"_test" else version) 
-  call merge_files {input:rr_files = merge_reports_responses.merged_file,out_file = out_file}
+  #########$###
+  #--MERGING--##
+  #############
+  call merge_files {input:rr_files = merge_reports_responses.merged_file,out_file = sub(prefix,"VERSION",if test then version +"_test" else version) }
 }
+
+
+task join_reports{
+  input {
+    File reports
+  }
+  String out_file = sub(basename(reports),".txt.gz","_joined_ids.txt.gz")
+  command <<<
+  # Process the file
+  zcat -f ~{reports} | awk '
+  BEGIN { FS=OFS="\t"; seen_key = 0 }
+  {
+    if (NR == 1) {
+        # Initialize with first row
+        prev_key = $1 SUBSEP $2 SUBSEP $3
+        prev_value = $4
+        seen_key = 1
+        next
+    }
+    current_key = $1 SUBSEP $2 SUBSEP $3
+    if (current_key == prev_key) {
+        # Same key, append value
+        prev_value = prev_value "::" $4
+        seen_key++
+    } else {
+        # Different key, output previous key
+        split(prev_key, cols, SUBSEP)
+        prefix = seen_key > 1 ? "HUOM::" seen_key "::" : ""
+        print cols[1], cols[2], cols[3], prefix prev_value
+        # Reset for new key
+        prev_key = current_key
+        prev_value = $4
+        seen_key=1
+    }
+  }
+  END {
+    # Output last key
+    split(prev_key, cols, SUBSEP)
+    prefix = seen_key > 1 ? "HUOM::" seen_key "::" : ""
+    print cols[1], cols[2], cols[3], prefix prev_value
+  }' | bgzip -c  > ~{out_file}
+
+  zcat ~{reports} | wc -l
+  zcat ~{out_file} | wc -l 
+  >>>
+  runtime { disks:   "local-disk ~{ceil(size(reports,'GB')*3) + 10} HDD" }
+  output {
+    File joined_reports = out_file
+  }
+} 
 
 task merge_files {
   input {
     Array[File] rr_files
     String out_file
   }
-
   command <<<
   zcat ~{rr_files[0]} | head -n1 | bgzip -c > ~{out_file}
   while read f; do  echo $f &&  zcat $f | sed -E 1d | bgzip -c >> ~{out_file}; done < ~{write_lines(rr_files)}
+  wc -l ~{out_file}
   >>>
-  runtime {
-    disks:   "local-disk ~{ceil(size(rr_files,'GB'))*3 + 10} HDD"
-  }
-  output {
-    File merged_file = out_file
-  }
+  runtime {disks:   "local-disk ~{ceil(size(rr_files,'GB'))*3 + 10} HDD"}
+  output { File merged_file = out_file}
 }
 
 task merge_reports_responses {
@@ -64,7 +117,9 @@ task merge_reports_responses {
   String out_file = sub(basename(responses),'responses','responses_reports')
   command <<<
   echo ~{out_file}
+  zcat ~{responses} | wc -l
   join -t $'\t' -a 1 -o auto -e NA --header <(zcat ~{responses}) <(zcat  ~{reports} ) |  cut -f 2- | bgzip -c > ~{out_file}
+  wc -l ~{out_file}
   >>>
   runtime {
     disks:"local-disk ~{ceil(size(responses,'GB') + size(reports,'GB')*3) + 2} HDD"
@@ -81,7 +136,7 @@ task sort_file {
     String sort_merge_cols
     String out_cols
   }
-  String out_file = sorted + "_" + basename(input_file)
+  String out_file =   basename(input_file,".txt.gz") + "_sorted.txt.gz"
   command <<<
   echo ~{input_file} ~{out_file}
   # MERGE COLS

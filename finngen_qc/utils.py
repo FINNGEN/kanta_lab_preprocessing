@@ -168,7 +168,7 @@ def read_map(map_path,keep_original=True,default_value=None):
         map_dict = {}
     with open(map_path) as i:
         for elem in i:
-            elem = elem.strip().split()
+            elem = elem.strip().split('\t')
             map_dict[elem[0]] = elem[1]
     return map_dict
 

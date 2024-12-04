@@ -34,7 +34,7 @@ workflow kanta_sort_dup{
     sorted_chunks = sort.sorted_chunk,
     sort_cols = split.sort_cols,
     header = split.header,
-    prefix = if test then prefix else prefix + "_test"
+    prefix = if test then prefix+ "_test"  else prefix 
   }
 }
 
@@ -121,11 +121,10 @@ task sort {
 }
 
 task get_cols {
-  input {
-    String branch
-  }
+  input {String branch}
+
   command <<<
-  # get required columns to cut from repo
+  # get required columns to cut from git repo
   curl -s https://raw.githubusercontent.com/FINNGEN/kanta_lab_preprocessing/~{branch}/finngen_qc/magic_config.py > config.py
   python3 -c "import config;o= open('./columns.txt','wt') ;o.write('\n'.join(list(config.config['rename_cols'].keys())) + '\n');o.write('\n'.join(config.config['other_cols'])+ '\n')"
   python3 -c "import config;o= open('./sort_columns.txt','wt') ;o.write('\n'.join(config.config['sort_cols'])+ '\n')"
@@ -152,10 +151,8 @@ task split {
   
   command <<<
   echo "SORT KANTA"
-
   cat ~{write_lines(cols)} > columns.txt
   cat ~{write_lines(s_cols)} > sort_columns.txt
-  
   COLS=$(zcat ~{kanta_data} |  head -n1 | tr '\t' '\n'  | grep -wnf columns.txt | cut -f 1 -d ':' | tr '\n' ',' | rev | cut -c2- | rev)
   echo $COLS
   
@@ -164,6 +161,7 @@ task split {
   zcat ~{kanta_data} | cut -f $COLS | sed -E 1d  ~{if test then " | head -n 10000 " else ""}> tmp.tsv
   
   # GET SORT COLS AND KEEP ORDER
+  echo "COLS"
   while read f;
   do
       cat header.txt | head -n1 | tr '\t' '\n'|  grep -wn $f |  cut -f 1 -d ':' >> sort_cols.txt

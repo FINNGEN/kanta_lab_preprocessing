@@ -16,7 +16,8 @@ def filter_minimal(df,args):
         .pipe(filter_measurement_status,args)
         .pipe(lab_id_source,args)
         .pipe(get_lab_abbrv,args)
-        .pipe(get_service_provider_name,args)
+        .pipe(get_coding_map,args)
+        .pipe(get_service_provider,args)
         .pipe(fix_abbreviation,args)
         #.pipe(filter_missing,args)
 
@@ -63,7 +64,19 @@ def fix_abbreviation(df,args):
    
     return df
 
-def get_service_provider_name(df,args):
+def get_service_provider(df,args):
+    """
+    Updates CODING_SYSTEM based on mapping. Keeps original if missing
+    """
+    col = 'SERVICE_PROVIDER_ID'
+    print(df.loc[:,col])
+    df.loc[:,col] = df.loc[:,col].map(args.config['thl_sote_map'])
+    print(df.loc[:,col])
+    return df
+
+
+
+def get_coding_map(df,args):
     """
     Updates CODING_SYSTEM based on mapping. Keeps original if missing
     """

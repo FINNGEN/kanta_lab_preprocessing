@@ -31,34 +31,46 @@ workflow kanta_munge {
     }
   }
   # MERGE CHUNKS AND LOGS
-  call merge {
-    input:
-    prefix = date_prefix.prefix,
-    munged_chunks = munge.munged_chunk
-  }
   call merge_logs {
     input:
     prefix = date_prefix.prefix,
     logs = flatten(munge.logs)
   }
+  call merge {
+    input:
+    prefix = date_prefix.prefix,
+    munged_chunks = munge.munged_chunk
+  }
 }
-
 
 task merge {
   input {
     Array[File] munged_chunks
     String prefix
+    Array[String] reports_columns
+
   }
   String out_file = prefix +"_munged.txt.gz"
+  String reports_file = prefix +"_munged_reports.txt.gz"
   command <<<
-  zcat ~{munged_chunks[0]} | head -n1 | bgzip -c > ~{out_file}
-  while read f; do echo $f && date +%Y-%m-%dT%H:%M:%S && zcat $f | sed -E 1d | bgzip -c >> ~{out_file} ; done < <(cat ~{write_lines(munged_chunks)} | sort -V )
+  # write header
+  zcat ~{munged_chunks[0]} | head -n1 | bgzip -c > ~{reports_file}
+  # merge files 
+  while read f; do echo $f && date +%Y-%m-%dT%H:%M:%S && zcat $f | sed -E 1d | bgzip -c >> ~{reports_file} ; done < <(cat ~{write_lines(munged_chunks)} | sort -V )
+
+  # REMOVE REPORTS COLUMNS
+  COLS=$(zcat ~{reports_file} | head -n1 | tr '\t' '\n' | grep -wnf ~{write_lines(reports_columns)}  | cut -d : -f1 | tr '\n' ',' | sed 's/,$//')
+  echo $COLS
+
+  zcat ~{reports_file} | cut -f $COLS --complement | bgzip -c > ~{out_file}
+  
   >>>
   runtime {
     disks: "local-disk ~{ceil(size(munged_chunks,'GB')) * 4 + 10} HDD"
   }
-
+ 
   output {
+    File munged_all = reports_file
     File munged = out_file
   }
 }
@@ -101,7 +113,7 @@ task munge {
   set -euxo pipefail
   python3 /finngen_qc/main.py  --out .  --raw-data ~{chunk} --log info --mp --harmonization --gz --prefix ~{prefix}
   # ADD SEX
-  join --header -t $'\t' -a 1 -o auto -e NA <(zcat ~/fg-3/kanta_v2/munged/kanta_2024_08_26_munged.txt.gz  ) ~{sex_map} | bgzip -c > tmp.txt.gz
+  join --header -t $'\t' -a 1 -o auto -e NA <(zcat ~{out_chunk}  ) ~{sex_map} | bgzip -c > tmp.txt.gz
   mv tmp.txt.gz ~{out_chunk}
   
   >>>
@@ -176,6 +188,9 @@ task date_prefix {
   command <<<
   echo ~{base_prefix}_$(date +%Y_%m_%d) > tmp.txt
   >>>
+  meta {
+    volatile: true
+  }
   output {
     String prefix = read_string("tmp.txt")
   }
