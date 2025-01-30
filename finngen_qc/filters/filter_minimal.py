@@ -55,9 +55,7 @@ def get_service_provider(df,args):
     Updates CODING_SYSTEM based on mapping. Keeps original if missing
     """
     col = 'SERVICE_PROVIDER_ID'
-    print(df.loc[:,col])
     df.loc[:,col] = df.loc[:,col].map(args.config['thl_sote_map'])
-    print(df.loc[:,col])
     return df
 
 
