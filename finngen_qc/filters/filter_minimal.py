@@ -19,24 +19,10 @@ def filter_minimal(df,args):
         .pipe(get_coding_map,args)
         .pipe(get_service_provider,args)
         .pipe(fix_abbreviation,args)
-        #.pipe(filter_missing,args)
 
     )
     return df
 
-
-def filter_missing(df,args):
-    """
-    Removes entry if missing both value and abnormality are NAs
-    """
-    cols = ['MEASUREMENT_VALUE','TEST_OUTCOME']
-    err_mask = (df[cols]=="NA").prod(axis=1).astype(bool)
-    err_df = df[err_mask].copy()
-    err_df['ERR'] = 'NA'
-    err_df['ERR_VALUE'] = err_df[cols[0]] + "_" +  err_df[cols[1]]
-    err_df[args.config['err_cols']].to_csv(args.err_file, mode='a', index=False, header=False,sep="\t")
-
-    return df
 
 
 def fix_abbreviation(df,args):
