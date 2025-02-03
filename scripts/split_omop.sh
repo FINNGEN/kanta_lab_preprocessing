@@ -34,6 +34,10 @@ NR == 1 { next }  # Skip original header
         files[key] = 1
     }
     print $0 > filename
-}' <(zcat -f $input_file )
+}' <(zcat -f $input_file  )
 
-echo "Files split successfully in directory: $output_dir"
+# Compress all generated TSV files
+echo "Compressing files..."
+find "$output_dir" -name "*.tsv" -type f -exec gzip {} \;
+
+echo "Files split and compressed successfully in directory: $output_dir"
