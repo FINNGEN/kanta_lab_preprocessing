@@ -8,17 +8,10 @@ from utils import make_sure_path_exists
 omop_path = '/mnt/disks/data/kanta/omop/'
 
 # Columns to extract from input files
-cols = [
-    'TEST_ID',
-    'TEST_OUTCOME', 
-    'harmonization_omop::OMOP_ID',
-    'harmonization_omop::MEASUREMENT_UNIT',
-    'source::MEASUREMENT_VALUE', 
-    'MEASUREMENT_FREE_TEXT'
-]
-
 # Explicit data type definitions for columns
-dtype = {
+cols = {
+    'FINNGENID':str,
+    'EVENT_AGE':float,
     'TEST_ID': str,
     'TEST_OUTCOME': str,
     'harmonization_omop::OMOP_ID': int,
@@ -42,12 +35,12 @@ def read_df(omop,test=True):
         tuple: full dataframe and merged dataframe with abnormality infoa
     """
     # construct full file path
-    path = f"{os.path.join(omop_path, str(omop) + '.tsv')}"
+    path = f"{os.path.join(omop_path, str(omop) + '.tsv.gz')}"
 
     pretty_print(str(omop))
 
     # read csv with specified columns and data types
-    df = pd.read_csv(path, sep='\t', usecols=cols, dtype=dtype,nrows = 10000 if test else None)
+    df = pd.read_csv(path, sep='\t', usecols=cols, dtype=cols,nrows = 10000 if test else None)
     print(f'data read: {len(df)} entries')
     
     # identify entries with missing measurements
@@ -166,8 +159,8 @@ if __name__ == "__main__":
         args.out_path = os.path.join(omop_path,'measurement_free_text')
     make_sure_path_exists(args.out_path)
 
-    path = f"{os.path.join(args.out_path, str(args.omop) + '_FREE_TEXT_FLOAT.tsv')}"
+    path = f"{os.path.join(args.out_path, str(args.omop) + '_FREE_TEXT_FLOAT.tsv.gz')}"
     fm.to_csv(path,sep='\t', index=False)
-    path = f"{os.path.join(args.out_path, str(args.omop) + '_FREE_TEXT_NONFLOAT.tsv')}"
+    path = f"{os.path.join(args.out_path, str(args.omop) + '_FREE_TEXT_NONFLOAT.tsv.gz')}"
     nfm.to_csv(path,sep='\t', index=False)
 
