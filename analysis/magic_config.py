@@ -33,6 +33,16 @@ config = {
         'MEASUREMENT_FREE_TEXT',
         'SERVICE_PROVIDER_ID'
     ],
+    'added_cols':["imputed::MEASUREMENT_VALUE"],
     'err_cols':['FINNGENID','APPROX_EVENT_DATETIME','ERR','ERR_VALUE'],
+    'omop_unit_map':'finngen_qc/data/harmonization_counts.txt',
     'date_time_format': "%Y-%m-%dT%H:%M:%S",
+    'free_text_measurement_replacements': [
+        (r'\*', ''),
+        (r':', ''),
+        (r',', '.') #replace commas with dots 
+    ],
+    'free_text_result_strings' : ("tutkimuksentulos","resultat","provresultat")
+    
+
 }

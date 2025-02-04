@@ -4,9 +4,10 @@ from functools import partial
 import multiprocessing as mp
 import numpy as np
 from datetime import datetime
-from utils import file_exists,log_levels,configure_logging,make_sure_path_exists,progressBar,batched,mapcount,read_map,estimate_lines,write_chunk,init_log_files
+from utils import file_exists,log_levels,configure_logging,make_sure_path_exists,progressBar,batched,mapcount,read_map,estimate_lines,write_chunk,init_log_files,init_unit_table
 from magic_config import config
 from datetime import datetime
+from filters.impute import impute_all
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
 
@@ -15,7 +16,7 @@ def chunk_reader(raw_file,chunk_size,config,separator):
     Iterator that spews out chunks and exits early in case of test
     """
     logger.debug(args.config['cols'])
-
+    
     # TODO(Vincent 2024-05-03)
     # Set engine='pyarrow' to enable faster parsing on multicore machines.
     # It is currently not feature complete and is still experimental.
@@ -30,6 +31,13 @@ def chunk_reader(raw_file,chunk_size,config,separator):
             yield chunk
 
 def all_filters(df,args):
+    """
+    Combines all functions/filters from the filters folder
+    """
+    df = (
+        df
+        .pipe(impute_all,args)
+    )
     return df
 
 
@@ -160,9 +168,12 @@ if __name__=='__main__':
     # setup config
     args.config = config
     args.config['cols']  = config['cols']
-    args.config['out_cols']  = config['cols']
+    args.config['out_cols']  = config['cols'] + config['added_cols']
+    logger.debug(args.config['out_cols'])
     init_log_files(args)
-    
+
+    #init stuff
+    args.omop_unit_table = init_unit_table(args)
     
     if os.path.basename(args.raw_data) == "raw_data_test.txt":
         logger.warning("RUNNING IN TEST MODE")

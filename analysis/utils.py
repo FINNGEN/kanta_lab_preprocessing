@@ -5,10 +5,20 @@ from functools import partial
 import pandas as pd
 import urllib.request
 import http.client as httplib
+from pathlib import Path
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
 
+
+
+def init_unit_table(args):
+
+    # get omop target unit from data folder
+    df =  pd.read_csv(os.path.join(Path(dir_path).parent.absolute(),args.config['omop_unit_map']),sep='\t',usecols=['harmonization_omop::OMOP_ID','harmonization_omop::MEASUREMENT_UNIT'])
+    return dict(zip(df['harmonization_omop::OMOP_ID'],df['harmonization_omop::MEASUREMENT_UNIT']))
+
+    return df.to_dict()
     
 def init_log_files(args):
     # setup error file
