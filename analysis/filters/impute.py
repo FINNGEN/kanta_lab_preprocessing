@@ -21,8 +21,7 @@ def impute_measurement(df,args):
     unit_col= 'harmonization_omop::MEASUREMENT_UNIT'
     # get mask where mes is na
     mask = df[mes_col].isna() & ~df[ft_col].isna()
-    df[col_name] = df[ft_col].where(mask,df[mes_col]).astype(str).str.lower()
-
+    df[col_name] = df[ft_col].where(mask,df[mes_col]).astype(str).str.lower().str.strip().str.replace(r'\s', '', regex=True).fillna("NA") # this removes ALL spaces
     # create series with target unit for omop values and remove that from the free text column
     target_unit = df["harmonization_omop::OMOP_ID"].astype(int).map(args.omop_unit_table)
     df[col_name] = df.apply(lambda row: row[col_name].replace(

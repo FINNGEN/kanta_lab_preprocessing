@@ -16,7 +16,7 @@ cols = {
     'TEST_OUTCOME': str,
     'harmonization_omop::OMOP_ID': int,
     'harmonization_omop::MEASUREMENT_UNIT':str,
-    'source::MEASUREMENT_VALUE': float,
+    'harmonization_omop::MEASUREMENT_VALUE': float,
     'MEASUREMENT_FREE_TEXT': str
 }
 
@@ -44,7 +44,7 @@ def read_df(omop,test=True):
     print(f'data read: {len(df)} entries')
     
     # identify entries with missing measurements
-    mask = df['source::MEASUREMENT_VALUE'].isna()
+    mask = df['harmonization_omop::MEASUREMENT_VALUE'].isna()
     print(f"{len(df[mask])} entries without measurement")
     
     # identify entries with free text measurements

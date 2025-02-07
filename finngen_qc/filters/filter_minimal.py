@@ -161,8 +161,8 @@ def remove_spaces(df,args):
     In testing sometimes fields are empty strings, so I will replace those cases with NA. Gotta check if it's the case with real data too
  
     """
-   
-    for col in df.columns:
+
+    for col in [col for col in df.columns if col not in args.config['columns_with_spaces']]:
         # removes all spaces (including inside text, kinda messess up date, but fixes issues across the board.
         df[col] = df[col].str.strip().str.replace(r'\s', '', regex=True).fillna("NA") # this removes ALL spaces
         # only trailing/leading

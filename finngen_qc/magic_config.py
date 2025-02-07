@@ -80,6 +80,8 @@ config = {
     'hetu_kw' : '1.2.246.21',
     # MEASUREMENT STATUS
     'problematic_status':  ('MEASUREMENT_STATUS',['K','W','X','I','D','P']),
+    # SPACES
+    'columns_with_spaces':['MEASUREMENT_FREE_TEXT','STATEMENT_TEXT'],
     # DEFAULT PATHS TO MAP FILES FOR LAB ABBREVIATIONS/ID
     'thl_lab_map_file' : 'data/thl_lab_id_abbrv_map.tsv',
     'thl_sote_map_file' : 'data/thl_sote_map_named.tsv',
