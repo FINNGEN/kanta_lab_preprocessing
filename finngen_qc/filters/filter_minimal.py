@@ -16,26 +16,13 @@ def filter_minimal(df,args):
         .pipe(filter_measurement_status,args)
         .pipe(lab_id_source,args)
         .pipe(get_lab_abbrv,args)
-        .pipe(get_service_provider_name,args)
+        .pipe(get_coding_map,args)
+        .pipe(get_service_provider,args)
         .pipe(fix_abbreviation,args)
-        #.pipe(filter_missing,args)
 
     )
     return df
 
-
-def filter_missing(df,args):
-    """
-    Removes entry if missing both value and abnormality are NAs
-    """
-    cols = ['MEASUREMENT_VALUE','TEST_OUTCOME']
-    err_mask = (df[cols]=="NA").prod(axis=1).astype(bool)
-    err_df = df[err_mask].copy()
-    err_df['ERR'] = 'NA'
-    err_df['ERR_VALUE'] = err_df[cols[0]] + "_" +  err_df[cols[1]]
-    err_df[args.config['err_cols']].to_csv(args.err_file, mode='a', index=False, header=False,sep="\t")
-
-    return df
 
 
 def fix_abbreviation(df,args):
@@ -63,7 +50,17 @@ def fix_abbreviation(df,args):
    
     return df
 
-def get_service_provider_name(df,args):
+def get_service_provider(df,args):
+    """
+    Updates CODING_SYSTEM based on mapping. Keeps original if missing
+    """
+    col = 'SERVICE_PROVIDER_ID'
+    df.loc[:,col] = df.loc[:,col].map(args.config['thl_sote_map'])
+    return df
+
+
+
+def get_coding_map(df,args):
     """
     Updates CODING_SYSTEM based on mapping. Keeps original if missing
     """
@@ -164,8 +161,8 @@ def remove_spaces(df,args):
     In testing sometimes fields are empty strings, so I will replace those cases with NA. Gotta check if it's the case with real data too
  
     """
-   
-    for col in df.columns:
+
+    for col in [col for col in df.columns if col not in args.config['columns_with_spaces']]:
         # removes all spaces (including inside text, kinda messess up date, but fixes issues across the board.
         df[col] = df[col].str.strip().str.replace(r'\s', '', regex=True).fillna("NA") # this removes ALL spaces
         # only trailing/leading

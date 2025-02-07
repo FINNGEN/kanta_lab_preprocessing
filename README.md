@@ -1,11 +1,6 @@
-
-
-
 # KANTA LAB values preprocessing & QC
 
 Based on Kira Detrois' [existing repo](https://github.com/detroiki/kanta_lab).
-
-
 
 # OUTPUT
 
@@ -39,7 +34,10 @@ Based on Kira Detrois' [existing repo](https://github.com/detroiki/kanta_lab).
 | 27| `source::MEASUREMENT_VALUE` | The original numeric value of the measurement |     |     |
 | 28| `source::MEASUREMENT_UNIT` | The original unit of the measurement |     |     |
 | 29| `source::TEST_NAME_ABBREVIATION` | The original abbreviation of the measurement |     |     |
-| 30| `SEX` | Sex of the sample |     |     |
+| 30 | `MEASUREMENT_EXTRA_INFO` | Contains some extra info about the measurement. Mostly short text descriptions of the measurement (e.g. _Lopullinenvastaus_ or _Keskisuihkuvirtsa>4h_ |
+| 31| `MEASUREMENT_FREE_TEXT` | Contains mixed information, among which float values that _most probably_ are coherent with the target OMOP harmonized units |
+| 32 |`SERVICE_PROVIDER_ID` | Yet another column with information about the provider. It follows the [thl sote table](/finngen_qc//data/thl_sote_map_named.tsv)  | 
+| 33 | `SEX` | Sex of the sample |     |     |
 
 The raw to output column mapping is as follows:
 
@@ -58,6 +56,9 @@ The raw to output column mapping is as follows:
 |viitevalialkuyksikko|REFERENCE_RANGE_LOWER_UNIT|
 |viitevaliloppuarvo|REFERENCE_RANGE_UPPER_VALUE|
 |viitevaliloppuyksikko|REFERENCE_RANGE_UPPER_UNIT|
+| tutkimuksenlisatiet | MEASUREMENT_EXTRA_INFO |
+| tutkimustulosteksti |   MEASUREMENT_FREE_TEXT |
+| antaja_organisaatioid | SERVICE_PROVIDER_ID|
 
 
 
@@ -85,6 +86,7 @@ The code then performs the following actions:
 - TEST_NAME_ABBREVIATION is updated for national labs [through a mapping](/finngen_qc/data/thl_lab_id_abbrv_map.tsv)
 - CODING_SYSTEM is updated when available (problematic ATM, see table above)
 - CODING_SYSTEM_MAP is created from y-tunnukset in table
+- SERVICE_PROVIDER_ID is updated where the mapping can happen
 - TEST_NAME_ABBREVIATIONs with problematic characters are edited (see `abbreviation_replacements` in the config)
 
 ### [UNIT](/finngen_qc/filters/fix_unit.py)

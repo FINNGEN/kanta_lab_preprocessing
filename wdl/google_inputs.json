@@ -8,6 +8,7 @@
 	"docker": "eu.gcr.io/finngen-refinery-dev/bioinformatics:0.8",
 	"zones": "europe-west1-b europe-west1-c europe-west1-d",
 	"cpu":4,
+	"disk":"2 HDD",
 	"memory" : "4 GB"
     }
 }

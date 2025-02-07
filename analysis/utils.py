@@ -5,58 +5,20 @@ from functools import partial
 import pandas as pd
 import urllib.request
 import http.client as httplib
+from pathlib import Path
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
-def init_harmonization(args,logger):
-
-    logger.info("UPDATING USAGI")
-    repo = args.config['harmonization_repo']
-    urls = [(repo+elem[1],os.path.join(dir_path,'data',elem[1])) for elem in args.config['harmonization_files'].values()]
-
-    try:
-        for url,out_file in urls:
-            urllib.request.urlretrieve(url,out_file)
-    except:
-        logger.warning("COULD NOT DOWNLOAD FILES: USAGI FILES NOT UPDATED")
-        logger.warning(urls)
-
-    # READ IN JAVIER/USAGI FILES WITH PROPER RENAMING OF COLUMNS
-    for key,value in args.config['harmonization_files'].items():
-        cols,fname = value
-        sep = ',' if fname.endswith('.csv') else '\t'
-        rename = {col:new_col for col,new_col in args.config['harmonization_col_map'].items() if col in cols}
-        args.config[key] = pd.read_csv(os.path.join(dir_path,'data',fname),usecols = cols,sep = sep).rename(columns=rename).drop_duplicates()
-        
-    #SPECIFIC RENAMING NEEDED
-    args.config['unit_conversion']= args.config['unit_conversion'].rename(columns={'source_unit_valid':'MEASUREMENT_UNIT'})
-    args.config['usagi_mapping']['harmonization_omop::OMOP_ID'] =args.config['usagi_mapping']['harmonization_omop::OMOP_ID'].astype(int)
-
-    tmp_df = args.config['usagi_mapping'][args.config['usagi_mapping']["TEST_NAME_ABBREVIATION"] == 'p-vrab-o']
-    logger.debug(tmp_df)
-
-    if args.harmonization:
-        #merges harmonization table from vincent with chosen target unit for each concept id
-        logger.debug('merge harmonization counts and table')
-        harmonization_counts = pd.read_csv(args.harmonization,sep='\t')
-        args.config['unit_conversion'] = pd.merge(args.config['unit_conversion'],harmonization_counts,on=['harmonization_omop::omopQuantity','harmonization_omop::MEASUREMENT_UNIT'])
-        #DEBUG
-        logger.debug(args.config['unit_conversion'][args.config['unit_conversion']['harmonization_omop::OMOP_ID'] == 3027238])
-
-    # READ IN LOW/HIGH limits for imputed abnormality
-    args.ab_limits = pd.read_csv(os.path.join(dir_path,args.config['abnormality_table']),sep='\t',dtype={"ID":int})
-
-    #logger.debug(args.config['usagi_units'])
-    logger.debug("USGAGI MAPPING")
-    logger.debug(args.config['usagi_mapping'])
-    #logger.debug(args.config['unit_abbreviation_fix'])
-    logger.debug("UNIT CONVERSION")
-    logger.debug(args.config['unit_conversion'])
-    return args
 
 
 
+def init_unit_table(args):
 
+    # get omop target unit from data folder
+    df =  pd.read_csv(os.path.join(Path(dir_path).parent.absolute(),args.config['omop_unit_map']),sep='\t',usecols=['harmonization_omop::OMOP_ID','harmonization_omop::MEASUREMENT_UNIT'])
+    return dict(zip(df['harmonization_omop::OMOP_ID'],df['harmonization_omop::MEASUREMENT_UNIT']))
+
+    return df.to_dict()
     
 def init_log_files(args):
     # setup error file
@@ -64,13 +26,6 @@ def init_log_files(args):
     with open(args.err_file,'wt') as err:err.write('\t'.join(args.config['err_cols']) + '\n')
     args.warn_file = os.path.join(args.out,f"{args.prefix}_warn.txt")
     with open(args.warn_file,'wt') as warn:warn.write('\t'.join(args.config['err_cols']) + '\n')
-
-    args.unit_file = os.path.join(args.out,f"{args.prefix}_unit.txt")
-    with open(args.unit_file,'wt') as unit:unit.write('\t'.join(['FINREGISTRYID','TEST_DATE_TIME','TEST_NAME_ABBREVIATION','old_unit','MEASUREMENT_UNIT','SOURCE']) + '\n')
-
-    args.abbr_file = os.path.join(args.out,f"{args.prefix}_abbr.txt")
-    with open(args.abbr_file,'wt') as abbr:abbr.write('\t'.join(['FINREGISTRYID','TEST_DATE_TIME','old_abbr','MEASUREMENT_UNIT','TEST_NAME_ABBREVIATION']) + '\n')
-    
 
 
 def have_internet() -> bool:
@@ -233,7 +188,7 @@ def configure_logging(logger,log_level,log_file):
 
 
 
-def write_chunk(df,i,out_file,out_cols,final_rename,logger = None):
+def write_chunk(df,i,out_file,out_cols,final_rename=None,logger = None):
     # write header for first chunk along with df and print some info
     mode,header ='a',False
     # write header and create new file if it's first chunk
@@ -243,5 +198,6 @@ def write_chunk(df,i,out_file,out_cols,final_rename,logger = None):
         mode = 'w'
         header = True
 
-    df.rename(columns = final_rename,inplace=True)
+    if final_rename:
+        df.rename(columns = final_rename,inplace=True)
     df[out_cols].to_csv(out_file, mode=mode, index=False, header=header,sep="\t")

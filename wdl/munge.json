@@ -1,8 +1,13 @@
 {
-    "kanta_munge.kanta_data": "gs://fg-3/kanta/pre-munged/kanta_sorted_unique_2024_07_04.tsv.gz",
-    "kanta_munge.prefix": "kanta",   
+    "kanta_munge.test": false,
+    "kanta_munge.kanta_data": "gs://fg-3/kanta_v2/pre-munged/finngen_R12_kanta_laboratory_responses_reports_internal_2.0_2024_11_20_unique.tsv.gz",
+    "kanta_munge.sex_map.min_pheno": "gs://finngen-production-library-red/finngen_R12/phenotype_1.0/data/finngen_R12_minimum_1.0.txt.gz",
+    "kanta_munge.prefix": "kanta",
+
+    "kanta_munge.merge.reports_columns": ["STATEMENT_ID","STATEMENT_TEXT"],
+
     
-    "kanta_munge.munge.kanta_docker": "eu.gcr.io/finngen-refinery-dev/kanta:1.0",
+    "kanta_munge.munge.kanta_docker": "eu.gcr.io/finngen-refinery-dev/kanta:v2.1.release",
     "kanta_munge.munge.cpus": 8,
     "kanta_munge.split.n_chunks": 32,
 
