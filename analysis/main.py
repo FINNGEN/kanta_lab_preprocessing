@@ -8,6 +8,8 @@ from utils import file_exists,log_levels,configure_logging,make_sure_path_exists
 from magic_config import config
 from datetime import datetime
 from filters.impute import impute_all
+from filters.qc import qc
+
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
 

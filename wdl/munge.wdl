@@ -4,6 +4,7 @@ workflow kanta_munge {
   input {
     File kanta_data
     String prefix
+    String kanta_docker
     # test mode will use only 100k lines and 4 cpus
     Boolean test
   }
@@ -25,6 +26,7 @@ workflow kanta_munge {
   scatter (i in range(length(split.chunks))) {
     call munge {
       input:
+      docker = kanta_docker,
       prefix = i,
       chunk = split.chunks[i],
       sex_map = sex_map.sex_map
@@ -38,6 +40,7 @@ workflow kanta_munge {
   }
   call merge {
     input:
+    docker = kanta_docker,
     prefix = date_prefix.prefix,
     munged_chunks = munge.munged_chunk
   }
@@ -48,30 +51,40 @@ task merge {
     Array[File] munged_chunks
     String prefix
     Array[String] reports_columns
+    String docker 
 
   }
   String out_file = prefix +"_munged.txt.gz"
+  String dup_file = prefix +"_munged_duplicates.txt.gz"
   String reports_file = prefix +"_munged_reports.txt.gz"
-  command <<<
-  # write header
-  zcat ~{munged_chunks[0]} | head -n1 | bgzip -c > ~{reports_file}
-  # merge files 
-  while read f; do echo $f && date +%Y-%m-%dT%H:%M:%S && zcat $f | sed -E 1d | bgzip -c >> ~{reports_file} ; done < <(cat ~{write_lines(munged_chunks)} | sort -V )
 
-  # REMOVE REPORTS COLUMNS
+  command <<<
+  # write header to reports file
+  zcat ~{munged_chunks[0]} | head -n1 | bgzip -c > tmp.gz
+
+  # merge files including reports
+  while read f; do echo $f && date +%Y-%m-%dT%H:%M:%S && zcat $f | sed -E 1d | bgzip -c >> tmp.gz ; done < <(cat ~{write_lines(munged_chunks)} | sort -V )
+
+  # remove duplicates
+  python3 /finngen_qc/duplicates.py --input tmp.gz --prefix ~{prefix}_munged_reports
+
+  # EXTRACT REPORTS COLUMNS
   COLS=$(zcat ~{reports_file} | head -n1 | tr '\t' '\n' | grep -wnf ~{write_lines(reports_columns)}  | cut -d : -f1 | tr '\n' ',' | sed 's/,$//')
   echo $COLS
-
   zcat ~{reports_file} | cut -f $COLS --complement | bgzip -c > ~{out_file}
+  zcat  ~{prefix}_munged_reports_duplicates.txt.gz | cut -f $COLS --complement | bgzip -c > ~{dup_file}
   
   >>>
   runtime {
     disks: "local-disk ~{ceil(size(munged_chunks,'GB')) * 4 + 10} HDD"
+    docker : "~{docker}"
+
   }
  
   output {
     File munged_all = reports_file
     File munged = out_file
+    File duplicates = dup_file
   }
 }
 
@@ -102,7 +115,7 @@ task merge_logs {
 
 task munge {
   input {
-    String kanta_docker
+    String docker
     File chunk
     String prefix
     Int cpus
@@ -118,7 +131,7 @@ task munge {
   
   >>>
   runtime {
-    docker : "~{kanta_docker}"
+    docker : "~{docker}"
     disks: "local-disk ~{ceil(size(chunk,'GB')) * 4 + 10} HDD"
     mem: "~{cpus} GB"
     cpu : "~{cpus}"
