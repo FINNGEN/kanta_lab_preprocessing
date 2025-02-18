@@ -42,45 +42,6 @@ def impute_measurement(df,args):
     
 
 
-def check_potential_dates(series):
-    """
-    Check if integers in a pandas Series could be mistaken for dates in DDMMYY format.
-    Returns a boolean mask where True indicates a potential date.
-    
-    Rules for DDMMYY format:
-    - DD: 01-31
-    - MM: 01-12
-    - YY: 00-99
-    
-    Parameters:
-    series (pd.Series): Input series of integers
-    
-    Returns:
-    pd.Series: Boolean mask where True indicates potential dates
-    """
-    # Convert to string with leading zeros to ensure 6 digits
-    str_series = series.fillna(0).astype(int).astype(str)
-    is_six_digits = str_series.str.len() == 6
-    # Only process 6-digit values
-    if is_six_digits.any():
-        valid_numbers = series[is_six_digits]
-        
-        # Extract potential day, month, year
-        days = str_series[is_six_digits].str[:2].astype(int)
-        months = str_series[is_six_digits].str[2:4].astype(int)
-        years = str_series[is_six_digits].str[4:].astype(int)
-        
-        # Check if values fall within valid date ranges
-        valid_days = (days >= 1) & (days <= 31)
-        valid_months = (months >= 1) & (months <= 12)
-        valid_years = (years >= 0) & (years <= 99)
-        
-        # Combine all conditions
-        date_mask = valid_days & valid_months & valid_years
-    
-        return date_mask
-
-    return 0
 
 def impute_positive(df,args):
     """
