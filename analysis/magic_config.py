@@ -33,16 +33,19 @@ config = {
         'MEASUREMENT_FREE_TEXT',
         'SERVICE_PROVIDER_ID'
     ],
-    'added_cols':["imputed::MEASUREMENT_VALUE"],
+    'added_cols':["imputed::MEASUREMENT_VALUE","imputed::IS_POS"],
     'err_cols':['FINNGENID','APPROX_EVENT_DATETIME','ERR','ERR_VALUE'],
     'omop_unit_map':'finngen_qc/data/harmonization_counts.txt',
+    'posneg_map':'analysis/data/negpos_mapping.tsv',
     'date_time_format': "%Y-%m-%dT%H:%M:%S",
     'free_text_measurement_replacements': [
         (r'\*', ''),
-        (r':', ''),
         (r',', '.') #replace commas with dots 
     ],
-    'free_text_result_strings' : ("tutkimuksentulos","resultat","provresultat")
+    'binary_replacements': ("(",")",'-','+','seul','*','.'),
+    'positive_values':['pos','posit','positiivinen'],
+    'negative_values':['neg','negat','negatiivinen'],
     
+    'free_text_result_strings' : ("tutkimuksentulos:","resultat:","provresultat:")
 
 }

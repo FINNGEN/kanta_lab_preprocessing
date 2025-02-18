@@ -4,7 +4,7 @@ from functools import partial
 import multiprocessing as mp
 import numpy as np
 from datetime import datetime
-from utils import file_exists,log_levels,configure_logging,make_sure_path_exists,progressBar,batched,mapcount,read_map,estimate_lines,write_chunk,init_log_files,init_unit_table
+from utils import file_exists,log_levels,configure_logging,make_sure_path_exists,progressBar,batched,mapcount,read_map,estimate_lines,write_chunk,init_log_files,init_unit_table,init_posneg_mapping
 from magic_config import config
 from datetime import datetime
 from filters.impute import impute_all
@@ -39,6 +39,7 @@ def all_filters(df,args):
     df = (
         df
         .pipe(impute_all,args)
+        .pipe(qc,args)
     )
     return df
 
@@ -176,6 +177,7 @@ if __name__=='__main__':
 
     #init stuff
     args.omop_unit_table = init_unit_table(args)
+    args.posneg_table = init_posneg_mapping(args)
     
     if os.path.basename(args.raw_data) == "raw_data_test.txt":
         logger.warning("RUNNING IN TEST MODE")

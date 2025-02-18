@@ -70,13 +70,16 @@ def plot_data(imp, og, df, output_file, res, args):
     # Second subplot: Density plot
     kde_og = stats.gaussian_kde(og['imputed::MEASUREMENT_VALUE'].dropna())
     kde_imp = stats.gaussian_kde(imp['imputed::MEASUREMENT_VALUE'].dropna())
+    kde_merged = stats.gaussian_kde(df['imputed::MEASUREMENT_VALUE'].dropna())
+
     x_min = min(df['imputed::MEASUREMENT_VALUE'].min(), df['harmonization_omop::MEASUREMENT_VALUE'].min())
     x_max = max(df['imputed::MEASUREMENT_VALUE'].max(), df['harmonization_omop::MEASUREMENT_VALUE'].max())
     x_eval = np.linspace(x_min, x_max, 200)
     
     ax2.plot(x_eval, kde_og(x_eval), color='blue', label='Original Values')
     ax2.plot(x_eval, kde_imp(x_eval), color='red', label='Imputed Values')
-    
+    ax2.plot(x_eval, kde_merged(x_eval), color='green', label='Merged Data', linestyle='--')
+
     ax2.set_xlabel('Measurement Value')
     ax2.set_ylabel('Density')
     ax2.set_title('Density Distribution of Measurement Values')
