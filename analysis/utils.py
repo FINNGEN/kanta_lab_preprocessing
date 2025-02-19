@@ -24,7 +24,6 @@ def init_unit_table(args):
     df =  pd.read_csv(os.path.join(Path(dir_path).parent.absolute(),args.config['omop_unit_map']),sep='\t',usecols=['harmonization_omop::OMOP_ID','harmonization_omop::MEASUREMENT_UNIT'])
     return dict(zip(df['harmonization_omop::OMOP_ID'],df['harmonization_omop::MEASUREMENT_UNIT']))
 
-    return df.to_dict()
     
 def init_log_files(args):
     # setup error file
