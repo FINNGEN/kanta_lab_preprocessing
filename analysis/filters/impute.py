@@ -14,11 +14,11 @@ def impute_all(df,args):
 
 def impute_measurement(df,args):
     """
-    Creates new imputed::MEASURMENT_VALUE column with data extracted from MEASUREMENT_FREE_TEXT column
+    Creates new extracted::MEASURMENT_VALUE column with data extracted from MEASUREMENT_FREE_TEXT column
     """
 
-    col_name = "imputed::MEASUREMENT_VALUE"
-    imputed_bool_col = "imputed::IS_MEASUREMENT_IMPUTED"
+    col_name = "extracted::MEASUREMENT_VALUE"
+    extracted_bool_col = "extracted::IS_MEASUREMENT_EXTRACTED"
     omop_col = "harmonization_omop::MEASUREMENT_VALUE"
     ft_col = "MEASUREMENT_FREE_TEXT"
     unit_col= 'harmonization_omop::MEASUREMENT_UNIT'
@@ -38,7 +38,7 @@ def impute_measurement(df,args):
     for rep in all_replacements:
         df.loc[:,col_name] = df.loc[:,col_name].replace(rep[0],rep[1],regex=True)
     df[col_name] = pd.to_numeric(df[col_name], errors='coerce')
-    df.loc[:,imputed_bool_col] = (~df[col_name].isna()).astype(int)
+    df.loc[:,extracted_bool_col] = (~df[col_name].isna()).astype(int)
     df.loc[:,col_name] = df[col_name].fillna(df[omop_col].astype(float))
     
     return df

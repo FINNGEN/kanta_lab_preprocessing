@@ -3,21 +3,21 @@ config = {
         'FINNGENID',
         'EVENT_AGE',
         'APPROX_EVENT_DATETIME',
-        #'TEST_ID',
-        #'TEST_ID_IS_NATIONAL',
+        'TEST_ID',
+        'TEST_ID_IS_NATIONAL',
         #'CODING_SYSTEM',
         'CODING_SYSTEM_MAP',
         'TEST_OUTCOME',
         'imputed::TEST_OUTCOME',
         'MEASUREMENT_STATUS',
-        #'REFERENCE_RANGE_GROUP',
-        #'REFERENCE_RANGE_LOWER_VALUE',
-        #'REFERENCE_RANGE_LOWER_UNIT',
-        #'REFERENCE_RANGE_UPPER_VALUE',
-        #'REFERENCE_RANGE_UPPER_UNIT',
+        'REFERENCE_RANGE_GROUP',
+        'REFERENCE_RANGE_LOWER_VALUE',
+        'REFERENCE_RANGE_LOWER_UNIT',
+        'REFERENCE_RANGE_UPPER_VALUE',
+        'REFERENCE_RANGE_UPPER_UNIT',
         'cleaned::TEST_NAME_ABBREVIATION',
-        #'cleaned::MEASUREMENT_VALUE',
-        #'cleaned::MEASUREMENT_UNIT',
+        'cleaned::MEASUREMENT_VALUE',
+        'cleaned::MEASUREMENT_UNIT',
         'harmonization_omop::MEASUREMENT_VALUE',
         'harmonization_omop::MEASUREMENT_UNIT',
         #'harmonization_omop::CONVERSION_FACTOR',
@@ -31,12 +31,13 @@ config = {
         #'source::TEST_NAME_ABBREVIATION',
         #'MEASUREMENT_EXTRA_INFO',
         'MEASUREMENT_FREE_TEXT',
-        #'SERVICE_PROVIDER_ID'
+        #'SERVICE_PROVIDER_ID',
+        'SEX'
     ],
     'added_cols': [
-        "imputed::MEASUREMENT_VALUE",
-        "imputed::IS_MEASUREMENT_IMPUTED",
-        "imputed::IS_POS"
+        "extracted::MEASUREMENT_VALUE",
+        "extracted::IS_MEASUREMENT_EXTRACTED",
+        "extracted::IS_POS"
      ],
     'err_cols':['FINNGENID','APPROX_EVENT_DATETIME','ERR','ERR_VALUE'],
     'omop_unit_map':'finngen_qc/data/harmonization_counts.txt',
@@ -46,10 +47,6 @@ config = {
         (r'\*', ''),
         (r',', '.') #replace commas with dots 
     ],
-    'binary_replacements': ("(",")",'-','+','seul','*','.'),
-    'positive_values':['pos','posit','positiivinen'],
-    'negative_values':['neg','negat','negatiivinen'],
-    
     'free_text_result_strings' : ("tutkimuksentulos:","resultat:","provresultat:")
 
 }

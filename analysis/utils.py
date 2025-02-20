@@ -15,7 +15,7 @@ def init_posneg_mapping(args):
     df =  pd.read_csv(os.path.join(Path(dir_path).parent.absolute(),args.config['posneg_map']),sep='\t',usecols=['MEASUREMENT_FREE_TEXT','MAPPED']).dropna(subset='MAPPED')
     df = df.astype({'MAPPED': int}).astype({'MAPPED': str})
     
-    return df.rename(columns={"MAPPED":"imputed::IS_POS"})
+    return df.rename(columns={"MAPPED":"extracted::IS_POS"})
     
 
 def init_unit_table(args):
