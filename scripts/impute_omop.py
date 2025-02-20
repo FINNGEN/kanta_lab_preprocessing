@@ -20,6 +20,8 @@ def parse_args():
                       help='Directory for output files')
     parser.add_argument('--test', action='store_true',
                         help='Run in test mode with only 10000 rows')
+    parser.add_argument('--sigma', default=0, const=3, nargs='?',
+                        help='Run focuses only on n sigma of distribution')
     parser.add_argument('--plot', action='store_true',
                         help='Plot dist')
     parser.add_argument('--force', action='store_true',
@@ -27,8 +29,45 @@ def parse_args():
 
     return parser.parse_args()
 
-def plot_data(imp, og, df, output_file, res, args):
-    # Create figure with two subplots
+def get_sigma_filtered_data(data, sigma_n, value_col='imputed::MEASUREMENT_VALUE'):
+    """Filter data to within n standard deviations of the mean."""
+    mean = data[value_col].mean()
+    std = data[value_col].std()
+    return data[
+        (data[value_col] >= mean - sigma_n * std) & 
+        (data[value_col] <= mean + sigma_n * std)
+    ]
+
+
+def plot_data(imp, og, df, output_file, stats, args):
+    # Always use sigma filtering, default to 3 if not specified
+    sigma_n = args.sigma if args.sigma else 3
+    
+    # Create three separate figures
+    base_filename = output_file.rsplit('.', 1)[0]
+    
+    # Original plot (all data)
+    res = list(compare_dist(imp,og)) + stats
+    plot_single_figure(imp, og, df, f"{base_filename}_full.png", res, args, "Full Distribution")
+    
+    # Filter original data by sigma
+    og_filtered = get_sigma_filtered_data(og, sigma_n)
+    # Filter imputed data by its own distribution
+    imp_filtered = get_sigma_filtered_data(imp, sigma_n)
+    # Merge filtered data
+    df_filtered = pd.concat([og_filtered, imp_filtered])
+    
+    # Calculate new statistics for filtered data
+    filtered_res = list(compare_dist(imp_filtered, og_filtered)) + stats 
+    
+    # Plot with both distributions filtered by their own sigma
+    plot_single_figure(imp_filtered, og_filtered, df_filtered, 
+                     f"{base_filename}_filtered_{sigma_n}_sigma.png", filtered_res, args,
+                     f"{sigma_n}-sigma Filtering (Separate)")
+    
+
+def plot_single_figure(imp, og, df, output_file, res, args, title_suffix):
+    """Create a single figure with two subplots."""
     fig = plt.figure(figsize=(12, 10))
     gs = fig.add_gridspec(2, 1, height_ratios=[3, 2])
     ax1 = fig.add_subplot(gs[0])
@@ -42,20 +81,20 @@ def plot_data(imp, og, df, output_file, res, args):
     
     ax1.set_ylabel('Event Age')
     ax1.set_xlabel('Measurement Value')
-    ax1.set_title(f'Measurement Values by Event Age: Original vs Imputed (OMOP {args.omop})')
+    ax1.set_title(f'Measurement Values by Event Age: Original vs Imputed (OMOP {args.omop})\n{title_suffix}')
     ax1.legend(loc='upper right')
     ax1.grid(True, alpha=0.3)
     
     # Create stats text for textbox
     imp_median, imp_std, og_median, og_std, ks, ks_mlogp, n_imp, frac_imp, n_dup = res
-    
+
     stats_text = (
         f"Original Median (SD): {og_median} ({og_std})\n"
         f"Imputed Median (SD): {imp_median} ({imp_std})\n"
         f"Imputed Values (n): {n_imp}\n"
-        f"% Imputed:{frac_imp}\n"
-        f"KS:{ks}\n"
-        f"mlogp:{ks_mlogp}\n"
+        f"% Imputed: {frac_imp}%\n"
+        f"KS: {ks}\n"
+        f"mlogp: {ks_mlogp}\n"
         f"Number of duplicates: {n_dup}"
     )
     
@@ -71,7 +110,6 @@ def plot_data(imp, og, df, output_file, res, args):
     kde_og = stats.gaussian_kde(og['imputed::MEASUREMENT_VALUE'].dropna())
     kde_imp = stats.gaussian_kde(imp['imputed::MEASUREMENT_VALUE'].dropna())
     kde_merged = stats.gaussian_kde(df['imputed::MEASUREMENT_VALUE'].dropna())
-
     x_min = min(df['imputed::MEASUREMENT_VALUE'].min(), df['harmonization_omop::MEASUREMENT_VALUE'].min())
     x_max = max(df['imputed::MEASUREMENT_VALUE'].max(), df['harmonization_omop::MEASUREMENT_VALUE'].max())
     x_eval = np.linspace(x_min, x_max, 200)
@@ -79,10 +117,9 @@ def plot_data(imp, og, df, output_file, res, args):
     ax2.plot(x_eval, kde_og(x_eval), color='blue', label='Original Values')
     ax2.plot(x_eval, kde_imp(x_eval), color='red', label='Imputed Values')
     ax2.plot(x_eval, kde_merged(x_eval), color='green', label='Merged Data', linestyle='--')
-
     ax2.set_xlabel('Measurement Value')
     ax2.set_ylabel('Density')
-    ax2.set_title('Density Distribution of Measurement Values')
+    ax2.set_title(f'Density Distribution of Measurement Values\n{title_suffix}')
     ax2.legend(loc='upper right')
     ax2.grid(True, alpha=0.3)
     
@@ -90,11 +127,14 @@ def plot_data(imp, og, df, output_file, res, args):
     plt.savefig(output_file, dpi=300, bbox_inches='tight')
     plt.close()
 
+
+
+
 def read_data(args):
     # Read the data
     # Split between original values and imputed ones
-    unique_dir = os.path.join(args.data_dir, f"{args.omop}_unique.tsv.gz")
-    dup_dir = os.path.join(args.data_dir, f"{args.omop}_duplicates.tsv.gz")
+    unique_dir = os.path.join(args.data_dir, f"{args.omop}_dist_unique.tsv.gz")
+    dup_dir = os.path.join(args.data_dir, f"{args.omop}_dist_duplicates.tsv.gz")
 
     # check if files exist or if force flag is passed
     if not all([os.path.isfile(unique_dir),os.path.isfile(dup_dir)]) or args.force:
@@ -102,12 +142,12 @@ def read_data(args):
         df = pd.read_csv(
             os.path.join(args.data_dir, f"{args.omop}.tsv.gz"),
             sep='\t',
-            usecols=['FINNGENID','EVENT_AGE','APPROX_EVENT_DATETIME','cleaned::TEST_NAME_ABBREVIATION', 'harmonization_omop::MEASUREMENT_VALUE', 'imputed::MEASUREMENT_VALUE']
+            usecols=['FINNGENID','EVENT_AGE','APPROX_EVENT_DATETIME','cleaned::TEST_NAME_ABBREVIATION', 'harmonization_omop::MEASUREMENT_VALUE', 'imputed::MEASUREMENT_VALUE','imputed::IS_MEASUREMENT_IMPUTED']
         )
 
         # keep=False makes sure i keep all copies so i can just filter out the imputed one
         dup_mask =df[['FINNGENID','APPROX_EVENT_DATETIME','cleaned::TEST_NAME_ABBREVIATION','imputed::MEASUREMENT_VALUE']].duplicated(keep=False)
-        imputed_mask = (df['harmonization_omop::MEASUREMENT_VALUE'].isna()) & (~df['imputed::MEASUREMENT_VALUE'].isna())
+        imputed_mask = (df['imputed::IS_MEASUREMENT_IMPUTED'].astype(bool).astype(int)==1)
 
         # dump all duplicates to begin with
         df[dup_mask].to_csv(dup_dir,sep='\t',na_rep="NA",index = False)
@@ -126,20 +166,16 @@ def read_data(args):
     df = pd.read_csv(unique_dir,sep='\t',index_col=None,nrows=10000 if args.test else None,)
 
     # reapply imputation mask to split between imputed and original. I can't use the previous ones because I need a less stringent duplica
-    imputed_mask = (df['harmonization_omop::MEASUREMENT_VALUE'].isna()) & (~df['imputed::MEASUREMENT_VALUE'].isna())
-    
+    imputed_mask = (df['imputed::IS_MEASUREMENT_IMPUTED'].astype(bool).astype(int)==1)
     imp = df[imputed_mask]
     og = df[~imputed_mask]
-
+    
     return imp,og,df,n_dup
 
 
 def check_pval(pval):
     mlgop = "NA"
-    if pval ==0 :
-        mlogp = np.inf
-    else:
-        mlogp = round(-np.log10(pval),2)
+    mlogp = np.inf if pval ==0  else  round(-np.log10(pval),2)
     return mlogp
 
 
@@ -176,14 +212,14 @@ def main():
     #KS
     res = compare_dist(imp,og)
     i,o = imp['imputed::MEASUREMENT_VALUE'].dropna(),og['imputed::MEASUREMENT_VALUE'].dropna()
-    stats = list(res)   + [len(i),round(100*len(i)/(len(i)+len(o)),2),n_dup]
-    print("\t".join(map(str,[args.omop] + stats)))
+    stats =  [len(i),round(100*len(i)/(len(i)+len(o)),2),n_dup]
+    print("\t".join(map(str,[args.omop] +list(res)   +  stats )))
 
     # plot
     if args.plot:
         # Save the figure
         fig_file = os.path.join(args.out_dir, f'age_measurement_comparison_{args.omop}.png')
-        plot_data(imp,og,df,fig_file,stats,args)
+        plot_data(imp,og,df,fig_file, stats,args)
         #print(f"Plot saved to: {fig_file}")
 
     
