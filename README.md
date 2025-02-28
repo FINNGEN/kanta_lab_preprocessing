@@ -2,8 +2,6 @@
 
 Based on Kira Detrois' [existing repo](https://github.com/detroiki/kanta_lab).
 
-# OUTPUT
-
 ## Output Columns
 
 | #   | Column Name | Easy Description | General Notes | Technical Notes |
@@ -57,10 +55,11 @@ The raw to output column mapping is as follows:
 |viitevaliloppuyksikko|REFERENCE_RANGE_UPPER_UNIT|
 | tutkimuksenlisatiet | MEASUREMENT_EXTRA_INFO |
 | antaja_organisaatioid | SERVICE_PROVIDER_ID|
-# TECHNICAL INFO
+
+## TECHNICAL INFO
 
 
-## Summary
+### Summary
 
 There is a [config file](/finngen_qc/magic_config.py) that contains all the relevant "choices" about how to manipulate the data (e.g. which columns to include, how to rename columns, which values of which column to include etc.) so there are virtually no hard coded elements in the code itself.
 
@@ -89,13 +88,13 @@ The code then performs the following actions:
 - Mapping of units. This can be done either via regex (from config) or [through a mapping](/finngen_qc/data/unit_mapping.txt)
 - TEST_OUTCOME is edited to be consistent with the standard definition see AR/LABRA - Poikkeustilanneviestit. This means replacing `<` with `L`, `>` with `H`, `POS` with `A` and `NEG` with `N`.
 
-### [harmonization](/finngen_qc/filters/harmonization.py)
+#### [harmonization](/finngen_qc/filters/harmonization.py)
 - Mapping status is updated (internal thing)
 - IS_UNIT_VALID column is populated based on whether the unit is in usagi list
 - Harmonizes units to make sure all abbreviations with similar units are mapped to the same one (e.g. mg --> mg/24h for du-prot). Based on [a table](/finngen_qc/data/fix_unit_based_in_abbreviation.tsv) 
 - OMOP mapping from [a table](/finngen_qc/data/LABfi_ALL.usagi.csv)
 - unit harmonization (optional) from [a table](/finngen_qc/data/quantity_source_unit_conversion.tsv)
-- impute_abnormality  (with harmonization) creates the column `imputed::TEST_OUTCOME` based on lower/upper limits from [a table]((/finngen_qc/data/abnormality_estimation.table.tsv)). The limits for different definitions are built using (a script)[/scripts/ab.py] and chosen by [another script](/scripts/impute_ab.py).
+- impute_abnormality  (with harmonization) creates the column `imputed::TEST_OUTCOME` based on lower/upper limits from [a table]((/finngen_qc/data/abnormality_estimation.table.tsv)). The limits for different definitions are built using [a script](/scripts/ab.py) and chosen by [another script](/scripts/impute_ab.py).
 
 ## How it works
 The script reads in the data in chunks of  `--chunksize` length and it processes the lines with Python's pandas. With the flag `--mp` and `--jobs` the script runs each chunk into other smaller subchunks in parallel (efficiency TBD). The [filter folder](/finngen_qc/filters/) contains separate scripts that perform conceptually separate tasks. Each of them contains a global function of the same name of the script that gathers all individual functions that populate the script. In this way we can easily compartmentalize the munging/qc and add new features.
@@ -125,7 +124,6 @@ options:
 ```
 
 
-
 # Analysis
 
 The `analysis` folder contains the pipeline that produces a similar file, which is used for analysis purpose. The idea behind this file is to focus more on the values and to use more "aggressive" choices with regards to which values to include/exclude in downstream analysis. 
@@ -137,3 +135,48 @@ The current version outputs 3 extra columns, which are taken from the `MEASUREME
 | `extracted::MEASUREMENT_VALUE` | Numerical values |  The column is mutually exclusive with `harmonization_omop::MEASUREMENT_VALUE`. In our analysis the units seemed to be pretty much always coherent with our target OMOP units, albeit for occasional clusters of outliers that are present also in the core data.   |  The content of the `MEASUREMENT_FREE_TEXT` colum is cleaned by removal of spaces, converted to lower case, the target omop unit is removed if present, certain result strings are removed. If we're left with a pure float number, it's considered to be an extracted value.  |
 | `extracted::IS_MEASUREMENT_EXTRACTED` | Boolean |   Boolean indicator of whether the values in the extracted column is original or extracted   |  In the very rare cases when both the original measurement column and a free text value can be extracted, the original one is preserved and this column is set to 0   |
 | `extracted::IS_POS` | Boolean |   Pos(1) or Neg(0) status   | We extracted all strings containing the substring pos/neg and we manually mapped them to pos/neg statuses. The mapping is stored in the [data folder](/analysis/data/negpos_mapping.tsv)      |
+
+
+## TECHNICAL INFO
+
+The princples are identical to the `finngen_qc` pipeline, just with different filters being used.
+
+### [EXTRACT](/analysis/filters/extract.py)
+This filters works with the `FREE_TEXT` column:
+- only fields with NA `MEASUREMENT_VALUE` and non NA `FREE_TEXT` are considered
+- the free text is converted to lower case and spaces are removed
+- the OMOP target unit string is removed
+- string replacements from `magic_config.py` are applied (e.g. the string `tutkimuksentulos`)
+- the remaining text is forced cast to float 
+- where the conversion took place `extracted::IS_POS` is set to 1
+- extracted and original measurements are merged into the `extracted::MEASUREMENT_VALUE` column
+
+### [QC](/analysis/filters/qc.py)
+
+This is for all sorts of QCing of the data, ideally for outlier filter/removal. For the time being the only QC in place is there for data privacy reasons:
+- all extracted values that can be misinterpreted as dates are removed (DDMMYY) as they can either be birth dates or the exact date of the examination, which is shifted +- 2 weeks for each FINNGENID
+
+## How it works
+The princples are identical to the `finngen_qc` pipeline.
+
+```
+usage: main.py [-h] --raw-data RAW_DATA [--log {critical,error,warn,warning,info,debug}] [--test] [--gz] [--mp [MP]] [-o OUT] [--prefix PREFIX] [--sep SEP]
+               [--chunk-size CHUNK_SIZE] [--lines LINES]
+
+Kanta Lab analysis pipeline: clean data ⇒ analysis data.
+
+options:
+  -h, --help            show this help message and exit
+  --raw-data RAW_DATA   Path to input raw file. File should be tsv.
+  --log {critical,error,warn,warning,info,debug Provide logging level. Example '--log debug', default = 'warning'
+  --test                Reads first chunk only
+  --gz                  Ouputs to gz
+  --mp [MP]             Flag for multiproc. Default is '0' (no multiproc). If passed it defaults to cpu count, but one can also specify the number of cpus  to use: e.g. '--mp' or '--mp 4'.
+  -o OUT, --out OUT     Folder in which to save the results (default = current working directory)
+  --prefix PREFIX       Prefix of the out files (default = 'kanta_YYYY_MM_DD')
+  --sep SEP             Separator (default = tab)
+  --chunk-size CHUNK_SIZE
+                        Number of rows to be processed by each chunk (default = '1000*n_cpus').
+  --lines LINES         Number of lines in input file (calculated/estimated otherwise).
+
+```
