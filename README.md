@@ -2,7 +2,8 @@
 
 Based on Kira Detrois' [existing repo](https://github.com/detroiki/kanta_lab).
 
-## Output Columns
+
+## OUTPUT
 
 | #   | Column Name | Easy Description | General Notes | Technical Notes |
 | --- | --- | --- | --- | --- |
@@ -35,6 +36,7 @@ Based on Kira Detrois' [existing repo](https://github.com/detroiki/kanta_lab).
 | 30 | `MEASUREMENT_EXTRA_INFO` | Contains some extra info about the measurement. Mostly short text descriptions of the measurement (e.g. _Lopullinenvastaus_ or _Keskisuihkuvirtsa>4h_ |
 | 31 |`SERVICE_PROVIDER_ID` | Yet another column with information about the provider. It follows the [thl sote table](/finngen_qc//data/thl_sote_map_named.tsv)  | 
 | 32 | `SEX` | Sex of the sample |     |     |
+
 
 The raw to output column mapping is as follows:
 

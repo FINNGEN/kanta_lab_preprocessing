@@ -40,6 +40,7 @@ def all_filters(df,args):
         df
         .pipe(extract_all,args)
         .pipe(qc,args)
+
     )
     return df
 
@@ -178,6 +179,7 @@ if __name__=='__main__':
     #init stuff
     args.omop_unit_table = init_unit_table(args)
     args.posneg_table = init_posneg_mapping(args)
+
     
     if os.path.basename(args.raw_data) == "raw_data_test.txt":
         logger.warning("RUNNING IN TEST MODE")
