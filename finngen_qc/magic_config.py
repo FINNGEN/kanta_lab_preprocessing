@@ -71,6 +71,7 @@ config = {
     ],
     
     'err_cols':['FINNGENID','APPROX_EVENT_DATETIME','ERR','ERR_VALUE'],
+    'dup_cols':['FINNGENID','APPROX_EVENT_DATETIME','cleaned::TEST_NAME_ABBREVIATION','harmonization_omop::MEASUREMENT_VALUE'],
     'date_time_format': "%Y-%m-%dT%H:%M:%S",
 
     #REJECTION LINES

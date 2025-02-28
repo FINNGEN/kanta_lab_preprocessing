@@ -5,9 +5,8 @@
     "kanta_munge.prefix": "kanta",
 
     "kanta_munge.merge.reports_columns": ["STATEMENT_ID","STATEMENT_TEXT"],
-
-    
-    "kanta_munge.munge.kanta_docker": "eu.gcr.io/finngen-refinery-dev/kanta:v2.1.release",
+    "kanta_munge.kanta_docker": "eu.gcr.io/finngen-refinery-dev/kanta:v2.1.duplicates",
+   
     "kanta_munge.munge.cpus": 8,
     "kanta_munge.split.n_chunks": 32,
 

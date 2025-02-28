@@ -10,6 +10,12 @@ from pathlib import Path
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
 
+def init_posneg_mapping(args):
+
+    df =  pd.read_csv(os.path.join(Path(dir_path).parent.absolute(),args.config['posneg_map']),sep='\t',usecols=['MEASUREMENT_FREE_TEXT','MAPPED']).dropna(subset='MAPPED')
+    df = df.astype({'MAPPED': int}).astype({'MAPPED': str})
+    
+    return df.rename(columns={"MAPPED":"extracted::IS_POS"})
 
 
 def init_unit_table(args):
@@ -18,7 +24,7 @@ def init_unit_table(args):
     df =  pd.read_csv(os.path.join(Path(dir_path).parent.absolute(),args.config['omop_unit_map']),sep='\t',usecols=['harmonization_omop::OMOP_ID','harmonization_omop::MEASUREMENT_UNIT'])
     return dict(zip(df['harmonization_omop::OMOP_ID'],df['harmonization_omop::MEASUREMENT_UNIT']))
 
-    return df.to_dict()
+
     
 def init_log_files(args):
     # setup error file
@@ -200,4 +206,4 @@ def write_chunk(df,i,out_file,out_cols,final_rename=None,logger = None):
 
     if final_rename:
         df.rename(columns = final_rename,inplace=True)
-    df[out_cols].to_csv(out_file, mode=mode, index=False, header=header,sep="\t")
+    df[out_cols].to_csv(out_file, na_rep="NA",mode=mode, index=False, header=header,sep="\t")
