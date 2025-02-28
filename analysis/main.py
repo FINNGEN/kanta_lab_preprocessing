@@ -7,7 +7,7 @@ from datetime import datetime
 from utils import file_exists,log_levels,configure_logging,make_sure_path_exists,progressBar,batched,mapcount,read_map,estimate_lines,write_chunk,init_log_files,init_unit_table,init_posneg_mapping
 from magic_config import config
 from datetime import datetime
-from filters.impute import impute_all
+from filters.extract import extract_all
 from filters.qc import qc
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -38,7 +38,7 @@ def all_filters(df,args):
     """
     df = (
         df
-        .pipe(impute_all,args)
+        .pipe(extract_all,args)
         .pipe(qc,args)
     )
     return df
@@ -148,7 +148,7 @@ def main(args):
     
 if __name__=='__main__':
     
-    parser=argparse.ArgumentParser(description="Kanta Lab preprocessing pipeline: raw data ⇒ clean data.")
+    parser=argparse.ArgumentParser(description="Kanta Lab analysis pipeline: clean data ⇒ analysis data.")
     parser.add_argument("--raw-data", type=file_exists, help="Path to input raw file. File should be tsv.", required=True)
     parser.add_argument("--log", default="warning", choices=log_levels, help="Provide logging level. Example '--log debug', default = 'warning'")
     parser.add_argument("--test", action='store_true', help="Reads first chunk only")

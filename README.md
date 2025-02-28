@@ -35,9 +35,8 @@ Based on Kira Detrois' [existing repo](https://github.com/detroiki/kanta_lab).
 | 28| `source::MEASUREMENT_UNIT` | The original unit of the measurement |     |     |
 | 29| `source::TEST_NAME_ABBREVIATION` | The original abbreviation of the measurement |     |     |
 | 30 | `MEASUREMENT_EXTRA_INFO` | Contains some extra info about the measurement. Mostly short text descriptions of the measurement (e.g. _Lopullinenvastaus_ or _Keskisuihkuvirtsa>4h_ |
-| 31| `MEASUREMENT_FREE_TEXT` | Contains mixed information, among which float values that _most probably_ are coherent with the target OMOP harmonized units |
-| 32 |`SERVICE_PROVIDER_ID` | Yet another column with information about the provider. It follows the [thl sote table](/finngen_qc//data/thl_sote_map_named.tsv)  | 
-| 33 | `SEX` | Sex of the sample |     |     |
+| 31 |`SERVICE_PROVIDER_ID` | Yet another column with information about the provider. It follows the [thl sote table](/finngen_qc//data/thl_sote_map_named.tsv)  | 
+| 32 | `SEX` | Sex of the sample |     |     |
 
 The raw to output column mapping is as follows:
 
@@ -57,11 +56,7 @@ The raw to output column mapping is as follows:
 |viitevaliloppuarvo|REFERENCE_RANGE_UPPER_VALUE|
 |viitevaliloppuyksikko|REFERENCE_RANGE_UPPER_UNIT|
 | tutkimuksenlisatiet | MEASUREMENT_EXTRA_INFO |
-| tutkimustulosteksti |   MEASUREMENT_FREE_TEXT |
 | antaja_organisaatioid | SERVICE_PROVIDER_ID|
-
-
-
 # TECHNICAL INFO
 
 
@@ -130,3 +125,15 @@ options:
 ```
 
 
+
+# Analysis
+
+The `analysis` folder contains the pipeline that produces a similar file, which is used for analysis purpose. The idea behind this file is to focus more on the values and to use more "aggressive" choices with regards to which values to include/exclude in downstream analysis. 
+
+The current version outputs 3 extra columns, which are taken from the `MEASUREMENT_FREE_TEXT` column, which cannot be shared due to data privacy reasons for the time being. The three columns are:
+
+| Column Name | Easy Description | General Notes | Technical Notes |
+| --- | --- | --- | --- |
+| `extracted::MEASUREMENT_VALUE` | Numerical values |  The column is mutually exclusive with `harmonization_omop::MEASUREMENT_VALUE`. In our analysis the units seemed to be pretty much always coherent with our target OMOP units, albeit for occasional clusters of outliers that are present also in the core data.   |  The content of the `MEASUREMENT_FREE_TEXT` colum is cleaned by removal of spaces, converted to lower case, the target omop unit is removed if present, certain result strings are removed. If we're left with a pure float number, it's considered to be an extracted value.  |
+| `extracted::IS_MEASUREMENT_EXTRACTED` | Boolean |   Boolean indicator of whether the values in the extracted column is original or extracted   |  In the very rare cases when both the original measurement column and a free text value can be extracted, the original one is preserved and this column is set to 0   |
+| `extracted::IS_POS` | Boolean |   Pos(1) or Neg(0) status   | We extracted all strings containing the substring pos/neg and we manually mapped them to pos/neg statuses. The mapping is stored in the [data folder](/analysis/data/negpos_mapping.tsv)      |

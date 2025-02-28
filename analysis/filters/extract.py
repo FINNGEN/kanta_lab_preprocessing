@@ -2,17 +2,17 @@ import pandas as pd
 import re
 import numpy as np
 
-def impute_all(df,args):
+def extract_all(df,args):
 
     df = (
         df
-        .pipe(impute_measurement,args)
-        .pipe(impute_positive,args)
+        .pipe(extract_measurement,args)
+        .pipe(extract_positive,args)
     )
     return df
 
 
-def impute_measurement(df,args):
+def extract_measurement(df,args):
     """
     Creates new extracted::MEASURMENT_VALUE column with data extracted from MEASUREMENT_FREE_TEXT column
     """
@@ -26,7 +26,7 @@ def impute_measurement(df,args):
     
     # these are the values i want to try to work with
     mask = df[omop_col].isna() & ~df[ft_col].isna()
-    # create series with measurement data i'll try to impute
+    # create series with measurement data i'll try to extract
     ft_data = df[ft_col].copy().where(mask,np.nan)
     df.loc[:,col_name] = df.loc[:,ft_col].astype(str).str.lower().str.strip().str.replace(r'\s', '', regex=True).fillna("NA") # this removes ALL spaces
     # create series with target unit for omop values and remove that from the free text column
@@ -46,7 +46,7 @@ def impute_measurement(df,args):
 
 
 
-def impute_positive(df,args):
+def extract_positive(df,args):
     """
     Creates new column with pos/neg extracted information
     """
