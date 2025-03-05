@@ -155,7 +155,7 @@ if __name__=='__main__':
     parser.add_argument("--gz", action='store_true', help="Ouputs to gz")
     parser.add_argument("--mp", default=0, const=os.cpu_count(), nargs='?', type=int, help="Flag for multiproc. Default is '0' (no multiproc). If passed it defaults to cpu count, but one can also specify the number of cpus to use: e.g. '--mp' or '--mp 4'.")
     parser.add_argument('-o', "--out", type=str, help="Folder in which to save the results (default = current working directory)", default=os.getcwd())
-    parser.add_argument("--prefix", type=str, default=f"kanta_{datetime.today().strftime('%Y_%m_%d')}", help="Prefix of the out files (default = 'kanta_YYYY_MM_DD')")
+    parser.add_argument("--prefix", type=str, default=f"kanta_{datetime.today().strftime('%Y_%m_%d')}", help="Prefix of the out files (default = 'kanta_analysis_YYYY_MM_DD')")
     parser.add_argument("--sep", type=str, default="\\t", help="Separator (default = tab)")
     parser.add_argument("--chunk-size", type=int, help="Number of rows to be processed by each chunk (default = '1000*n_cpus').", default=10000*os.cpu_count())
     parser.add_argument("--lines", type=int, help="Number of lines in input file (calculated/estimated otherwise).")

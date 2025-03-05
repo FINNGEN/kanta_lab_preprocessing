@@ -1,5 +1,5 @@
 # TODO(Vincent 2024-05-03) Upgrade to numpy 2.0.0, should be out soon.
-numpy==1.26.4
+numpy==2.2.3
 
 # TODO(Vincent 2024-05-03)
 # Could add the "compression" extra if we want to use the faster Zstandard compression.
