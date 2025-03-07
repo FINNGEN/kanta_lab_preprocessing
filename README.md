@@ -2,8 +2,7 @@
 
 Based on Kira Detrois' [existing repo](https://github.com/detroiki/kanta_lab).
 
-
-## OUTPUT
+## Output Columns
 
 | #   | Column Name | Easy Description | General Notes | Technical Notes |
 | --- | --- | --- | --- | --- |

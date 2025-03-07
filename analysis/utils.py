@@ -17,13 +17,11 @@ def init_posneg_mapping(args):
     
     return df.rename(columns={"MAPPED":"extracted::IS_POS"})
 
-
 def init_unit_table(args):
 
     # get omop target unit from data folder
     df =  pd.read_csv(os.path.join(Path(dir_path).parent.absolute(),args.config['omop_unit_map']),sep='\t',usecols=['harmonization_omop::OMOP_ID','harmonization_omop::MEASUREMENT_UNIT'])
     return dict(zip(df['harmonization_omop::OMOP_ID'],df['harmonization_omop::MEASUREMENT_UNIT']))
-
 
     
 def init_log_files(args):

@@ -19,7 +19,7 @@ workflow pre_merge {
     sort_merge_cols = sort_merge_cols,
     test = false # i want to use all reports
   }
-  # merge the reports file where ids match so free text is just one column
+  # merge the reports file where ids match so free text is just one row
   call join_reports { input:reports= sort_report.sorted_file }
 
   ##############
