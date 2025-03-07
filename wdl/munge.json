@@ -5,7 +5,7 @@
     "kanta_munge.prefix": "finngen_R13_kanta_lab_1.0.txt.gz",
 
     "kanta_munge.merge.reports_columns": ["STATEMENT_ID","STATEMENT_TEXT"],
-    "kanta_munge.kanta_docker": "eu.gcr.io/finngen-refinery-dev/kanta:v2.1.duplicates",
+    "kanta_munge.kanta_docker": "eu.gcr.io/finngen-refinery-dev/kanta:kanta_analysis.1",
 
     "kanta_munge.munge.cpus": 8,
     "kanta_munge.split.n_chunks": 32,
