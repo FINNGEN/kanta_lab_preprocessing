@@ -36,6 +36,7 @@ Based on Kira Detrois' [existing repo](https://github.com/detroiki/kanta_lab).
 | 31 |`SERVICE_PROVIDER_ID` | Yet another column with information about the provider. It follows the [thl sote table](/finngen_qc//data/thl_sote_map_named.tsv)  | 
 | 32 | `SEX` | Sex of the sample |     |     |
 
+
 The raw to output column mapping is as follows:
 
 | Column in raw file           | Description              |

@@ -47,7 +47,7 @@ workflow kanta_munge {
   call release {
     input:
     docker = kanta_docker,
-    mem = if test then 16 else 64,
+    mem = if test then 4 else 64,
     prefix = prefix,
     munged_data  = merge.munged
   }

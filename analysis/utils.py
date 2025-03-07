@@ -16,7 +16,6 @@ def init_posneg_mapping(args):
     df = df.astype({'MAPPED': int}).astype({'MAPPED': str})
     
     return df.rename(columns={"MAPPED":"extracted::IS_POS"})
-    
 
 def init_unit_table(args):
 
