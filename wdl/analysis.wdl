@@ -25,7 +25,7 @@ workflow kanta_analysis {
   call release {
     input:
     docker = kanta_docker,
-    mem = if test then 8 else 128,
+    mem = if test then 4 else 64,
     prefix = prefix,
     analysis_data  = merge.analysis_file
   }
@@ -39,15 +39,17 @@ task release {
     String prefix
   }
   command <<<
+  echo ~{mem}
   set -euxo pipefail
-  /usr/bin/time -v bash /analysis/parquet/run.sh ~{analysis_data} . ~{prefix} 2> tmp.txt
+  awk '/^MemTotal:/{print $2/1024/1024}' /proc/meminfo
+  /usr/bin/time -v bash /sb_release/run.sh ~{analysis_data} . ~{prefix} analysis 2> tmp.txt
   cat tmp.txt &&  cat tmp.txt | awk '/Maximum resident set size/ {print "Max memory usage (GB):", $6/1024/1024}'
   >>>
   runtime {
     docker : "~{docker}"
     disks: "local-disk ~{ceil(size(analysis_data,'GB')) * 4 + 10} HDD"
-    mem: "~{mem} GB"
-    cpu : 8
+    memory: "~{mem} GB"
+    cpu : mem/4
   }
   output {
     File release_file_gz = "~{prefix}.txt.gz"

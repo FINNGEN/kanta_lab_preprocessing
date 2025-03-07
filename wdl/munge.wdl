@@ -10,9 +10,8 @@ workflow kanta_munge {
   }
 
   # gets prefix with date and test prefix
-  String full_prefix = if test then prefix +"_test" else prefix
-  call date_prefix {input:base_prefix=full_prefix}
-  
+  call date_prefix {input:base_prefix= "kanta" + if test then "_test" else ""}
+
   # builds sex dictionary mapping from pheno file
   call sex_map {}
   # splits input in chunks
@@ -43,6 +42,42 @@ workflow kanta_munge {
     docker = kanta_docker,
     prefix = date_prefix.prefix,
     munged_chunks = munge.munged_chunk
+  }
+
+  call release {
+    input:
+    docker = kanta_docker,
+    mem = if test then 16 else 64,
+    prefix = prefix,
+    munged_data  = merge.munged
+  }
+
+}
+
+
+task release {
+  input {
+    String docker
+    File munged_data
+    Int mem
+    String prefix
+  }
+  command <<<
+  echo ~{mem}
+  set -euxo pipefail
+  awk '/^MemTotal:/{print $2/1024/1024}' /proc/meminfo
+  /usr/bin/time -v bash /sb_release/run.sh ~{munged_data} . ~{prefix} finngen_qc 2> tmp.txt
+  cat tmp.txt &&  cat tmp.txt | awk '/Maximum resident set size/ {print "Max memory usage (GB):", $6/1024/1024}'
+  >>>
+  runtime {
+    docker : "~{docker}"
+    disks: "local-disk ~{ceil(size(munged_data,'GB')) * 4 + 10} HDD"
+    memory: "~{mem} GB"
+    cpu : mem/4
+  }
+  output {
+    File release_file_gz = "~{prefix}.txt.gz"
+    File release_file_pq = "~{prefix}.parquet"
   }
 }
 
