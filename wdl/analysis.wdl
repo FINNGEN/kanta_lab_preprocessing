@@ -54,6 +54,9 @@ task release {
   output {
     File release_file_gz = "~{prefix}.txt.gz"
     File release_file_pq = "~{prefix}.parquet"
+    File log = "~{prefix}.log"    
+    File schema = "~{prefix}_schema.json"
+    
   }
 }
 

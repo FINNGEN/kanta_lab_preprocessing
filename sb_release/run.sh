@@ -40,9 +40,12 @@ echo "Making .txt.gz file..."
 time clickhouse --param_filePathMungedTxtGz "$INPUT_FILE" --queries-file "${SQL_DIR}/make_tsv_gzipped.sql" | gzip -c > "$TXT_GZ_FILE"
 echo
 echo "Making .parquet file..."
-time clickhouse --param_filePathCleanTxtGz "$TXT_GZ_FILE" --queries-file "${SQL_DIR}/make_parquet.sql" > "$PARQUET_FILE"
+time clickhouse --param_filePathCleanTxtGz "$TXT_GZ_FILE" --queries-file "${SQL_DIR}/make_parquet.sql" > "$PARQUET_FILE" 
 echo
-echo "Basic QC:  " $OUTPUT_PREFIX
-clickhouse --param_filePath "$PARQUET_FILE" --queries-file "${SCRIPT_DIR}/qc.sql" 
-python3 "${SCRIPT_DIR}/count_na.py" $PARQUET_FILE
+
+echo "Basic QC:  " "${OUTPUT_DIR%/}/${OUTPUT_PREFIX}.log"
+python3 "${SCRIPT_DIR}/qc.py" $PARQUET_FILE | tee  "${OUTPUT_DIR%/}/${OUTPUT_PREFIX}.log"
+python3 "${SCRIPT_DIR}/count_na.py" $PARQUET_FILE | tee -a  "${OUTPUT_DIR%/}/${OUTPUT_PREFIX}.log"
+
+echo "Schema: " "${OUTPUT_DIR%/}/${OUTPUT_PREFIX}_schema.json"
 python3 "${SCRIPT_DIR}/schema.py" $PARQUET_FILE  "${OUTPUT_DIR%/}/${OUTPUT_PREFIX}_schema.json"

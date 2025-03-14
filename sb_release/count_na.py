@@ -1,5 +1,6 @@
 import duckdb
 import sys
+
 # Path to your large Parquet file
 file_path = sys.argv[1]
 
@@ -21,30 +22,31 @@ if not column_results:
 else:
     column_names = [col[0] for col in column_results]
 
-# For each column, count NULLs
-results = {}
-for column in column_names:
-    query = f"SELECT COUNT(*) AS null_count FROM '{file_path}' WHERE \"{column}\" IS NULL"
-    count = con.execute(query).fetchone()[0]
-    results[column] = count
-
 # Also get total row count for percentage calculation
 total_rows = con.execute(f"SELECT COUNT(*) FROM '{file_path}'").fetchone()[0]
 
 # Create a markdown table
 output = f"## NA Value Analysis\n\n"
 output += f"**Total rows:** {total_rows:,}\n\n"
-output += "| Column Name | NA Count | Percentage |\n"
-output += "| ----------- | --------:| ----------:|\n"
 
-# For each column, count NULLs
+# Determine maximum column name length for equal spacing
+max_column_name_length = max(len(column) for column in column_names)
+header_column_width = max(max_column_name_length, len("Column Name"))
+header_na_width = len("NA Count")
+header_percentage_width = len("Percentage")
+
+# Create header row with equal spacing
+output += f"| {'Column Name'.ljust(header_column_width)} | {'NA Count'.rjust(header_na_width)} | {'Percentage'.rjust(header_percentage_width)} |\n"
+output += f"| {'-' * header_column_width} | {'-' * header_na_width} | {'-' * header_percentage_width} |\n"
+
+# For each column, count NULLs and add to the table
 for column in column_names:
     query = f"SELECT COUNT(*) AS null_count FROM '{file_path}' WHERE \"{column}\" IS NULL"
     count = con.execute(query).fetchone()[0]
     percentage = (count / total_rows) * 100 if total_rows > 0 else 0
-    
-    # Format the output as a markdown table row
-    output += f"| {column} | {count:,} | {percentage:.2f}% |\n"
+
+    # Format the output as a markdown table row with equal spacing
+    output += f"| {column.ljust(header_column_width)} | {f'{count:,}'.rjust(header_na_width)} | {f'{percentage:.2f}%'.rjust(header_percentage_width)} |\n"
 
 # Print results in markdown format
 print(output)
