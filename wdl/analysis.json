@@ -1,5 +1,5 @@
 {
-    "kanta_analysis.test": true,
+    "kanta_analysis.test": false,
     "kanta_analysis.kanta_docker": "eu.gcr.io/finngen-refinery-dev/kanta:kanta_analysis.1",
     "kanta_analysis.prefix": "finngen_R13_kanta_analysis_1.0",
     "kanta_analysis.kanta_munged_data": "gs://fg-3/kanta_v2/munged/kanta_2025_02_07_munged.txt.gz",
