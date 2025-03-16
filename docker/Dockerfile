@@ -2,7 +2,7 @@ FROM eu.gcr.io/finngen-refinery-dev/bioinformatics:0.8
 
 RUN apt-get update && apt-get upgrade --yes
 RUN curl https://clickhouse.com/ | sh && ./clickhouse install
-ADD finngen_qc/requirements.txt requirements.txt
+ADD requirements.txt requirements.txt
 RUN pip3 install --upgrade scipy
 RUN  pip3 install -r requirements.txt
 
