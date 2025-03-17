@@ -1,13 +1,14 @@
 {    "kanta_regenie.docker": "eu.gcr.io/finngen-refinery-dev/regenie:3.3_r12",
      "kanta_regenie.kanta_data": "gs://fg-3/kanta_v2/analysis/release/data/finngen_R13_kanta_analysis_1.0.txt.gz",
      "kanta_regenie.measurement_col_name": "MEASUREMENT_VALUE_EXTRACTED",
-     "kanta_regenie.pheno_file": "gs://r12-data/pheno/R12_COV_PHENO_V2.FID.txt.gz",
+     "kanta_regenie.pheno_file": "gs://r12-data/pheno/R12_COV_V2.FID.txt.gz",
      "kanta_regenie.is_binary": false,
      "kanta_regenie.bgen_list": "gs://fg-3/kanta_v2/inputs/LDL_bgen_list.txt",
      # PHENO INFO
-     "kanta_regenie.pheno": "LDL",
-     "kanta_regenie.omop_id": 3001308,
-     "kanta_regenie.validate_hits": "gs://fg-3/kanta/inputs/hits.txt",
+     "kanta_regenie.pheno": "Erythrocytes",
+     "kanta_regenie.only_extracted": true,
+     "kanta_regenie.omop_id": 3026361,
+     "kanta_regenie.validate_hits": "gs://fg-3/kanta_v2/inputs/3026361_hits.txt",
 
      # MIN_COUNT
      "kanta_regenie.filter_omop.min_count": 5,

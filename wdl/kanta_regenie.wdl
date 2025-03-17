@@ -10,6 +10,7 @@ workflow kanta_regenie {
     Boolean is_binary
     String measurement_col_name
     File bgen_list
+    Boolean only_extracted
     File? validate_hits
   }
 
@@ -19,7 +20,8 @@ workflow kanta_regenie {
     col_name=measurement_col_name,
     kanta_data = kanta_data,
     omop_id = omop_id,
-    pheno = pheno
+    pheno = pheno,
+    only_extracted = only_extracted
   }
   # CALCULATES AVERAGE AGE AND MEASUREMENT_UNIT AND MERGES WITH COV FILE
   call create_pheno_file {
@@ -326,7 +328,7 @@ task create_pheno_file {
     File omop_data
     File cov_file 
   }
-  String out_file = pheno + "_pheno.txt"
+  String out_file = pheno + "_pheno.txt.gz"
   command <<<
   #DEFINE COLUMN NAMES BASED ON STRINGS
   column_name1="FINNGENID"
@@ -377,8 +379,8 @@ task create_pheno_file {
 
   head averages.txt
   # sort cov file and merge
-  zcat -f  ~{cov_file}|   (sed 1q; sort) > cov.txt
-  join -t $'\t' --header cov.txt averages.txt > ~{out_file}
+  zcat -f  ~{cov_file}|   (sed -u 1q; sort) > cov.txt
+  join -t $'\t' --header cov.txt averages.txt | bgzip -c > ~{out_file}
   >>>
   runtime {
     disks:   "local-disk ~{ceil(size(cov_file,'GB')) + 10} HDD"
@@ -396,9 +398,10 @@ task filter_omop {
     String pheno
     String col_name
     Int min_count
+    Boolean only_extracted
   }
 
-  String out_file = pheno +"_min_count.txt"
+  String out_file = pheno +"_min_count.txt.gz"
   command <<<
   OMOP_ID=~{omop_id}
   MES_COL=~{col_name}
@@ -410,15 +413,21 @@ task filter_omop {
   col_value=$(cat header.txt | grep -n "$MES_COL" | cut -d':' -f1)
   col_unit=$(cat header.txt | grep -n "MEASUREMENT_UNIT_HARMONIZED" | cut -d':' -f1)
   col_omop=$(cat header.txt | grep -n "OMOP_CONCEPT_ID" | cut -d':' -f1)
+  col_ext=$(cat header.txt | grep -n "IS_VALUE_EXTRACTED" | cut -d':' -f1)
 
-  # extract header
-  zcat -f ~{kanta_data} | head -n1 | cut -f $col_id,$col_age,$col_value,$col_unit > tmp.txt
-  # extract omop id and filter columns
-  zcat -f ~{kanta_data} | awk -v col_omop="$col_omop" -v OMOP_ID="$OMOP_ID" 'BEGIN{OFS="\t"} $col_omop==OMOP_ID {print}'   | cut -f $col_id,$col_age,$col_value,$col_unit | grep -wv  "NA"  >> tmp.txt
-
+  # extract omop data
+  zcat -f ~{kanta_data}  | \
+      awk -v col_omop="$col_omop" -v OMOP_ID="$OMOP_ID" 'BEGIN{OFS="\t"} $col_omop==OMOP_ID {print}'         ~{if only_extracted then "| awk -v col_ext=\"$col_ext\" '$col_ext==1'  " else "" }  | \
+      cut -f $col_id,$col_age,$col_value,$col_unit | \
+      awk -v col_value="$col_value" '$col_value!="NA"' > tmp.txt
+  # make sure it looks good
   head tmp.txt
-  # keep only samples with min count
-  join --header -t $'\t' tmp.txt <(cut -f 1 tmp.txt | sort | uniq -c | sort -nr | awk '{print $1"\t"$2}' | awk '$1>=1' | cut -f2 | sort ) > ~{out_file}
+  wc -l tmp.txt
+  # get counts
+  cut -f 1 tmp.txt | sort | uniq -c | sort -nr | awk '{print $1"\t"$2}' | awk '$1>=~{min_count}' | cut -f2 | sort > counts.txt
+  # build output
+  zcat -f ~{kanta_data} | head -n1 | cut -f $col_id,$col_age,$col_value,$col_unit |  bgzip -c > ~{out_file}
+  join -t $'\t' tmp.txt counts.txt | bgzip -c >> ~{out_file}
 
   >>>
   runtime {
