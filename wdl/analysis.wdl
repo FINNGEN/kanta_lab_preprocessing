@@ -11,24 +11,46 @@ workflow kanta_analysis {
 
   # splits input in chunks
   call split { input:test = test,kanta_data = kanta_munged_data}
-
-  scatter (i in range(length(split.chunks))) {
-    call analysis { input: docker = kanta_docker, prefix = i,chunk = split.chunks[i] }
-  }
-
-  # get date 
-  call date_prefix {input:base_prefix= "kanta_analysis" + if test then "_test" else ""}
+  scatter (i in range(length(split.chunks))) {call analysis { input: docker = kanta_docker, prefix = i,chunk = split.chunks[i] }}
   # merge chunks
-  call merge { input: prefix =  date_prefix.prefix,analysis_chunks = analysis.analysis_chunk}
-  call merge_logs {input: prefix =  date_prefix.prefix,logs = flatten(analysis.logs)}
+  String base_prefix =  "kanta_analysis" + if test then "_test" else ""
+  call merge { input: prefix = base_prefix,analysis_chunks = analysis.analysis_chunk}
+  call merge_logs {input: prefix =  base_prefix,logs = flatten(analysis.logs)}
+  # build parquet and release file
+  call release { input: docker = kanta_docker, mem = if test then 4 else 64, prefix = prefix, analysis_data  = merge.analysis_file}
+  # DOUBLE CHECK THAT WE ARE WORKING ONLY WITH SAMPLES IN INCLUSION LIST
+  call validate_outputs {input : parquet_file = release.release_file_pq,docker=kanta_docker}
+}
 
-  call release {
-    input:
-    docker = kanta_docker,
-    mem = if test then 4 else 64,
-    prefix = prefix,
-    analysis_data  = merge.analysis_file
+task validate_outputs {
+  input {
+    String docker
+    File parquet_file
+    File inclusion_list
   }
+  command <<<
+  RELEASE_SAMPLES='./release_samples.txt'
+  INCLUSION_SAMPLES='./inclusion_samples.txt'
+
+  # Check if RELEASE_SAMPLES exists
+  clickhouse --query="SELECT DISTINCT FINNGENID FROM file('~{parquet_file}', Parquet) ORDER BY FINNGENID " | sort  > $RELEASE_SAMPLES
+  echo "N samples in release file: $(wc -l "$RELEASE_SAMPLES" | awk '{print $1}')"
+
+  #Inclusion list
+  zcat -f ~{inclusion_list} | sort | uniq > "$INCLUSION_SAMPLES"
+  echo "N samples in inclusion file: $(wc -l "$INCLUSION_SAMPLES" | awk '{print $1}')"
+
+  # Calculate EXTRA_SAMPLES regardless of file creation
+  comm -23 "$RELEASE_SAMPLES" "$INCLUSION_SAMPLES" > extra_samples.txt  
+  EXTRA_SAMPLES=$(cat extra_samples.txt | wc -l)
+  echo "Release samples that are not in exclusion list: $EXTRA_SAMPLES"
+  
+  >>>
+  runtime {
+    disks: "local-disk ~{ceil(size(parquet_file,'GB')) + 10} HDD"
+    docker : "~{docker}"
+  }
+  output{ File extra_samples = "./extra_samples.txt"}
 }
 
 task release {
@@ -54,6 +76,9 @@ task release {
   output {
     File release_file_gz = "~{prefix}.txt.gz"
     File release_file_pq = "~{prefix}.parquet"
+    File log = "~{prefix}.log"    
+    File schema = "~{prefix}_schema.json"
+    
   }
 }
 
@@ -140,20 +165,5 @@ task split{
   output {
     Array[File] chunks = glob("./kanta*gz")
     File header = "header.txt"
-  }
-}
-
-task date_prefix {
-  input {
-    String base_prefix
-  }
-  command <<<
-  echo ~{base_prefix}_$(date +%Y_%m_%d) > tmp.txt
-  >>>
-  meta {
-    volatile: true
-  }
-  output {
-    String prefix = read_string("tmp.txt")
   }
 }

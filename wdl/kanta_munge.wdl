@@ -9,9 +9,6 @@ workflow kanta_munge {
     Boolean test
   }
 
-  # gets prefix with date and test prefix
-  call date_prefix {input:base_prefix= "kanta" + if test then "_test" else ""}
-
   # builds sex dictionary mapping from pheno file
   call sex_map {}
   # splits input in chunks
@@ -32,18 +29,19 @@ workflow kanta_munge {
     }
   }
   # MERGE CHUNKS AND LOGS
+  String base_prefix = "kanta" +  if test then "_test" else ""
   call merge_logs {
     input:
-    prefix = date_prefix.prefix,
+    prefix = base_prefix,
     logs = flatten(munge.logs)
   }
   call merge {
     input:
     docker = kanta_docker,
-    prefix = date_prefix.prefix,
+    prefix = base_prefix,
     munged_chunks = munge.munged_chunk
   }
-
+  # CREATE OUTPUT FILE AND PARQUET FILE
   call release {
     input:
     docker = kanta_docker,
@@ -51,7 +49,39 @@ workflow kanta_munge {
     prefix = prefix,
     munged_data  = merge.munged
   }
+  # DOUBLE CHECK THAT WE ARE WORKING ONLY WITH SAMPLES IN INCLUSION LIST
+  call validate_outputs {input : parquet_file = release.release_file_pq,docker=kanta_docker}
+}
 
+task validate_outputs {
+  input {
+    String docker
+    File parquet_file
+    File inclusion_list
+  }
+  command <<<
+  RELEASE_SAMPLES='./release_samples.txt'
+  INCLUSION_SAMPLES='./inclusion_samples.txt'
+
+  # Check if RELEASE_SAMPLES exists
+  clickhouse --query="SELECT DISTINCT FINNGENID FROM file('~{parquet_file}', Parquet) ORDER BY FINNGENID " | sort  > $RELEASE_SAMPLES
+  echo "N samples in release file: $(wc -l "$RELEASE_SAMPLES" | awk '{print $1}')"
+
+  #Inclusion list
+  zcat -f ~{inclusion_list} | sort | uniq > "$INCLUSION_SAMPLES"
+  echo "N samples in inclusion file: $(wc -l "$INCLUSION_SAMPLES" | awk '{print $1}')"
+
+  # Calculate EXTRA_SAMPLES regardless of file creation
+  comm -23 "$RELEASE_SAMPLES" "$INCLUSION_SAMPLES" > extra_samples.txt  
+  EXTRA_SAMPLES=$(cat extra_samples.txt | wc -l)
+  echo "Release samples that are not in exclusion list: $EXTRA_SAMPLES"
+  
+  >>>
+  runtime {
+    disks: "local-disk ~{ceil(size(parquet_file,'GB')) + 10} HDD"
+    docker : "~{docker}"
+  }
+  output{ File extra_samples = "./extra_samples.txt"}
 }
 
 
@@ -78,6 +108,8 @@ task release {
   output {
     File release_file_gz = "~{prefix}.txt.gz"
     File release_file_pq = "~{prefix}.parquet"
+    File log = "~{prefix}.log"    
+    File schema = "~{prefix}_schema.json"
   }
 }
 
@@ -160,10 +192,10 @@ task munge {
   command <<<
   set -euxo pipefail
   python3 /finngen_qc/main.py  --out .  --raw-data ~{chunk} --log info --mp --harmonization --gz --prefix ~{prefix}
-  # ADD SEX
-  join --header -t $'\t' -a 1 -o auto -e NA <(zcat ~{out_chunk}  ) ~{sex_map} | bgzip -c > tmp.txt.gz
+  # MERGE WITH SEX EXCLUDING SAMPLES NOT IN SEX MAP (AND THUS IN INCLUSION LIST)
+  join --header -t $'\t' -o auto -e NA <(zcat ~{out_chunk}  ) ~{sex_map} | bgzip -c > tmp.txt.gz
+  zcat tmp.txt.gz | wc -l  &&  zcat ~{out_chunk} | wc -l
   mv tmp.txt.gz ~{out_chunk}
-  
   >>>
   runtime {
     docker : "~{docker}"
@@ -185,61 +217,30 @@ task split{
     Int n_chunks
     Boolean test
   }
-
   Int chunks = if test then  4  else n_chunks
   command <<<
   zcat ~{kanta_data} | head -n1 > header.txt
-  zcat ~{kanta_data} | sed -E 1d ~{if test then " | head -n 10000 "  else ""} > tmp.tsv
+  zcat ~{kanta_data} | sed -E 1d ~{if test then " | head -n 4000000 "  else ""} > tmp.tsv
   for f in {00..~{chunks-1}}; do cat header.txt | bgzip -c > kanta$f.gz; done
   split tmp.tsv -n l/~{chunks} -d kanta --filter='gzip >> $FILE.gz'
   >>>
-
-  runtime {
-    disks: "local-disk ~{ceil(size(kanta_data,'GB')) * 10 + 20} HDD"
-  }
-
+  runtime {disks: "local-disk ~{ceil(size(kanta_data,'GB')) * 10 + 20} HDD"}
   output {
     Array[File] chunks = glob("./kanta*gz")
     File header = "header.txt"
   }
 }
 
-
 task sex_map {
-  input {
-    File min_pheno
-  }
-
-  Int disk_size = ceil(size(min_pheno,"GB")) * 2
+  input {File min_pheno}
   String sex_file = "sex_map.txt"
   command <<<
-  zcat ~{min_pheno} | head -n1 > header.txt
-  sexcol=$(awk '{for(i=1;i<=NF;i++){if($i=="SEX"){print i; exit}}}' header.txt)
-  zcat ~{min_pheno} | cut -f 1,$sexcol | head -n1 > ~{sex_file}
-  zcat ~{min_pheno} | cut -f 1,$sexcol | sed -E 1d | sort >> ~{sex_file}
+  # get sex col
+  sexcol=$(awk '{for(i=1;i<=NF;i++){if($i=="SEX"){print i; exit}}}' <(zcat ~{min_pheno} | head -n1))
+  # extract sex only and sort
+  zcat ~{min_pheno} | cut -f 1,$sexcol | (sed -u 1q ; sort )>> ~{sex_file}
   >>>
-  runtime {
-    disks: "local-disk ~{ceil(size(min_pheno,'GB')) * 3} HDD"
-  }
-  output {
-    File sex_map = sex_file
-  }
+  runtime {disks: "local-disk ~{ceil(size(min_pheno,'GB')) * 3} HDD"}
+  output {File sex_map = sex_file}
 }
 
-
-
-
-task date_prefix {
-  input {
-    String base_prefix
-  }
-  command <<<
-  echo ~{base_prefix}_$(date +%Y_%m_%d) > tmp.txt
-  >>>
-  meta {
-    volatile: true
-  }
-  output {
-    String prefix = read_string("tmp.txt")
-  }
-}
