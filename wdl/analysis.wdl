@@ -16,11 +16,10 @@ workflow kanta_analysis {
     call analysis { input: docker = kanta_docker, prefix = i,chunk = split.chunks[i] }
   }
 
-  # get date 
-  call date_prefix {input:base_prefix= "kanta_analysis" + if test then "_test" else ""}
   # merge chunks
-  call merge { input: prefix =  date_prefix.prefix,analysis_chunks = analysis.analysis_chunk}
-  call merge_logs {input: prefix =  date_prefix.prefix,logs = flatten(analysis.logs)}
+  String base_prefix =  if test then "kanta_test" else "kanta"
+  call merge { input: prefix = base_prefix,analysis_chunks = analysis.analysis_chunk}
+  call merge_logs {input: prefix =  base_prefix,logs = flatten(analysis.logs)}
 
   call release {
     input:
@@ -29,7 +28,73 @@ workflow kanta_analysis {
     prefix = prefix,
     analysis_data  = merge.analysis_file
   }
+
+  # DOUBLE CHECK THAT WE ARE WORKING ONLY WITH SAMPLES IN INCLUSION LIST
+ call validate_outputs {input : parquet_file = release.release_file_pq,docker=kanta_docker}
+
 }
+
+
+task validate_outputs {
+  input {
+    String docker
+    File parquet_file
+    File inclusion_list
+  }
+  command <<<
+  RELEASE_SAMPLES='./release_samples.txt'
+  INCLUSION_SAMPLES='./inclusion_samples.txt'
+
+  # Check if RELEASE_SAMPLES exists
+  clickhouse --query="SELECT DISTINCT FINNGENID FROM file('~{parquet_file}', Parquet) ORDER BY FINNGENID " | sort  > $RELEASE_SAMPLES
+  echo "N samples in release file: $(wc -l "$RELEASE_SAMPLES" | awk '{print $1}')"
+
+  #Inclusion list
+  zcat -f ~{inclusion_list} | sort | uniq > "$INCLUSION_SAMPLES"
+  echo "N samples in inclusion file: $(wc -l "$INCLUSION_SAMPLES" | awk '{print $1}')"
+
+  # Calculate EXTRA_SAMPLES regardless of file creation
+  comm -23 "$RELEASE_SAMPLES" "$INCLUSION_SAMPLES" > extra_samples.txt  
+  EXTRA_SAMPLES=$(cat extra_samples.txt | wc -l)
+  echo "Release samples that are not in exclusion list: $EXTRA_SAMPLES"
+  
+  >>>
+  runtime {
+    disks: "local-disk ~{ceil(size(parquet_file,'GB')) + 10} HDD"
+    docker : "~{docker}"
+  }
+  output{ File extra_samples = "./extra_samples.txt"}
+}
+
+
+task release {
+  input {
+    String docker
+    File munged_data
+    Int mem
+    String prefix
+  }
+  command <<<
+  echo ~{mem}
+  set -euxo pipefail
+  awk '/^MemTotal:/{print $2/1024/1024}' /proc/meminfo
+  /usr/bin/time -v bash /sb_release/run.sh ~{munged_data} . ~{prefix} finngen_qc 2> tmp.txt
+  cat tmp.txt &&  cat tmp.txt | awk '/Maximum resident set size/ {print "Max memory usage (GB):", $6/1024/1024}'
+  >>>
+  runtime {
+    docker : "~{docker}"
+    disks: "local-disk ~{ceil(size(munged_data,'GB')) * 4 + 10} HDD"
+    memory: "~{mem} GB"
+    cpu : mem/4
+  }
+  output {
+    File release_file_gz = "~{prefix}.txt.gz"
+    File release_file_pq = "~{prefix}.parquet"
+    File log = "~{prefix}.log"    
+    File schema = "~{prefix}_schema.json"
+  }
+}
+
 
 task release {
   input {
@@ -143,20 +208,5 @@ task split{
   output {
     Array[File] chunks = glob("./kanta*gz")
     File header = "header.txt"
-  }
-}
-
-task date_prefix {
-  input {
-    String base_prefix
-  }
-  command <<<
-  echo ~{base_prefix}_$(date +%Y_%m_%d) > tmp.txt
-  >>>
-  meta {
-    volatile: true
-  }
-  output {
-    String prefix = read_string("tmp.txt")
   }
 }

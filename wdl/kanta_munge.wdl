@@ -9,9 +9,6 @@ workflow kanta_munge {
     Boolean test
   }
 
-  # gets prefix with date and test prefix
-  call date_prefix {input:base_prefix= "kanta" + if test then "_test" else ""}
-
   # builds sex dictionary mapping from pheno file
   call sex_map {}
   # splits input in chunks
@@ -32,15 +29,16 @@ workflow kanta_munge {
     }
   }
   # MERGE CHUNKS AND LOGS
+  String base_prefix =  if test then "kanta_test" else "kanta"
   call merge_logs {
     input:
-    prefix = date_prefix.prefix,
+    prefix = base_prefix,
     logs = flatten(munge.logs)
   }
   call merge {
     input:
     docker = kanta_docker,
-    prefix = date_prefix.prefix,
+    prefix = base_prefix,
     munged_chunks = munge.munged_chunk
   }
   # CREATE OUTPUT FILE AND PARQUET FILE
@@ -52,13 +50,13 @@ workflow kanta_munge {
     munged_data  = merge.munged
   }
   # DOUBLE CHECK THAT WE ARE WORKING ONLY WITH SAMPLES IN INCLUSION LIST
-  call validate_outputs {input : munged_data = merge.munged }
-
+  call validate_outputs {input : parquet_file = release.release_file_pq,docker=kanta_docker}
 }
 
 task validate_outputs {
   input {
-    File munged_data
+    String docker
+    File parquet_file
     File inclusion_list
   }
   command <<<
@@ -66,7 +64,7 @@ task validate_outputs {
   INCLUSION_SAMPLES='./inclusion_samples.txt'
 
   # Check if RELEASE_SAMPLES exists
-  zcat -f  ~{munged_data}  | sed -E 1d  | sort | uniq > "$RELEASE_SAMPLES"
+  clickhouse --query="SELECT DISTINCT FINNGENID FROM file('~{parquet_file}', Parquet) ORDER BY FINNGENID " | sort  > $RELEASE_SAMPLES
   echo "N samples in release file: $(wc -l "$RELEASE_SAMPLES" | awk '{print $1}')"
 
   #Inclusion list
@@ -74,11 +72,15 @@ task validate_outputs {
   echo "N samples in inclusion file: $(wc -l "$INCLUSION_SAMPLES" | awk '{print $1}')"
 
   # Calculate EXTRA_SAMPLES regardless of file creation
-  comm -23 "$RELEASE_SAMPLES" "$INCLUSION_SAMPLES"  > extra_samples.txt
-  wc -l extra_samples.txt
+  comm -23 "$RELEASE_SAMPLES" "$INCLUSION_SAMPLES" > extra_samples.txt  
+  EXTRA_SAMPLES=$(cat extra_samples.txt | wc -l)
+  echo "Release samples that are not in exclusion list: $EXTRA_SAMPLES"
   
   >>>
-  runtime {disks: "local-disk ~{ceil(size(munged_data,'GB')) + 10} HDD"}
+  runtime {
+    disks: "local-disk ~{ceil(size(parquet_file,'GB')) + 10} HDD"
+    docker : "~{docker}"
+  }
   output{ File extra_samples = "./extra_samples.txt"}
 }
 
@@ -242,11 +244,3 @@ task sex_map {
   output {File sex_map = sex_file}
 }
 
-task date_prefix {
-  input {String base_prefix}
-  command <<<
-  echo ~{base_prefix}_$(date +%Y_%m_%d) > tmp.txt
-  >>>
-  meta {volatile: true}
-  output {String prefix = read_string("tmp.txt")}
-}
