@@ -1,5 +1,5 @@
 {
-    "kanta_analysis.test": false,
+    "kanta_analysis.test": true,
     "kanta_analysis.kanta_docker": "eu.gcr.io/finngen-refinery-dev/kanta:kanta_analysis_v2.2",
     "kanta_analysis.validate_outputs.inclusion_list": "gs://finngen-production-library-red/all_allowed_ids_to_sb/finngen_R13_finngenid_actual_inclusion_list.txt",
     "kanta_analysis.prefix": "finngen_R13_kanta_analysis_1.0",

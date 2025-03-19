@@ -1,5 +1,5 @@
 {
-    "kanta_analysis.test": false,
+    "kanta_analysis.test": true,
     "kanta_analysis.prefix": "finngen_R13_kanta_analysis_1.0",
     # DATA INPUTS
     "kanta_analysis.kanta_munged_data": "gs://fg-3/kanta_v2/munged/kanta_2025_03_18_munged.txt.gz",

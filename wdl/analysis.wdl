@@ -11,29 +11,16 @@ workflow kanta_analysis {
 
   # splits input in chunks
   call split { input:test = test,kanta_data = kanta_munged_data}
-
-  scatter (i in range(length(split.chunks))) {
-    call analysis { input: docker = kanta_docker, prefix = i,chunk = split.chunks[i] }
-  }
-
+  scatter (i in range(length(split.chunks))) {call analysis { input: docker = kanta_docker, prefix = i,chunk = split.chunks[i] }}
   # merge chunks
-  String base_prefix =  if test then "kanta_test" else "kanta"
+  String base_prefix =  "kanta_analysis" + if test then "_test" else ""
   call merge { input: prefix = base_prefix,analysis_chunks = analysis.analysis_chunk}
   call merge_logs {input: prefix =  base_prefix,logs = flatten(analysis.logs)}
-
-  call release {
-    input:
-    docker = kanta_docker,
-    mem = if test then 4 else 64,
-    prefix = prefix,
-    analysis_data  = merge.analysis_file
-  }
-
+  # build parquet and release file
+  call release { input: docker = kanta_docker, mem = if test then 4 else 64, prefix = prefix, analysis_data  = merge.analysis_file}
   # DOUBLE CHECK THAT WE ARE WORKING ONLY WITH SAMPLES IN INCLUSION LIST
- call validate_outputs {input : parquet_file = release.release_file_pq,docker=kanta_docker}
-
+  call validate_outputs {input : parquet_file = release.release_file_pq,docker=kanta_docker}
 }
-
 
 task validate_outputs {
   input {
@@ -65,36 +52,6 @@ task validate_outputs {
   }
   output{ File extra_samples = "./extra_samples.txt"}
 }
-
-
-task release {
-  input {
-    String docker
-    File munged_data
-    Int mem
-    String prefix
-  }
-  command <<<
-  echo ~{mem}
-  set -euxo pipefail
-  awk '/^MemTotal:/{print $2/1024/1024}' /proc/meminfo
-  /usr/bin/time -v bash /sb_release/run.sh ~{munged_data} . ~{prefix} finngen_qc 2> tmp.txt
-  cat tmp.txt &&  cat tmp.txt | awk '/Maximum resident set size/ {print "Max memory usage (GB):", $6/1024/1024}'
-  >>>
-  runtime {
-    docker : "~{docker}"
-    disks: "local-disk ~{ceil(size(munged_data,'GB')) * 4 + 10} HDD"
-    memory: "~{mem} GB"
-    cpu : mem/4
-  }
-  output {
-    File release_file_gz = "~{prefix}.txt.gz"
-    File release_file_pq = "~{prefix}.parquet"
-    File log = "~{prefix}.log"    
-    File schema = "~{prefix}_schema.json"
-  }
-}
-
 
 task release {
   input {

@@ -29,7 +29,7 @@ workflow kanta_munge {
     }
   }
   # MERGE CHUNKS AND LOGS
-  String base_prefix =  if test then "kanta_test" else "kanta"
+  String base_prefix = "kanta" +  if test then "_test" else ""
   call merge_logs {
     input:
     prefix = base_prefix,
