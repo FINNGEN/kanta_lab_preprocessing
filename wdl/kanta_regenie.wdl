@@ -4,8 +4,7 @@ workflow kanta_regenie {
   input {
     String docker
     File kanta_parquet
-    String pheno
-    Int omop_id
+    String pheno_omop
     File cov_file
     Boolean is_binary
     String measurement_col_name
@@ -17,18 +16,17 @@ workflow kanta_regenie {
   # CALCULATES AVERAGE AGE AND MEASUREMENT_UNIT AND MERGES WITH COV FILE
   call create_pheno_file {
     input :
-    pheno = pheno,
+    pheno_omop = pheno_omop,
     cov_file=cov_file,
     parquet_file = kanta_parquet,
     mes_col = measurement_col_name,
-    omop_id = omop_id,
   }
 
   # REGENIE STEP1
   call step1 {
     input :
     docker = docker,
-    phenolist = [pheno],
+    phenolist=[pheno_omop],
     is_binary = is_binary,
     cov_pheno = create_pheno_file.pheno_file,
   }
@@ -40,7 +38,7 @@ workflow kanta_regenie {
       docker = docker,
       bgen = bgen,
       validate_hits=validate_hits,
-      phenolist=[pheno],
+      phenolist=[pheno_omop],
       is_binary=is_binary,
       cov_pheno=create_pheno_file.pheno_file,
       covariates=step1.covars_used,
@@ -315,46 +313,45 @@ task step1 {
   
 task create_pheno_file {
   input {
-    String pheno
+    String pheno_omop
     File parquet_file
     File cov_file
     Int min_count
-    Int omop_id
     String mes_col
     String docker
   }
-  String out_file = pheno + "_pheno.txt.gz"
+  String out_file = pheno_omop + "_median_RINT.txt.gz"
   command <<<
   set -eux
-  PHENO="~{pheno}"
-  OMOP_ID="~{omop_id}"
+  PHENO="~{pheno_omop}"
   PARQUET="~{parquet_file}"
   MEASUREMENT_COLUMN="~{mes_col}"
   # EXTRACT IDs and dump to tsv
   clickhouse --query "
-  SELECT
+  SELECT 
     FINNGENID,
-    EVENT_AGE,
-    $MEASUREMENT_COLUMN
+    median(EVENT_AGE) AS EVENT_AGE,
+    median($MEASUREMENT_COLUMN) AS median_value
   FROM (
     SELECT
         FINNGENID,
         EVENT_AGE,
         $MEASUREMENT_COLUMN,
-        count(*) OVER (PARTITION BY FINNGENID) AS measurement_count
     FROM
         file('$PARQUET', Parquet)
     WHERE
-        OMOP_CONCEPT_ID = '$OMOP_ID'
-        AND $MEASUREMENT_COLUMN IS NOT NULL
+        OMOP_CONCEPT_ID = '$PHENO'
+        AND  $MEASUREMENT_COLUMN IS NOT NULL
   )
-  WHERE measurement_count >= ~{min_count}
-  INTO OUTFILE 'output.tsv'
+  GROUP BY FINNGENID
+  HAVING count(*) >= ~{min_count}
+  ORDER BY FINNGENID ASC
+  INTO OUTFILE 'median.tsv'
   FORMAT TSVWithNames;
   "
-  head output.tsv
+  head median.tsv
   # with pandas, calculate medians and RINT the median measurement column into PHENO column
-  python3 -c "import sys, pandas as pd, numpy as np, scipy.stats as stats; df = pd.read_csv('./output.tsv',sep='\t').groupby('FINNGENID').median();print(df);new_col = '$PHENO'; col = '$MEASUREMENT_COLUMN';print(new_col,col); df[new_col] = stats.norm.ppf((stats.rankdata(df[col]) - 0.375) / (len(df[col]) + 0.25)); df.to_csv('./transformed.tsv', sep='\t')" 
+  python3 -c "import sys, pandas as pd, numpy as np, scipy.stats as stats; df = pd.read_csv('./median.tsv',sep='\t');print(df);new_col = '$PHENO'; col = 'median_value';print(new_col,col); df[new_col] = stats.norm.ppf((stats.rankdata(df[col]) - 0.375) / (len(df[col]) + 0.25)); df.to_csv('./transformed.tsv', sep='\t',index=False)" 
   head transformed.tsv
   # sort cov file and merge
   zcat -f  ~{cov_file}|   (sed -u 1q; sort) > cov.txt
