@@ -6,10 +6,22 @@ import pandas as pd
 import urllib.request
 import http.client as httplib
 from pathlib import Path
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from finngen_qc  import magic_config as fg_config
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
+def get_stuff_from_finngen_qc(args):
+    args.fg_config = fg_config.config
+    fg_data = os.path.join(os.path.dirname(os.path.dirname(__file__)),'finngen_qc')
+    args.config['unit_map'] = read_map(os.path.join(os.path.join(fg_data,args.fg_config['unit_map_file'])))
+    for key,value in args.fg_config['harmonization_files'].items():
+        cols,fname = value
+        sep = ',' if fname.endswith('.csv') else '\t'
+        rename = {col:new_col for col,new_col in args.fg_config['harmonization_col_map'].items() if col in cols}
+        args.config[key] = pd.read_csv(os.path.join(fg_data,'data',fname),usecols = cols,sep = sep).rename(columns=rename).drop_duplicates()
 
+    return args
 def init_posneg_mapping(args):
 
     df =  pd.read_csv(os.path.join(Path(dir_path).parent.absolute(),args.config['posneg_map']),sep='\t',usecols=['MEASUREMENT_FREE_TEXT','MAPPED']).dropna(subset='MAPPED')

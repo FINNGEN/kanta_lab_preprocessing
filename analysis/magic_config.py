@@ -37,7 +37,9 @@ config = {
     'added_cols': [
         "extracted::MEASUREMENT_VALUE",
         "extracted::IS_MEASUREMENT_EXTRACTED",
-        "extracted::IS_POS"
+        "extracted::IS_POS",
+        "extracted::MEASUREMENT_STATUS"
+        
      ],
     'err_cols':['FINNGENID','APPROX_EVENT_DATETIME','ERR','ERR_VALUE'],
     'omop_unit_map':'finngen_qc/data/harmonization_counts.txt',
@@ -47,6 +49,10 @@ config = {
         (r'\*', ''),
         (r',', '.') #replace commas with dots 
     ],
-    'free_text_result_strings' : ("tutkimuksentulos:","resultat:","provresultat:")
+    'free_text_result_strings' : ("tutkimuksentulos:", "resultat:", "provresultat:","tutkimuksen tulos:", "tulos:", "vastaus:"),
+    'status_indicators' : ('<', '>', 'yli', 'alle'),
+
+
+    
 
 }

@@ -1,10 +1,10 @@
 import pandas as pd
-import argparse,logging,os
+import argparse,logging,os,sys
 from functools import partial
 import multiprocessing as mp
 import numpy as np
 from datetime import datetime
-from utils import file_exists,log_levels,configure_logging,make_sure_path_exists,progressBar,batched,mapcount,read_map,estimate_lines,write_chunk,init_log_files,init_unit_table,init_posneg_mapping
+from utils import file_exists,log_levels,configure_logging,make_sure_path_exists,progressBar,batched,mapcount,read_map,estimate_lines,write_chunk,init_log_files,init_unit_table,init_posneg_mapping,get_stuff_from_finngen_qc
 from magic_config import config
 from datetime import datetime
 from filters.extract import extract_all
@@ -170,6 +170,8 @@ if __name__=='__main__':
 
     # setup config
     args.config = config
+    args = get_stuff_from_finngen_qc(args)
+
     args.config['cols']  = config['cols']
     args.config['out_cols']  = config['cols'] + config['added_cols']
     logger.debug(args.config['out_cols'])

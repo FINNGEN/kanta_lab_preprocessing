@@ -10,6 +10,11 @@ from datetime import datetime
 from filters.filter_minimal import filter_minimal 
 from filters.fix_unit import unit_fixing
 from filters.harmonization import harmonization
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+# Now you can import finngen.config
+from finngen_qc  import magic_config as fg_config
+
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
 
@@ -172,6 +177,7 @@ if __name__=='__main__':
 
     # setup config
     args.config = config
+    args.fg_config = fg_config
     args.config['cols']  = list(config['rename_cols'].keys()) + config['other_cols']
 
     args = init_harmonization(args,logger)

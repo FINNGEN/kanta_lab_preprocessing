@@ -7,7 +7,7 @@
 
      # PHENO INFO
      "kanta_regenie.create_pheno_file.docker": "eu.gcr.io/finngen-refinery-dev/kanta:kanta_analysis_v2.2",
-     "kanta_regenie.pheno_omop": '3007461',
+     "kanta_regenie.pheno_omop": '3006315',
      "kanta_regenie.create_pheno_file.min_count": 1, 
      #"kanta_regenie.validate_hits": "gs://fg-3/kanta_v2/inputs/3026361_hits.txt",
 
