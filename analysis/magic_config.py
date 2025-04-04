@@ -38,12 +38,19 @@ config = {
         "extracted::MEASUREMENT_VALUE",
         "extracted::IS_MEASUREMENT_EXTRACTED",
         "extracted::IS_POS",
-        "extracted::MEASUREMENT_STATUS"
+        "extracted::MEASUREMENT_STATUS_TEXT",
+        "extracted::MEASUREMENT_STATUS",
+        
+        
+        
+        
         
      ],
     'err_cols':['FINNGENID','APPROX_EVENT_DATETIME','ERR','ERR_VALUE'],
     'omop_unit_map':'finngen_qc/data/harmonization_counts.txt',
     'posneg_map':'analysis/data/negpos_mapping.tsv',
+    'ft_status_mapping':'analysis/data/free_text_status_mapping.tsv',
+
     'date_time_format': "%Y-%m-%dT%H:%M:%S",
     'free_text_measurement_replacements': [
         (r'\*', ''),

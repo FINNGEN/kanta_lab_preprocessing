@@ -22,6 +22,11 @@ def get_stuff_from_finngen_qc(args):
         args.config[key] = pd.read_csv(os.path.join(fg_data,'data',fname),usecols = cols,sep = sep).rename(columns=rename).drop_duplicates()
 
     return args
+
+def init_free_text_status_mapping(args):
+    df =  pd.read_csv(os.path.join(Path(dir_path).parent.absolute(),args.config['ft_status_mapping']),sep='\t',usecols=['harmonization_omop::OMOP_ID','extracted::MEASUREMENT_STATUS_TEXT','extracted::MEASUREMENT_STATUS']).dropna().astype(str)
+    return df
+    
 def init_posneg_mapping(args):
 
     df =  pd.read_csv(os.path.join(Path(dir_path).parent.absolute(),args.config['posneg_map']),sep='\t',usecols=['MEASUREMENT_FREE_TEXT','MAPPED']).dropna(subset='MAPPED')

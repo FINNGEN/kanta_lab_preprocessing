@@ -9,13 +9,14 @@ def extract_all(df,args):
         .pipe(extract_measurement,args)
         .pipe(extract_positive,args)
         .pipe(extract_status,args)
+        .pipe(map_ft_status,args)
     )
     return df
 
 def extract_status(df,args):
 
     ft_col = "MEASUREMENT_FREE_TEXT"
-    col = "extracted::MEASUREMENT_STATUS"
+    col = "extracted::MEASUREMENT_STATUS_TEXT"
     df[col] = "NA"
 
     col_copy = df[ft_col].copy().str.lower()
@@ -42,21 +43,16 @@ def extract_status(df,args):
     ft_df['ft'] = col_copy.loc[status_mask]
 
     ft_df['comp'] = ft_df['comp'].replace("alle", "<", regex=True).replace("yli", ">", regex=True)
-    print('</> sub')
-    print(ft_df)
+    # merge togethers situations where int is written as float
+    ft_df['value'] = ft_df['value'].astype(str).str.replace(r'\.0$', '', regex=True).str.replace(r'\.$', '', regex=True)
 
     # need to add unit back
     # remove strange characters
     regex = r'(' + '|'.join([re.escape(x) for x in args.fg_config['fix_units']['MEASUREMENT_UNIT']]) + r')'
     ft_df['unit'] = ft_df['unit'].replace(regex,"",regex=True)
-    print('character regex')
-    print(ft_df)
-    print(ft_df['unit'].isna())
+    #map values to target units
     map_mask = ft_df['unit'].isin(args.config['unit_map'])
     ft_df.loc[map_mask,'unit'] = ft_df.loc[map_mask,'unit'].map(args.config['unit_map'])
-    print('unit map')
-    print(ft_df)
-    print(ft_df['unit'].isna())
     # Apply validation conditions directly to create the extracted status
     mask = (
     ft_df['comp'].isin(['<', '>']) &
@@ -69,15 +65,15 @@ def extract_status(df,args):
 )
     # Initialize all values as "NA" & Only update values that pass the validation
     ft_df[col] = "NA"
-    if any(mask):
-        ft_df.loc[mask, col] = ft_df.loc[mask, 'comp'] + " " + ft_df.loc[mask, 'value']+ " " +  ft_df.loc[mask, 'unit'].fillna("")
-    print('concatenate')
-    print(ft_df)
-
+    if any(mask): ft_df.loc[mask, col] = ft_df.loc[mask, 'comp'] + ft_df.loc[mask, 'value']+  ft_df.loc[mask, 'unit'].fillna("")
     # Update the original dataframe with the new column
     df.loc[status_mask,col] = ft_df[col].values
     return df
     
+def map_ft_status(df,args):
+    col = "extracted::MEASUREMENT_STATUS"
+    df = pd.merge(df,args.ft_status_map,how='left',on=['harmonization_omop::OMOP_ID',"extracted::MEASUREMENT_STATUS_TEXT"]).fillna({col:"NA"})
+    return df
 
 def extract_measurement(df,args):
     """
