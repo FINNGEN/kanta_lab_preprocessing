@@ -43,8 +43,6 @@ def init_harmonization(args,logger):
         #DEBUG
         logger.debug(args.config['unit_conversion'][args.config['unit_conversion']['harmonization_omop::OMOP_ID'] == 3027238])
 
-    # READ IN LOW/HIGH limits for imputed abnormality
-    args.ab_limits = pd.read_csv(os.path.join(dir_path,args.config['abnormality_table']),sep='\t',dtype={"ID":int})
 
     #logger.debug(args.config['usagi_units'])
     logger.debug("USGAGI MAPPING")

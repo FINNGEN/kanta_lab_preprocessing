@@ -38,18 +38,14 @@ config = {
         "extracted::MEASUREMENT_VALUE",
         "extracted::IS_MEASUREMENT_EXTRACTED",
         "extracted::IS_POS",
-        "extracted::MEASUREMENT_STATUS_TEXT",
-        "extracted::MEASUREMENT_STATUS",
-        
-        
-        
-        
-        
-     ],
+        "extracted::TEST_OUTCOME_TEXT",
+        'merged::TEST_OUTCOME',
+        'merged::OUTCOME_SOURCE'
+    ],
     'err_cols':['FINNGENID','APPROX_EVENT_DATETIME','ERR','ERR_VALUE'],
     'omop_unit_map':'finngen_qc/data/harmonization_counts.txt',
     'posneg_map':'analysis/data/negpos_mapping.tsv',
-    'ft_status_mapping':'analysis/data/free_text_status_mapping.tsv',
+    'ft_outcome_mapping':'analysis/data/free_text_outcome_mapping.tsv',
 
     'date_time_format': "%Y-%m-%dT%H:%M:%S",
     'free_text_measurement_replacements': [
@@ -58,7 +54,7 @@ config = {
     ],
     'free_text_result_strings' : ("tutkimuksentulos:", "resultat:", "provresultat:","tutkimuksen tulos:", "tulos:", "vastaus:"),
     'status_indicators' : ('<', '>', 'yli', 'alle'),
-
+    'abnormality_table':"data/abnormality_estimation.table.tsv",
 
     
 

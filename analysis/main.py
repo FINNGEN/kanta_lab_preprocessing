@@ -4,12 +4,12 @@ from functools import partial
 import multiprocessing as mp
 import numpy as np
 from datetime import datetime
-from utils import file_exists,log_levels,configure_logging,make_sure_path_exists,progressBar,batched,mapcount,read_map,estimate_lines,write_chunk,init_log_files,init_unit_table,init_posneg_mapping,get_stuff_from_finngen_qc,init_free_text_status_mapping
+from utils import file_exists,log_levels,configure_logging,make_sure_path_exists,progressBar,batched,mapcount,read_map,estimate_lines,write_chunk,init_log_files,init_unit_table,init_posneg_mapping,get_stuff_from_finngen_qc,init_free_text_outcome_mapping
 from magic_config import config
 from datetime import datetime
 from filters.extract import extract_all
 from filters.qc import qc
-
+from filters.outcome import all_outcome
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
 
@@ -40,6 +40,7 @@ def all_filters(df,args):
         df
         .pipe(extract_all,args)
         .pipe(qc,args)
+        .pipe(all_outcome,args)
     )
     return df
 
@@ -180,8 +181,9 @@ if __name__=='__main__':
     #init stuff
     args.omop_unit_table = init_unit_table(args)
     args.posneg_table = init_posneg_mapping(args)
-    args.ft_status_map = init_free_text_status_mapping(args)
-    
+    args.ft_outcome_map = init_free_text_outcome_mapping(args)
+    args.ab_limits = pd.read_csv(os.path.join(dir_path,args.config['abnormality_table']),sep='\t',dtype={"ID":int})
+
     if os.path.basename(args.raw_data) == "raw_data_test.txt":
         logger.warning("RUNNING IN TEST MODE")
 

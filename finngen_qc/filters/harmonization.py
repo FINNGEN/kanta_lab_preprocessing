@@ -11,36 +11,11 @@ def harmonization(df,args):
         .pipe(fix_unit_based_on_abbreviation,args)
         .pipe(omop_mapping,args)
         .pipe(unit_harmonization,args)
-        .pipe(impute_abnormality,args)
 
     )
 
     return df
 
-def impute_abnormality(df,args):
-    """
-    Creates new abnormality column based on
-    """
-    col ='imputed::TEST_OUTCOME'
-    if args.harmonization:
-        # merge df with low/high tables 
-        df = pd.merge(df,args.ab_limits,how='left',left_on=['harmonization_omop::OMOP_ID'],right_on=['ID'])
-        # LOW/HIGH limits are floats by construction. This way we can then ignore NA measurement values
-        float_df = df[['harmonization_omop::MEASUREMENT_VALUE','LOW_LIMIT','HIGH_LIMIT']].apply(pd.to_numeric, errors='coerce')
-        # impute LOW abnormality
-        low_mask = float_df['harmonization_omop::MEASUREMENT_VALUE'] < float_df["LOW_LIMIT"]
-        df.loc[low_mask,col] = "L"
-        low_problem_mask = df['LOW_PROBLEM'] ==1
-        df.loc[low_mask & low_problem_mask ,col] = "L*"
-        # HIGH
-        high_mask = float_df['harmonization_omop::MEASUREMENT_VALUE'] > float_df["HIGH_LIMIT"]
-        df.loc[high_mask,col] = "H"
-        high_problem_mask = df['HIGH_PROBLEM'] ==1
-        df.loc[high_mask & high_problem_mask ,col] = "H*"
-        # NORMAL ONLY FOR NUMERICAL VALUES (thanks to coercion)
-        normal_mask = (float_df["LOW_LIMIT"] <= float_df['harmonization_omop::MEASUREMENT_VALUE']) & (float_df['harmonization_omop::MEASUREMENT_VALUE'] <= float_df["HIGH_LIMIT"])
-        df.loc[normal_mask,col] = "N"
-    return df
 
 
 def unit_harmonization(df,args):

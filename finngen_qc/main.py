@@ -185,7 +185,6 @@ if __name__=='__main__':
     logger.debug(args.config['usagi_mapping'])
     logger.debug(args.config['unit_abbreviation_fix'])
     logger.debug(dict(list(args.config['thl_lab_map'].items())[0:2]))
-    logger.debug(args.ab_limits)
     init_log_files(args)
     
     

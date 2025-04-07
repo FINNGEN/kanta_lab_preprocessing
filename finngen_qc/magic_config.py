@@ -37,7 +37,6 @@ config = {
         'CODING_SYSTEM',
         'CODING_SYSTEM_MAP',
         'TEST_OUTCOME',
-        'imputed::TEST_OUTCOME',
         'MEASUREMENT_STATUS',
         'REFERENCE_RANGE_GROUP',
         'REFERENCE_RANGE_LOWER_VALUE',
@@ -184,6 +183,5 @@ config = {
         'conversion':"harmonization_omop::CONVERSION_FACTOR",
         'ADD_INFO:testNameAbbreviation':"TEST_NAME_ABBREVIATION",
         'ADD_INFO:measurementUnit':"MEASUREMENT_UNIT"
-    },
-    'abnormality_table':"data/abnormality_estimation.table.tsv",
+    }
 }

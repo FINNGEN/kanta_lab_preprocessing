@@ -9,14 +9,13 @@ def extract_all(df,args):
         .pipe(extract_measurement,args)
         .pipe(extract_positive,args)
         .pipe(extract_status,args)
-        .pipe(map_ft_status,args)
     )
     return df
 
 def extract_status(df,args):
 
     ft_col = "MEASUREMENT_FREE_TEXT"
-    col = "extracted::MEASUREMENT_STATUS_TEXT"
+    col = "extracted::TEST_OUTCOME_TEXT"
     df[col] = "NA"
 
     col_copy = df[ft_col].copy().str.lower()
@@ -70,10 +69,7 @@ def extract_status(df,args):
     df.loc[status_mask,col] = ft_df[col].values
     return df
     
-def map_ft_status(df,args):
-    col = "extracted::MEASUREMENT_STATUS"
-    df = pd.merge(df,args.ft_status_map,how='left',on=['harmonization_omop::OMOP_ID',"extracted::MEASUREMENT_STATUS_TEXT"]).fillna({col:"NA"})
-    return df
+
 
 def extract_measurement(df,args):
     """
