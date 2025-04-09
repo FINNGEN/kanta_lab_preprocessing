@@ -43,8 +43,7 @@ def extract_status(df,args):
 
     ft_df['comp'] = ft_df['comp'].replace("alle", "<", regex=True).replace("yli", ">", regex=True)
     # merge togethers situations where int is written as float
-    ft_df['value'] = ft_df['value'].astype(str).str.replace(r'\.0$', '', regex=True).str.replace(r'\.$', '', regex=True)
-
+    ft_df['value'] = ft_df['value'].astype(str).apply(lambda x: re.sub(r'\.$', '', re.sub(r'0+$', '', x)) if '.' in x else x)
     # need to add unit back
     # remove strange characters
     regex = r'(' + '|'.join([re.escape(x) for x in args.fg_config['fix_units']['MEASUREMENT_UNIT']]) + r')'
