@@ -43,7 +43,7 @@ config = {
         "extracted::IS_POS",
         "extracted::TEST_OUTCOME_TEXT",
     ],
-    'err_cols':['FINNGENID','APPROX_EVENT_DATETIME','ERR','ERR_VALUE'],
+    'err_cols':['ROW_ID','FINNGENID','APPROX_EVENT_DATETIME','ERR','ERR_VALUE'],
     'omop_unit_map':'finngen_qc/data/harmonization_counts.txt',
     'posneg_map':'core/data/negpos_mapping.tsv',
 

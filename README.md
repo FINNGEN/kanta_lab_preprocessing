@@ -59,6 +59,7 @@ The raw to output column mapping is as follows:
 
 ## TECHNICAL INFO
 
+![Summary of the wdl pipeline](./kanta_pipeline.png)
 
 ### Summary
 
