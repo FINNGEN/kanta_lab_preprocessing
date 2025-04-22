@@ -132,12 +132,25 @@ The current version outputs 3 extra columns, which are taken from the `MEASUREME
 
 The princples are identical to the `finngen_qc` pipeline, just with different filters being used.
 
-
-
 ### [QC](/core/filters/qc.py)
 
 This is for all sorts of QCing of the data, ideally for outlier filter/removal. For the time being the only QC in place is there for data privacy reasons:
 - all extracted values that can be misinterpreted as dates are removed (DDMMYY) as they can either be birth dates or the exact date of the examination, which is shifted +- 2 weeks for each FINNGENID
+
+
+### [EXTRACT](/core/filters/extract.py)
+
+This filter extracts info from the free text column:
+
+- extract_outcome: This function extracts test outcomes (e.g., "<5", ">10") from the "MEASUREMENT_FREE_TEXT" column. It identifies rows with status indicators, standardizes the text, parses the comparison operator, value, and unit, and stores the extracted outcome in a new column named "extracted::TEST_OUTCOME_TEXT". It also performs some data cleaning and unit mapping.
+
+- extract_measurement: This function extracts numerical measurement values from the "MEASUREMENT_FREE_TEXT" column and stores them in a new column called "extracted::MEASUREMENT_VALUE". It also creates a "extracted::MEASUREMENT_VALUE_MERGED" column, which prioritizes values from the "harmonization_omop::MEASUREMENT_VALUE" column if available, otherwise using the newly extracted values.
+
+- extract_positive: This function merges the input DataFrame (df) with a posneg_table based on the "MEASUREMENT_FREE_TEXT" column. It's designed to bring in pre-existing positive/negative classifications or related information associated with the free text measurements.
+
+### [OUTCOME](/core/filters/outcome.py)
+- `TEST_OUTCOME_IMPUTED` is generated from the (merged) numerical values based on thresholds learned from the data when both values and outcomes are present
+
 
 ## How it works
 The princples are identical to the `finngen_qc` pipeline.
