@@ -43,6 +43,8 @@ echo "Making .parquet file..."
 time clickhouse --param_filePathCleanTxtGz "$TXT_GZ_FILE" --queries-file "${SQL_DIR}/make_parquet.sql" > "$PARQUET_FILE" 
 echo
 
+
+
 echo "Basic QC:  " "${OUTPUT_DIR%/}/${OUTPUT_PREFIX}.log"
 python3 "${SCRIPT_DIR}/qc.py" $PARQUET_FILE | tee  "${OUTPUT_DIR%/}/${OUTPUT_PREFIX}.log"
 python3 "${SCRIPT_DIR}/count_na.py" $PARQUET_FILE | tee -a  "${OUTPUT_DIR%/}/${OUTPUT_PREFIX}.log"

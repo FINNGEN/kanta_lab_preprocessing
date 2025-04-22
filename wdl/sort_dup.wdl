@@ -5,7 +5,6 @@ workflow kanta_sort_dup{
     # works with 100k lines
     Boolean test
     File kanta_data
-
   }
 
   call get_cols {}  # metadata

@@ -60,21 +60,6 @@ task merge {
   while read f; do echo $f && date +%Y-%m-%dT%H:%M:%S && zcat $f | sed -E 1d | bgzip -c >> tmp.txt.gz ; done < <(cat ~{write_lines(munged_chunks)} | sort -V )
   # REMOE DUPLICATES AND ADD ROW_ID
   python3 /finngen_qc/duplicates.py --input tmp.gz --prefix ~{prefix}
-  >>>
-  runtime {
-    disks: "local-disk ~{ceil(size(munged_chunks,'GB')) * 4 + 10} HDD"
-    docker : "~{docker}"
-  }
-  output {
-    File munged = out_file
-    File duplicates = dup_file
-  }
-}
-
-task merge_logs {
-  input {
-    Array[File] logs
-    String prefix
   }
   command <<<
   #  merge all warn,abbr,unit files
