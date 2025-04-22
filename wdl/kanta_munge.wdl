@@ -41,80 +41,31 @@ workflow kanta_munge {
     prefix = base_prefix,
     munged_chunks = munge.munged_chunk
   }
-  # DOUBLE CHECK THAT WE ARE WORKING ONLY WITH SAMPLES IN INCLUSION LIST
-  call validate_outputs {input : parquet_file = release.release_file_pq,docker=kanta_docker}
 }
-
-task validate_outputs {
-  input {
-    String docker
-    File parquet_file
-    File inclusion_list
-  }
-  command <<<
-  RELEASE_SAMPLES='./release_samples.txt'
-  INCLUSION_SAMPLES='./inclusion_samples.txt'
-
-  # Check if RELEASE_SAMPLES exists
-  clickhouse --query="SELECT DISTINCT FINNGENID FROM file('~{parquet_file}', Parquet) ORDER BY FINNGENID " | sort  > $RELEASE_SAMPLES
-  echo "N samples in release file: $(wc -l "$RELEASE_SAMPLES" | awk '{print $1}')"
-
-  #Inclusion list
-  zcat -f ~{inclusion_list} | sort | uniq > "$INCLUSION_SAMPLES"
-  echo "N samples in inclusion file: $(wc -l "$INCLUSION_SAMPLES" | awk '{print $1}')"
-
-  # Calculate EXTRA_SAMPLES regardless of file creation
-  comm -23 "$RELEASE_SAMPLES" "$INCLUSION_SAMPLES" > extra_samples.txt  
-  EXTRA_SAMPLES=$(cat extra_samples.txt | wc -l)
-  echo "Release samples that are not in exclusion list: $EXTRA_SAMPLES"
-  
-  >>>
-  runtime {
-    disks: "local-disk ~{ceil(size(parquet_file,'GB')) + 10} HDD"
-    docker : "~{docker}"
-  }
-  output{ File extra_samples = "./extra_samples.txt"}
-}
-
-
 
 task merge {
   input {
     Array[File] munged_chunks
     String prefix
-    Array[String] reports_columns
     String docker 
-
   }
+
   String out_file = prefix +"_munged.txt.gz"
   String dup_file = prefix +"_munged_duplicates.txt.gz"
-  String reports_file = prefix +"_munged_reports.txt.gz"
 
   command <<<
   # write header to reports file
   zcat ~{munged_chunks[0]} | head -n1 | bgzip -c > tmp.gz
-
   # merge files including reports
   while read f; do echo $f && date +%Y-%m-%dT%H:%M:%S && zcat $f | sed -E 1d | bgzip -c >> tmp.gz ; done < <(cat ~{write_lines(munged_chunks)} | sort -V )
-
   # remove duplicates
   python3 /finngen_qc/duplicates.py --input tmp.gz --prefix ~{prefix}_munged_reports
-
-  # EXTRACT REPORTS COLUMNS
-  COLS=$(zcat ~{reports_file} | head -n1 | tr '\t' '\n' | grep -wnf ~{write_lines(reports_columns)}  | cut -d : -f1 | tr '\n' ',' | sed 's/,$//')
-  echo $COLS
-  zcat ~{reports_file} | cut -f $COLS --complement | bgzip -c > ~{out_file}
-  zcat  ~{prefix}_munged_reports_duplicates.txt.gz | cut -f $COLS --complement | bgzip -c > ~{dup_file}
-  
   >>>
   runtime {
     disks: "local-disk ~{ceil(size(munged_chunks,'GB')) * 4 + 10} HDD"
     docker : "~{docker}"
-
   }
- 
   output {
-    File munged_all = reports_file
     File munged = out_file
     File duplicates = dup_file
   }

@@ -4,7 +4,7 @@ from functools import partial
 import multiprocessing as mp
 import numpy as np
 from datetime import datetime
-from utils import file_exists,log_levels,configure_logging,make_sure_path_exists,progressBar,batched,mapcount,read_map,estimate_lines,write_chunk,init_log_files,init_unit_table,init_posneg_mapping,get_stuff_from_finngen_qc,init_free_text_outcome_mapping
+from utils import file_exists,log_levels,configure_logging,make_sure_path_exists,progressBar,batched,mapcount,read_map,estimate_lines,write_chunk,init_log_files,init_unit_table,init_posneg_mapping,get_stuff_from_finngen_qc
 from magic_config import config
 from datetime import datetime
 from filters.extract import extract_all
@@ -149,14 +149,14 @@ def main(args):
     
 if __name__=='__main__':
     
-    parser=argparse.ArgumentParser(description="Kanta Lab analysis pipeline: clean data ⇒ analysis data.")
+    parser=argparse.ArgumentParser(description="Kanta Lab core pipeline: clean data ⇒ final data.")
     parser.add_argument("--raw-data", type=file_exists, help="Path to input raw file. File should be tsv.", required=True)
     parser.add_argument("--log", default="warning", choices=log_levels, help="Provide logging level. Example '--log debug', default = 'warning'")
     parser.add_argument("--test", action='store_true', help="Reads first chunk only")
     parser.add_argument("--gz", action='store_true', help="Ouputs to gz")
     parser.add_argument("--mp", default=0, const=os.cpu_count(), nargs='?', type=int, help="Flag for multiproc. Default is '0' (no multiproc). If passed it defaults to cpu count, but one can also specify the number of cpus to use: e.g. '--mp' or '--mp 4'.")
     parser.add_argument('-o', "--out", type=str, help="Folder in which to save the results (default = current working directory)", default=os.getcwd())
-    parser.add_argument("--prefix", type=str, default=f"kanta_{datetime.today().strftime('%Y_%m_%d')}", help="Prefix of the out files (default = 'kanta_analysis_YYYY_MM_DD')")
+    parser.add_argument("--prefix", type=str, default=f"kanta_{datetime.today().strftime('%Y_%m_%d')}", help="Prefix of the out files (default = 'kanta_YYYY_MM_DD')")
     parser.add_argument("--sep", type=str, default="\\t", help="Separator (default = tab)")
     parser.add_argument("--chunk-size", type=int, help="Number of rows to be processed by each chunk (default = '1000*n_cpus').", default=10000*os.cpu_count())
     parser.add_argument("--lines", type=int, help="Number of lines in input file (calculated/estimated otherwise).")
@@ -181,7 +181,6 @@ if __name__=='__main__':
     #init stuff
     args.omop_unit_table = init_unit_table(args)
     args.posneg_table = init_posneg_mapping(args)
-    args.ft_outcome_map = init_free_text_outcome_mapping(args)
     args.ab_limits = pd.read_csv(os.path.join(dir_path,args.config['abnormality_table']),sep='\t',dtype={"ID":int})
 
     if os.path.basename(args.raw_data) == "raw_data_test.txt":
@@ -189,7 +188,7 @@ if __name__=='__main__':
 
     # make sure the chunk size is at least the size of the the jobs
     args.chunk_size = max(args.chunk_size,args.mp)
-    args.out_file = os.path.join(args.out,f"{args.prefix}_analysis.txt")  
+    args.out_file = os.path.join(args.out,f"{args.prefix}.txt")  
     if args.gz: args.out_file += ".gz"
 
     # Setup pandas

@@ -23,9 +23,6 @@ def get_stuff_from_finngen_qc(args):
 
     return args
 
-def init_free_text_outcome_mapping(args):
-    df =  pd.read_csv(os.path.join(Path(dir_path).parent.absolute(),args.config['ft_outcome_mapping']),sep='\t',usecols=['harmonization_omop::OMOP_ID','extracted::TEST_OUTCOME_TEXT','extracted::TEST_OUTCOME']).dropna().astype(str)
-    return df
     
 def init_posneg_mapping(args):
 

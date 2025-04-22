@@ -18,10 +18,10 @@ workflow kanta_core {
 }
   # merge chunks
   String base_prefix =  "kanta_core" + if test then "_test" else ""
-  call merge { input: prefix = base_prefix,analysis_chunks = munge.analysis_chunk}
+  call merge { input: prefix = base_prefix,munged_chunks = munge.munged_chunk}
   call merge_logs {input: prefix =  base_prefix,logs = flatten(munge.logs)}
   # build parquet and release file
-  call release { input: docker = kanta_docker, mem = if test then 4 else 64, prefix = prefix, analysis_data  = merge.analysis_file}
+  call release { input: docker = kanta_docker, mem = if test then 4 else 64, prefix = prefix, munged_data  = merge.munged_file}
   # DOUBLE CHECK THAT WE ARE WORKING ONLY WITH SAMPLES IN INCLUSION LIST
   call validate_outputs {input : parquet_file = release.release_file_pq,docker=kanta_docker}
 }
@@ -60,16 +60,20 @@ task validate_outputs {
 task release {
   input {
     String docker
-    File analysis_data
+    File munged_data
     Int mem
     String prefix
   }
+  String meta_prefix = prefix "_metadata_columns"
   command <<<
   echo ~{mem}
   set -euxo pipefail
   awk '/^MemTotal:/{print $2/1024/1024}' /proc/meminfo
-  /usr/bin/time -v bash /sb_release/run.sh ~{analysis_data} . ~{prefix} analysis 2> tmp.txt
+  /usr/bin/time -v bash /sb_release/run.sh ~{munged_data} . ~{prefix} core 2> tmp.txt
   cat tmp.txt &&  cat tmp.txt | awk '/Maximum resident set size/ {print "Max memory usage (GB):", $6/1024/1024}'
+  /usr/bin/time -v bash /sb_release/run.sh ~{munged_data} . ~{meta_prefix} metadata 2> tmp.txt
+  cat tmp.txt &&  cat tmp.txt | awk '/Maximum resident set size/ {print "Max memory usage (GB):", $6/1024/1024}'
+  
   >>>
   runtime {
     docker : "~{docker}"
@@ -78,28 +82,24 @@ task release {
     cpu : mem/4
   }
   output {
-    File release_file_gz = "~{prefix}.txt.gz"
-    File release_file_pq = "~{prefix}.parquet"
-    File log = "~{prefix}.log"    
-    File schema = "~{prefix}_schema.json"
-    
+    Array[File] = glob("./*~{prefix}*/")
   }
 }
 
 task merge {
   input {
-    Array[File] analysis_chunks
+    Array[File] munged_chunks
     String prefix
   }
   String out_file = prefix + ".txt.gz"
   command <<<
   # write header to reports file
-  zcat ~{analysis_chunks[0]} | head -n1 | bgzip -c > ~{out_file}
+  zcat ~{munged_chunks[0]} | head -n1 | bgzip -c > ~{out_file}
   # merge files including reports
-  while read f; do echo $f && date +%Y-%m-%dT%H:%M:%S && zcat $f | sed -E 1d | bgzip -c >> ~{out_file} ; done < <(cat ~{write_lines(analysis_chunks)} | sort -V )
+  while read f; do echo $f && date +%Y-%m-%dT%H:%M:%S && zcat $f | sed -E 1d | bgzip -c >> ~{out_file} ; done < <(cat ~{write_lines(munged_chunks)} | sort -V )
   >>>
-  runtime {disks: "local-disk ~{ceil(size(analysis_chunks,'GB')) * 4 + 10} HDD"}
-  output {File analysis_file = out_file}
+  runtime {disks: "local-disk ~{ceil(size(munged_chunks,'GB')) * 4 + 10} HDD"}
+  output {File merged_file = out_file}
 }
 
 task merge_logs {

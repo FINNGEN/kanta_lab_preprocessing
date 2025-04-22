@@ -32,7 +32,10 @@ config = {
         'MEASUREMENT_EXTRA_INFO',
         'MEASUREMENT_FREE_TEXT',
         'SERVICE_PROVIDER_ID',
+        'STATEMENT_ID',
+        'STATEMENT_TEXT',
         'SEX'
+        
     ],
     'added_cols': [
         "extracted::MEASUREMENT_VALUE",
@@ -42,8 +45,7 @@ config = {
     ],
     'err_cols':['FINNGENID','APPROX_EVENT_DATETIME','ERR','ERR_VALUE'],
     'omop_unit_map':'finngen_qc/data/harmonization_counts.txt',
-    'posneg_map':'analysis/data/negpos_mapping.tsv',
-    'ft_outcome_mapping':'analysis/data/free_text_outcome_mapping.tsv',
+    'posneg_map':'core/data/negpos_mapping.tsv',
 
     'date_time_format': "%Y-%m-%dT%H:%M:%S",
     'free_text_measurement_replacements': [
