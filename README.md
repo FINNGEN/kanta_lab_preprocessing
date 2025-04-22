@@ -2,40 +2,32 @@
 
 Based on Kira Detrois' [existing repo](https://github.com/detroiki/kanta_lab).
 
-## Output Columns
+## CORE FILE
 
-| #   | Column Name | Easy Description | General Notes | Technical Notes |
-| --- | --- | --- | --- | --- |
-| 1   | `FINNGENID` | Pseudoanonimized IDs |     |     |
-| 2   | `EVENT_AGE` | Age of the individual at the time fo the event |     |     |
-| 3   | `APPROX_EVENT_DATETIME` | Approximate event (+- two weeks) of the event |
-| 4   | `TEST_ID` | National (THL) or local lab ID of the measurement |     |     |
-| 5   | `TEST_ID_SYSTEM` | Source of the lab ID | 0: local and 1: national (THL) |    
-| 6   | `CODING_SYSTEM` | Service provider  | Used to be the provider ID, now it's a more complex ID that we haven't quite cracked yet.|  
-| 7   | `CODING_SYSTEM_MAP` | Service provider mapped via Business Identity Code  |From a table in[data folder](/finngen_qc//data/thl_coding_manual_mapping.txt)| We noticed that the central digits in most codes were BIC  (sometimes missing leadin 0) and thus we could extract the macro information from the [bigger table](/finngen_qc//data/thl_sote_map_named.tsv). The result is not as granular as all subfields (e.g. ```Espoo_221```) are now merged into just `Espoon_Kaupunki (City of Espoo)`. |
-| 8   | `TEST_OUTCOME` | Abnormality of the lab measurement | Describes whether the test result is normal or abnormal i.e. too high or low low based on the laboratories reference values. This is **not** a quality control variable but to state it simply and inaccurately denotes whether the patient is healthy or not. See [AR/LABRA - Poikkeustilanneviestit](https://91.202.112.142/codeserver/pages/publication-view-page.xhtml?distributionKey=10329&versionKey=324&returnLink=fromVersionPublicationList) for the abbreviations. | The column contains a lot of missingness. |
-| 9  | `imputed::TEST_OUTCOME` | Imputed abnormality values of the lab measurement | Values are ```H,L,N```  for high,low and normal. All entries with valid OMOP ids with >100 counts were imputed, including already labelled ones. Entries with `TEST_OUTCOME` but with non-numeric measurement values were *not* taken into account. The `*` sign indicates that there were issues in defining the threshold for `H/L` thresholds. | In the data folder there's a [table](/finngen_qc/data/abnormality_estimation.table.tsv) that shows the values used to determine lower/higher limits for each OMOP id. `+-inf` values lack enough labels to define a threshold. The `PROBLEM` columns indicate instead the opposite issue, where is there's an imbalance between H/L labels and `N` so the median value of the OMOP id is returned. |
-| 10  | `MEASUREMENT_STATUS` | The measurement status | The final data contains only `C` \- corrected results or `F` \- final result | See [Koodistopalvelu - AR/LABRA - Tutkimusvastauksien tulkintakoodit 1997](https://koodistopalvelu.kanta.fi/codeserver/pages/publication-view-page.xhtml?distributionKey=2637&versionKey=321&returnLink=fromVersionPublicationList) |
-| 11| `REFERENCE_RANGE_GROUP` | The reference values for the measurement in text form | This can be used to define the lab abnormality with better coverage using regex expressions (-to be implemented for the whole data). |     |
-| 12...15| `REFERENCE_RANGE_[LOWER|UPPER]_[VALUE|UNIT]` | Reference lower|upper value|unit | Mostly mutually exclusive with `REFERENCE_RANGE_GROUP`     |
-| 16| `cleaned::TEST_NAME_ABBREVIATION` | Test abbreviation of the measurement from the data (local) or mapped using the THL map (national) |     | The map for the national (THL) IDs is in the [data folder](/finngen_qc//data/thl_lab_id_abbrv_map.tsv),  and was downloaded from [Kuntaliitto - Laboratoriotutkimusnimikkeistö](https://koodistopalvelu.kanta.fi/codeserver/pages/classification-view-page.xhtml?classificationKey=88&versionKey=120) |
-| 17| `cleaned::MEASUREMENT_VALUE` | The  numeric value of the measurement |     |     |
-| 18| `cleaned::MEASUREMENT_UNIT` | The unit of the measurement from the data |     |     |
-| 19| `harmonization_omop::MEASUREMENT_VALUE` | The  harmonized numeric value of the measurement |     | The conversion happens from  [a table](/finngen_qc/data/quantity_source_unit_conversion.tsv) and by defining a target unit from [another table](/finngen_qc/data/harmonization_counts.txt) built using the most common unit for each concept ID|
-| 20| `harmonization_omop::MEASUREMENT_UNIT` | The harmonized unit of the measurement from the data |     |     | |
-| 21| `harmonization_omop::CONVERSION_FACTOR` | The conversion factor used to map the value columns |     |     | |
-| 22| `harmonization_omop::IS_UNIT_VALID` | Boolean column with internal info about the unit |     | Internal use    | 
-| 23| `harmonization_omop::mappingStatus` | String column with internal info about the mapping|   | Internal use   | 
-| 24| `harmonization_omop::sourceCode` | String column with internal info about the abbreviation/unit|  |  Internal use   | 
-| 25| `harmonization_omop::OMOP_ID` | OMOP id of the mapping |  | The mapping is done using [a table](/finngen_qc/data/LABfi_ALL.usagi.csv)   | 
-| 26| `harmonization_omop::omopQuantity` | Quantity associated to the OMOP id of the mapping |  | The mapping is done using [a table](/finngen_qc/data/LABfi_ALL.usagi.csv)   |
-| 27| `source::MEASUREMENT_VALUE` | The original numeric value of the measurement |     |     |
-| 28| `source::MEASUREMENT_UNIT` | The original unit of the measurement |     |     |
-| 29| `source::TEST_NAME_ABBREVIATION` | The original abbreviation of the measurement |     |     |
-| 30 | `MEASUREMENT_EXTRA_INFO` | Contains some extra info about the measurement. Mostly short text descriptions of the measurement (e.g. _Lopullinenvastaus_ or _Keskisuihkuvirtsa>4h_ |
-| 31 |`SERVICE_PROVIDER_ID` | Yet another column with information about the provider. It follows the [thl sote table](/finngen_qc//data/thl_sote_map_named.tsv)  | 
-| 32 | `SEX` | Sex of the sample |     |     |
+This is the file that contains mostly just workable data for analysis, like values,outcomes and pos/neg status both raw and extracted from free text where possible.
 
+| Column Name | Easy Description | General Notes | Technical Notes |
+|---|---|---|---|
+| `ROW_ID` | ROW ID that allows to compare lines across steps of the pipeline |  |  |
+| `FINNGENID` | Pseudoanonimized IDs |  |  |
+| `SEX` | Sex of the sample |  |  |
+| `EVENT_AGE` | Age of the individual at the time fo the event |  |  |
+| `APPROX_EVENT_DATETIME` | Approximate event (+- two weeks) of the event |  |  |
+| `OMOP_CONCEPT_ID` | OMOP id of the mapping |  | The mapping is done using [a table](/finngen_qc/data/LABfi_ALL.usagi.csv) |
+
+
+## METADATA FILE
+
+This is the file that contains more general metadata and source data tha can be used for debugging purposes.
+
+| Column Name | Easy Description | General Notes | Technical Notes |
+|---|---|---|---|
+| `ROW_ID` | ROW ID that allows to compare lines across steps of the pipeline |  |  |
+| `FINNGENID` | Pseudoanonimized IDs |  |  |
+| `SEX` | Sex of the sample |  |  |
+| `EVENT_AGE` | Age of the individual at the time fo the event |  |  |
+| `APPROX_EVENT_DATETIME` | Approximate event (+- two weeks) of the event |  |  |
+| `OMOP_CONCEPT_ID` | OMOP id of the mapping |  | The mapping is done using [a table](/finngen_qc/data/LABfi_ALL.usagi.csv) |
 
 The raw to output column mapping is as follows:
 
@@ -57,15 +49,14 @@ The raw to output column mapping is as follows:
 | tutkimuksenlisatiet | MEASUREMENT_EXTRA_INFO |
 | antaja_organisaatioid | SERVICE_PROVIDER_ID|
 
-## TECHNICAL INFO
 
 ![Summary of the wdl pipeline](./kanta_pipeline.png)
 
-### Summary
+# Preprocessing
 
 There is a [config file](/finngen_qc/magic_config.py) that contains all the relevant "choices" about how to manipulate the data (e.g. which columns to include, how to rename columns, which values of which column to include etc.) so there are virtually no hard coded elements in the code itself.
 
-### DUPLICATE REMOVAL & SORTING
+## DUPLICATE REMOVAL & SORTING
 
 First the [wdl](/finngen_qc/wdl/sort_dup.wdl) trims the data of only the relevant columns (taken from the config) and sorts it by a series of columns (also specified in the config under `sort_cols`) so we can also discard duplicate entries. 
 
@@ -95,8 +86,7 @@ The code then performs the following actions:
 - IS_UNIT_VALID column is populated based on whether the unit is in usagi list
 - Harmonizes units to make sure all abbreviations with similar units are mapped to the same one (e.g. mg --> mg/24h for du-prot). Based on [a table](/finngen_qc/data/fix_unit_based_in_abbreviation.tsv) 
 - OMOP mapping from [a table](/finngen_qc/data/LABfi_ALL.usagi.csv)
-- unit harmonization (optional) from [a table](/finngen_qc/data/quantity_source_unit_conversion.tsv)
-- impute_abnormality  (with harmonization) creates the column `imputed::TEST_OUTCOME` based on lower/upper limits from [a table]((/finngen_qc/data/abnormality_estimation.table.tsv)). The limits for different definitions are built using [a script](/scripts/ab.py) and chosen by [another script](/scripts/impute_ab.py).
+- unit harmonization (optional but default) from [a table](/finngen_qc/data/quantity_source_unit_conversion.tsv)
 
 ## How it works
 The script reads in the data in chunks of  `--chunksize` length and it processes the lines with Python's pandas. With the flag `--mp` and `--jobs` the script runs each chunk into other smaller subchunks in parallel (efficiency TBD). The [filter folder](/finngen_qc/filters/) contains separate scripts that perform conceptually separate tasks. Each of them contains a global function of the same name of the script that gathers all individual functions that populate the script. In this way we can easily compartmentalize the munging/qc and add new features.
@@ -122,38 +112,29 @@ options:
   --unit-map {regex,map,none}  How to replace units. Map uses the unit_mapping.txt mapping in data and regex after. Regex does only regex. none skips it entirely.
   --harmonization [HARMONIZATION]  Path to tsv with concept id and target unit.
 
-
 ```
 
 
-# Analysis
+# Core
 
-The `analysis` folder contains the pipeline that produces a similar file, which is used for analysis purpose. The idea behind this file is to focus more on the values and to use more "aggressive" choices with regards to which values to include/exclude in downstream analysis. 
+The `core` folder contains the pipeline that produces a similar file, which is used for analysis purposes.
 
 The current version outputs 3 extra columns, which are taken from the `MEASUREMENT_FREE_TEXT` column, which cannot be shared due to data privacy reasons for the time being. The three columns are:
 
-| Column Name | Easy Description | General Notes | Technical Notes |
-| --- | --- | --- | --- |
-| `extracted::MEASUREMENT_VALUE` | Numerical values |  The column is mutually exclusive with `harmonization_omop::MEASUREMENT_VALUE`. In our analysis the units seemed to be pretty much always coherent with our target OMOP units, albeit for occasional clusters of outliers that are present also in the core data.   |  The content of the `MEASUREMENT_FREE_TEXT` colum is cleaned by removal of spaces, converted to lower case, the target omop unit is removed if present, certain result strings are removed. If we're left with a pure float number, it's considered to be an extracted value.  |
-| `extracted::IS_MEASUREMENT_EXTRACTED` | Boolean |   Boolean indicator of whether the values in the extracted column is original or extracted   |  In the very rare cases when both the original measurement column and a free text value can be extracted, the original one is preserved and this column is set to 0   |
-| `extracted::IS_POS` | Boolean |   Pos(1) or Neg(0) status   | We extracted all strings containing the substring pos/neg and we manually mapped them to pos/neg statuses. The mapping is stored in the [data folder](/analysis/data/negpos_mapping.tsv)      |
+| Column Name | Easy Description | General Notes | Technical Notes |  |
+|---|---|---|---|---|
+| `MEASUREMENT_VALUE_EXTRACTED` | Numerical values | The column is mutually exclusive with `harmonization_omop::MEASUREMENT_VALUE`. In our analysis the units seemed to be pretty much always coherent with our target OMOP units, albeit for occasional clusters of outliers that are present also in the core data. | The content of the `MEASUREMENT_FREE_TEXT` colum is cleaned by removal of spaces, converted to lower case, the target omop unit is removed if present, certain result strings are removed. If we're left with a pure float number, it's considered to be an extracted value. |  |
+| `OUTCOME_POS_EXTRACTED` | Boolean | Pos(1) or Neg(0) status | We extracted all strings containing the substring pos/neg and we manually mapped them to pos/neg statuses. The mapping is stored in the [data folder](/core/data/negpos_mapping.tsv) |  |
+| `TEST_OUTCOME_TEXT_EXTRACTED` | Strings | Simplified/summarized strings present in free text. E.g. (YLI 3.0 ml --> >3ml). |  |  |
 
 
 ## TECHNICAL INFO
 
 The princples are identical to the `finngen_qc` pipeline, just with different filters being used.
 
-### [EXTRACT](/analysis/filters/extract.py)
-This filters works with the `FREE_TEXT` column:
-- only fields with NA `MEASUREMENT_VALUE` and non NA `FREE_TEXT` are considered
-- the free text is converted to lower case and spaces are removed
-- the OMOP target unit string is removed
-- string replacements from `magic_config.py` are applied (e.g. the string `tutkimuksentulos`)
-- the remaining text is forced cast to float 
-- where the conversion took place `extracted::IS_POS` is set to 1
-- extracted and original measurements are merged into the `extracted::MEASUREMENT_VALUE` column
 
-### [QC](/analysis/filters/qc.py)
+
+### [QC](/core/filters/qc.py)
 
 This is for all sorts of QCing of the data, ideally for outlier filter/removal. For the time being the only QC in place is there for data privacy reasons:
 - all extracted values that can be misinterpreted as dates are removed (DDMMYY) as they can either be birth dates or the exact date of the examination, which is shifted +- 2 weeks for each FINNGENID
