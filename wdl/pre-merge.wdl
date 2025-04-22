@@ -102,7 +102,8 @@ task merge_files {
   }
   command <<<
   zcat ~{rr_files[0]} | head -n1 | bgzip -c > ~{out_file}
-  while read f; do  echo $f &&  zcat $f | sed -E 1d | bgzip -c >> ~{out_file}; done < ~{write_lines(rr_files)}
+  while read f; do  echo $f &&  zcat $f | sed -E 1d | bgzip -c >> tmp.txt.gz; done < ~{write_lines(rr_files)}
+  zcat tmp.txt.gz | awk 'BEGIN {OFS="\t"} NR==1 {print "ROW_ID", $0; next} {print NR-1, $0}'| bgzip -c > ~{out_file}
   wc -l ~{out_file}
   >>>
   runtime {disks:   "local-disk ~{ceil(size(rr_files,'GB'))*3 + 10} HDD"}

@@ -218,4 +218,5 @@ def write_chunk(df,i,out_file,out_cols,final_rename=None,logger = None):
 
     if final_rename:
         df.rename(columns = final_rename,inplace=True)
-    df[out_cols].to_csv(out_file, na_rep="NA",mode=mode, index=True, header=header,sep="\t", index_label='ROW_ID')
+
+    df[out_cols].to_csv(out_file, na_rep="NA",mode=mode, index=False, header=header,sep="\t")

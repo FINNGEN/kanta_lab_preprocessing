@@ -1,12 +1,12 @@
 {
-    "kanta_analysis.test": false,
-    "kanta_analysis.prefix": "kanta_analysis_ft_outcome",
+    "kanta_core.test": true,
+    "kanta_core.prefix": "kanta_core",
     # DATA INPUTS
-    "kanta_analysis.kanta_munged_data": "gs://fg-3/kanta_v2/munged/kanta_2025_03_18_munged.txt.gz",
-    "kanta_analysis.validate_outputs.inclusion_list": "gs://finngen-production-library-red/all_allowed_ids_to_sb/finngen_R13_finngenid_actual_inclusion_list.txt",
+    "kanta_core.kanta_munged_data": "gs://fg-3/kanta_v2/munged/kanta_2025_03_18_munged_reports.txt.gz",
+    "kanta_core.validate_outputs.inclusion_list": "gs://finngen-production-library-red/all_allowed_ids_to_sb/finngen_R13_finngenid_actual_inclusion_list.txt",
     # RUNTIME
-    "kanta_analysis.kanta_docker": "eu.gcr.io/finngen-refinery-dev/kanta:ft_outcome",
-    "kanta_analysis.split.n_chunks": 16,
-    "kanta_analysis.analysis.cpus": 8,
+    "kanta_core.kanta_docker": "eu.gcr.io/finngen-refinery-dev/kanta:core_cols_1.1",
+    "kanta_core.split.n_chunks": 16,
+    "kanta_core.munge.cpus": 8,
  
 }

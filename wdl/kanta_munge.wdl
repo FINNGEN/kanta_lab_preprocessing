@@ -55,11 +55,11 @@ task merge {
 
   command <<<
   # write header to reports file
-  zcat ~{munged_chunks[0]} | head -n1 | bgzip -c > tmp.gz
-  # merge files including reports
-  while read f; do echo $f && date +%Y-%m-%dT%H:%M:%S && zcat $f | sed -E 1d | bgzip -c >> tmp.gz ; done < <(cat ~{write_lines(munged_chunks)} | sort -V )
-  # remove duplicates
-  python3 /finngen_qc/duplicates.py --input tmp.gz --prefix ~{prefix}_munged_reports
+  zcat ~{munged_chunks[0]} | head -n1 | bgzip -c > tmp.txt.gz
+  # merge files 
+  while read f; do echo $f && date +%Y-%m-%dT%H:%M:%S && zcat $f | sed -E 1d | bgzip -c >> tmp.txt.gz ; done < <(cat ~{write_lines(munged_chunks)} | sort -V )
+  # REMOE DUPLICATES AND ADD ROW_ID
+  python3 /finngen_qc/duplicates.py --input tmp.gz --prefix ~{prefix}
   >>>
   runtime {
     disks: "local-disk ~{ceil(size(munged_chunks,'GB')) * 4 + 10} HDD"

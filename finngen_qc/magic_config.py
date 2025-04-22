@@ -23,12 +23,13 @@ config = {
     },
     "source_cols" : ['MEASUREMENT_VALUE','MEASUREMENT_UNIT','TEST_NAME_ABBREVIATION'],
     # ACCESSORY COLUMNS
-    'other_cols' : ['paikallinentutkimusnimikeid','laboratoriotutkimusnimikeid','APPROX_EVENT_DAY','TIME'],
+    'other_cols' : ['paikallinentutkimusnimikeid','laboratoriotutkimusnimikeid','APPROX_EVENT_DAY','TIME','ROW_ID'],
     # Cols used for sorting in the wdl.
     # N.B. the order is important as it is kept in the grepping!
     'sort_cols' : ['FINNGENID','APPROX_EVENT_DAY','TIME','laboratoriotutkimusnimikeid','paikallinentutkimusnimikeid','tutkimusvastauksentilaid','tutkimustulosarvo','tutkimustulosyksikko'],
     # LIST OF OUTPUT COLUMNS TO INCLUDE (VALUES ABOVE PLUS NEWLY GENERATED COLUMNS)
     'out_cols' :    [
+        'ROW_ID',
         'FINNGENID',
         'EVENT_AGE',
         'APPROX_EVENT_DATETIME',
