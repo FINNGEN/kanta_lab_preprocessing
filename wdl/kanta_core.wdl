@@ -1,6 +1,6 @@
 version 1.0
 
-workflow kanta_analysis {
+workflow kanta_core {
   input {
     String prefix
     String kanta_docker
@@ -11,11 +11,15 @@ workflow kanta_analysis {
 
   # splits input in chunks
   call split { input:test = test,kanta_data = kanta_munged_data}
-  scatter (i in range(length(split.chunks))) {call analysis { input: docker = kanta_docker, prefix = i,chunk = split.chunks[i] }}
+  scatter (i in range(length(split.chunks))) {
+    call munge {
+      input: docker = kanta_docker, prefix = i,chunk = split.chunks[i]
+    }
+}
   # merge chunks
-  String base_prefix =  "kanta_analysis" + if test then "_test" else ""
-  call merge { input: prefix = base_prefix,analysis_chunks = analysis.analysis_chunk}
-  call merge_logs {input: prefix =  base_prefix,logs = flatten(analysis.logs)}
+  String base_prefix =  "kanta_core" + if test then "_test" else ""
+  call merge { input: prefix = base_prefix,analysis_chunks = munge.analysis_chunk}
+  call merge_logs {input: prefix =  base_prefix,logs = flatten(munge.logs)}
   # build parquet and release file
   call release { input: docker = kanta_docker, mem = if test then 4 else 64, prefix = prefix, analysis_data  = merge.analysis_file}
   # DOUBLE CHECK THAT WE ARE WORKING ONLY WITH SAMPLES IN INCLUSION LIST
@@ -118,7 +122,7 @@ task merge_logs {
   }
 }
 
-task analysis {
+task munge {
   input {
     String docker
     File chunk
@@ -128,7 +132,7 @@ task analysis {
 
   command <<<
   set -euxo pipefail
-  python3 /analysis/main.py --gz  --mp --raw-data ~{chunk} --prefix ~{prefix} 
+  python3 /core/main.py --gz  --mp --raw-data ~{chunk} --prefix ~{prefix} 
   ls 
   >>>
   runtime {
@@ -138,7 +142,7 @@ task analysis {
     cpu : "~{cpus}"
   }
   output {
-    File analysis_chunk = "~{prefix}_analysis.txt.gz"
+    File munged_chunk = "~{prefix}_analysis.txt.gz"
     Array[File] logs = glob("./~{prefix}*txt")
   }
 }

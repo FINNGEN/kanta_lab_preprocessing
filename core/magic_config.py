@@ -36,11 +36,9 @@ config = {
     ],
     'added_cols': [
         "extracted::MEASUREMENT_VALUE",
-        "extracted::IS_MEASUREMENT_EXTRACTED",
+        "extracted::MEASUREMENT_VALUE_MERGED",
         "extracted::IS_POS",
         "extracted::TEST_OUTCOME_TEXT",
-        'merged::TEST_OUTCOME',
-        'merged::OUTCOME_SOURCE'
     ],
     'err_cols':['FINNGENID','APPROX_EVENT_DATETIME','ERR','ERR_VALUE'],
     'omop_unit_map':'finngen_qc/data/harmonization_counts.txt',

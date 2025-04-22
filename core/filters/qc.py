@@ -22,10 +22,9 @@ def check_dates_in_measurement(df, args):
     mes_col = "harmonization_omop::MEASUREMENT_VALUE"
     
     # First get only extracted rows
-    extracted_mask = df['extracted::IS_MEASUREMENT_EXTRACTED'] == 1
     str_series = df[col_name].fillna(0).astype(int).astype(str)
     is_six_digits = str_series.str.len() == 6
-    date_mask = is_six_digits # this will either be replace or be a an all False array
+    err_mask = is_six_digits # this will either be replace or be a an all False array
     if is_six_digits.any():
         
         # Extract potential day, month, year
@@ -39,10 +38,9 @@ def check_dates_in_measurement(df, args):
         valid_years = (years >= 0) & (years <= 99)
         
         # Combine all conditions
-        date_mask = valid_days & valid_months & valid_years
+        err_mask = valid_days & valid_months & valid_years
 
         
-    err_mask = (date_mask) & (extracted_mask)
     err_df = df[err_mask].copy().fillna("NA")
     err_df['ERR'] = 'DATE_IN_MEASUREMENT'
     err_df['ERR_VALUE'] = err_df['cleaned::TEST_NAME_ABBREVIATION'] + "::" + err_df[mes_col].astype(str) + "::" +  err_df.MEASUREMENT_FREE_TEXT  + '::' + err_df[col_name].astype(str)

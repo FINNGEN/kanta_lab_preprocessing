@@ -7,6 +7,6 @@ RUN pip3 install --upgrade scipy
 RUN  pip3 install -r requirements.txt
 
 ADD finngen_qc finngen_qc
-ADD analysis analysis
+ADD core core
 ADD sb_release sb_release
 
