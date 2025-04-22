@@ -1,5 +1,6 @@
 config = {
     'cols' :    [
+        'ROW_ID',
         'FINNGENID',
         'EVENT_AGE',
         'APPROX_EVENT_DATETIME',

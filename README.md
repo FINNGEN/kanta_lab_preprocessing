@@ -52,16 +52,21 @@ The raw to output column mapping is as follows:
 
 ![Summary of the wdl pipeline](./kanta_pipeline.png)
 
-# Preprocessing
 
-There is a [config file](/finngen_qc/magic_config.py) that contains all the relevant "choices" about how to manipulate the data (e.g. which columns to include, how to rename columns, which values of which column to include etc.) so there are virtually no hard coded elements in the code itself.
+# MERGE OF RAW DATA
 
-## DUPLICATE REMOVAL & SORTING
+Inputs reports and responses are sorted over the same keys and merged
 
+# DUPLICATE REMOVAL & SORTING
 First the [wdl](/finngen_qc/wdl/sort_dup.wdl) trims the data of only the relevant columns (taken from the config) and sorts it by a series of columns (also specified in the config under `sort_cols`) so we can also discard duplicate entries. 
 
-The code then performs the following actions:
-### [MINIMAL](/finngen_qc/filters/filter_minimal.py)
+
+# Preprocessing
+There is a [config file](/finngen_qc/magic_config.py) that contains all the relevant "choices" about how to manipulate the data (e.g. which columns to include, how to rename columns, which values of which column to include etc.) so there are virtually no hard coded elements in the code itself.
+
+## TECHNICAL INFO
+The code performs the following actions:
+## [MINIMAL](/finngen_qc/filters/filter_minimal.py)
 - output columns are initialized
 - spaces are removed everywhere in the text
 - the date is built in the right format
@@ -76,12 +81,12 @@ The code then performs the following actions:
 - SERVICE_PROVIDER_ID is updated where the mapping can happen
 - TEST_NAME_ABBREVIATIONs with problematic characters are edited (see `abbreviation_replacements` in the config)
 
-### [UNIT](/finngen_qc/filters/fix_unit.py)
+## [UNIT](/finngen_qc/filters/fix_unit.py)
 - Fixes strange characters in the lab unit field. Also moves to lower case for non NA values.
 - Mapping of units. This can be done either via regex (from config) or [through a mapping](/finngen_qc/data/unit_mapping.txt)
 - TEST_OUTCOME is edited to be consistent with the standard definition see AR/LABRA - Poikkeustilanneviestit. This means replacing `<` with `L`, `>` with `H`, `POS` with `A` and `NEG` with `N`.
 
-#### [harmonization](/finngen_qc/filters/harmonization.py)
+## [harmonization](/finngen_qc/filters/harmonization.py)
 - Mapping status is updated (internal thing)
 - IS_UNIT_VALID column is populated based on whether the unit is in usagi list
 - Harmonizes units to make sure all abbreviations with similar units are mapped to the same one (e.g. mg --> mg/24h for du-prot). Based on [a table](/finngen_qc/data/fix_unit_based_in_abbreviation.tsv) 
@@ -119,13 +124,14 @@ options:
 
 The `core` folder contains the pipeline that produces a similar file, which is used for analysis purposes.
 
-The current version outputs 3 extra columns, which are taken from the `MEASUREMENT_FREE_TEXT` column, which cannot be shared due to data privacy reasons for the time being. The three columns are:
+The current version outputs extra columns, which are taken from the `MEASUREMENT_FREE_TEXT` column, which cannot be shared due to data privacy reasons for the time being. The columns are:
 
-| Column Name | Easy Description | General Notes | Technical Notes |  |
-|---|---|---|---|---|
-| `MEASUREMENT_VALUE_EXTRACTED` | Numerical values | The column is mutually exclusive with `harmonization_omop::MEASUREMENT_VALUE`. In our analysis the units seemed to be pretty much always coherent with our target OMOP units, albeit for occasional clusters of outliers that are present also in the core data. | The content of the `MEASUREMENT_FREE_TEXT` colum is cleaned by removal of spaces, converted to lower case, the target omop unit is removed if present, certain result strings are removed. If we're left with a pure float number, it's considered to be an extracted value. |  |
-| `OUTCOME_POS_EXTRACTED` | Boolean | Pos(1) or Neg(0) status | We extracted all strings containing the substring pos/neg and we manually mapped them to pos/neg statuses. The mapping is stored in the [data folder](/core/data/negpos_mapping.tsv) |  |
-| `TEST_OUTCOME_TEXT_EXTRACTED` | Strings | Simplified/summarized strings present in free text. E.g. (YLI 3.0 ml --> >3ml). |  |  |
+| Column Name | Easy Description | General Notes | Technical Notes |
+|---|---|---|---|
+| `MEASUREMENT_VALUE_EXTRACTED` | Numerical values | The column is mutually exclusive with `harmonization_omop::MEASUREMENT_VALUE`. In our analysis the units seemed to be pretty much always coherent with our target OMOP units, albeit for occasional clusters of outliers that are present also in the core data. | The content of the `MEASUREMENT_FREE_TEXT` colum is cleaned by removal of spaces, converted to lower case, the target omop unit is removed if present, certain result strings are removed. If we're left with a pure float number, it's considered to be an extracted value. |
+| `extracted::MEASUREMENT_VALUE_MERGED` | extracted::MEASUREMENT_VALUE_MERGED | Merge of original value column and of extracted value column |  |
+| `OUTCOME_POS_EXTRACTED` | Boolean | Pos(1) or Neg(0) status | We extracted all strings containing the substring pos/neg and we manually mapped them to pos/neg statuses. The mapping is stored in the [data folder](/core/data/negpos_mapping.tsv) |
+| `TEST_OUTCOME_TEXT_EXTRACTED` | Strings | Simplified/summarized strings present in free text. E.g. (YLI 3.0 ml --> >3ml). |  |
 
 
 ## TECHNICAL INFO
