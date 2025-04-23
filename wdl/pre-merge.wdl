@@ -9,9 +9,9 @@ workflow pre_merge {
     String prefix
     String version
   }
-  ############
-  #--REPORTS--##
-  ############
+  #############
+  #--REPORTS--#
+  #############
   # sort report file based on new multi column key
   call sort_file as sort_report {
     input:
@@ -22,9 +22,9 @@ workflow pre_merge {
   # merge the reports file where ids match so free text is just one row
   call join_reports { input:reports= sort_report.sorted_file }
 
-  ##############
-  #--RESPONSES--##
-  ##############
+  ###############
+  #--RESPONSES--#
+  ###############
   # merge the various chunks into single files for each year
   call merge_responses {input:kanta_list=kanta_list}
   scatter (responses_file in merge_responses.merged_responses) {
@@ -39,10 +39,24 @@ workflow pre_merge {
     # join each response with the pre sorted reports file
     call merge_reports_responses {input:reports =join_reports.joined_reports ,responses = sort_responses.sorted_file}
   }
-  #########$###
-  #--MERGING--##
+  #############
+  #--MERGING--#
   #############
   call merge_files {input:rr_files = merge_reports_responses.merged_file,out_file = sub(prefix,"VERSION",if test then version +"_test" else version) }
+}
+
+task merge_files {
+  input {
+    Array[File] rr_files
+    String out_file
+  }
+  command <<<
+  zcat ~{rr_files[0]} | head -n1 | bgzip -c > ~{out_file}
+  while read f; do  echo $f &&  zcat $f | sed -E 1d | bgzip -c >> ~{out_file}; done < ~{write_lines(rr_files)}
+  zcat ~{out_file} | wc -l
+  >>>
+  runtime {disks: "local-disk ~{ceil(size(rr_files,'GB'))*3 + 10} HDD"}
+  output { File merged_file = out_file}
 }
 
 
@@ -94,21 +108,6 @@ task join_reports{
     File joined_reports = out_file
   }
 } 
-
-task merge_files {
-  input {
-    Array[File] rr_files
-    String out_file
-  }
-  command <<<
-  zcat ~{rr_files[0]} | head -n1 | bgzip -c > ~{out_file}
-  while read f; do  echo $f &&  zcat $f | sed -E 1d | bgzip -c >> tmp.txt.gz; done < ~{write_lines(rr_files)}
-  zcat tmp.txt.gz | awk 'BEGIN {OFS="\t"} NR==1 {print "ROW_ID", $0; next} {print NR-1, $0}'| bgzip -c > ~{out_file}
-  wc -l ~{out_file}
-  >>>
-  runtime {disks:   "local-disk ~{ceil(size(rr_files,'GB'))*3 + 10} HDD"}
-  output { File merged_file = out_file}
-}
 
 task merge_reports_responses {
   input {

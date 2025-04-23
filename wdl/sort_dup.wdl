@@ -50,46 +50,78 @@ task merge {
   # CONCAT PRE-SORTED FILES
   echo "SORT FILES"
   /usr/bin/time -v sort -t $'\t' -m -k ~{sep=" -k " sort_cols}  ~{sep=" " sorted_chunks}  > sorted.txt
+  # REMOVE DUPS
+  IFS=',' read -ra cols <<< ~{sep ="," sort_cols}
+  prefix="~{prefix}_$(date +"%Y_%m_%d")"
+  unique="${prefix}_unique.tsv.gz"
+  dups="${prefix}_duplicates.tsv.gz"
+  errs="${prefix}_err.tsv.gz"
+  echo "$unique"
+
+  header_content="ROW_ID\t$(cat ~{header})"
+  echo -e "$header_content" | gzip > "$unique"
+  echo -e "$header_content" | gzip > "$dups"
+  echo -e "$header_content" | gzip > "$errs"
+
   
-  python3 <<EOF
-  from operator import itemgetter
-  from datetime import datetime
-  import gzip
-  # get col indices
-  cols = [elem -1 for elem in [~{sep ="," sort_cols}]]
-  # initial empty values
-  values = ['']*len(cols)
-  date = datetime.now().strftime("%Y_%m_%d")
-  prefix = '~{prefix}' + f"_{date}"
-  unique = prefix + "_unique.tsv.gz"
-  dups   = prefix + "_duplicates.tsv.gz"
-  errs   = prefix + "_err.tsv.gz"
-  print(unique)
-  with open('sorted.txt') as i,gzip.open(dups,'wt') as dup,gzip.open(unique,'wt') as out,gzip.open(errs,'wt') as err:
-    # copy header to out files
-    with open('~{header}') as tmp: head = tmp.read()
-    out.write(head),dup.write(head)
-    dup_count,count,err_count = 0,0,0
-    for line in i:
-      # read in new sort values to compare
-      try:
-        new_values = itemgetter(*cols)(line.strip().split('\t'))
-        if new_values != values: # new value found, so update values and output to unique file   
-          values = new_values
-          f = out
-          count += 1
-        else:
-          f = dup
-          dup_count +=1
-      except:
-        f = err
-        err_count +=1
-      f.write(line)
-  print(count)
-  print(err_count)
-  print(dup_count)
-  print(round(dup_count/(count+dup_count),4))
-  EOF
+  # Initialize counters
+  row_id=0      # Current row number
+  count=0       # Count of unique records
+  dup_count=0   # Count of duplicate records
+  err_count=0   # Count of error records
+  prev_key=""   # Previous key for comparison
+  
+  # Process the sorted input file line by line
+  while IFS= read -r line; do
+      # Increment row counter for each line
+      ((row_id++))
+      # Initialize key for comparison and error flag
+      key=""
+      err=0
+      # Split the line into fields based on tab delimiter
+      IFS=$'\t' read -ra fields <<< "$line"
+      # Extract values from specified columns and build a composite key
+      for i in "${cols[@]}"; do
+          idx=$((i-1))  # Convert to 0-based index
+          if [ $idx -lt ${#fields[@]} ]; then
+              # Add field value to the key with a separator
+              key+="${fields[$idx]}|"
+          else
+              # If index is out of bounds, set error flag
+              err=1
+              break
+          fi
+      done
+      # WRite out to file(s)
+      if [ $err -eq 1 ]; then
+          # Error case: write to error file
+          echo -e "$row_id\t$line" | gzip >> "$errs"
+          ((err_count++))
+      elif [ "$key" != "$prev_key" ]; then
+          # New unique value: write to unique file
+          echo -e "$row_id\t$line" | gzip >> "$unique"
+          prev_key="$key"  # Update the previous key
+          ((count++))
+      else
+          # Duplicate value: write to duplicates file
+          echo -e "$row_id\t$line" | gzip >> "$dups"
+          ((dup_count++))
+      fi
+  done < sorted.txt  # Read from sorted.txt input file
+  
+  # Output statistics
+  echo $count       # Number of unique records
+  echo $err_count   # Number of error records
+  echo $dup_count   # Number of duplicate records
+
+  # Calculate and output duplication rate (avoiding divide-by-zero)
+  total=$((count+dup_count))
+  if [ $total -eq 0 ]; then
+      echo "0.0000"  # Handle case with no valid records
+  else
+      # Calculate percentage of duplicates with 4 decimal places
+      echo "scale=4; $dup_count/$total" | bc
+  fi
   >>>
   runtime {
     disks:   "local-disk ~{chunk_size*4} HDD"

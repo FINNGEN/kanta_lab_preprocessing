@@ -5,7 +5,6 @@ from functools import partial
 import pandas as pd
 import urllib.request
 import http.client as httplib
-
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
 def init_harmonization(args,logger):
@@ -13,7 +12,6 @@ def init_harmonization(args,logger):
     logger.info("UPDATING USAGI")
     repo = args.config['harmonization_repo']
     urls = [(repo+elem[1],os.path.join(dir_path,'data',elem[1])) for elem in args.config['harmonization_files'].values()]
-
     try:
         for url,out_file in urls:
             urllib.request.urlretrieve(url,out_file)
