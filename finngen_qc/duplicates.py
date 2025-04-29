@@ -15,14 +15,12 @@ def main(args):
     
     with gzip.open(args.input, 'rt') as i, gzip.open(dups, 'wt') as dup, gzip.open(unique, 'wt') as out:
         header = next(i)
-        # Add ROW_ID to header for unique file
         out.write(f"{header}")
         dup.write(header)
         cols = [header.strip().split().index(elem) for elem in args.duplicate_cols]
         values = [''] * len(cols)
         print(cols)
         dup_count = count = err_count = 0
-        row_id = 1
         
         for line in i:
             # Read in new sort values to compare
@@ -31,7 +29,6 @@ def main(args):
                 values = new_values
                 # Add row_id to unique entries
                 out.write(f"{line}")
-                row_id += 1
                 count += 1
             else:
                 dup.write(line)

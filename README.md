@@ -29,14 +29,14 @@ This is the file that contains mostly just workable data for analysis, like valu
 
 This is the file that contains more general metadata and source data tha can be used for debugging purposes.
 
-| Column Name | Easy Description | General Notes | Technical Notes |
-|---|---|---|---|
-| `ROW_ID` | ROW ID that allows to compare lines across steps of the pipeline |  |  |
-| `FINNGENID` | Pseudoanonimized IDs |  |  |
-| `SEX` | Sex of the sample |  |  |
-| `EVENT_AGE` | Age of the individual at the time fo the event |  |  |
-| `APPROX_EVENT_DATETIME` | Approximate event (+- two weeks) of the event |  |  |
-| `OMOP_CONCEPT_ID` | OMOP id of the mapping |  | The mapping is done using [a table](/finngen_qc/data/LABfi_ALL.usagi.csv) |
+| Column Name | Easy Description | Technical Notes |
+|---|---|---|
+| `ROW_ID` | ROW ID that allows to compare lines across steps of the pipeline |  |
+| `FINNGENID` | Pseudoanonimized IDs |  |
+| `SEX` | Sex of the sample |  |
+| `EVENT_AGE` | Age of the individual at the time fo the event |  |
+| `APPROX_EVENT_DATETIME` | Approximate event (+- two weeks) of the event |  |
+| `OMOP_CONCEPT_ID` | OMOP id of the mapping | The mapping is done using [a table](/finngen_qc/data/LABfi_ALL.usagi.csv) |
 
 The raw to output column mapping is as follows:
 
@@ -55,8 +55,8 @@ The raw to output column mapping is as follows:
 |viitevalialkuyksikko|REFERENCE_RANGE_LOWER_UNIT|
 |viitevaliloppuarvo|REFERENCE_RANGE_UPPER_VALUE|
 |viitevaliloppuyksikko|REFERENCE_RANGE_UPPER_UNIT|
-| tutkimuksenlisatiet | MEASUREMENT_EXTRA_INFO |
-| antaja_organisaatioid | SERVICE_PROVIDER_ID|
+|tutkimuksenlisatiet | MEASUREMENT_EXTRA_INFO |
+|antaja_organisaatioid | SERVICE_PROVIDER_ID|
 
 
 ![Summary of the wdl pipeline](./kanta_pipeline.png)
