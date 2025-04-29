@@ -14,8 +14,8 @@ def init_harmonization(args,logger):
     urls = [(repo+elem[1],os.path.join(dir_path,'data',elem[1])) for elem in args.config['harmonization_files'].values()]
     try:
         for url,out_file in urls:
-            urllib.request.urlretrieve(url,out_file)
-
+            #urllib.request.urlretrieve(url,out_file)
+            pass
     except:
         logger.warning("COULD NOT DOWNLOAD FILES: USAGI FILES NOT UPDATED")
         logger.warning(urls)
@@ -31,8 +31,7 @@ def init_harmonization(args,logger):
     args.config['unit_conversion']= args.config['unit_conversion'].rename(columns={'source_unit_valid':'MEASUREMENT_UNIT'})
     args.config['unit_conversion']['only_to_omop_concepts']= args.config['unit_conversion']['only_to_omop_concepts'].astype("Int64")
     args.config['usagi_mapping']['harmonization_omop::OMOP_ID'] =args.config['usagi_mapping']['harmonization_omop::OMOP_ID'].astype(int)
-
-    logger.debug(args.config['usagi_mapping'][args.config['usagi_mapping']["TEST_NAME_ABBREVIATION"] == 'p-vrab-o']_df)
+    logger.debug(args.config['usagi_mapping'][args.config['usagi_mapping']["TEST_NAME_ABBREVIATION"] == 'p-vrab-o'])
 
     if args.harmonization:
         #merges harmonization table from vincent with chosen target unit for each concept id
@@ -43,8 +42,8 @@ def init_harmonization(args,logger):
         mask = (args.config['unit_conversion']['only_to_omop_concepts'] == args.config['unit_conversion']['harmonization_omop::OMOP_ID'].astype(int)) | (args.config['unit_conversion']['only_to_omop_concepts'].isna())
         args.config['unit_conversion'] = args.config['unit_conversion'][mask]
         #DEBUG
+        args.config['unit_conversion']['only_to_omop_concepts'] = ~args.config['unit_conversion']['only_to_omop_concepts'].isna().astype(bool)
         logger.debug(args.config['unit_conversion'][~args.config['unit_conversion']['only_to_omop_concepts'].isna()])
-
 
     #logger.debug(args.config['usagi_units'])
     logger.debug("USGAGI MAPPING")

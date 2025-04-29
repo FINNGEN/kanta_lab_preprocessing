@@ -52,7 +52,6 @@ config = {
         'harmonization_omop::CONVERSION_FACTOR',
         'harmonization_omop::IS_UNIT_VALID',
         'harmonization_omop::mappingStatus',
-        'harmonization_omop::sourceCode',
         'harmonization_omop::OMOP_ID',
         'harmonization_omop::omopQuantity',
         'source::MEASUREMENT_VALUE',
