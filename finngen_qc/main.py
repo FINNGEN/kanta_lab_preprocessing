@@ -163,7 +163,7 @@ if __name__=='__main__':
     parser.add_argument("--harmonization", type=file_exists, nargs = '?',help="Path to tsv with concept id and target unit.",const = os.path.join(dir_path,'data','harmonization_counts.txt') )
     
     args = parser.parse_args()
-    
+    print(args.harmonization)
     make_sure_path_exists(args.out)
     # setup logging
     logger = logging.getLogger(__name__)

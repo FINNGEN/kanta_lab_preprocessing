@@ -30,8 +30,15 @@ def unit_harmonization(df,args):
         df = pd.merge(df,args.config['unit_conversion'],on=['harmonization_omop::OMOP_ID','harmonization_omop::omopQuantity','MEASUREMENT_UNIT'],how='left').fillna(np.nan)
         # MAKE SURE MEASUREMENT VALUES is as float column
         df['MEASUREMENT_VALUE'] =pd.to_numeric(df['MEASUREMENT_VALUE'],errors='coerce')
+        mask = (df['only_to_omop_concepts'].isna())
         # MULTIPLY VALUE*CONVERSION
-        df['harmonization_omop::MEASUREMENT_VALUE'] = df['harmonization_omop::CONVERSION_FACTOR'].astype(float)*df.MEASUREMENT_VALUE.astype(float)
+        df.loc[mask,'harmonization_omop::MEASUREMENT_VALUE'] = df.loc[mask,'harmonization_omop::CONVERSION_FACTOR'].astype(float)*df.loc[mask,'MEASUREMENT_VALUE'].astype(float)
+        # Convert X to measurement value in the formula and evaluate
+        df.loc[~mask, 'harmonization_omop::MEASUREMENT_VALUE'] = df.loc[~mask].apply(
+                lambda row: round(eval(row['harmonization_omop::CONVERSION_FACTOR'].replace('X', str(float(row['MEASUREMENT_VALUE'])))),2), 
+                axis=1
+            )
+            
         #BRINGS BACK STR TYPE
         df[['harmonization_omop::MEASUREMENT_VALUE','MEASUREMENT_VALUE','harmonization_omop::CONVERSION_FACTOR','harmonization_omop::MEASUREMENT_UNIT']]=df[['harmonization_omop::MEASUREMENT_VALUE','MEASUREMENT_VALUE','harmonization_omop::CONVERSION_FACTOR','harmonization_omop::MEASUREMENT_UNIT']].fillna("NA")
         

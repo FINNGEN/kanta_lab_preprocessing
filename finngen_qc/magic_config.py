@@ -165,13 +165,13 @@ config = {
     ],
 
     'abbreviation_replacements': [(r'–','-')],
-    'harmonization_repo':'https://raw.githubusercontent.com/FINNGEN/kanta_lab_harmonisation_public/main/MAPPING_TABLES/',
+    'harmonization_repo':'https://raw.githubusercontent.com/FINNGEN/kanta_lab_harmonisation_public/adding-formulas-to-units-conversion/MAPPING_TABLES/',
     #list of harmonization files along with columns to use
     'harmonization_files' : {
         'usagi_units':[['sourceCode'],'UNITSfi.usagi.csv'],
         'unit_abbreviation_fix':[['TEST_NAME_ABBREVIATION','source_unit_clean','source_unit_clean_fix'],'fix_unit_based_in_abbreviation.tsv'],
         'usagi_mapping':[['mappingStatus','conceptId','ADD_INFO:omopQuantity','ADD_INFO:testNameAbbreviation','ADD_INFO:measurementUnit'],'LABfi_ALL.usagi.csv'],
-        'unit_conversion':[['omop_quantity','source_unit_valid','to_source_unit_valid','conversion'],'quantity_source_unit_conversion.tsv']
+        'unit_conversion':[['omop_quantity','source_unit_valid','to_source_unit_valid','conversion','only_to_omop_concepts'],'quantity_source_unit_conversion.tsv']
     },
     
     'harmonization_col_map' : {

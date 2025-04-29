@@ -15,6 +15,7 @@ def init_harmonization(args,logger):
     try:
         for url,out_file in urls:
             urllib.request.urlretrieve(url,out_file)
+
     except:
         logger.warning("COULD NOT DOWNLOAD FILES: USAGI FILES NOT UPDATED")
         logger.warning(urls)
@@ -28,18 +29,21 @@ def init_harmonization(args,logger):
         
     #SPECIFIC RENAMING NEEDED
     args.config['unit_conversion']= args.config['unit_conversion'].rename(columns={'source_unit_valid':'MEASUREMENT_UNIT'})
+    args.config['unit_conversion']['only_to_omop_concepts']= args.config['unit_conversion']['only_to_omop_concepts'].astype("Int64")
     args.config['usagi_mapping']['harmonization_omop::OMOP_ID'] =args.config['usagi_mapping']['harmonization_omop::OMOP_ID'].astype(int)
 
-    tmp_df = args.config['usagi_mapping'][args.config['usagi_mapping']["TEST_NAME_ABBREVIATION"] == 'p-vrab-o']
-    logger.debug(tmp_df)
+    logger.debug(args.config['usagi_mapping'][args.config['usagi_mapping']["TEST_NAME_ABBREVIATION"] == 'p-vrab-o']_df)
 
     if args.harmonization:
         #merges harmonization table from vincent with chosen target unit for each concept id
         logger.debug('merge harmonization counts and table')
         harmonization_counts = pd.read_csv(args.harmonization,sep='\t')
         args.config['unit_conversion'] = pd.merge(args.config['unit_conversion'],harmonization_counts,on=['harmonization_omop::omopQuantity','harmonization_omop::MEASUREMENT_UNIT'])
+        #only keep entries where the OMOP ID exception matches the OMOP ID column
+        mask = (args.config['unit_conversion']['only_to_omop_concepts'] == args.config['unit_conversion']['harmonization_omop::OMOP_ID'].astype(int)) | (args.config['unit_conversion']['only_to_omop_concepts'].isna())
+        args.config['unit_conversion'] = args.config['unit_conversion'][mask]
         #DEBUG
-        logger.debug(args.config['unit_conversion'][args.config['unit_conversion']['harmonization_omop::OMOP_ID'] == 3027238])
+        logger.debug(args.config['unit_conversion'][~args.config['unit_conversion']['only_to_omop_concepts'].isna()])
 
 
     #logger.debug(args.config['usagi_units'])
@@ -49,9 +53,6 @@ def init_harmonization(args,logger):
     logger.debug("UNIT CONVERSION")
     logger.debug(args.config['unit_conversion'])
     return args
-
-
-
 
     
 def init_log_files(args):
@@ -67,19 +68,6 @@ def init_log_files(args):
     args.abbr_file = os.path.join(args.out,f"{args.prefix}_abbr.txt")
     with open(args.abbr_file,'wt') as abbr:abbr.write('\t'.join(['FINREGISTRYID','TEST_DATE_TIME','old_abbr','MEASUREMENT_UNIT','TEST_NAME_ABBREVIATION']) + '\n')
     
-
-
-def have_internet() -> bool:
-    conn = httplib.HTTPSConnection("8.8.8.8", timeout=5)
-    try:
-        conn.request("HEAD", "/")
-        return True
-    except Exception:
-        return False
-    finally:
-        conn.close()
-
-
 def mapcount(filename):
 
     if not os.path.isfile(filename):
