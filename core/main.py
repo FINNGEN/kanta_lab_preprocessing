@@ -172,9 +172,8 @@ if __name__=='__main__':
     # setup config
     args.config = config
     args = get_stuff_from_finngen_qc(args)
-
-    args.config['cols']  = config['cols']
-    args.config['out_cols']  = config['cols'] + config['added_cols']
+    # move free text stuff to the end as it causes issues
+    args.config['out_cols']  = [item for item in config['cols'] + config['added_cols'] if item not in args.config['sensitive_cols']] + args.config['sensitive_cols']
     logger.debug(args.config['out_cols'])
     init_log_files(args)
 

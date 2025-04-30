@@ -16,9 +16,9 @@ workflow kanta_core {
       input: docker = kanta_docker, prefix = i,chunk = split.chunks[i]
     }
   }
-  String base_prefix =  "kanta_core_test" + if test then "_test" else ""
+  String base_prefix =  "kanta_core" + if test then "_test" else ""
   # merge chunks & logs
-  call merge { input: prefix = base_prefix,munged_chunks = munge.munged_chunk}
+  call merge { input: prefix = base_prefix,munged_chunks = munge.munged_chunk,docker=kanta_docker}
   call merge_logs {input: prefix =  base_prefix,logs = flatten(munge.logs)}
   # build parquet and release file
   call release { input: docker = kanta_docker, mem = if test then 4 else 64, prefix = prefix, munged_data  = merge.merged_file}
@@ -91,16 +91,27 @@ task merge {
   input {
     Array[File] munged_chunks
     String prefix
+    String docker
   }
   String out_file = prefix + ".txt.gz"
+  String dup_file = prefix +".duplicates.txt.gz"
   command <<<
   # write header to reports file
-  zcat ~{munged_chunks[0]} | head -n1 | bgzip -c > ~{out_file}
+  zcat ~{munged_chunks[0]} | head -n1 | bgzip -c > tmp.txt.gz
   # merge files including reports
-  while read f; do echo $f && date +%Y-%m-%dT%H:%M:%S && zcat $f | sed -E 1d | bgzip -c >> ~{out_file} ; done < <(cat ~{write_lines(munged_chunks)} | sort -V )
+  while read f; do echo $f && date +%Y-%m-%dT%H:%M:%S && zcat $f | sed -E 1d | bgzip -c >> tmp.txt.gz ; done < <(cat ~{write_lines(munged_chunks)} | sort -V )
+
+  python3 /core/duplicates.py --input tmp.gz --prefix ~{prefix}
+
   >>>
-  runtime {disks: "local-disk ~{ceil(size(munged_chunks,'GB')) * 4 + 10} HDD"}
-  output {File merged_file = out_file}
+  runtime {
+    disks: "local-disk ~{ceil(size(munged_chunks,'GB')) * 4 + 10} HDD"
+    docker : "~{docker}"
+  }
+  output {
+    File merged_file = out_file
+    File duplicates = dup_file
+  }
 }
 
 task merge_logs {

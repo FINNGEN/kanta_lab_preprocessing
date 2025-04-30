@@ -9,7 +9,6 @@ config = {
         'CODING_SYSTEM',
         'CODING_SYSTEM_MAP',
         'TEST_OUTCOME',
-        'imputed::TEST_OUTCOME',
         'MEASUREMENT_STATUS',
         'REFERENCE_RANGE_GROUP',
         'REFERENCE_RANGE_LOWER_VALUE',
@@ -24,7 +23,6 @@ config = {
         'harmonization_omop::CONVERSION_FACTOR',
         'harmonization_omop::IS_UNIT_VALID',
         'harmonization_omop::mappingStatus',
-        'harmonization_omop::sourceCode',
         'harmonization_omop::OMOP_ID',
         'harmonization_omop::omopQuantity',
         'source::MEASUREMENT_VALUE',
@@ -39,12 +37,22 @@ config = {
         
     ],
     'added_cols': [
+        "imputed::TEST_OUTCOME",
         "extracted::MEASUREMENT_VALUE",
         "extracted::MEASUREMENT_VALUE_MERGED",
         "extracted::IS_POS",
-        "extracted::TEST_OUTCOME_TEXT",
+        "extracted::TEST_OUTCOME_TEXT"
     ],
+    'sensitive_cols':[
+        'MEASUREMENT_FREE_TEXT',
+        'STATEMENT_ID',
+        'STATEMENT_TEXT'
+    ],
+
     'err_cols':['ROW_ID','FINNGENID','APPROX_EVENT_DATETIME','ERR','ERR_VALUE'],
+    'dup_cols':['FINNGENID','APPROX_EVENT_DATETIME','harmonization_omop::OMOP_ID','cleaned::TEST_NAME_ABBREVIATION','extracted::MEASUREMENT_VALUE_MERGED','imputed::TEST_OUTCOME','extracted::TEST_OUTCOME_TEXT','extracted::IS_POS'],
+
+
     'omop_unit_map':'finngen_qc/data/harmonization_counts.txt',
     'posneg_map':'core/data/negpos_mapping.tsv',
 

@@ -16,30 +16,12 @@ SELECT
   `extracted::IS_POS` AS OUTCOME_POS_EXTRACTED
     
   FROM file({filePathMungedTxtGz:String}, TSVWithNames) kanta_lab_table
-
+	 
   -- Sorting by ROW_ID
  ORDER BY ROW_ID
 	  
-  -- Deduplicating rows.
- LIMIT 1 BY (
-   FINNGENID,
-   SEX,
-   APPROX_EVENT_DATETIME,
-   EVENT_AGE,
-   OMOP_CONCEPT_ID,
-   TEST_NAME,
-   MEASUREMENT_VALUE_HARMONIZED,
-   MEASUREMENT_UNIT_HARMONIZED,
-   MEASUREMENT_VALUE_EXTRACTED,
-   MEASUREMENT_VALUE_MERGED,
-   TEST_OUTCOME,
-   TEST_OUTCOME_IMPUTED,
-   TEST_OUTCOME_TEXT_EXTRACTED,
-   OUTCOME_POS_EXTRACTED
- )
-
--- Set output format to TSV-gzipped with a header.
-FORMAT TSVWithNames
-
--- Disable data type inference from TSV text file.
-SETTINGS input_format_tsv_use_best_effort_in_schema_inference = 0
+  -- Set output format to TSV-gzipped with a header
+	  FORMAT TSVWithNames
+	  
+  -- Disable data type inference from TSV text file.
+	  SETTINGS input_format_tsv_use_best_effort_in_schema_inference = 0

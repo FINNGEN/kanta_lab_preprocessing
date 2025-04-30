@@ -9,7 +9,6 @@ def main(args):
     date = datetime.now().strftime("%Y_%m_%d")
     unique = os.path.join(args.out, f"{args.prefix}.txt.gz")
     dups = os.path.join(args.out, f"{args.prefix}_duplicates.txt.gz")
-    
     print(f"Writing unique entries to: {unique}")
     print(f"Writing duplicates to: {dups}")
     
@@ -20,11 +19,12 @@ def main(args):
         cols = [header.strip().split().index(elem) for elem in args.duplicate_cols]
         values = [''] * len(cols)
         print(cols)
+        print(f"bash {','.join(map(str,[elem +1 for elem in cols]))}")
         dup_count = count = err_count = 0
-        
+        print(itemgetter(*cols)(header.strip().split()))
         for line in i:
             # Read in new sort values to compare
-            new_values = itemgetter(*cols)(line.strip().split())
+            new_values = itemgetter(*cols)(line.strip().split('\t'))
             if new_values != values:  # New value found
                 values = new_values
                 # Add row_id to unique entries
@@ -49,6 +49,7 @@ if __name__ == '__main__':
     parser.add_argument('-o', "--out", type=str, help="Folder in which to save the results (default = current working directory)", default=os.getcwd())
     args = parser.parse_args()
     args.duplicate_cols = config['dup_cols']
+    print(args.duplicate_cols)
     if not args.prefix:
         args.prefix = Path(args.input).stem
     main(args)

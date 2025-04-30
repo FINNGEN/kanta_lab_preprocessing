@@ -30,3 +30,4 @@ SELECT
 	  
   -- Disable data type inference from TSV text file.
 	  SETTINGS input_format_tsv_use_best_effort_in_schema_inference = 0
+	  
