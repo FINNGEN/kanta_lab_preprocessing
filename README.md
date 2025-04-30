@@ -37,6 +37,18 @@ This is the file that contains more general metadata and source data tha can be 
 | `EVENT_AGE` | Age of the individual at the time fo the event |  |
 | `APPROX_EVENT_DATETIME` | Approximate event (+- two weeks) of the event |  |
 | `OMOP_CONCEPT_ID` | OMOP id of the mapping | The mapping is done using [a table](/finngen_qc/data/LABfi_ALL.usagi.csv) |
+| `TEST_ID` | National (THL) or local lab ID of the measurement |  |
+| `TEST_ID_IS_NATIONAL` | Source of the lab ID | 0: local and 1: national (THL) |
+| `TEST_NAME_SOURCE` | The original abbreviation of the measurement |  |
+| `MEASUREMENT_VALUE_SOURCE` | Original measurement value |  |
+| `MEASUREMENT_UNIT_SOURCE` | Original measurement unit |  |
+| `MEASUREMENT_STATUS` | The measurement status | The final data contains only `C` \- corrected results or `F` \- final result \| See [Koodistopalvelu - AR/LABRA - Tutkimusvastauksien tulkintakoodit 1997](https://koodistopalvelu.kanta.fi/codeserver/pages/publication-view-page.xhtml?distributionKey=2637&versionKey=321&returnLink=fromVersionPublicationList) |
+| `REFERENCE_RANGE_GROUP` | The reference values for the measurement in text form | This can be used to define the lab abnormality with better coverage using regex expressions (-to be implemented for the whole data). |
+| `REFERENCE_RANGE_[LOWER\|UPPER]_[VALUE\|UNIT]` | Reference lower\|upper value\|unit \| Mostly mutually exclusive with `REFERENCE_RANGE_GROUP` |  |
+| `CODING_SYSTEM_ORG` | Name (if present) of the uploading org, mapped via Business Identity Code | From a table in[data folder](/finngen_qc//data/thl_coding_manual_mapping.txt). We noticed that the central digits in most codes were BIC (sometimes missing leadin 0) and thus we could extract the macro information from the [bigger table](/finngen_qc/data/thl_sote_map_named.tsv). The result is not as granular as all subfields (e.g. ```Espoo_221```) are now merged into just `Espoon_Kaupunki (City of Espoo)`. |
+| `CODING_SYSTEM_OID` | ID of what is probably the org that logged the data in the system. |  |
+| `SERVICE_PROVIDER_ID` | Probably the id of the place where the lab was taken/processed. | It follows the [thl sote table](/finngen_qc//data/thl_sote_map_named.tsv) |
+
 
 The raw to output column mapping is as follows:
 

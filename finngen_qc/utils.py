@@ -14,8 +14,7 @@ def init_harmonization(args,logger):
     urls = [(repo+elem[1],os.path.join(dir_path,'data',elem[1])) for elem in args.config['harmonization_files'].values()]
     try:
         for url,out_file in urls:
-            #urllib.request.urlretrieve(url,out_file)
-            pass
+            urllib.request.urlretrieve(url,out_file)
     except:
         logger.warning("COULD NOT DOWNLOAD FILES: USAGI FILES NOT UPDATED")
         logger.warning(urls)

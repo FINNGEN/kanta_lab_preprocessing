@@ -47,41 +47,24 @@ task merge {
   input {
     Array[File] munged_chunks
     String prefix
-    Array[String] reports_columns
     String docker 
 
   }
   String out_file = prefix +"_munged.txt.gz"
-  String dup_file = prefix +"_munged_duplicates.txt.gz"
-  String reports_file = prefix +"_munged_reports.txt.gz"
 
   command <<<
-  # write header to reports file
-  zcat ~{munged_chunks[0]} | head -n1 | bgzip -c > tmp.gz
-
-  # merge files including reports
-  while read f; do echo $f && date +%Y-%m-%dT%H:%M:%S && zcat $f | sed -E 1d | bgzip -c >> tmp.gz ; done < <(cat ~{write_lines(munged_chunks)} | sort -V )
-
-  # remove duplicates
-  python3 /finngen_qc/duplicates.py --input tmp.gz --prefix ~{prefix}_munged_reports
-
-  # EXTRACT REPORTS COLUMNS
-  COLS=$(zcat ~{reports_file} | head -n1 | tr '\t' '\n' | grep -wnf ~{write_lines(reports_columns)}  | cut -d : -f1 | tr '\n' ',' | sed 's/,$//')
-  echo $COLS
-  zcat ~{reports_file} | cut -f $COLS --complement | bgzip -c > ~{out_file}
-  zcat  ~{prefix}_munged_reports_duplicates.txt.gz | cut -f $COLS --complement | bgzip -c > ~{dup_file}
-  
+  # write header
+  zcat ~{munged_chunks[0]} | head -n1 | bgzip -c > ~{out_file}
+  # merge files without headers
+  while read f; do echo $f && date +%Y-%m-%dT%H:%M:%S && zcat $f | sed -E 1d | bgzip -c >> ~{out_file} ; done < <(cat ~{write_lines(munged_chunks)} | sort -V )
   >>>
   runtime {
     disks: "local-disk ~{ceil(size(munged_chunks,'GB')) * 4 + 10} HDD"
     docker : "~{docker}"
-
   }
  
   output {
-    File munged_all = reports_file
     File munged = out_file
-    File duplicates = dup_file
   }
 }
 
@@ -123,7 +106,7 @@ task munge {
   set -euxo pipefail
   python3 /finngen_qc/main.py  --out .  --raw-data ~{chunk} --log info --mp --harmonization --gz --prefix ~{prefix}
   # MERGE WITH SEX EXCLUDING SAMPLES NOT IN SEX MAP (AND THUS IN INCLUSION LIST)
-  join --header -t $'\t' -o auto -e NA <(zcat ~{out_chunk}  ) ~{sex_map} | bgzip -c > tmp.txt.gz
+  join --header -t $'\t' -1 2 -o auto -e NA <(zcat ~{out_chunk} ) ~{sex_map} | awk -F'\t' 'BEGIN {OFS="\t"} { t = $1; $1 = $2; $2 = t; print; }' | bgzip -c > tmp.txt.gz
   zcat tmp.txt.gz | wc -l  &&  zcat ~{out_chunk} | wc -l
   mv tmp.txt.gz ~{out_chunk}
   >>>
