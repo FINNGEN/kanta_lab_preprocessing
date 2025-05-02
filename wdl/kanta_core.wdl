@@ -22,7 +22,6 @@ workflow kanta_core {
   call merge_logs {input: prefix =  base_prefix,logs = flatten(munge.logs)}
   # build parquet and release file
   call release { input: docker = kanta_docker, mem = if test then 4 else 64, prefix = prefix, munged_data  = merge.merged_file}
-  # DOUBLE CHECK THAT WE ARE WORKING ONLY WITH SAMPLES IN INCLUSION LIST
   call validate_outputs {input : parquet_file = release.core_files[1],docker=kanta_docker}
 }
 
@@ -94,14 +93,14 @@ task merge {
     String docker
   }
   String out_file = prefix + ".txt.gz"
-  String dup_file = prefix +".duplicates.txt.gz"
+  String dup_file = prefix +"_duplicates.txt.gz"
   command <<<
   # write header to reports file
   zcat ~{munged_chunks[0]} | head -n1 | bgzip -c > tmp.txt.gz
   # merge files including reports
   while read f; do echo $f && date +%Y-%m-%dT%H:%M:%S && zcat $f | sed -E 1d | bgzip -c >> tmp.txt.gz ; done < <(cat ~{write_lines(munged_chunks)} | sort -V )
 
-  python3 /core/duplicates.py --input tmp.gz --prefix ~{prefix}
+  python3 /core/duplicates.py --input tmp.txt.gz --prefix ~{prefix}
 
   >>>
   runtime {
