@@ -16,7 +16,7 @@ workflow kanta_core {
       input: docker = kanta_docker, prefix = i,chunk = split.chunks[i]
     }
   }
-  String base_prefix =  "kanta_core" + if test then "_test" else ""
+  String base_prefix =  "kanta" + if test then "_test" else ""
   # merge chunks & logs
   call merge { input: prefix = base_prefix,munged_chunks = munge.munged_chunk,docker=kanta_docker}
   call merge_logs {input: prefix =  base_prefix,logs = flatten(munge.logs)}
@@ -63,12 +63,13 @@ task release {
     Int mem
     String prefix
   }
+  String core_prefix = prefix +  "_core"
   String meta_prefix = prefix +  "_metadata_columns"
   command <<<
   echo ~{mem}
   set -euxo pipefail
   awk '/^MemTotal:/{print $2/1024/1024}' /proc/meminfo
-  /usr/bin/time -v bash /sb_release/run.sh ~{munged_data} . ~{prefix} core 2> tmp.txt
+  /usr/bin/time -v bash /sb_release/run.sh ~{munged_data} . ~{core_prefix} core 2> tmp.txt
   cat tmp.txt &&  cat tmp.txt | awk '/Maximum resident set size/ {print "Max memory usage (GB):", $6/1024/1024}'
   /usr/bin/time -v bash /sb_release/run.sh ~{munged_data} . ~{meta_prefix} metadata 2> tmp.txt
   cat tmp.txt &&  cat tmp.txt | awk '/Maximum resident set size/ {print "Max memory usage (GB):", $6/1024/1024}'
@@ -81,7 +82,7 @@ task release {
     cpu : mem/4
   }
   output {
-    Array[File] core_files = ["~{prefix}.txt.gz","~{prefix}.parquet","~{prefix}.log","~{prefix}_schema.json"]
+    Array[File] core_files = ["~{core_prefix}.txt.gz","~{core_prefix}.parquet","~{core_prefix}.log","~{core_prefix}_schema.json"]
     Array[File] meta_files = ["~{meta_prefix}.txt.gz","~{meta_prefix}.parquet","~{meta_prefix}.log","~{meta_prefix}_schema.json"]
   }
 }

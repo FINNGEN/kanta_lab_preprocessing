@@ -1,26 +1,27 @@
 #!/bin/bash
-
 filenames=$1
-prefix=$2
-dir=$3
+dir=$2
 destination="${dir%/}"
 
-# Extract the basename of the filename
+# Process each filename from the input file
 while read f;
 do
-    basename=$(basename "$f")
-    # Extract the basename of the filename
-    if [[ "$basename" =~ ^${prefix}(.*)\.([^.]+)$ ]]; then
-	rest_of_filename="${BASH_REMATCH[1]}"
-	extension="${BASH_REMATCH[2]}"
-	#echo  $rest_of_filename $extension
-	current_date=$(date +"%Y_%m_%d")
-	new_basename="${prefix}_${current_date}${rest_of_filename}.${extension}"
-	#echo $new_basename
-	echo "gsutil cp $f $destination/${new_basename}"
+    full_basename=$(basename "$f")
+    
+    # Split the filename into name and extension
+    if [[ "$full_basename" =~ ^([^.]+)(\..+)$ ]]; then
+        basename_part="${BASH_REMATCH[1]}"
+        full_extension="${BASH_REMATCH[2]}"
+        
+        # Generate the current date
+        current_date=$(date +"%Y_%m_%d")
+        
+        # Create new filename with date added to basename
+        new_basename="${basename_part}_${current_date}${full_extension}"
+        
+        echo "gsutil cp $f $destination/${new_basename}"
     else
-	echo "Filename does not match the expected pattern (<prefix>_FOO_BAR.extension)"
-	exit 1
+        echo "Filename does not have an extension"
+        exit 1
     fi
 done < $filenames
-
