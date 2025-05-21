@@ -1,5 +1,5 @@
 SELECT
-  ROW_ID,
+  ROW_ID :: Int64 AS ROW_ID,  -- Cast to Int64 to ensure numerical sorting
   FINNGENID,
   SEX,
   EVENT_AGE,
