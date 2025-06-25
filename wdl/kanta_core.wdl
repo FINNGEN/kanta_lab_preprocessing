@@ -1,6 +1,6 @@
 version 1.0
 
-workflow kanta_analysis {
+workflow kanta_core {
   input {
     String prefix
     String kanta_docker
@@ -11,15 +11,18 @@ workflow kanta_analysis {
 
   # splits input in chunks
   call split { input:test = test,kanta_data = kanta_munged_data}
-  scatter (i in range(length(split.chunks))) {call analysis { input: docker = kanta_docker, prefix = i,chunk = split.chunks[i] }}
-  # merge chunks
-  String base_prefix =  "kanta_analysis" + if test then "_test" else ""
-  call merge { input: prefix = base_prefix,analysis_chunks = analysis.analysis_chunk}
-  call merge_logs {input: prefix =  base_prefix,logs = flatten(analysis.logs)}
+  scatter (i in range(length(split.chunks))) {
+    call munge {
+      input: docker = kanta_docker, prefix = i,chunk = split.chunks[i]
+    }
+  }
+  String base_prefix =  "kanta" + if test then "_test" else ""
+  # merge chunks & logs
+  call merge { input: prefix = base_prefix,munged_chunks = munge.munged_chunk,docker=kanta_docker}
+  call merge_logs {input: prefix =  base_prefix,logs = flatten(munge.logs)}
   # build parquet and release file
-  call release { input: docker = kanta_docker, mem = if test then 4 else 64, prefix = prefix, analysis_data  = merge.analysis_file}
-  # DOUBLE CHECK THAT WE ARE WORKING ONLY WITH SAMPLES IN INCLUSION LIST
-  call validate_outputs {input : parquet_file = release.release_file_pq,docker=kanta_docker}
+  call release { input: docker = kanta_docker, mem = if test then 4 else 64, prefix = prefix, munged_data  = merge.merged_file}
+  call validate_outputs {input : parquet_file = release.core_files[1],docker=kanta_docker}
 }
 
 task validate_outputs {
@@ -56,46 +59,59 @@ task validate_outputs {
 task release {
   input {
     String docker
-    File analysis_data
+    File munged_data
     Int mem
     String prefix
   }
+  String core_prefix = prefix +  "_core"
+  String meta_prefix = prefix +  "_metadata_columns"
   command <<<
   echo ~{mem}
   set -euxo pipefail
   awk '/^MemTotal:/{print $2/1024/1024}' /proc/meminfo
-  /usr/bin/time -v bash /sb_release/run.sh ~{analysis_data} . ~{prefix} analysis 2> tmp.txt
+  /usr/bin/time -v bash /sb_release/run.sh ~{munged_data} . ~{core_prefix} core 2> tmp.txt
   cat tmp.txt &&  cat tmp.txt | awk '/Maximum resident set size/ {print "Max memory usage (GB):", $6/1024/1024}'
+  /usr/bin/time -v bash /sb_release/run.sh ~{munged_data} . ~{meta_prefix} metadata 2> tmp.txt
+  cat tmp.txt &&  cat tmp.txt | awk '/Maximum resident set size/ {print "Max memory usage (GB):", $6/1024/1024}'
+  
   >>>
   runtime {
     docker : "~{docker}"
-    disks: "local-disk ~{ceil(size(analysis_data,'GB')) * 4 + 10} HDD"
+    disks: "local-disk ~{ceil(size(munged_data,'GB')) * 4 + 10} HDD"
     memory: "~{mem} GB"
     cpu : mem/4
   }
   output {
-    File release_file_gz = "~{prefix}.txt.gz"
-    File release_file_pq = "~{prefix}.parquet"
-    File log = "~{prefix}.log"    
-    File schema = "~{prefix}_schema.json"
-    
+    Array[File] core_files = ["~{core_prefix}.txt.gz","~{core_prefix}.parquet","~{core_prefix}.log","~{core_prefix}_schema.json"]
+    Array[File] meta_files = ["~{meta_prefix}.txt.gz","~{meta_prefix}.parquet","~{meta_prefix}.log","~{meta_prefix}_schema.json"]
   }
 }
 
 task merge {
   input {
-    Array[File] analysis_chunks
+    Array[File] munged_chunks
     String prefix
+    String docker
   }
   String out_file = prefix + ".txt.gz"
+  String dup_file = prefix +"_duplicates.txt.gz"
   command <<<
   # write header to reports file
-  zcat ~{analysis_chunks[0]} | head -n1 | bgzip -c > ~{out_file}
+  zcat ~{munged_chunks[0]} | head -n1 | bgzip -c > tmp.txt.gz
   # merge files including reports
-  while read f; do echo $f && date +%Y-%m-%dT%H:%M:%S && zcat $f | sed -E 1d | bgzip -c >> ~{out_file} ; done < <(cat ~{write_lines(analysis_chunks)} | sort -V )
+  while read f; do echo $f && date +%Y-%m-%dT%H:%M:%S && zcat $f | sed -E 1d | bgzip -c >> tmp.txt.gz ; done < <(cat ~{write_lines(munged_chunks)} | sort -V )
+
+  python3 /core/duplicates.py --input tmp.txt.gz --prefix ~{prefix}
+
   >>>
-  runtime {disks: "local-disk ~{ceil(size(analysis_chunks,'GB')) * 4 + 10} HDD"}
-  output {File analysis_file = out_file}
+  runtime {
+    disks: "local-disk ~{ceil(size(munged_chunks,'GB')) * 4 + 10} HDD"
+    docker : "~{docker}"
+  }
+  output {
+    File merged_file = out_file
+    File duplicates = dup_file
+  }
 }
 
 task merge_logs {
@@ -118,7 +134,7 @@ task merge_logs {
   }
 }
 
-task analysis {
+task munge {
   input {
     String docker
     File chunk
@@ -128,7 +144,7 @@ task analysis {
 
   command <<<
   set -euxo pipefail
-  python3 /analysis/main.py --gz  --mp --raw-data ~{chunk} --prefix ~{prefix} 
+  python3 /core/main.py --gz  --mp --raw-data ~{chunk} --prefix ~{prefix} 
   ls 
   >>>
   runtime {
@@ -138,7 +154,7 @@ task analysis {
     cpu : "~{cpus}"
   }
   output {
-    File analysis_chunk = "~{prefix}_analysis.txt.gz"
+    File munged_chunk = "~{prefix}.txt.gz"
     Array[File] logs = glob("./~{prefix}*txt")
   }
 }

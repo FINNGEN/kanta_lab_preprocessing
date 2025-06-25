@@ -6,6 +6,5 @@
     "pre_merge.reports": "gs://fg-3/kanta_v2/raw_thl/finngen_R12_kanta_laboratory_reports_internal_1.0.txt.gz",
     "pre_merge.sort_merge_cols": "asiakirjaoid_pseudo,merkintaoid_pseudo,entryoid_pseudo,load_id_pseudo,file_name_pseudo",
     "pre_merge.sort_report.out_cols": "antaja_organisaatioid,lausunnontilaid,lausuntoteksti",
-
     
 }

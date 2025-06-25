@@ -23,12 +23,13 @@ config = {
     },
     "source_cols" : ['MEASUREMENT_VALUE','MEASUREMENT_UNIT','TEST_NAME_ABBREVIATION'],
     # ACCESSORY COLUMNS
-    'other_cols' : ['paikallinentutkimusnimikeid','laboratoriotutkimusnimikeid','APPROX_EVENT_DAY','TIME'],
+    'other_cols' : ['paikallinentutkimusnimikeid','laboratoriotutkimusnimikeid','APPROX_EVENT_DAY','TIME','ROW_ID'],
     # Cols used for sorting in the wdl.
     # N.B. the order is important as it is kept in the grepping!
-    'sort_cols' : ['FINNGENID','APPROX_EVENT_DAY','TIME','laboratoriotutkimusnimikeid','paikallinentutkimusnimikeid','tutkimusvastauksentilaid','tutkimustulosarvo','tutkimustulosyksikko'],
+    'sort_cols' : ['FINNGENID','APPROX_EVENT_DAY','TIME','laboratoriotutkimusnimikeid','paikallinentutkimusnimikeid','tutkimusvastauksentilaid','tutkimustulosarvo','tutkimustulosyksikko','tutkimustulosteksti'],
     # LIST OF OUTPUT COLUMNS TO INCLUDE (VALUES ABOVE PLUS NEWLY GENERATED COLUMNS)
     'out_cols' :    [
+        'ROW_ID',
         'FINNGENID',
         'EVENT_AGE',
         'APPROX_EVENT_DATETIME',
@@ -37,7 +38,6 @@ config = {
         'CODING_SYSTEM',
         'CODING_SYSTEM_MAP',
         'TEST_OUTCOME',
-        'imputed::TEST_OUTCOME',
         'MEASUREMENT_STATUS',
         'REFERENCE_RANGE_GROUP',
         'REFERENCE_RANGE_LOWER_VALUE',
@@ -52,7 +52,6 @@ config = {
         'harmonization_omop::CONVERSION_FACTOR',
         'harmonization_omop::IS_UNIT_VALID',
         'harmonization_omop::mappingStatus',
-        'harmonization_omop::sourceCode',
         'harmonization_omop::OMOP_ID',
         'harmonization_omop::omopQuantity',
         'source::MEASUREMENT_VALUE',
@@ -70,8 +69,7 @@ config = {
         'MEASUREMENT_UNIT',
     ],
     
-    'err_cols':['FINNGENID','APPROX_EVENT_DATETIME','ERR','ERR_VALUE'],
-    'dup_cols':['FINNGENID','APPROX_EVENT_DATETIME','cleaned::TEST_NAME_ABBREVIATION','harmonization_omop::MEASUREMENT_VALUE'],
+    'err_cols':['ROW_ID','FINNGENID','APPROX_EVENT_DATETIME','ERR','ERR_VALUE'],
     'date_time_format': "%Y-%m-%dT%H:%M:%S",
 
     #REJECTION LINES
@@ -165,13 +163,13 @@ config = {
     ],
 
     'abbreviation_replacements': [(r'–','-')],
-    'harmonization_repo':'https://raw.githubusercontent.com/FINNGEN/kanta_lab_harmonisation_public/main/MAPPING_TABLES/',
+    'harmonization_repo':'https://raw.githubusercontent.com/FINNGEN/kanta_lab_harmonisation_public/adding-formulas-to-units-conversion/MAPPING_TABLES/',
     #list of harmonization files along with columns to use
     'harmonization_files' : {
         'usagi_units':[['sourceCode'],'UNITSfi.usagi.csv'],
         'unit_abbreviation_fix':[['TEST_NAME_ABBREVIATION','source_unit_clean','source_unit_clean_fix'],'fix_unit_based_in_abbreviation.tsv'],
         'usagi_mapping':[['mappingStatus','conceptId','ADD_INFO:omopQuantity','ADD_INFO:testNameAbbreviation','ADD_INFO:measurementUnit'],'LABfi_ALL.usagi.csv'],
-        'unit_conversion':[['omop_quantity','source_unit_valid','to_source_unit_valid','conversion'],'quantity_source_unit_conversion.tsv']
+        'unit_conversion':[['omop_quantity','source_unit_valid','to_source_unit_valid','conversion','only_to_omop_concepts'],'quantity_source_unit_conversion.tsv']
     },
     
     'harmonization_col_map' : {
@@ -184,6 +182,5 @@ config = {
         'conversion':"harmonization_omop::CONVERSION_FACTOR",
         'ADD_INFO:testNameAbbreviation':"TEST_NAME_ABBREVIATION",
         'ADD_INFO:measurementUnit':"MEASUREMENT_UNIT"
-    },
-    'abnormality_table':"data/abnormality_estimation.table.tsv",
+    }
 }

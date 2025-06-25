@@ -5,7 +5,6 @@ workflow kanta_sort_dup{
     # works with 100k lines
     Boolean test
     File kanta_data
-
   }
 
   call get_cols {}  # metadata
@@ -51,15 +50,15 @@ task merge {
   # CONCAT PRE-SORTED FILES
   echo "SORT FILES"
   /usr/bin/time -v sort -t $'\t' -m -k ~{sep=" -k " sort_cols}  ~{sep=" " sorted_chunks}  > sorted.txt
-  
+  # REMOVE DUPS
   python3 <<EOF
   from operator import itemgetter
   from datetime import datetime
   import gzip
-  # get col indices
+  # get col indices            
   cols = [elem -1 for elem in [~{sep ="," sort_cols}]]
   # initial empty values
-  values = ['']*len(cols)
+  values = ['' for _ in cols]
   date = datetime.now().strftime("%Y_%m_%d")
   prefix = '~{prefix}' + f"_{date}"
   unique = prefix + "_unique.tsv.gz"
@@ -67,25 +66,27 @@ task merge {
   errs   = prefix + "_err.tsv.gz"
   print(unique)
   with open('sorted.txt') as i,gzip.open(dups,'wt') as dup,gzip.open(unique,'wt') as out,gzip.open(errs,'wt') as err:
-    # copy header to out files
-    with open('~{header}') as tmp: head = tmp.read()
-    out.write(head),dup.write(head)
-    dup_count,count,err_count = 0,0,0
-    for line in i:
-      # read in new sort values to compare
-      try:
-        new_values = itemgetter(*cols)(line.strip().split('\t'))
-        if new_values != values: # new value found, so update values and output to unique file   
-          values = new_values
-          f = out
-          count += 1
-        else:
-          f = dup
-          dup_count +=1
-      except:
-        f = err
-        err_count +=1
-      f.write(line)
+      # copy header to out files
+      with open('~{header}') as tmp: head = "ROW_ID\t" + tmp.read()
+      out.write(head),dup.write(head),err.write(head)
+      row,dup_count,count,err_count = 0,0,0,0
+      for line in i:
+          row += 1
+          # read in new sort values to compare
+          try:
+              new_values = itemgetter(*cols)(line.strip().split('\t'))
+              if new_values != values: # new value found, so update values and output to unique file
+                  values = new_values
+                  f = out
+                  count += 1
+              else:
+                  f = dup
+                  dup_count +=1
+          except:
+              f = err
+              err_count +=1
+          f.write(str(row) + '\t' + line)
+          if row % 100000 == 0: print(f"{row}\r")
   print(count)
   print(err_count)
   print(dup_count)
@@ -93,7 +94,7 @@ task merge {
   EOF
   >>>
   runtime {
-    disks:   "local-disk ~{chunk_size*4} HDD"
+    disks:   "local-disk ~{chunk_size*4+10}  HDD"
   }
   output {
     Array[File] kanta_files = glob("~{prefix}*gz")
@@ -124,7 +125,7 @@ task get_cols {
   input {String branch}
 
   command <<<
-  # get required columns to cut from git repo
+  # get required columns to cut from git repository
   curl -s https://raw.githubusercontent.com/FINNGEN/kanta_lab_preprocessing/~{branch}/finngen_qc/magic_config.py > config.py
   python3 -c "import config;o= open('./columns.txt','wt') ;o.write('\n'.join(list(config.config['rename_cols'].keys())) + '\n');o.write('\n'.join(config.config['other_cols'])+ '\n')"
   python3 -c "import config;o= open('./sort_columns.txt','wt') ;o.write('\n'.join(config.config['sort_cols'])+ '\n')"

@@ -41,117 +41,30 @@ workflow kanta_munge {
     prefix = base_prefix,
     munged_chunks = munge.munged_chunk
   }
-  # CREATE OUTPUT FILE AND PARQUET FILE
-  call release {
-    input:
-    docker = kanta_docker,
-    mem = if test then 4 else 64,
-    prefix = prefix,
-    munged_data  = merge.munged
-  }
-  # DOUBLE CHECK THAT WE ARE WORKING ONLY WITH SAMPLES IN INCLUSION LIST
-  call validate_outputs {input : parquet_file = release.release_file_pq,docker=kanta_docker}
-}
-
-task validate_outputs {
-  input {
-    String docker
-    File parquet_file
-    File inclusion_list
-  }
-  command <<<
-  RELEASE_SAMPLES='./release_samples.txt'
-  INCLUSION_SAMPLES='./inclusion_samples.txt'
-
-  # Check if RELEASE_SAMPLES exists
-  clickhouse --query="SELECT DISTINCT FINNGENID FROM file('~{parquet_file}', Parquet) ORDER BY FINNGENID " | sort  > $RELEASE_SAMPLES
-  echo "N samples in release file: $(wc -l "$RELEASE_SAMPLES" | awk '{print $1}')"
-
-  #Inclusion list
-  zcat -f ~{inclusion_list} | sort | uniq > "$INCLUSION_SAMPLES"
-  echo "N samples in inclusion file: $(wc -l "$INCLUSION_SAMPLES" | awk '{print $1}')"
-
-  # Calculate EXTRA_SAMPLES regardless of file creation
-  comm -23 "$RELEASE_SAMPLES" "$INCLUSION_SAMPLES" > extra_samples.txt  
-  EXTRA_SAMPLES=$(cat extra_samples.txt | wc -l)
-  echo "Release samples that are not in exclusion list: $EXTRA_SAMPLES"
-  
-  >>>
-  runtime {
-    disks: "local-disk ~{ceil(size(parquet_file,'GB')) + 10} HDD"
-    docker : "~{docker}"
-  }
-  output{ File extra_samples = "./extra_samples.txt"}
-}
-
-
-task release {
-  input {
-    String docker
-    File munged_data
-    Int mem
-    String prefix
-  }
-  command <<<
-  echo ~{mem}
-  set -euxo pipefail
-  awk '/^MemTotal:/{print $2/1024/1024}' /proc/meminfo
-  /usr/bin/time -v bash /sb_release/run.sh ~{munged_data} . ~{prefix} finngen_qc 2> tmp.txt
-  cat tmp.txt &&  cat tmp.txt | awk '/Maximum resident set size/ {print "Max memory usage (GB):", $6/1024/1024}'
-  >>>
-  runtime {
-    docker : "~{docker}"
-    disks: "local-disk ~{ceil(size(munged_data,'GB')) * 4 + 10} HDD"
-    memory: "~{mem} GB"
-    cpu : mem/4
-  }
-  output {
-    File release_file_gz = "~{prefix}.txt.gz"
-    File release_file_pq = "~{prefix}.parquet"
-    File log = "~{prefix}.log"    
-    File schema = "~{prefix}_schema.json"
-  }
 }
 
 task merge {
   input {
     Array[File] munged_chunks
     String prefix
-    Array[String] reports_columns
     String docker 
 
   }
   String out_file = prefix +"_munged.txt.gz"
-  String dup_file = prefix +"_munged_duplicates.txt.gz"
-  String reports_file = prefix +"_munged_reports.txt.gz"
 
   command <<<
-  # write header to reports file
-  zcat ~{munged_chunks[0]} | head -n1 | bgzip -c > tmp.gz
-
-  # merge files including reports
-  while read f; do echo $f && date +%Y-%m-%dT%H:%M:%S && zcat $f | sed -E 1d | bgzip -c >> tmp.gz ; done < <(cat ~{write_lines(munged_chunks)} | sort -V )
-
-  # remove duplicates
-  python3 /finngen_qc/duplicates.py --input tmp.gz --prefix ~{prefix}_munged_reports
-
-  # EXTRACT REPORTS COLUMNS
-  COLS=$(zcat ~{reports_file} | head -n1 | tr '\t' '\n' | grep -wnf ~{write_lines(reports_columns)}  | cut -d : -f1 | tr '\n' ',' | sed 's/,$//')
-  echo $COLS
-  zcat ~{reports_file} | cut -f $COLS --complement | bgzip -c > ~{out_file}
-  zcat  ~{prefix}_munged_reports_duplicates.txt.gz | cut -f $COLS --complement | bgzip -c > ~{dup_file}
-  
+  # write header
+  zcat ~{munged_chunks[0]} | head -n1 | bgzip -c > ~{out_file}
+  # merge files without headers
+  while read f; do echo $f && date +%Y-%m-%dT%H:%M:%S && zcat $f | sed -E 1d | bgzip -c >> ~{out_file} ; done < <(cat ~{write_lines(munged_chunks)} | sort -V )
   >>>
   runtime {
     disks: "local-disk ~{ceil(size(munged_chunks,'GB')) * 4 + 10} HDD"
     docker : "~{docker}"
-
   }
  
   output {
-    File munged_all = reports_file
     File munged = out_file
-    File duplicates = dup_file
   }
 }
 
@@ -193,7 +106,7 @@ task munge {
   set -euxo pipefail
   python3 /finngen_qc/main.py  --out .  --raw-data ~{chunk} --log info --mp --harmonization --gz --prefix ~{prefix}
   # MERGE WITH SEX EXCLUDING SAMPLES NOT IN SEX MAP (AND THUS IN INCLUSION LIST)
-  join --header -t $'\t' -o auto -e NA <(zcat ~{out_chunk}  ) ~{sex_map} | bgzip -c > tmp.txt.gz
+  join --header -t $'\t' -1 2 -o auto -e NA <(zcat ~{out_chunk} ) ~{sex_map} | awk -F'\t' 'BEGIN {OFS="\t"} { t = $1; $1 = $2; $2 = t; print; }' | bgzip -c > tmp.txt.gz
   zcat tmp.txt.gz | wc -l  &&  zcat ~{out_chunk} | wc -l
   mv tmp.txt.gz ~{out_chunk}
   >>>

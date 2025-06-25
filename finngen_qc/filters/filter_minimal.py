@@ -157,31 +157,25 @@ def fix_date(df,args):
 
 def remove_spaces(df,args):
     """
-    Trim whitespace from ends of each value across all series in dataframe.
-    In testing sometimes fields are empty strings, so I will replace those cases with NA. Gotta check if it's the case with real data too
- 
+    Removes all spaces from all columns except the free text columns.
+    NA are placed back if fields are empty.
     """
 
     for col in [col for col in df.columns if col not in args.config['columns_with_spaces']]:
         # removes all spaces (including inside text, kinda messess up date, but fixes issues across the board.
         df[col] = df[col].str.strip().str.replace(r'\s', '', regex=True).fillna("NA") # this removes ALL spaces
-        # only trailing/leading
-        #df[col] = df[col].str.strip().str.replace(r"^ +| +$", r"", regex=True).fillna("NA")
         
     return df
 
 
 def initialize_out_cols(df,args):
-    #Makes sure that the columns for output exist
+    """
+    Renames columns
+    Initalizes source columns before edits
+    """
 
     df = df.rename(columns = args.config['rename_cols'])
     # These columns need be copied back to original name
     for col in args.config['source_cols']:
         df['source::'+col ] = df[col]
-        
-    to_be_initialized = [col for col in args.config['out_cols'] + args.config['err_cols']]
-    for col in to_be_initialized:
-        if col not in df.columns.tolist() and not col.startswith("cleaned::"):
-            df[col] = "NA"
-            
     return df

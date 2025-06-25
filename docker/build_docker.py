@@ -17,12 +17,12 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     
-    basic_cmd = 'docker build -t eu.gcr.io/finngen-refinery-dev/' + args.image +':' +args.version
+    basic_cmd = 'docker build -t europe-west1-docker.pkg.dev/finngen-refinery-dev/fg-refinery-registry/' + args.image +':' +args.version
     cmd = basic_cmd + f" -f {os.path.join(path,'Dockerfile')} {path.parent} {args.args} "
     print(cmd)
     call(shlex.split(cmd))
 
     if args.push:
-        cmd = ' docker -- push eu.gcr.io/finngen-refinery-dev/' + args.image +':' + args.version
+        cmd = ' docker -- push europe-west1-docker.pkg.dev/finngen-refinery-dev/fg-refinery-registry/' + args.image +':' + args.version
         print(cmd)
         call(shlex.split(cmd))

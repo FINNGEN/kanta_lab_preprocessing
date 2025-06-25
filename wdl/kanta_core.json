@@ -1,0 +1,12 @@
+{
+    "kanta_core.test": false,
+    "kanta_core.prefix": "kanta",
+    # DATA INPUTS
+    "kanta_core.kanta_munged_data":"gs://fg-3/kanta_v2/munged/kanta_2025_04_30_munged.txt.gz",
+    "kanta_core.validate_outputs.inclusion_list": "gs://finngen-production-library-red/all_allowed_ids_to_sb/finngen_R13_finngenid_actual_inclusion_list.txt",
+    # RUNTIME
+    "kanta_core.kanta_docker": "europe-west1-docker.pkg.dev/finngen-refinery-dev/fg-refinery-registry/kanta:release_sort",
+    "kanta_core.split.n_chunks": 16,
+    "kanta_core.munge.cpus": 8,
+ 
+}

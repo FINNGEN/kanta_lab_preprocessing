@@ -10,6 +10,7 @@ from datetime import datetime
 from filters.filter_minimal import filter_minimal 
 from filters.fix_unit import unit_fixing
 from filters.harmonization import harmonization
+
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
 
@@ -162,7 +163,6 @@ if __name__=='__main__':
     parser.add_argument("--harmonization", type=file_exists, nargs = '?',help="Path to tsv with concept id and target unit.",const = os.path.join(dir_path,'data','harmonization_counts.txt') )
     
     args = parser.parse_args()
-    
     make_sure_path_exists(args.out)
     # setup logging
     logger = logging.getLogger(__name__)
@@ -184,7 +184,6 @@ if __name__=='__main__':
     logger.debug(args.config['usagi_mapping'])
     logger.debug(args.config['unit_abbreviation_fix'])
     logger.debug(dict(list(args.config['thl_lab_map'].items())[0:2]))
-    logger.debug(args.ab_limits)
     init_log_files(args)
     
     
