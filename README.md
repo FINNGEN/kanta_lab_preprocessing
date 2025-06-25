@@ -4,6 +4,8 @@ Based on Kira Detrois' [existing repo](https://github.com/detroiki/kanta_lab).
 
 ## CORE FILE
 
+N.B. The raw data contains a `MEASUREMENT_FREE_TEXT` column that unfortunately cannot be directly released as it contains data that is potentially sensitive. It contains a mix of numerical measurement values, positive/negative outcomes, outcomes linked to thresholds (e.g. <3ml) and general notes. Our approach has been to extract such data from the original column through a process of cleaning and whitelisting of the field.
+
 This is the file that contains mostly just workable data for analysis, like values,outcomes and pos/neg status both raw and extracted from free text where possible.
 
 | Column Name | Easy Description | Technical Notes |
