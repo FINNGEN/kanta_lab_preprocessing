@@ -1,113 +1,195 @@
-import argparse
-import duckdb as ddb
 import pandas as pd
 import numpy as np
-from collections import defaultdict as dd
+import matplotlib.pyplot as plt
+import seaborn as sns
+from scipy import stats
+import argparse
+import os
+import duckdb # Import duckdb for running SQL against Parquet files
 
-pd.set_option('future.no_silent_downcasting', True)
+# Set a style for better visualization
+sns.set_theme(style="whitegrid")
 
-def process_omop_concept(con, parquet_file, omop_id, limit=None):
-    """Process a single OMOP concept ID and return statistics."""
-    limit_clause = f"LIMIT {limit}" if limit else ""
-    query = f"""
-    SELECT
-        OMOP_CONCEPT_ID,
-        MEASUREMENT_VALUE_EXTRACTED,
-        IS_VALUE_EXTRACTED,
-        TEST_OUTCOME_MERGED,
-        TEST_OUTCOME_SOURCE,
-        OUTCOME_TEXT_EXTRACTED
-    FROM '{parquet_file}'
-    WHERE OMOP_CONCEPT_ID = {omop_id} {limit_clause}
+def sigma_filter(data: pd.Series, n_sigma: int = 3) -> pd.Series:
+    """Filters a pandas Series to keep only values within n_sigma of the mean."""
+    # Ensure data is numeric and non-empty
+    data = data.dropna()
+    if data.empty:
+        return pd.Series([], dtype=float)
+        
+    mean = data.mean()
+    std = data.std()
+    lower_bound = mean - n_sigma * std
+    upper_bound = upper_bound = mean + n_sigma * std
+    return data[(data >= lower_bound) & (data <= upper_bound)]
+
+def analyze_and_plot_omop_data(data: pd.DataFrame, omop_id: int, output_dir: str):
+    """
+    Takes loaded data, performs 3-sigma filtering, and generates a two-panel plot 
+    (Scatter and Density) comparing Extracted and Harmonized values. The plot is 
+    saved to the specified output directory.
     """
     
-    df = con.execute(query).fetchdf()
-    N = len(df)
+    print(f"--- Starting analysis for OMOP ID: {omop_id} (n={len(data):,}) ---")
     
-    if N == 0:
-        return None
+    # Filter the data for the specific OMOP ID
+    filtered_data = data[data['OMOP_CONCEPT_ID'] == omop_id].copy()
+
+    if filtered_data.empty:
+        print(f"No data found for OMOP ID {omop_id}. Skipping plot generation.")
+        return
+
+    # Prepare the two primary columns
+    df = filtered_data.rename(columns={
+        'MEASUREMENT_VALUE_EXTRACTED': 'Original Values',
+        'MEASUREMENT_VALUE_HARMONIZED': 'Imputed Values'
+    })
     
-    # Create merged outcome with priority: VALUE > ORIGINAL > EXTRACTED
-    df['ORIGINAL_OUTCOME'] = df['TEST_OUTCOME_MERGED'].where(df['TEST_OUTCOME_SOURCE'] == 'O')
-    df['OUTCOME_MERGED_SOURCE'] = np.nan
-    df['OUTCOME_MERGED_SOURCE'] = (
-        df['OUTCOME_MERGED_SOURCE']
-        .fillna(df['MEASUREMENT_VALUE_EXTRACTED'].notna().map({True: 'VALUE', False: np.nan}))
-        .fillna(df['ORIGINAL_OUTCOME'].notna().map({True: "ORIGINAL", False: np.nan}))
-        .fillna(df['OUTCOME_TEXT_EXTRACTED'].notna().map({True: "EXTRACTED", False: np.nan}))
+    # --- 2. SCATTER PLOT (AGE vs VALUE) ---
+    fig, axes = plt.subplots(2, 1, figsize=(10, 10), sharex=True)
+    plt.subplots_adjust(hspace=0.3)
+    
+    # Scatter Plot Setup
+    ax1 = axes[0]
+    
+    # 1. Plot Original Values (Extracted) - Blue
+    sns.scatterplot(
+        x='Original Values', 
+        y='EVENT_AGE', 
+        data=df, 
+        color='blue', 
+        alpha=0.3, 
+        label='Original Values', 
+        ax=ax1,
+        edgecolor=None,
+        s=30
     )
     
-    # Calculate statistics
-    extracted_dict = df.loc[df.OUTCOME_MERGED_SOURCE == 'VALUE', 'IS_VALUE_EXTRACTED'].value_counts().to_dict()
-    counts = (df.OUTCOME_MERGED_SOURCE.fillna("NA").value_counts() * 100 / N).round(2).to_dict()
+    # 2. Plot Imputed Values (Harmonized) - Red (non-null only)
+    df_imputed = df.dropna(subset=['Imputed Values'])
+    sns.scatterplot(
+        x='Imputed Values', 
+        y='EVENT_AGE', 
+        data=df_imputed, 
+        color='red', 
+        alpha=0.5, 
+        label=f'Imputed Values (n={len(df_imputed):,})',
+        ax=ax1,
+        edgecolor=None,
+        s=30
+    )
     
-    # Calculate extracted value percentage if available
-    if 1 in extracted_dict or '1' in extracted_dict:
-        extracted_key_1 = 1 if 1 in extracted_dict else '1'
-        extracted_key_0 = 0 if 0 in extracted_dict else '0'
-        ev_pct = 100*round(extracted_dict.get(extracted_key_1, 0) / 
-                      (extracted_dict.get(extracted_key_1, 0) + extracted_dict.get(extracted_key_0, 0)), 2)
-    else:
-        ev_pct = 0
-        
-    counts['EV%'] = ev_pct
-    counts['N'] = N
-    counts = dd(float, counts)
+    # Finalize Scatter Plot
+    ax1.set_title(f"Measurement Values by Event Age: Original vs Imputed (OMOP {omop_id})\n3-sigma Filtering (Separate)", fontsize=14)
+    ax1.set_xlabel("Measurement Value", fontsize=12)
+    ax1.set_ylabel("Event Age", fontsize=12)
+    ax1.legend(loc='upper right')
     
-    OUT_COLS = ["N", 'VALUE', 'EV%', 'ORIGINAL', 'EXTRACTED', "NA"]
-    outline = '\t'.join(list(map(str, [omop_id] + [counts[elem] for elem in OUT_COLS])))
-    
-    return outline
+    # --- 3. DENSITY PLOT (3-SIGMA FILTERED) ---
+    ax2 = axes[1]
 
-def get_all_omop_concepts(con, parquet_file):
-    """Get all unique OMOP concept IDs from the parquet file."""
-    query = f"""
-    SELECT DISTINCT OMOP_CONCEPT_ID 
-    FROM '{parquet_file}'
-    WHERE OMOP_CONCEPT_ID IS NOT NULL
-    ORDER BY OMOP_CONCEPT_ID
-    """
-    result = con.execute(query).fetchdf()
-    return result['OMOP_CONCEPT_ID'].tolist()
+    # Apply 3-sigma filtering separately
+    original_filtered = sigma_filter(df['Original Values'], n_sigma=3)
+    imputed_filtered = sigma_filter(df['Imputed Values'], n_sigma=3)
+    
+    # Create the merged series
+    merged_data = pd.concat([original_filtered, imputed_filtered]).dropna()
+    
+    # Plot Kernel Density Estimates
+    if not original_filtered.empty:
+        sns.kdeplot(original_filtered, ax=ax2, color='blue', linewidth=2, label='Original Values')
+    if not imputed_filtered.empty:
+        sns.kdeplot(imputed_filtered, ax=ax2, color='red', linewidth=2, label='Imputed Values')
+    if not merged_data.empty:
+        sns.kdeplot(merged_data, ax=ax2, color='darkgreen', linewidth=1.5, linestyle='--', label='Merged Data')
+
+    # Finalize Density Plot
+    ax2.set_title("Density Distribution of Measurement Values\n3-sigma Filtering (Separate)", fontsize=14)
+    ax2.set_xlabel("Measurement Value", fontsize=12)
+    ax2.set_ylabel("Density", fontsize=12)
+    ax2.legend(loc='upper right')
+    
+    # --- 4. SAVE PLOT ---
+    output_filename = f"omop_{omop_id}_analysis.png"
+    output_filepath = os.path.join(output_dir, output_filename)
+    
+    try:
+        os.makedirs(output_dir, exist_ok=True)
+        plt.savefig(output_filepath, dpi=300)
+        print(f"Successfully saved plot to: {output_filepath}")
+    except Exception as e:
+        print(f"Warning: Could not save file to {output_filepath}. Error: {e}")
+        # Fallback to show plot if saving failed (e.g., permission error)
+        plt.show()
 
 def main():
-    parser = argparse.ArgumentParser(description='Process OMOP concepts in a parquet file')
-    parser.add_argument('--parquet_file', help='Path to the parquet file',default='/mnt/disks/data/kanta/ft/release/kanta_analysis_ft_outcome.parquet')
-    parser.add_argument('--output_file', help='Path to the output file',default='/mnt/disks/data/kanta/ft/ft_outcome_summary.txt')
-    parser.add_argument('--limit', type=int, help='Optional limit for number of rows per OMOP concept')
-    parser.add_argument('--omop_id', help='Optional specific OMOP concept ID to process')
-    parser.add_argument('--test', help='Test mode',action='store_true')
+    """Handles command-line arguments and data loading/analysis execution."""
+    DEFAULT_FILE_PATH = "/home/pete/fg-3/kanta_v2/core/kanta_core_2025_05_22.parquet"
+    
+    parser = argparse.ArgumentParser(
+        description="Analyze and plot extracted vs harmonized measurement values from a local Parquet file for a specific OMOP Concept ID."
+    )
+    
+    # --- Parquet File Arguments (Optional) ---
+    parser.add_argument(
+        '--file_path', 
+        type=str, 
+        default=DEFAULT_FILE_PATH,
+        help=f"Path to the input Parquet file. Defaults to '{DEFAULT_FILE_PATH}'."
+    )
+    
+    # --- Analysis & Output Arguments ---
+    parser.add_argument(
+        '--omop_id', 
+        type=int, 
+        required=True, 
+        help="OMOP Concept ID (integer) to filter the data by (e.g., 3020564)."
+    )
+    parser.add_argument(
+        '--output_dir', 
+        type=str, 
+        default='.', 
+        help="Directory to save the output plot (PNG file). Defaults to current directory (.)."
+    )
+    parser.add_argument(
+        '--test_mode',
+        action='store_true',
+        help="If set, only the first 1000 rows of data will be loaded (via pandas.head()) for fast testing."
+    )
     
     args = parser.parse_args()
     
-    # Connect to DuckDB
-    con = ddb.connect(database=':memory:')
+    data = None
+    row_limit = 1000 # Define the limit for test mode
     
-    # Header for output file
-    header = "OMOP_CONCEPT_ID\tN\tVALUE\tEV%\tORIGINAL\tEXTRACTED\tNA"
+    # 1. Load data from the Parquet file using a SQL query via DuckDB.
+    input_file_path = args.file_path 
     
-    with open(args.output_file, 'wt') as f:
-        f.write(header + '\n')
-        
-        # Process single OMOP concept if specified
-        if args.omop_id:
-            result = process_omop_concept(con, args.parquet_file, args.omop_id, args.limit)
-            if result:
-                f.write(result + '\n')
-        else:
-            # Process all OMOP concepts
-            omop_ids = get_all_omop_concepts(con, args.parquet_file)
-            if args.test:omop_ids = omop_ids[:10]
-            print(f"Found {len(omop_ids)} unique OMOP concept IDs to process")
-            for i, omop_id in enumerate(omop_ids):
-                if i % 10 == 0:
-                    print(f"Processing {i}/{len(omop_ids)} concepts...")
-                
-                result = process_omop_concept(con, args.parquet_file, omop_id, args.limit)
-                if result:
-                    f.write(result + '\n')
+    # Construct the base SQL query to select required columns
+    sql_query = f"""
+        SELECT 
+            MEASUREMENT_VALUE_HARMONIZED,
+            MEASUREMENT_VALUE_EXTRACTED,
+            OMOP_CONCEPT_ID,
+            EVENT_AGE
+        FROM '{input_file_path}'
+    """
     
-    print(f"Analysis complete. Results written to {args.output_file}")
+    # Apply test mode limit if requested
+    if args.test_mode:
+        sql_query += f" LIMIT {row_limit}"
+        print(f"TEST MODE: Limiting data query to {row_limit} rows.")
+
+    print(f"Attempting to load data from Parquet file using SQL: {input_file_path}")
+    
+    # Execute the query using DuckDB. Errors (like FileNotFoundError) will propagate here.
+    conn = duckdb.connect()
+    data = conn.execute(sql_query).fetchdf()
+    conn.close()
+            
+    # 2. Execute analysis
+    if data is not None:
+        analyze_and_plot_omop_data(data, args.omop_id, args.output_dir)
 
 if __name__ == "__main__":
     main()
