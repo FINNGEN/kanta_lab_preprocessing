@@ -7,6 +7,7 @@ def extract_all(df,args):
     df = (
         df
         .pipe(extract_measurement,args)
+        #.pipe(add_source_value,args)
         .pipe(extract_positive,args)
         .pipe(extract_outcome,args)
     )
@@ -102,7 +103,21 @@ def extract_measurement(df, args ):
     
     return df
 
-
+def add_source_value(df, args):
+    """
+    Updates extracted::MEASUREMENT_VALUE_MERGED column by injecting values from source::MEASUREMENT_VALUE
+    where the merged column is NA and source value is not empty
+    """
+    merged_col_name = "extracted::MEASUREMENT_VALUE_MERGED"
+    source_col = "source::MEASUREMENT_VALUE"
+    
+    # Check where merged is NA and source is not NA/empty
+    mask = df[merged_col_name].isna() & df[source_col].notna() & (df[source_col] != "NA") & (df[source_col] != "")
+    
+    # Inject source values into merged column
+    df.loc[mask, merged_col_name] = pd.to_numeric(df.loc[mask, source_col], errors='coerce')
+    
+    return df
 
 def extract_positive(df,args):
     """

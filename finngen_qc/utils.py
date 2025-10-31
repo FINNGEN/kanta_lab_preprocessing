@@ -30,7 +30,11 @@ def init_harmonization(args,logger):
     args.config['unit_conversion']= args.config['unit_conversion'].rename(columns={'source_unit_valid':'MEASUREMENT_UNIT'})
     args.config['unit_conversion']['only_to_omop_concepts']= args.config['unit_conversion']['only_to_omop_concepts'].astype("Int64")
     args.config['usagi_mapping']['harmonization_omop::OMOP_ID'] =args.config['usagi_mapping']['harmonization_omop::OMOP_ID'].astype(int)
+    logger.debug(args.config['unit_abbreviation_fix'][args.config['unit_abbreviation_fix'].TEST_NAME_ABBREVIATION =='p-tt-inr'])
+    args.config['unit_abbreviation_fix'] = args.config['unit_abbreviation_fix'].fillna("NA")
+    logger.debug(args.config['unit_abbreviation_fix'][args.config['unit_abbreviation_fix'].TEST_NAME_ABBREVIATION =='p-tt-inr'])
     logger.debug(args.config['usagi_mapping'][args.config['usagi_mapping']["TEST_NAME_ABBREVIATION"] == 'p-vrab-o'])
+
 
     if args.harmonization:
         #merges harmonization table from vincent with chosen target unit for each concept id
@@ -47,7 +51,7 @@ def init_harmonization(args,logger):
     #logger.debug(args.config['usagi_units'])
     logger.debug("USGAGI MAPPING")
     logger.debug(args.config['usagi_mapping'])
-    #logger.debug(args.config['unit_abbreviation_fix'])
+    logger.debug(args.config['unit_abbreviation_fix'])
     logger.debug("UNIT CONVERSION")
     logger.debug(args.config['unit_conversion'])
     return args

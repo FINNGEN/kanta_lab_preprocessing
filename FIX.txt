@@ -1,5 +1,0 @@
-CHECK THAT THE FIX BY ABBREVIATION WORKS with SAM'S EXAMPLE(!)
-
-OPTIONAL, if above doens't fix everything.INITIALIZE HARMONIZED VALUES TO MEASUREMNET_VALUES so we keep the original even if unt is missing and there's no harmonization taking place.
-
-
