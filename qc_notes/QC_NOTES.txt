@@ -1,24 +1,24 @@
-3022493	Free Hemoglobin [Mass/volume] in Plasma [mg/l], sample-wise median
+3022493	Free Hemoglobin [Mass/volume] in Plasma [mg/l], sample-wise median --> JAVIER FIX
 Entries that are in g/l should be mg/l for p-hb. We should add it to the unit conversions by test abbreviation
 
 TEST_NAME  MEASUREMENT_UNIT_SOURCE
 p-hb       g/l                        34
 
 
-3020682	Albumin/Creatinine [Ratio] in Urine [mg/mmol], sample-wise median
+3020682	Albumin/Creatinine [Ratio] in Urine [mg/mmol], sample-wise median --> MAYBE WE CAN ADD MEASUREMENT VALUE SOURCE COLUMN, MAYBE WE CAN ADD THEM TO THE MERGED COLUMN
 
 There are values for which there is no conversion as the unit is missing or no destination unit is defined in the USAGI file
 Unit should be mg/mmol
 
 TEST_NAME                                  MEASUREMENT_UNIT_SOURCE
 u-alb                                      NaN                        2435
-u-albumiinimikroalbuminuriamg/l(u-albkre)  mg/l                       1115
+u-albumiinimikroalbuminuriamg/l(u-albkre)  mg/l                       1115 (ASKED ESLISA, IT DOESN'T MATTER WHAT THE UNIT IS,CAN BE CONVERTED TO mg/mmol)
 album                                      NaN                           5
 albumiini                                  NaN                           1
 u-alb-lb                                   NaN                           1
 
 
-3009035	Cobalamin (Vitamin B12) [Moles/volume] in Serum or Plasma [pmol/l], sample-wise median
+3009035	Cobalamin (Vitamin B12) [Moles/volume] in Serum or Plasma [pmol/l], sample-wise median --> LOOK A BIT BETTER
 
 These tests should have unit pmol/l
 
@@ -29,7 +29,7 @@ s-b12-vitamiini  NaN                         9
 s-b12vit         NaN                         1
 
 
-3026493	Urate [Moles/volume] in Serum or Plasma [umol/l], sample-wise median	umol/l	Quantitative	81374	0	81374	4662.005856	39907.39152	!TEST_ID==4533 & TEST_NAME=="p-uraat" | TEST_ID==2884 & TEST_NAME=="s-uraat"
+3026493	Urate [Moles/volume] in Serum or Plasma [umol/l], sample-wise median	umol/l	Quantitative	81374	0	81374	4662.005856	39907.39152	!TEST_ID==4533 & TEST_NAME=="p-uraat" | TEST_ID==2884 & TEST_NAME=="s-uraat" --> NOTHING TO DO
 
 Wrong units again for these units. There is no way to fix it at the source since there are entries with these name and source that are in the correct range, so this should be handled from a numerical QC perspecptive: anithing greather than 1/2/3k is impossbile.
 
@@ -39,13 +39,13 @@ s-uraat    mmol/l                       17
            mmo/l                        11
 
 
-3020717	Zinc [Moles/volume] in Serum or Plasma [umol/l], sample-wise median	umol/l	Quantitative	1643	0	1643	12.07580645	3.808022959	TEST_ID=='2636'	NA	
+3020717	Zinc [Moles/volume] in Serum or Plasma [umol/l], sample-wise median	umol/l	Quantitative	1643	0	1643	12.07580645	3.808022959	TEST_ID=='2636'	NA	--> NOTHING TO DO
 
 In this case test with ID 2636 are 10x higher, but the units are not the problem as they are correct. The only way to approach it would be to add to the pipeline TEST_ID based conversions which we don't do at the moment. Or it goes into the QC numerical category.
 
 
 
-3018251	Fasting glucose [Moles/volume] in Serum or Plasma [mmol/l], sample-wise median	mmol/l	Quantitative	349417	0	349417	5.963677753	1.346275604	MEASUREMENT_VALUE_HARMONIZED>100 & MEASUREMENT_UNIT!='nmol/l' | MEASUREMENT_VALUE_HARMONIZED<1 & MEASUREMENT_UNIT=='nmol/l'	NA	
+3018251	Fasting glucose [Moles/volume] in Serum or Plasma [mmol/l], sample-wise median	mmol/l	Quantitative	349417	0	349417	5.963677753	1.346275604	MEASUREMENT_VALUE_HARMONIZED>100 & MEASUREMENT_UNIT!='nmol/l' | MEASUREMENT_VALUE_HARMONIZED<1 & MEASUREMENT_UNIT=='nmol/l'	NA	--> JAVIER 
 
 
 These test names/source combo should be mapped to mmol/l. All values fall in the expected range from mmol/l
@@ -60,6 +60,25 @@ TEST_NAME    MEASUREMENT_UNIT_SOURCE
 fp-gluk      nmol/l                     552
 fp-glukoosi  nmol/l                      12
 
+3004529 Oxygen,[Partial,pressure],adjusted,to,patient's,actual,temperature,in,Venous,blood--> JAVIER OMOP FIX
 
+Looks like sis is an absolute measurement in kPa and sat the percentage.
+
+merged[merged.MEASUREMENT_VALUE_HARMONIZED<20]['TEST_NAME'].value_counts(dropna=False)
+Out[46]: 
+TEST_NAME
+vb-o2-sis     11274
+vb-hbo2sat     1816
+Name: count, dtype: int64
+
+In [47]: merged[merged.MEASUREMENT_VALUE_HARMONIZED>20]['TEST_NAME'].value_counts(dropna=False)
+Out[47]: 
+TEST_NAME
+vb-hbo2sat    53462
+vb-o2-sis        83
+Name: count, dtype: int64
+
+3019069 contains baso --> JAVIER OMOP FIX
 
 The other issues potentially have to do with ratio/percentages and i'm dealing with them separately
+
