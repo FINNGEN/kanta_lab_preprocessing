@@ -69,7 +69,7 @@ config = {
         'MEASUREMENT_UNIT',
     ],
     
-    'err_cols':['ROW_ID','FINNGENID','APPROX_EVENT_DATETIME','ERR','ERR_VALUE'],
+    'err_cols':['ROW_ID','APPROX_EVENT_DATETIME','ERR','ERR_VALUE'],
     'date_time_format': "%Y-%m-%dT%H:%M:%S",
 
     #REJECTION LINES

@@ -70,7 +70,7 @@ def fix_unit_based_on_abbreviation(df,args):
     df = pd.merge(df,args.config['unit_abbreviation_fix'],left_on = ['TEST_NAME_ABBREVIATION','MEASUREMENT_UNIT'],right_on=['TEST_NAME_ABBREVIATION','source_unit_clean'],how='left').fillna("NA")
     # check where there is a valid entry and put changed element back
     mask = df['source_unit_clean_fix'] !="NA"
-    unit_df = df.loc[mask,['FINNGENID', 'APPROX_EVENT_DATETIME','TEST_NAME_ABBREVIATION','MEASUREMENT_UNIT','source_unit_clean_fix']].copy()
+    unit_df = df.loc[mask,['ROW_ID', 'APPROX_EVENT_DATETIME','TEST_NAME_ABBREVIATION','MEASUREMENT_UNIT','source_unit_clean_fix']].copy()
     # CHANGES
     df.loc[mask,"harmonization_omop::IS_UNIT_VALID"] = "unit_fixed"
     df.loc[mask,col] = df.loc[mask,"source_unit_clean_fix"]

@@ -30,7 +30,7 @@ def fix_abbreviation(df,args):
     Removes characthers from abbreviation
     """
     col = 'TEST_NAME_ABBREVIATION'
-    abb_df = df[['FINNGENID', 'APPROX_EVENT_DATETIME','TEST_NAME_ABBREVIATION','MEASUREMENT_UNIT']].copy()
+    abb_df = df[['ROW_ID', 'APPROX_EVENT_DATETIME','TEST_NAME_ABBREVIATION','MEASUREMENT_UNIT']].copy()
     pattern = '|'.join(args.config['abbreviation_deletions'])
     df[col] = df[col].replace(pattern,'',regex=True)
     #log changes
