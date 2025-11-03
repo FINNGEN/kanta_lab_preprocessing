@@ -75,7 +75,7 @@ fp-glukoosi  nmol/l                      12
 
 3004529 Oxygen,[Partial,pressure],adjusted,to,patient's,actual,temperature,in,Venous,blood--> JAVIER OMOP FIX
 
-Looks like sis is an absolute measurement in kPa and sat the percentage.
+Looks like sis and sat are different tests with different ranges.
 
 merged[merged.MEASUREMENT_VALUE_HARMONIZED<20]['TEST_NAME'].value_counts(dropna=False)
 Out[46]: 
@@ -90,6 +90,16 @@ TEST_NAME
 vb-hbo2sat    53462
 vb-o2-sis        83
 Name: count, dtype: int64
+
+3019230	Fractional,oxyhemoglobin,in,Venous,blood Same as above --> Javier fix
+
+TEST_NAME
+vb-hbo2       23271
+vb-o2hb         828
+b-hbo2sat       380
+vb-hb02sat       49
+pb-hbo2          48
+pb-hbo2sat       47
 
 3019069 contains baso --> JAVIER OMOP FIX
 
