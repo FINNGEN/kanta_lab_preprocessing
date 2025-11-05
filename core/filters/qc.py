@@ -20,34 +20,27 @@ def initialize_qc_columns(df,args):
     df['QC_PASS'] = "1"    
     return df
 
-def fix_omop_conversion(df,args):
+def fix_omop_conversion(df, args):
     """
     Efficiently applies conversion factor and updates quality control notes based 
-    on OMOP ID match and comparison thresholds.
+    on OMOP ID match and comparison thresholds, modifying the DataFrame IN-PLACE.
 
     Parameters:
     -----------
     df : pandas DataFrame
         The main dataframe containing 'harmonization_omop::OMOP_ID' and 
-        'extracted::MEASUREMENT_VALUE_MERGED'.
+        'extracted::MEASUREMENT_VALUE_MERGED' (modified in-place).
     args : object
         An object containing the 'omop_fix_table' (the lookup table).
-    
+        
     Returns:
     --------
     pandas DataFrame
-        The input dataframe with the following updates:
-        1. 'extracted::MEASUREMENT_VALUE_MERGED' is multiplied by the 'CONVERSION' 
-           factor where the value meets the defined 'SIDE' and 'VALUE_THRESHOLD' 
-           criteria from the lookup table.
-        2. 'QC_NOTES' is updated by concatenating the corresponding 'NOTES' 
-           from the lookup table, separated by a semicolon (';'), only for the 
-           rows that were converted. The initial 'NA' placeholder in 'QC_NOTES' 
-           is replaced by the new note rather than being concatenated.
+        The input dataframe, modified in-place.
     """
-    df_result = df.copy()
     # Merge df with lookup_table on OMOP_ID
-    merged = df_result.merge(
+    # NOTE: We merge the lookup table onto the original df
+    merged = df.merge(
         args.omop_fix_table,
         on='harmonization_omop::OMOP_ID', 
         how='left', 
@@ -60,23 +53,29 @@ def fix_omop_conversion(df,args):
     mask |= (merged['SIDE'] == '<') & (merged['extracted::MEASUREMENT_VALUE_MERGED'] < merged['VALUE_THRESHOLD'])
     mask |= (merged['SIDE'] == '>') & (merged['extracted::MEASUREMENT_VALUE_MERGED'] > merged['VALUE_THRESHOLD'])
     
-    # Multiply matching values by conversion factor (QC_NOTES)
-    print(df_result.loc[mask,:])
-    df_result.loc[mask, 'extracted::MEASUREMENT_VALUE_MERGED'] = merged.loc[mask, 'extracted::MEASUREMENT_VALUE_MERGED'] * merged.loc[mask, 'CONVERSION']
+    # --- Modification 1: Apply Conversion (using .loc on the original df) ---
+    # Since 'merged' and 'df' have the same index, we use the values from 'merged'
+    # to update 'df' directly.
+    df.loc[mask, 'extracted::MEASUREMENT_VALUE_MERGED'] = \
+        merged.loc[mask, 'extracted::MEASUREMENT_VALUE_MERGED'] * merged.loc[mask, 'CONVERSION']
 
-    existing_notes = df_result.loc[mask, 'QC_NOTES'].astype(str)
+    # --- Modification 2: Update QC_NOTES (using .loc on the original df) ---
+    
+    existing_notes = df.loc[mask, 'QC_NOTES'].astype(str)
     new_notes = merged.loc[mask, 'NOTES'].astype(str)
-    # Concatenate the strings only if the existing note is not empty
+    
+    # Recommended Change: Use np.where directly on the series/arrays, 
+    # referencing 'df' for the existing notes and 'merged' for the new notes.
     concatenated_notes = np.where(
-        existing_notes == 'NA', 
-        new_notes, # If existing note is empty, just use the new note
-        existing_notes.astype(str) + ';' + new_notes # Otherwise, concatenate
+        existing_notes == 'NA',  
+        new_notes, # If existing note is 'NA', use the new note
+        existing_notes + ';' + new_notes # Otherwise, concatenate
     )
 
-    # Assign the concatenated result back to df_result
-    df_result.loc[mask, 'QC_NOTES'] = concatenated_notes
-    return df_result
-
+    # Assign the concatenated result back to the original df
+    df.loc[mask, 'QC_NOTES'] = concatenated_notes
+    
+    return df
 
 def check_dates_in_measurement(df, args):
     """
