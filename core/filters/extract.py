@@ -7,17 +7,19 @@ def extract_all(df,args):
     df = (
         df
         .pipe(extract_measurement,args)
-        #.pipe(add_source_value,args)
         .pipe(extract_positive,args)
         .pipe(extract_outcome,args)
+        .pipe(extract_plus_ab,args)
     )
     return df
 
+
+    
 def extract_outcome(df,args):
 
     ft_col = "MEASUREMENT_FREE_TEXT"
     col = "extracted::TEST_OUTCOME_TEXT"
-    df[col] = "NA"
+    #df[col] = "NA"
 
     col_copy = df[ft_col].copy().str.lower()
 
@@ -100,7 +102,7 @@ def extract_measurement(df, args ):
     df[merged_col_name] = df[omop_col].copy()
     mask = df[omop_col].isna()
     df.loc[mask, merged_col_name] = df.loc[mask, extracted_col_name]
-    
+    df[merged_col_name] = pd.to_numeric(df[merged_col_name], errors='coerce')
     return df
 
 def add_source_value(df, args):
@@ -119,11 +121,30 @@ def add_source_value(df, args):
     
     return df
 
+
+def extract_plus_ab(df,args):
+    
+    ft_col = "MEASUREMENT_FREE_TEXT"
+    pos_col = "extracted::IS_POS"
+    out_col = "extracted::TEST_OUTCOME_TEXT"
+    matching_cols = ['MEASUREMENT_FREE_TEXT', 'harmonization_omop::OMOP_ID']
+    update_cols = [pos_col,out_col]
+    df1_indexed = df.set_index(matching_cols)
+    df2_indexed = args.plus_table.set_index(matching_cols)
+    # Update df1 with values from df2 where indices match
+    df1_indexed.update(df2_indexed[update_cols])
+
+    # Reset index to get back to normal dataframe
+    df = df1_indexed.reset_index()
+
+    return df
+
+
 def extract_positive(df,args):
     """
     Creates new column with pos/neg extracted information
     """
 
     df = pd.merge(df,args.posneg_table, on ="MEASUREMENT_FREE_TEXT",how='left')
-
+    
     return df

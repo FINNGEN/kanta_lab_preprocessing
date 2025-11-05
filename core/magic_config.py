@@ -33,7 +33,7 @@ config = {
         'SERVICE_PROVIDER_ID',
         'STATEMENT_ID',
         'STATEMENT_TEXT',
-        'SEX'
+        #'SEX'
         
     ],
     'added_cols': [
@@ -41,7 +41,9 @@ config = {
         "extracted::MEASUREMENT_VALUE",
         "extracted::MEASUREMENT_VALUE_MERGED",
         "extracted::IS_POS",
-        "extracted::TEST_OUTCOME_TEXT"
+        "extracted::TEST_OUTCOME_TEXT",
+        "QC_NOTES",
+        "QC_PASS"
     ],
     'sensitive_cols':[
         'MEASUREMENT_FREE_TEXT',
@@ -54,6 +56,8 @@ config = {
 
     'omop_unit_map':'finngen_qc/data/harmonization_counts.txt',
     'posneg_map':'core/data/negpos_mapping.tsv',
+    'plusab_map':'core/data/kanta_plusplus_abnormality.tsv',
+    'omop_unit_fix':'core/data/omop_conversion_fix.tsv',
 
     'date_time_format': "%Y-%m-%dT%H:%M:%S",
     'free_text_measurement_replacements': [

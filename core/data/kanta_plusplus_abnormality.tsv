@@ -1,0 +1,434 @@
+harmonization_omop::OMOP_ID	MEASUREMENT_FREE_TEXT	extracted::IS_POS	COUNT	DESC	NOTES
+3011397	+	1	38061	Hemoglobin [Presence] in Urine by Test strip	
+3021601	+	1	36545	Nitrite [Presence] in Urine by Test strip	
+40763086	+	1	22698	Leukocyte esterase [Presence] in Urine by Automated test strip	
+3041096	1+	1	18174	Erythrocytes [Presence] in Urine by Automated	
+40763086	3+	1	17038	Leukocyte esterase [Presence] in Urine by Automated test strip	
+3011397	++	1	16493	Hemoglobin [Presence] in Urine by Test strip	
+3029937	+	1	16056	Albumin [Presence] in Urine by Test strip	
+40763086	++	1	15413	Leukocyte esterase [Presence] in Urine by Automated test strip	
+3011397	+*	1	15283	Hemoglobin [Presence] in Urine by Test strip	
+40763086	1+	1	15230	Leukocyte esterase [Presence] in Urine by Automated test strip	
+40763086	+++	1	15213	Leukocyte esterase [Presence] in Urine by Automated test strip	
+3041096	+	1	15080	Erythrocytes [Presence] in Urine by Automated	
+3018095	+	1	14503	Leukocytes [#/volume] in Urine	
+3035350	+	1	13884	Ketones [Presence] in Urine by Test strip	
+3021601	1+	1	13109	Nitrite [Presence] in Urine by Test strip	
+3011397	+++	1	12707	Hemoglobin [Presence] in Urine by Test strip	
+3009261	+++	1	12669	Glucose [Presence] in Urine by Test strip	
+40763086	2+	1	12600	Leukocyte esterase [Presence] in Urine by Automated test strip	
+3041096	3+	1	11554	Erythrocytes [Presence] in Urine by Automated	
+40763086	+*	1	9415	Leukocyte esterase [Presence] in Urine by Automated test strip	
+3041096	2+	1	9267	Erythrocytes [Presence] in Urine by Automated	
+3029937	++	1	9094	Albumin [Presence] in Urine by Test strip	
+3029937	1+	1	7932	Albumin [Presence] in Urine by Test strip	
+3018095	+++	1	7567	Leukocytes [#/volume] in Urine	
+3009261	+	1	7151	Glucose [Presence] in Urine by Test strip	
+3009261	3+	1	6964	Glucose [Presence] in Urine by Test strip	
+40763086	+++*	1	6905	Leukocyte esterase [Presence] in Urine by Automated test strip	
+3021601	+*	1	6597	Nitrite [Presence] in Urine by Test strip	
+40763086	++*	1	6585	Leukocyte esterase [Presence] in Urine by Automated test strip	
+3021601	++	1	6532	Nitrite [Presence] in Urine by Test strip	
+3041096	+++	1	6131	Erythrocytes [Presence] in Urine by Automated	
+3018095	++	1	6123	Leukocytes [#/volume] in Urine	
+3041096	++	1	5938	Erythrocytes [Presence] in Urine by Automated	
+0	+00:00	0	5867	Unmapped	
+3011397	++*	1	5448	Hemoglobin [Presence] in Urine by Test strip	
+3029937	+*	1	5210	Albumin [Presence] in Urine by Test strip	
+3009261	++	1	4804	Glucose [Presence] in Urine by Test strip	
+3045414	+	1	4673	Leukocytes [Presence] in Urine	
+3029937	2+	1	4480	Albumin [Presence] in Urine by Test strip	
+3041096	1+ Arvio	1	4443	Erythrocytes [Presence] in Urine by Automated	
+3011397	+++*	1	4112	Hemoglobin [Presence] in Urine by Test strip	
+3021601	2+	1	4044	Nitrite [Presence] in Urine by Test strip	
+3035350	1+	1	4028	Ketones [Presence] in Urine by Test strip	
+3029937	+++	1	3745	Albumin [Presence] in Urine by Test strip	
+40763086	3+ Arvio	1	3666	Leukocyte esterase [Presence] in Urine by Automated test strip	
+3029937	1+ Arvio	1	3595	Albumin [Presence] in Urine by Test strip	
+3016251	+(pos)	1	3524	Hemoglobin.gastrointestinal [Presence] in Stool	
+3009261	1+	1	3419	Glucose [Presence] in Urine by Test strip	
+40763086	1+ Arvio	1	3368	Leukocyte esterase [Presence] in Urine by Automated test strip	
+3029937	++*	1	3342	Albumin [Presence] in Urine by Test strip	
+3035350	++	1	3262	Ketones [Presence] in Urine by Test strip	
+3014051	+	1	3043	Protein [Presence] in Urine by Test strip	
+3035350	+*	1	3007	Ketones [Presence] in Urine by Test strip	
+3041096	3+ Arvio	1	2893	Erythrocytes [Presence] in Urine by Automated	
+40763086	2+ Arvio	1	2798	Leukocyte esterase [Presence] in Urine by Automated test strip	
+3021601	+ Arvio	1	2740	Nitrite [Presence] in Urine by Test strip	
+3009261	+++*	1	2693	Glucose [Presence] in Urine by Test strip	
+3045414	+++	1	2391	Leukocytes [Presence] in Urine	
+3021601	+++	1	2302	Nitrite [Presence] in Urine by Test strip	
+0	+	0	2246	Unmapped	
+3045414	++	1	2064	Leukocytes [Presence] in Urine	
+3029937	2+ Arvio	1	2058	Albumin [Presence] in Urine by Test strip	
+3009261	2+	1	2047	Glucose [Presence] in Urine by Test strip	
+3009261	4+	1	1885	Glucose [Presence] in Urine by Test strip	
+3041096	4+	1	1863	Erythrocytes [Presence] in Urine by Automated	
+3041096	2+ Arvio	1	1859	Erythrocytes [Presence] in Urine by Automated	
+3009261	3+ Arvio	1	1840	Glucose [Presence] in Urine by Test strip	
+1001926	+(pos)	1	1631	Buprenorphine [Presence] in Urine by Screen method	
+40763086	3+*	1	1587	Leukocyte esterase [Presence] in Urine by Automated test strip	
+3011397	1+	1	1538	Hemoglobin [Presence] in Urine by Test strip	
+40763086	2+*	1	1484	Leukocyte esterase [Presence] in Urine by Automated test strip	
+3035350	+++	1	1474	Ketones [Presence] in Urine by Test strip	
+40763086	1+*	1	1389	Leukocyte esterase [Presence] in Urine by Automated test strip	
+40763086	++++	1	1385	Leukocyte esterase [Presence] in Urine by Automated test strip	
+3021601	3+	1	1353	Nitrite [Presence] in Urine by Test strip	
+3035350	2+	1	1337	Ketones [Presence] in Urine by Test strip	
+3021601	1+*	1	1308	Nitrite [Presence] in Urine by Test strip	
+3029937	3+	1	1290	Albumin [Presence] in Urine by Test strip	
+3009261	+*	1	1273	Glucose [Presence] in Urine by Test strip	
+3000764	+(pos)	1	1264	Benzodiazepines [Presence] in Urine	
+36304419	+++	1	1250	Bacteria [Presence] in Urine	
+3041096	1+*	1	1246	Erythrocytes [Presence] in Urine by Automated	
+36304419	+	1	1071	Bacteria [Presence] in Urine	
+3033319	+(pos)	1	1057	Streptococcus pyogenes Ag [Presence] in Throat	
+0	++	0	1034	Unmapped	
+3009261	1+ Arvio	1	1007	Glucose [Presence] in Urine by Test strip	
+3014051	++	1	969	Protein [Presence] in Urine by Test strip	
+3009261	++*	1	958	Glucose [Presence] in Urine by Test strip	
+3045424	+	1	882	Erythrocytes [Presence] in Urine	
+3029937	+++*	1	875	Albumin [Presence] in Urine by Test strip	
+3011397	2+	1	863	Hemoglobin [Presence] in Urine by Test strip	
+3009261	3+*	1	808	Glucose [Presence] in Urine by Test strip	
+3037121	+	1	777	Protein [Mass/volume] in Urine	
+3041096	+/-	1	766	Erythrocytes [Presence] in Urine by Automated	
+3041096	3+*	1	721	Erythrocytes [Presence] in Urine by Automated	
+3037121	+/-	1	721	Protein [Mass/volume] in Urine	
+3041096	2+*	1	717	Erythrocytes [Presence] in Urine by Automated	
+3011397	3+	1	678	Hemoglobin [Presence] in Urine by Test strip	
+3009261	++++	1	664	Glucose [Presence] in Urine by Test strip	
+40763086	4+	1	653	Leukocyte esterase [Presence] in Urine by Automated test strip	
+3028707	+(pos)	1	650	Methadone [Presence] in Urine by Screen method	
+0	+07:01	0	645	Unmapped	
+3035350	1+ Arvio	1	632	Ketones [Presence] in Urine by Test strip	
+0	+++	0	589	Unmapped	
+3029937	3+ Arvio	1	581	Albumin [Presence] in Urine by Test strip	
+3053028	+(pos eiA)	1	576	Streptococcus sp identified in Specimen by Organism specific culture	
+3008230	+/-	0	574	Borrelia burgdorferi IgM Ab [Units/volume] in Serum	We think it's a subtest from a package or mapping error
+3016888	+/-	0	547	Borrelia burgdorferi IgG Ab [Units/volume] in Serum	We think it's a subtest from a package or mapping error
+3021601	2+*	1	542	Nitrite [Presence] in Urine by Test strip	
+3041096	++++	1	534	Erythrocytes [Presence] in Urine by Automated	
+0	1+	0	528	Unmapped	
+3035350	3+	1	474	Ketones [Presence] in Urine by Test strip	
+3011397	+/-	0	462	Hemoglobin [Presence] in Urine by Test strip	
+3045414	3+	1	441	Leukocytes [Presence] in Urine	
+3016888	++	0	439	Borrelia burgdorferi IgG Ab [Units/volume] in Serum	We think it's a subtest from a package or mapping error
+3021601	1+ Arvio	1	432	Nitrite [Presence] in Urine by Test strip	
+3035350	++*	1	430	Ketones [Presence] in Urine by Test strip	
+3044938	+(pos)	1	428	Influenza virus A RNA [Presence] in Specimen by NAA with probe detection	
+3045424	++	1	422	Erythrocytes [Presence] in Urine	
+3028300	+(pos)	1	419	Cannabinoids [Presence] in Urine	
+3016251	+*	1	418	Hemoglobin.gastrointestinal [Presence] in Stool	
+3037121	++	1	413	Protein [Mass/volume] in Urine	
+40763086	++++*	1	406	Leukocyte esterase [Presence] in Urine by Automated test strip	
+3018095	2+	1	389	Leukocytes [#/volume] in Urine	
+3006462	+	1	382	Nitrate [Presence] in Urine	
+3045424	1+	1	374	Erythrocytes [Presence] in Urine	
+3009261	2+ Arvio	1	361	Glucose [Presence] in Urine by Test strip	
+3041096	+*	1	347	Erythrocytes [Presence] in Urine by Automated	
+3029937	+/-	0	346	Albumin [Presence] in Urine by Test strip	
+4211845	1+	1	342	Urine protein measurement	
+3009261	2+*	1	341	Glucose [Presence] in Urine by Test strip	
+3018095	1+	1	336	Leukocytes [#/volume] in Urine	
+3018095	++++	1	334	Leukocytes [#/volume] in Urine	
+3002523	+(pos)	1	330	Influenza virus A Ag [Presence] in Specimen	
+3035350	2+ Arvio	1	327	Ketones [Presence] in Urine by Test strip	
+3018095	3+	1	326	Leukocytes [#/volume] in Urine	
+3009261	1+*	1	319	Glucose [Presence] in Urine by Test strip	
+0	2+	1	316	Unmapped	
+40758897	+	1	308	Direct antiglobulin test.IgG specific reagent [Presence] on Red Blood Cells	
+3002582	+/-	0	308	Erythrocytes [#/volume] in Urine	
+3045424	+++	1	294	Erythrocytes [Presence] in Urine	
+3045414	1+	1	284	Leukocytes [Presence] in Urine	
+3021601	+/-	0	280	Nitrite [Presence] in Urine by Test strip	
+3045414	2+	1	278	Leukocytes [Presence] in Urine	
+3016888	+++	0	278	Borrelia burgdorferi IgG Ab [Units/volume] in Serum	We think it's a subtest from a package or mapping error
+3016888	+	0	266	Borrelia burgdorferi IgG Ab [Units/volume] in Serum	We think it's a subtest from a package or mapping error
+3016251	+	1	265	Hemoglobin.gastrointestinal [Presence] in Stool	
+36304419	++	1	261	Bacteria [Presence] in Urine	
+4211845	2+	1	256	Urine protein measurement	
+3002582	+	1	252	Erythrocytes [#/volume] in Urine	
+3053028	+(pos A)	1	251	Streptococcus sp identified in Specimen by Organism specific culture	
+3037121	1+	1	249	Protein [Mass/volume] in Urine	
+3008230	+	0	249	Borrelia burgdorferi IgM Ab [Units/volume] in Serum	We think it's a subtest from a package or mapping error
+3014051	+++	1	246	Protein [Presence] in Urine by Test strip	
+0	3+	0	235	Unmapped	
+3011397	+h	1	229	Hemoglobin [Presence] in Urine by Test strip	
+3041096	heikko+	1	215	Erythrocytes [Presence] in Urine by Automated	
+40758897	(+)	1	207	Direct antiglobulin test.IgG specific reagent [Presence] on Red Blood Cells	
+3018095	4+	1	202	Leukocytes [#/volume] in Urine	
+3002582	+++	1	199	Erythrocytes [#/volume] in Urine	
+40758897	++	1	190	Direct antiglobulin test.IgG specific reagent [Presence] on Red Blood Cells	
+3002582	++	1	189	Erythrocytes [#/volume] in Urine	
+3045424	3+	1	182	Erythrocytes [Presence] in Urine	
+3002582	3+	1	182	Erythrocytes [#/volume] in Urine	
+3027456	+	0	178	Digoxin [Moles/volume] in Serum or Plasma	We think it's a subtest from a package or mapping error
+40758897	+++	1	177	Direct antiglobulin test.IgG specific reagent [Presence] on Red Blood Cells	
+3050238	+	1	176	Crystals [Presence] in Synovial fluid by Light microscopy	
+3035350	(+)	1	175	Ketones [Presence] in Urine by Test strip	
+3008230	++	0	174	Borrelia burgdorferi IgM Ab [Units/volume] in Serum	We think it's a subtest from a package or mapping error
+3002582	++++	1	174	Erythrocytes [#/volume] in Urine	
+3037121	+++	1	173	Protein [Mass/volume] in Urine	
+3041145	+/-	0	167	Herpes simplex virus IgM Ab [Presence] in Serum by Immunoassay	
+3003740	+(pos)	1	167	Influenza virus B Ag [Presence] in Specimen	
+3041096	+++*	1	162	Erythrocytes [Presence] in Urine by Automated	
+3037121	2+	1	159	Protein [Mass/volume] in Urine	
+46235759	+(pos)	1	158	Influenza virus B RNA [Presence] in Nasopharynx by NAA with probe detection	
+3010521	+/-	0	158	Mycoplasma pneumoniae IgM Ab [Presence] in Serum by Immunoassay	
+3002582	2+	1	154	Erythrocytes [#/volume] in Urine	
+40763086	heikko+	1	153	Leukocyte esterase [Presence] in Urine by Automated test strip	
+3045424	2+	1	151	Erythrocytes [Presence] in Urine	
+3035350	1+*	1	150	Ketones [Presence] in Urine by Test strip	
+3050238	uraat+	1	148	Crystals [Presence] in Synovial fluid by Light microscopy	
+3027456	+++	0	147	Digoxin [Moles/volume] in Serum or Plasma	We think it's a subtest from a package or mapping error
+3008230	+++	0	146	Borrelia burgdorferi IgM Ab [Units/volume] in Serum	We think it's a subtest from a package or mapping error
+3021601	4+	1	144	Nitrite [Presence] in Urine by Test strip	
+3002582	1+	1	139	Erythrocytes [#/volume] in Urine	
+3041096	(+)	1	138	Erythrocytes [Presence] in Urine by Automated	
+3035350	+++*	1	135	Ketones [Presence] in Urine by Test strip	
+1761868	+	1	133	Lipid panel - Serum or Plasma	
+3044254	+(pos)	1	131	Respiratory syncytial virus RNA [Presence] in Specimen by NAA with probe detection	
+3005570	++++	1	128	Glucose [Moles/volume] in Urine	
+3045683	02+.05+	0	126	HLA typing for celiac disease panel - Blood or Tissue	
+3027008	+(pos)	1	126	Opiates [Presence] in Urine	
+3035350	3+ Arvio	1	124	Ketones [Presence] in Urine by Test strip	
+40761511	+	1	121	CBC panel - Blood by Automated count	
+3015635	+/-	0	121	Cytomegalovirus IgM Ab [Units/volume] in Serum or Plasma	
+3011397	+/- hieman	0	118	Hemoglobin [Presence] in Urine by Test strip	
+3037467	+	1	116	Urinalysis macro (dipstick) panel - Urine	
+3003191	+(>25 U/l)	1	112	Choriogonadotropin (pregnancy test) [Presence] in Serum or Plasma	
+3011397	++++	1	111	Hemoglobin [Presence] in Urine by Test strip	
+3035350	++++	1	108	Ketones [Presence] in Urine by Test strip	
+3007844	+/-	0	107	Epstein Barr virus capsid IgM Ab [Units/volume] in Serum by Immunoassay	
+3045683	02+,05+	0	105	HLA typing for celiac disease panel - Blood or Tissue	
+3012220	+/-	0	105	Varicella zoster virus IgM Ab [Presence] in Serum by Immunoassay	
+3021601	3+*	1	104	Nitrite [Presence] in Urine by Test strip	
+3011397	+/-INTACT	0	104	Hemoglobin [Presence] in Urine by Test strip	
+3033319	+++(pos)	1	101	Streptococcus pyogenes Ag [Presence] in Throat	
+40758895	+++		99	Direct antiglobulin test.complement C3d specific reagent [Presence] on Red Blood Cells	
+3041096	h+		97	Erythrocytes [Presence] in Urine by Automated	
+3048929	+(pos)		96	Epstein Barr virus Ab [Presence] in Serum	
+3050238	+*		94	Crystals [Presence] in Synovial fluid by Light microscopy	
+3009261	++++*		91	Glucose [Presence] in Urine by Test strip	
+40758895	++		90	Direct antiglobulin test.complement C3d specific reagent [Presence] on Red Blood Cells	
+3027944	+(pos)		90	Amphetamines [Presence] in Urine	
+3027456	++	0	88	Digoxin [Moles/volume] in Serum or Plasma	We think it's a subtest from a package or mapping error
+3041096	+/-INTACT		87	Erythrocytes [Presence] in Urine by Automated	
+4211845	+		84	Urine protein measurement	
+3045683	02-.0302+		84	HLA typing for celiac disease panel - Blood or Tissue	
+3041096	+h		84	Erythrocytes [Presence] in Urine by Automated	
+0	+/-		81	Unmapped	
+3037121	3+		79	Protein [Mass/volume] in Urine	
+3035350	4+		77	Ketones [Presence] in Urine by Test strip	
+3027456	++++	0	77	Digoxin [Moles/volume] in Serum or Plasma	We think it's a subtest from a package or mapping error
+3011397	4+		77	Hemoglobin [Presence] in Urine by Test strip	
+3041096	++*		76	Erythrocytes [Presence] in Urine by Automated	
+3041096	+-		73	Erythrocytes [Presence] in Urine by Automated	
+3027456	(+)	0	71	Digoxin [Moles/volume] in Serum or Plasma	We think it's a subtest from a package or mapping error
+3044889	am+jivex		70	12 lead EKG panel	
+3022907	1+		69	Direct antiglobulin test.polyspecific reagent [Presence] on Red Blood Cells	
+42868544	+/-		67	Hantavirus puumala IgM Ab [Presence] in Serum or Plasma by Immunofluorescence	
+3003191	+(pos)		67	Choriogonadotropin (pregnancy test) [Presence] in Serum or Plasma	
+4211845	3+		66	Urine protein measurement	
+3044938	+(pos)*		64	Influenza virus A RNA [Presence] in Specimen by NAA with probe detection	
+3003694	A+(pos)		64	ABO and Rh group [Type] in Blood	
+40758895	+		60	Direct antiglobulin test.complement C3d specific reagent [Presence] on Red Blood Cells	
+40763086	h+		58	Leukocyte esterase [Presence] in Urine by Automated test strip	
+3005570	3+		56	Glucose [Moles/volume] in Urine	
+3003694	O+(pos)		55	ABO and Rh group [Type] in Blood	
+1175715	+/-		54	Chlamydophila pneumoniae IgM Ab [Presence] in Serum by Immunoassay	
+3037121	++++		53	Protein [Mass/volume] in Urine	
+40758897	++++		52	Direct antiglobulin test.IgG specific reagent [Presence] on Red Blood Cells	
+3045683	02-,0302+		52	HLA typing for celiac disease panel - Blood or Tissue	
+3040363	+/-		52	Hepatitis A virus IgG Ab [Presence] in Serum by Immunoassay	
+3023511	+(>25 U/l)		50	Choriogonadotropin [Units/volume] in Urine	
+3021601	+h		49	Nitrite [Presence] in Urine by Test strip	
+3021601	+/- hieman		49	Nitrite [Presence] in Urine by Test strip	
+3037467	+++		48	Urinalysis macro (dipstick) panel - Urine	
+3050238	Uraatti+		47	Crystals [Presence] in Synovial fluid by Light microscopy	
+3000764	+,ei varm.		47	Benzodiazepines [Presence] in Urine	
+3037467	++		46	Urinalysis macro (dipstick) panel - Urine	
+3005570	4+		46	Glucose [Moles/volume] in Urine	
+3035350	h+		45	Ketones [Presence] in Urine by Test strip	
+3024403	1+		45	Complement+Immunoglobulin [Units/volume] in Red Blood Cells	
+3035350	+/-		43	Ketones [Presence] in Urine by Test strip	
+3033319	+		43	Streptococcus pyogenes Ag [Presence] in Throat	
+3012447	+/-		43	Hantavirus puumala IgG Ab [Titer] in Serum	
+3029937	h+		42	Albumin [Presence] in Urine by Test strip	
+3029937	(+)		39	Albumin [Presence] in Urine by Test strip	
+3005570	++		38	Glucose [Moles/volume] in Urine	
+3021601	++*		37	Nitrite [Presence] in Urine by Test strip	
+3005570	+		37	Glucose [Moles/volume] in Urine	
+40763086	(+)		36	Leukocyte esterase [Presence] in Urine by Automated test strip	
+3022907	+		35	Direct antiglobulin test.polyspecific reagent [Presence] on Red Blood Cells	
+36032419	+(pos)		34	SARS-CoV-2 (COVID-19) Ag [Presence] in Upper respiratory specimen by Immunoassay	
+3005570	+++		34	Glucose [Moles/volume] in Urine	
+4211845	+/-		32	Urine protein measurement	
+3017895	+/-		32	Helicobacter pylori Ab [Units/volume] in Serum	
+3002582	4+		32	Erythrocytes [#/volume] in Urine	
+3029937	4+		31	Albumin [Presence] in Urine by Test strip	
+3010380	+++	0	31	Borrelia burgdorferi IgG Ab [Units/volume] in Cerebral spinal fluid	
+3050238	pyrof+		30	Crystals [Presence] in Synovial fluid by Light microscopy	
+3024403	+++		30	Complement+Immunoglobulin [Units/volume] in Red Blood Cells	
+3011363	+(pos)		30	Streptococcus pneumoniae Ag [Presence] in Urine	
+3003694	B+(pos)		30	ABO and Rh group [Type] in Blood	
+3021601	+-		29	Nitrite [Presence] in Urine by Test strip	
+3018095	+/-		29	Leukocytes [#/volume] in Urine	
+3010380	++	0	28	Borrelia burgdorferi IgG Ab [Units/volume] in Cerebral spinal fluid	
+706163	+(posit)		27	SARS-CoV-2 (COVID-19) RNA [Presence] in Respiratory specimen by NAA with probe detection	
+3033319	++(pos)		27	Streptococcus pyogenes Ag [Presence] in Throat	
+3024403	++		27	Complement+Immunoglobulin [Units/volume] in Red Blood Cells	
+3015736	+		27	pH of Urine	
+3045683	02+,05-		26	HLA typing for celiac disease panel - Blood or Tissue	
+3041096	+/- intact		26	Erythrocytes [Presence] in Urine by Automated	
+3029287	+		25	Urinalysis microscopic panel [#/volume] - Urine by Automated count	
+3021601	++++		25	Nitrite [Presence] in Urine by Test strip	
+3019150	+		25	Specific gravity of Urine by Refractometry	
+3011397	+heikko		25	Hemoglobin [Presence] in Urine by Test strip	
+1001926	+.ei varm.		24	Buprenorphine [Presence] in Urine by Screen method	
+0	4+		24	Unmapped	
+40758895	(+)		23	Direct antiglobulin test.complement C3d specific reagent [Presence] on Red Blood Cells	
+3041184	+(pos)		23	Isoniazid [Presence] in Urine	
+3037121	+1		23	Protein [Mass/volume] in Urine	
+3035350	+++++		23	Ketones [Presence] in Urine by Test strip	
+3029937	++++		23	Albumin [Presence] in Urine by Test strip	
+3017143	+/-		23	Hepatitis C virus Ab [Presence] in Serum	
+40763086	+3		22	Leukocyte esterase [Presence] in Urine by Automated test strip	
+40763086	+/-		22	Leukocyte esterase [Presence] in Urine by Automated test strip	
+3035350	2+*		22	Ketones [Presence] in Urine by Test strip	
+3024403	+		22	Complement+Immunoglobulin [Units/volume] in Red Blood Cells	
+3018095	+3		22	Leukocytes [#/volume] in Urine	
+3002582	+/- intact		22	Erythrocytes [#/volume] in Urine	
+4211845	++		21	Urine protein measurement	
+3028707	+		21	Methadone [Presence] in Urine by Screen method	
+3005570	1+		21	Glucose [Moles/volume] in Urine	
+3010380	+/-	0	20	Borrelia burgdorferi IgG Ab [Units/volume] in Cerebral spinal fluid	
+3035350	5+		19	Ketones [Presence] in Urine by Test strip	
+3025941	norm.fl+++		19	Bacteria identified in Stool by Culture	
+3025149	+		19	Bordetella pertussis IgA Ab [Units/volume] in Serum	
+46235759	+(pos)*		18	Influenza virus B RNA [Presence] in Nasopharynx by NAA with probe detection	
+40763086	+1		18	Leukocyte esterase [Presence] in Urine by Automated test strip	
+3044889	pacs+am		18	12 lead EKG panel	
+3044889	ann.muk+jivex		18	12 lead EKG panel	
+3041096	+1		18	Erythrocytes [Presence] in Urine by Automated	
+3024135	+++RYHMÄ A		18	Streptococcus.beta-hemolytic [Presence] in Throat by Organism specific culture	
+3021601	h+		18	Nitrite [Presence] in Urine by Test strip	
+3001684	+(pos)		18	Respiratory syncytial virus Ag [Presence] in Specimen	
+3044889	jivex+am		17	12 lead EKG panel	
+3029937	+(pos)		17	Albumin [Presence] in Urine by Test strip	
+3018095	+2		17	Leukocytes [#/volume] in Urine	
+3013512	Tehty+V4R		17	EKG study	
+3011397	h+		17	Hemoglobin [Presence] in Urine by Test strip	
+40763086	+2		16	Leukocyte esterase [Presence] in Urine by Automated test strip	
+3045683	02+.05-		16	HLA typing for celiac disease panel - Blood or Tissue	
+3035350	+1		16	Ketones [Presence] in Urine by Test strip	
+3021601	(+)		16	Nitrite [Presence] in Urine by Test strip	
+3014973	+/-	0	16	Borrelia burgdorferi IgM Ab [Units/volume] in Cerebral spinal fluid	
+40763086	2++		15	Leukocyte esterase [Presence] in Urine by Automated test strip	
+3037467	1+		15	Urinalysis macro (dipstick) panel - Urine	
+3037467	++++		15	Urinalysis macro (dipstick) panel - Urine	
+3029937	+1		15	Albumin [Presence] in Urine by Test strip	
+3024135	StrG/C+		15	Streptococcus.beta-hemolytic [Presence] in Throat by Organism specific culture	
+3044889	am+pacs		14	12 lead EKG panel	
+3011397	+H		14	Hemoglobin [Presence] in Urine by Test strip	
+3005570	2+		14	Glucose [Moles/volume] in Urine	
+3041096	2++		13	Erythrocytes [Presence] in Urine by Automated	
+3037467	2+		13	Urinalysis macro (dipstick) panel - Urine	
+3021601	+1		13	Nitrite [Presence] in Urine by Test strip	
+3011397	Heikko+		13	Hemoglobin [Presence] in Urine by Test strip	
+3000764	+.ei varm.		13	Benzodiazepines [Presence] in Urine	
+40759836	+/-		12	Histone Ab [Presence] in Serum by Immunoblot	
+3051714	+(pos)		12	Fibrin D-dimer FEU [Mass/volume] in Platelet poor plasma	
+3041096	+3		12	Erythrocytes [Presence] in Urine by Automated	
+3037467	3+		12	Urinalysis macro (dipstick) panel - Urine	
+3037467	+/-		12	Urinalysis macro (dipstick) panel - Urine	
+3033319	+(Pos)		12	Streptococcus pyogenes Ag [Presence] in Throat	
+3026515	+/-		12	Parvovirus B19 IgM Ab [Units/volume] in Serum	
+3021879	+/-		12	Hepatitis B virus core Ab [Presence] in Serum	
+3019832	+/-		12	Treponema pallidum Ab [Presence] in Serum	
+3014973	+++	0	12	Borrelia burgdorferi IgM Ab [Units/volume] in Cerebral spinal fluid	
+40763086	3+++		11	Leukocyte esterase [Presence] in Urine by Automated test strip	
+40758897	+*		11	Direct antiglobulin test.IgG specific reagent [Presence] on Red Blood Cells	
+3044889	jivex+am.		11	12 lead EKG panel	
+3037121	+2		11	Protein [Mass/volume] in Urine	
+3029634	+/-		11	Reagin Ab [Titer] in Serum by VDRL	
+3024403	2+		11	Complement+Immunoglobulin [Units/volume] in Red Blood Cells	
+3024135	StrG/C+++		11	Streptococcus.beta-hemolytic [Presence] in Throat by Organism specific culture	
+3024135	StrG/C++		11	Streptococcus.beta-hemolytic [Presence] in Throat by Organism specific culture	
+3023511	+(pos)		11	Choriogonadotropin [Units/volume] in Urine	
+3018095	+1		11	Leukocytes [#/volume] in Urine	
+40758895	++++		10	Direct antiglobulin test.complement C3d specific reagent [Presence] on Red Blood Cells	
+36304419	++++		10	Bacteria [Presence] in Urine	
+3050238	URAAT+		10	Crystals [Presence] in Synovial fluid by Light microscopy	
+3044889	Am+jivex		10	12 lead EKG panel	
+3041096	+4		10	Erythrocytes [Presence] in Urine by Automated	
+3037467	eryt+/-		10	Urinalysis macro (dipstick) panel - Urine	
+3016879	+(pos)		10	Cocaine [Presence] in Urine	
+3003694	AB+(pos)		10	ABO and Rh group [Type] in Blood	
+1001926	+		10	Buprenorphine [Presence] in Urine by Screen method	
+40763086	+/- hieman		9	Leukocyte esterase [Presence] in Urine by Automated test strip	
+40758897	++*		9	Direct antiglobulin test.IgG specific reagent [Presence] on Red Blood Cells	
+3050238	Na-uraat+		9	Crystals [Presence] in Synovial fluid by Light microscopy	
+3044889	Pacs+a.m.		9	12 lead EKG panel	
+3044889	Mukaan+jivex		9	12 lead EKG panel	
+3041096	-/+		9	Erythrocytes [Presence] in Urine by Automated	
+3041096	+2		9	Erythrocytes [Presence] in Urine by Automated	
+3041096	++++*		9	Erythrocytes [Presence] in Urine by Automated	
+3033319	Posit+		9	Streptococcus pyogenes Ag [Presence] in Throat	
+3029937	Heikko+		9	Albumin [Presence] in Urine by Test strip	
+3022907	2+		9	Direct antiglobulin test.polyspecific reagent [Presence] on Red Blood Cells	
+3022907	++++		9	Direct antiglobulin test.polyspecific reagent [Presence] on Red Blood Cells	
+3018834	+		9	Bilirubin.total [Presence] in Urine by Test strip	
+3010380	+	0	9	Borrelia burgdorferi IgG Ab [Units/volume] in Cerebral spinal fluid	
+3002582	+2		9	Erythrocytes [#/volume] in Urine	
+3002582	++++ 10E6/l		9	Erythrocytes [#/volume] in Urine	
+3000764	+		9	Benzodiazepines [Presence] in Urine	
+42868415	+/-		8	European tick borne encephalitis virus IgM Ab [Presence] in Cerebral spinal fluid by Immunoassay	
+4211845	+++		8	Urine protein measurement	
+3044889	ann.muk.+Pacs		8	12 lead EKG panel	
+3035350	H+		8	Ketones [Presence] in Urine by Test strip	
+3035350	2++		8	Ketones [Presence] in Urine by Test strip	
+3031040	+		8	Bacteria [#/volume] in Urine by Automated count	
+3025149	++		8	Bordetella pertussis IgA Ab [Units/volume] in Serum	
+3024135	StrG++		8	Streptococcus.beta-hemolytic [Presence] in Throat by Organism specific culture	
+3022907	4+		8	Direct antiglobulin test.polyspecific reagent [Presence] on Red Blood Cells	
+3021601	+++*		8	Nitrite [Presence] in Urine by Test strip	
+3009261	h+		8	Glucose [Presence] in Urine by Test strip	
+3008116	1+		8	Ketones [Moles/volume] in Urine by Test strip	
+40759843	+/-		7	Sjogrens syndrome-A extractable nuclear Ab [Presence] in Serum by Immunoblot	
+3043649	+(pos)		7	Fibrin monomer [Presence] in Platelet poor plasma by Hemagglutination	
+3041096	+/- Intact		7	Erythrocytes [Presence] in Urine by Automated	
+3041096	+/ -		7	Erythrocytes [Presence] in Urine by Automated	
+3041096	+(pos)		7	Erythrocytes [Presence] in Urine by Automated	
+3033319	+ (Pos)		7	Streptococcus pyogenes Ag [Presence] in Throat	
+3027944	+,ei varm.		7	Amphetamines [Presence] in Urine	
+3024135	+++RYHMÄ G		7	Streptococcus.beta-hemolytic [Presence] in Throat by Organism specific culture	
+3018834	+(pos)		7	Bilirubin.total [Presence] in Urine by Test strip	
+3016251	h+		7	Hemoglobin.gastrointestinal [Presence] in Stool	
+3016251	+/pos		7	Hemoglobin.gastrointestinal [Presence] in Stool	
+3014973	+		7	Borrelia burgdorferi IgM Ab [Units/volume] in Cerebral spinal fluid	
+3013139	+/-		7	Helicobacter pylori Ag [Presence] in Stool	
+3011397	+1		7	Hemoglobin [Presence] in Urine by Test strip	
+3011397	+/- Intact		7	Hemoglobin [Presence] in Urine by Test strip	
+3002582	+3		7	Erythrocytes [#/volume] in Urine	
+3002582	+1		7	Erythrocytes [#/volume] in Urine	
+42868414	+/-		6	European tick borne encephalitis virus IgM Ab [Presence] in Serum by Immunoassay	
+40763086	+4		6	Leukocyte esterase [Presence] in Urine by Automated test strip	
+40759849	+/-		6	Smith extractable nuclear Ab [Presence] in Serum by Immunoblot	
+40758895	++*		6	Direct antiglobulin test.complement C3d specific reagent [Presence] on Red Blood Cells	
+3050238	Ca-pyrof+		6	Crystals [Presence] in Synovial fluid by Light microscopy	
+3045414	3+*		6	Leukocytes [Presence] in Urine	
+3044889	am+Pacs		6	12 lead EKG panel	
+3044889	Am+pacs		6	12 lead EKG panel	
+3044254	+(pos)*		6	Respiratory syncytial virus RNA [Presence] in Specimen by NAA with probe detection	
+3044212	+/-		6	Herpes simplex virus 1+2 IgM Ab [Presence] in Cerebral spinal fluid	
+3041096	3+++		6	Erythrocytes [Presence] in Urine by Automated	
+3029937	+2		6	Albumin [Presence] in Urine by Test strip	
+3028300	+,ei varm.		6	Cannabinoids [Presence] in Urine	
+3027529	+/-		6	Toxoplasma gondii IgM Ab [Units/volume] in Serum	
+3024403	4+		6	Complement+Immunoglobulin [Units/volume] in Red Blood Cells	
+3022907	+++		6	Direct antiglobulin test.polyspecific reagent [Presence] on Red Blood Cells	
+3021601	+heikko		6	Nitrite [Presence] in Urine by Test strip	
+3020229	+/-		6	Cytomegalovirus DNA [Presence] in Specimen by NAA with probe detection	
+3005570	+1		6	Glucose [Moles/volume] in Urine	

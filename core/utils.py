@@ -23,13 +23,25 @@ def get_stuff_from_finngen_qc(args):
 
     return args
 
+def init_omop_unit_fix(args):
+    f=os.path.join(Path(dir_path).parent.absolute(),args.config['omop_unit_fix'])
+    return pd.read_csv(f,sep='\t').astype({'harmonization_omop::OMOP_ID': str})
+
     
+def init_plus_mapping(args):
+
+    f=os.path.join(Path(dir_path).parent.absolute(),args.config['plusab_map'])
+    df =  pd.read_csv(f,sep='\t',dtype=str)
+    df['extracted::TEST_OUTCOME_TEXT'] = df['MEASUREMENT_FREE_TEXT']
+    df = df[df['extracted::IS_POS']=="1"]
+    return df
+
 def init_posneg_mapping(args):
 
     df =  pd.read_csv(os.path.join(Path(dir_path).parent.absolute(),args.config['posneg_map']),sep='\t',usecols=['MEASUREMENT_FREE_TEXT','MAPPED']).dropna(subset='MAPPED')
-    df = df.astype({'MAPPED': int}).astype({'MAPPED': str})
+    df = df.astype({'MAPPED': int}).astype({'MAPPED': str}).rename(columns={"MAPPED":"extracted::IS_POS"})
     
-    return df.rename(columns={"MAPPED":"extracted::IS_POS"})
+    return df
 
 def init_unit_table(args):
 

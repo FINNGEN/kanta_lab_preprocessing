@@ -1,5 +1,18 @@
 Some of these shuld be fixed by javier (unit replacement), others can either be fixed by forcing a unit (which we already do) or just injecting the source value in the merged column. In the first case we take responsibilty for the substitution (again, we already do  for 40 tests), in the latter we delegate (as we do for the extracted values)
 
+3009542 Hematocrit
+For these entries, there is no harmonized value because the unit is missing or not mapped
+
+TEST_NAME  MEASUREMENT_UNIT_SOURCE
+b-hkr      NaN                        838487
+           -                            3535
+hct        %                            3134
+b-hkr      __________                    280
+ab-hkr     NaN                           187
+b-hkr.fol  NaN                           115
+           -                              34
+
+
 3022493	Free Hemoglobin [Mass/volume] in Plasma [mg/l], sample-wise median --> JAVIER FIX
 Entries that are in g/l should be mg/l for p-hb. We should add it to the unit conversions by test abbreviation
 
