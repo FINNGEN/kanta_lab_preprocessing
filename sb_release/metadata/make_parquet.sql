@@ -18,7 +18,9 @@ SELECT
   nullIf(REFERENCE_RANGE_HIGH_UNIT, 'NA') :: Nullable(String) AS REFERENCE_RANGE_HIGH_UNIT,
   nullIf(CODING_SYSTEM_ORG, 'NA') :: Nullable(String) AS CODING_SYSTEM_ORG,
   nullIf(CODING_SYSTEM_OID, 'NA') :: Nullable(String) AS CODING_SYSTEM_OID,
-  nullIf(SERVICE_PROVIDER_ID, 'NA') :: Nullable(String) AS SERVICE_PROVIDER_ID
+  nullIf(SERVICE_PROVIDER_ID, 'NA') :: Nullable(String) AS SERVICE_PROVIDER_ID,
+  nullIf(QC_NOTES, 'NA') :: Nullable(String) AS QC_NOTES
+
 
 FROM file({filePathCleanTxtGz:String}, TSVWithNames)
 

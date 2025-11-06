@@ -33,7 +33,7 @@ config = {
         'SERVICE_PROVIDER_ID',
         'STATEMENT_ID',
         'STATEMENT_TEXT',
-        #'SEX'
+        'SEX'
         
     ],
     'added_cols': [

@@ -13,7 +13,8 @@ SELECT
   TEST_OUTCOME,
   `imputed::TEST_OUTCOME` AS TEST_OUTCOME_IMPUTED,
   `extracted::TEST_OUTCOME_TEXT` AS TEST_OUTCOME_TEXT_EXTRACTED,
-  `extracted::IS_POS` AS OUTCOME_POS_EXTRACTED
+  `extracted::IS_POS` AS OUTCOME_POS_EXTRACTED,
+  `QC_PASS` as QC_PASS
     
   FROM file({filePathMungedTxtGz:String}, TSVWithNames) kanta_lab_table
 	 
