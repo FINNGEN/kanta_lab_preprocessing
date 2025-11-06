@@ -58,7 +58,7 @@ harmonization_omop::OMOP_ID	MEASUREMENT_FREE_TEXT	extracted::IS_POS	COUNT	DESC	N
 3009261	+++*	1	2693	Glucose [Presence] in Urine by Test strip	
 3045414	+++	1	2391	Leukocytes [Presence] in Urine	
 3021601	+++	1	2302	Nitrite [Presence] in Urine by Test strip	
-0	+	0	2246	Unmapped	
+0	+	1	2246	Unmapped	
 3045414	++	1	2064	Leukocytes [Presence] in Urine	
 3029937	2+ Arvio	1	2058	Albumin [Presence] in Urine by Test strip	
 3009261	2+	1	2047	Glucose [Presence] in Urine by Test strip	
@@ -83,7 +83,7 @@ harmonization_omop::OMOP_ID	MEASUREMENT_FREE_TEXT	extracted::IS_POS	COUNT	DESC	N
 3041096	1+*	1	1246	Erythrocytes [Presence] in Urine by Automated	
 36304419	+	1	1071	Bacteria [Presence] in Urine	
 3033319	+(pos)	1	1057	Streptococcus pyogenes Ag [Presence] in Throat	
-0	++	0	1034	Unmapped	
+0	++	1	1034	Unmapped	
 3009261	1+ Arvio	1	1007	Glucose [Presence] in Urine by Test strip	
 3014051	++	1	969	Protein [Presence] in Urine by Test strip	
 3009261	++*	1	958	Glucose [Presence] in Urine by Test strip	
@@ -92,9 +92,9 @@ harmonization_omop::OMOP_ID	MEASUREMENT_FREE_TEXT	extracted::IS_POS	COUNT	DESC	N
 3011397	2+	1	863	Hemoglobin [Presence] in Urine by Test strip	
 3009261	3+*	1	808	Glucose [Presence] in Urine by Test strip	
 3037121	+	1	777	Protein [Mass/volume] in Urine	
-3041096	+/-	1	766	Erythrocytes [Presence] in Urine by Automated	
+3041096	+/-	0	766	Erythrocytes [Presence] in Urine by Automated	
 3041096	3+*	1	721	Erythrocytes [Presence] in Urine by Automated	
-3037121	+/-	1	721	Protein [Mass/volume] in Urine	
+3037121	+/-	0	721	Protein [Mass/volume] in Urine	
 3041096	2+*	1	717	Erythrocytes [Presence] in Urine by Automated	
 3011397	3+	1	678	Hemoglobin [Presence] in Urine by Test strip	
 3009261	++++	1	664	Glucose [Presence] in Urine by Test strip	
@@ -102,14 +102,14 @@ harmonization_omop::OMOP_ID	MEASUREMENT_FREE_TEXT	extracted::IS_POS	COUNT	DESC	N
 3028707	+(pos)	1	650	Methadone [Presence] in Urine by Screen method	
 0	+07:01	0	645	Unmapped	
 3035350	1+ Arvio	1	632	Ketones [Presence] in Urine by Test strip	
-0	+++	0	589	Unmapped	
+0	+++	1	589	Unmapped	
 3029937	3+ Arvio	1	581	Albumin [Presence] in Urine by Test strip	
 3053028	+(pos eiA)	1	576	Streptococcus sp identified in Specimen by Organism specific culture	
 3008230	+/-	0	574	Borrelia burgdorferi IgM Ab [Units/volume] in Serum	We think it's a subtest from a package or mapping error
 3016888	+/-	0	547	Borrelia burgdorferi IgG Ab [Units/volume] in Serum	We think it's a subtest from a package or mapping error
 3021601	2+*	1	542	Nitrite [Presence] in Urine by Test strip	
 3041096	++++	1	534	Erythrocytes [Presence] in Urine by Automated	
-0	1+	0	528	Unmapped	
+0	1+	1	528	Unmapped	
 3035350	3+	1	474	Ketones [Presence] in Urine by Test strip	
 3011397	+/-	0	462	Hemoglobin [Presence] in Urine by Test strip	
 3045414	3+	1	441	Leukocytes [Presence] in Urine	
@@ -206,43 +206,43 @@ harmonization_omop::OMOP_ID	MEASUREMENT_FREE_TEXT	extracted::IS_POS	COUNT	DESC	N
 3021601	3+*	1	104	Nitrite [Presence] in Urine by Test strip	
 3011397	+/-INTACT	0	104	Hemoglobin [Presence] in Urine by Test strip	
 3033319	+++(pos)	1	101	Streptococcus pyogenes Ag [Presence] in Throat	
-40758895	+++		99	Direct antiglobulin test.complement C3d specific reagent [Presence] on Red Blood Cells	
-3041096	h+		97	Erythrocytes [Presence] in Urine by Automated	
-3048929	+(pos)		96	Epstein Barr virus Ab [Presence] in Serum	
-3050238	+*		94	Crystals [Presence] in Synovial fluid by Light microscopy	
-3009261	++++*		91	Glucose [Presence] in Urine by Test strip	
-40758895	++		90	Direct antiglobulin test.complement C3d specific reagent [Presence] on Red Blood Cells	
-3027944	+(pos)		90	Amphetamines [Presence] in Urine	
+40758895	+++	1	99	Direct antiglobulin test.complement C3d specific reagent [Presence] on Red Blood Cells	
+3041096	h+	1	97	Erythrocytes [Presence] in Urine by Automated	
+3048929	+(pos)	1	96	Epstein Barr virus Ab [Presence] in Serum	
+3050238	+*	1	94	Crystals [Presence] in Synovial fluid by Light microscopy	
+3009261	++++*	1	91	Glucose [Presence] in Urine by Test strip	
+40758895	++	1	90	Direct antiglobulin test.complement C3d specific reagent [Presence] on Red Blood Cells	
+3027944	+(pos)	1	90	Amphetamines [Presence] in Urine	
 3027456	++	0	88	Digoxin [Moles/volume] in Serum or Plasma	We think it's a subtest from a package or mapping error
-3041096	+/-INTACT		87	Erythrocytes [Presence] in Urine by Automated	
-4211845	+		84	Urine protein measurement	
-3045683	02-.0302+		84	HLA typing for celiac disease panel - Blood or Tissue	
-3041096	+h		84	Erythrocytes [Presence] in Urine by Automated	
-0	+/-		81	Unmapped	
-3037121	3+		79	Protein [Mass/volume] in Urine	
-3035350	4+		77	Ketones [Presence] in Urine by Test strip	
+3041096	+/-INTACT	0	87	Erythrocytes [Presence] in Urine by Automated	
+4211845	+	1	84	Urine protein measurement	
+3045683	02-.0302+	0	84	HLA typing for celiac disease panel - Blood or Tissue	
+3041096	+h	1	84	Erythrocytes [Presence] in Urine by Automated	
+0	+/-	0	81	Unmapped	
+3037121	3+	1	79	Protein [Mass/volume] in Urine	
+3035350	4+	1	77	Ketones [Presence] in Urine by Test strip	
 3027456	++++	0	77	Digoxin [Moles/volume] in Serum or Plasma	We think it's a subtest from a package or mapping error
-3011397	4+		77	Hemoglobin [Presence] in Urine by Test strip	
-3041096	++*		76	Erythrocytes [Presence] in Urine by Automated	
-3041096	+-		73	Erythrocytes [Presence] in Urine by Automated	
+3011397	4+	1	77	Hemoglobin [Presence] in Urine by Test strip	
+3041096	++*	1	76	Erythrocytes [Presence] in Urine by Automated	
+3041096	+-	0	73	Erythrocytes [Presence] in Urine by Automated	
 3027456	(+)	0	71	Digoxin [Moles/volume] in Serum or Plasma	We think it's a subtest from a package or mapping error
-3044889	am+jivex		70	12 lead EKG panel	
-3022907	1+		69	Direct antiglobulin test.polyspecific reagent [Presence] on Red Blood Cells	
-42868544	+/-		67	Hantavirus puumala IgM Ab [Presence] in Serum or Plasma by Immunofluorescence	
-3003191	+(pos)		67	Choriogonadotropin (pregnancy test) [Presence] in Serum or Plasma	
-4211845	3+		66	Urine protein measurement	
-3044938	+(pos)*		64	Influenza virus A RNA [Presence] in Specimen by NAA with probe detection	
-3003694	A+(pos)		64	ABO and Rh group [Type] in Blood	
-40758895	+		60	Direct antiglobulin test.complement C3d specific reagent [Presence] on Red Blood Cells	
-40763086	h+		58	Leukocyte esterase [Presence] in Urine by Automated test strip	
-3005570	3+		56	Glucose [Moles/volume] in Urine	
-3003694	O+(pos)		55	ABO and Rh group [Type] in Blood	
-1175715	+/-		54	Chlamydophila pneumoniae IgM Ab [Presence] in Serum by Immunoassay	
-3037121	++++		53	Protein [Mass/volume] in Urine	
-40758897	++++		52	Direct antiglobulin test.IgG specific reagent [Presence] on Red Blood Cells	
-3045683	02-,0302+		52	HLA typing for celiac disease panel - Blood or Tissue	
-3040363	+/-		52	Hepatitis A virus IgG Ab [Presence] in Serum by Immunoassay	
-3023511	+(>25 U/l)		50	Choriogonadotropin [Units/volume] in Urine	
+3044889	am+jivex	0	70	12 lead EKG panel	
+3022907	1+	1	69	Direct antiglobulin test.polyspecific reagent [Presence] on Red Blood Cells	
+42868544	+/-	0	67	Hantavirus puumala IgM Ab [Presence] in Serum or Plasma by Immunofluorescence	
+3003191	+(pos)	1	67	Choriogonadotropin (pregnancy test) [Presence] in Serum or Plasma	
+4211845	3+	1	66	Urine protein measurement	
+3044938	+(pos)*	1	64	Influenza virus A RNA [Presence] in Specimen by NAA with probe detection	
+3003694	A+(pos)	0	64	ABO and Rh group [Type] in Blood	
+40758895	+	1	60	Direct antiglobulin test.complement C3d specific reagent [Presence] on Red Blood Cells	
+40763086	h+	1	58	Leukocyte esterase [Presence] in Urine by Automated test strip	
+3005570	3+	1	56	Glucose [Moles/volume] in Urine	
+3003694	O+(pos)	0	55	ABO and Rh group [Type] in Blood	
+1175715	+/-	0	54	Chlamydophila pneumoniae IgM Ab [Presence] in Serum by Immunoassay	
+3037121	++++	1	53	Protein [Mass/volume] in Urine	
+40758897	++++	1	52	Direct antiglobulin test.IgG specific reagent [Presence] on Red Blood Cells	
+3045683	02-,0302+	0	52	HLA typing for celiac disease panel - Blood or Tissue	
+3040363	+/-	0	52	Hepatitis A virus IgG Ab [Presence] in Serum by Immunoassay	
+3023511	+(>25 U/l)	1	50	Choriogonadotropin [Units/volume] in Urine	
 3021601	+h		49	Nitrite [Presence] in Urine by Test strip	
 3021601	+/- hieman		49	Nitrite [Presence] in Urine by Test strip	
 3037467	+++		48	Urinalysis macro (dipstick) panel - Urine	
