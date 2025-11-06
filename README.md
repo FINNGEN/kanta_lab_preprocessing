@@ -51,7 +51,7 @@ This is the file that contains more general metadata and source data tha can be 
 | `CODING_SYSTEM_ORG` | Name (if present) of the uploading org, mapped via Business Identity Code | From a table in[data folder](/finngen_qc//data/thl_coding_manual_mapping.txt). We noticed that the central digits in most codes were BIC (sometimes missing leadin 0) and thus we could extract the macro information from the [bigger table](/finngen_qc/data/thl_sote_map_named.tsv). The result is not as granular as all subfields (e.g. ```Espoo_221```) are now merged into just `Espoon_Kaupunki (City of Espoo)`. |
 | `CODING_SYSTEM_OID` | ID of what is probably the org that logged the data in the system. |  |
 | `SERVICE_PROVIDER_ID` | Probably the id of the place where the lab was taken/processed. | It follows the [thl sote table](/finngen_qc//data/thl_sote_map_named.tsv) |
-| `QC_NOTES` | Description of QC considerations. | Post-harmonization ad hoc conversions are annotated here (like Hematocrit [0,1] --> [0,100] conversion. Rest TBD. |
+| `QC_NOTES` | Description of QC considerations. | Post-harmonization ad hoc conversions are annotated here (like Hematocrit [0,1] --> [0,100] conversion). Rest TBD. |
 
 
 
@@ -165,21 +165,23 @@ The current version outputs extra columns, which are taken from the `MEASUREMENT
 
 The princples are identical to the `finngen_qc` pipeline, just with different filters being used.
 
-### [QC](/core/filters/qc.py)
-
-This is for all sorts of QCing of the data, ideally for outlier filter/removal. For the time being the only QC in place is there for data privacy reasons:
-- all extracted values that can be misinterpreted as dates are removed (DDMMYY) as they can either be birth dates or the exact date of the examination, which is shifted +- 2 weeks for each FINNGENID
-
-
 ### [EXTRACT](/core/filters/extract.py)
 
 This filter extracts info from the free text column:
 
-- extract_outcome: This function extracts test outcomes (e.g., "<5", ">10") from the "MEASUREMENT_FREE_TEXT" column. It identifies rows with status indicators, standardizes the text, parses the comparison operator, value, and unit, and stores the extracted outcome in a new column named "extracted::TEST_OUTCOME_TEXT". It also performs some data cleaning and unit mapping. Another type of families of values are the ones that show a + sign in their text, mostly from presence in urine measurements. They are often formatted as +/++ or with numerical indicators like 3+. These values are taken from a mapping file.
+- extract\_outcome: This function extracts test outcomes (e.g., "<5", ">10") from the "MEASUREMENT_FREE_TEXT" column. It identifies rows with status indicators, standardizes the text, parses the comparison operator, value, and unit, and stores the extracted outcome in a new column named "extracted::TEST_OUTCOME_TEXT". It also performs some data cleaning and unit mapping. Another type of families of values are the ones that show a + sign in their text, mostly from presence in urine measurements. They are often formatted as +/++ or with numerical indicators like 3+. These values are taken from a mapping file.
 
-- extract_measurement: This function extracts numerical measurement values from the "MEASUREMENT_FREE_TEXT" column and stores them in a new column called "extracted::MEASUREMENT_VALUE". It also creates a "extracted::MEASUREMENT_VALUE_MERGED" column, which prioritizes values from the "harmonization_omop::MEASUREMENT_VALUE" column if available, otherwise using the newly extracted values.
+- extract\_measurement: This function extracts numerical measurement values from the "MEASUREMENT_FREE_TEXT" column and stores them in a new column called "extracted::MEASUREMENT_VALUE". It also creates a "extracted::MEASUREMENT_VALUE_MERGED" column, which prioritizes values from the "harmonization_omop::MEASUREMENT_VALUE" column if available, otherwise using the newly extracted values.
 
-- extract_positive: This function merges the input DataFrame (df) with a posneg_table based on the "MEASUREMENT_FREE_TEXT" column. It's designed to bring in pre-existing positive/negative classifications or related information associated with the free text measurements. 
+- extract\_positive: This function merges the input DataFrame (df) with a posneg_table based on the "MEASUREMENT_FREE_TEXT" column. It's designed to bring in pre-existing positive/negative classifications or related information associated with the free text measurements. 
+
+
+### [QC](/core/filters/qc.py)
+
+This is for all sorts of QCing of the data, ideally for outlier filter/removal:
+- all extracted values that can be misinterpreted as dates are removed (DDMMYY) as they can either be birth dates or the exact date of the examination, which is shifted +- 2 weeks for each FINNGENID
+- we perform a post harmonization fix for certain values where a mismatch of units exist. For the time being we've only seen his happen on the whole OMOP\_ID scale with Hematocrit, where some values are in the [0,1] range instead of the [0,100] range as expected. This is mostly linked to extracted values, but it also affects heavily harmonized values. The mapping file can be found in the [data folder](/core/data/omop_conversion_fix.tsv)
+
 
 ### [OUTCOME](/core/filters/outcome.py)
 - `TEST_OUTCOME_IMPUTED` is generated from the (merged) numerical values based on thresholds learned from the data when both values and outcomes are present
