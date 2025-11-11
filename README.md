@@ -30,16 +30,10 @@ This is the file that contains mostly just workable data for analysis, like valu
 
 ## METADATA FILE
 
-This is the file that contains more general metadata and source data tha can be used for debugging purposes.
+This is the file that contains all columns, including mostly empty and/or uninformative ones. It can be used as a default file for analysis, but there are pre-harmonization (source) columns that might lead to confusion. Very useful for debugging pruposes
 
 | Column Name | Easy Description | Technical Notes |
 |---|---|---|
-| `ROW_ID` | ROW ID that allows to compare lines across steps of the pipeline |  |
-| `FINNGENID` | Pseudoanonimized IDs |  |
-| `SEX` | Sex of the sample |  |
-| `EVENT_AGE` | Age of the individual at the time fo the event |  |
-| `APPROX_EVENT_DATETIME` | Approximate event (+- two weeks) of the event |  |
-| `OMOP_CONCEPT_ID` | OMOP id of the mapping | The mapping is done using [a table](/finngen_qc/data/LABfi_ALL.usagi.csv) |
 | `TEST_ID` | National (THL) or local lab ID of the measurement |  |
 | `TEST_ID_IS_NATIONAL` | Source of the lab ID | 0: local and 1: national (THL) |
 | `TEST_NAME_SOURCE` | The original abbreviation of the measurement |  |

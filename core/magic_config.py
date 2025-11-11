@@ -51,7 +51,7 @@ config = {
         'STATEMENT_TEXT'
     ],
 
-    'err_cols':['ROW_ID','FINNGENID','APPROX_EVENT_DATETIME','ERR','ERR_VALUE'],
+    'err_cols':['ROW_ID','APPROX_EVENT_DATETIME','ERR','ERR_VALUE'],
     'dup_cols':['FINNGENID','APPROX_EVENT_DATETIME','harmonization_omop::OMOP_ID','cleaned::TEST_NAME_ABBREVIATION','extracted::MEASUREMENT_VALUE_MERGED','TEST_OUTCOME','extracted::TEST_OUTCOME_TEXT','extracted::IS_POS'],
 
     'omop_unit_map':'finngen_qc/data/harmonization_counts.txt',
