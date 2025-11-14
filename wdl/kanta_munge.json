@@ -1,5 +1,5 @@
 {
-    "kanta_munge.test": true,
+    "kanta_munge.test": false,
     "kanta_munge.kanta_docker": "europe-west1-docker.pkg.dev/finngen-refinery-dev/fg-refinery-registry/kanta:v3",
     "kanta_munge.kanta_data": "gs://fg-3/kanta_v2/pre-munged/finngen_R12_kanta_laboratory_responses_reports_internal_2.0_2025_04_24_unique.tsv.gz",
 
