@@ -17,13 +17,18 @@ workflow kanta_sort_dup{
     s_cols = get_cols.s_cols
   }
 
+  # builds sex dictionary mapping from pheno file
+  call sex_map {}
+
   # extract columns sort and extract duplicates/errs
   scatter (i in range(length(split.chunks))) {
     call sort {
       input :
       index = i,
       chunk = split.chunks[i],
-      sort_cols = split.sort_cols
+      sort_cols = split.sort_cols,
+      sex_map = sex_map.sex_map
+
     }
   }
   # merge chunks (unique/dup/err)
@@ -67,7 +72,7 @@ task merge {
   print(unique)
   with open('sorted.txt') as i,gzip.open(dups,'wt') as dup,gzip.open(unique,'wt') as out,gzip.open(errs,'wt') as err:
       # copy header to out files
-      with open('~{header}') as tmp: head = "ROW_ID\t" + tmp.read()
+      with open('~{header}') as tmp: head = "ROW_ID\t" + tmp.read().strip() + "\tSEX\n"
       out.write(head),dup.write(head),err.write(head)
       row,dup_count,count,err_count = 0,0,0,0
       for line in i:
@@ -106,10 +111,27 @@ task sort {
     File chunk
     Array[String] sort_cols
     Int index
+    File sex_map
   }
   String out_file = "kanta_sorted_" + index
   command <<<
-  zcat ~{chunk} | sort -t $'\t'  -k ~{sep=" -k " sort_cols}  > ~{out_file} 
+  # sort file
+  zcat ~{chunk} | sort -t $'\t'  -k ~{sep=" -k " sort_cols}  > tmp.txt
+  #add sex
+  join --header -t $'\t' -o auto -e NA tmp.txt ~{sex_map} | awk -F'\t' 'BEGIN {OFS="\t"} { t = $1; $1 = $2; $2 = t; print; }' >  ~{out_file}
+  # check file size
+  count_tmp=$(wc -l < tmp.txt)
+  count_out=$(wc -l < ~{out_file})
+  
+  # Perform the assertion
+  if [[ "$count_tmp" -ne "$count_out" ]]; then
+      echo "❌ Assertion Failed: Line counts do not match!" >&2
+      echo "tmp.txt has $count_tmp lines." >&2
+      echo "~{out_file} has $count_out lines." >&2
+      exit 1 # Exit with a non-zero status to signal an error
+  else
+      echo "✅ Assertion Passed: Both files have $count_tmp lines."
+  fi
   >>>
 
   runtime {
@@ -184,3 +206,15 @@ task split {
   }
 }
 
+task sex_map {
+  input {File min_pheno}
+  String sex_file = "sex_map.txt"
+  command <<<
+  # get sex col
+  sexcol=$(awk '{for(i=1;i<=NF;i++){if($i=="SEX"){print i; exit}}}' <(zcat ~{min_pheno} | head -n1))
+  # extract sex only and sort
+  zcat ~{min_pheno} | cut -f 1,$sexcol | (sed -u 1q ; sort )>> ~{sex_file}
+  >>>
+  runtime {disks: "local-disk ~{ceil(size(min_pheno,'GB')) * 3} HDD"}
+  output {File sex_map = sex_file}
+}

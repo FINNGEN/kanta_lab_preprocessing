@@ -9,8 +9,6 @@ workflow kanta_munge {
     Boolean test
   }
 
-  # builds sex dictionary mapping from pheno file
-  call sex_map {}
   # splits input in chunks
   call split {
     input:
@@ -24,8 +22,7 @@ workflow kanta_munge {
       input:
       docker = kanta_docker,
       prefix = i,
-      chunk = split.chunks[i],
-      sex_map = sex_map.sex_map
+      chunk = split.chunks[i]
     }
   }
   # MERGE CHUNKS AND LOGS
@@ -99,16 +96,12 @@ task munge {
     File chunk
     String prefix
     Int cpus
-    File sex_map
   }
   String out_chunk =  "~{prefix}_munged.txt.gz"
   command <<<
   set -euxo pipefail
   python3 /finngen_qc/main.py  --out .  --raw-data ~{chunk} --log info --mp --harmonization --gz --prefix ~{prefix}
-  # MERGE WITH SEX EXCLUDING SAMPLES NOT IN SEX MAP (AND THUS IN INCLUSION LIST)
-  join --header -t $'\t' -1 2 -o auto -e NA <(zcat ~{out_chunk} ) ~{sex_map} | awk -F'\t' 'BEGIN {OFS="\t"} { t = $1; $1 = $2; $2 = t; print; }' | bgzip -c > tmp.txt.gz
-  zcat tmp.txt.gz | wc -l  &&  zcat ~{out_chunk} | wc -l
-  mv tmp.txt.gz ~{out_chunk}
+  zcat ~{out_chunk} | wc -l
   >>>
   runtime {
     docker : "~{docker}"
