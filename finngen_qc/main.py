@@ -160,7 +160,7 @@ if __name__=='__main__':
     parser.add_argument("--chunk-size", type=int, help="Number of rows to be processed by each chunk (default = '1000*n_cpus').", default=10000*os.cpu_count())
     parser.add_argument("--lines", type=int, help="Number of lines in input file (calculated/estimated otherwise).")
     parser.add_argument("--unit-map", type=str,choices = ['regex','map','none'],default='map', help ='How to replace units. Map uses the unit_mapping.txt mapping in data and regex after. Regex does only regex. none skips it entirely.' )
-    parser.add_argument("--harmonization", type=file_exists, nargs = '?',help="Path to tsv with concept id and target unit.",const = os.path.join(dir_path,'data','harmonization_counts.txt') )
+    parser.add_argument("--harmonization", type=file_exists, nargs = '?',help="Path to tsv with concept id and target unit.",const = os.path.join(dir_path,'data','harmonization_counts.tsv') )
     
     args = parser.parse_args()
     make_sure_path_exists(args.out)
