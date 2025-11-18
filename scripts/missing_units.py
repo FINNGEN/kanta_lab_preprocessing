@@ -76,8 +76,8 @@ def query_parquet_data(parquet_path, omop_id, row_limit=None):
 
 
 def generate_plot(data, output_path):
-    """Generate side-by-side comparison distribution plots using KDE."""
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
+    """Generate three-panel comparison distribution plots using KDE."""
+    fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(21, 5))
     
     n_unharm = len(data['unharmonized_values'])
     n_harm = len(data['harmonized_values'])
@@ -89,13 +89,17 @@ def generate_plot(data, output_path):
     if n_unharm > 1:
         sns.kdeplot(data['unharmonized_values'], ax=ax1, 
                     color='skyblue', linewidth=2, fill=True, alpha=0.4)
+        # Set xlim based on actual data range, not KDE inference
+        unharm_min = data['unharmonized_values'].min()
+        unharm_max = data['unharmonized_values'].max()
+        ax1.set_xlim(unharm_min, unharm_max)
     ax1.set_title(f'Unharmonized Distribution (n={n_unharm:,})', fontsize=11)
     ax1.set_xlabel(f"Unit: {data['unharmonized_unit']}", fontsize=10)
     ax1.set_ylabel('Density', fontsize=10)
     ax1.grid(axis='y', linestyle='--', alpha=0.7)
     ax1.tick_params(labelsize=8)
     
-    # Right plot: Harmonized with unharmonized overlay
+    # Middle plot: Harmonized with unharmonized overlay (full harmonized range)
     if n_harm > 1:
         # Get harmonized range
         harm_min = data['harmonized_values'].min()
@@ -147,6 +151,74 @@ def generate_plot(data, output_path):
     ax2.grid(axis='y', linestyle='--', alpha=0.7)
     ax2.tick_params(axis='x', labelsize=8)
     
+    # Third plot: Focused view (median ± 5 STD) with both distributions
+    if n_harm > 1 and n_unharm > 1:
+        # Calculate bounds based on harmonized data (median ± 5 STD)
+        harm_median = data['harmonized_values'].median()
+        harm_std = data['harmonized_values'].std()
+        focus_min = harm_median - 5 * harm_std
+        focus_max = harm_median + 5 * harm_std
+        
+        # Filter both datasets to focused range
+        harm_focused = data['harmonized_values'][
+            (data['harmonized_values'] >= focus_min) & 
+            (data['harmonized_values'] <= focus_max)
+        ]
+        unharm_focused = data['unharmonized_values'][
+            (data['unharmonized_values'] >= focus_min) & 
+            (data['unharmonized_values'] <= focus_max)
+        ]
+        
+        n_harm_focused = len(harm_focused)
+        n_unharm_focused = len(unharm_focused)
+        frac_harm_kept = n_harm_focused / n_harm if n_harm > 0 else 0
+        frac_unharm_kept = n_unharm_focused / n_unharm if n_unharm > 0 else 0
+        
+        # Plot harmonized on primary axis
+        if n_harm_focused > 1:
+            sns.kdeplot(harm_focused, ax=ax3,
+                        color='lightcoral', linewidth=2.5, fill=True, alpha=0.4,
+                        label=f'Harmonized (n={n_harm_focused:,}, {frac_harm_kept:.1%} kept)')
+        
+        # Plot unharmonized on secondary axis
+        ax3_twin = ax3.twinx()
+        if n_unharm_focused > 1:
+            sns.kdeplot(unharm_focused, ax=ax3_twin,
+                        color='skyblue', linewidth=2, fill=False, alpha=0.7, linestyle='--',
+                        label=f'Unharmonized (n={n_unharm_focused:,}, {frac_unharm_kept:.1%} kept)')
+        
+        # Set focused range
+        ax3.set_xlim(focus_min, focus_max)
+        ax3_twin.set_xlim(focus_min, focus_max)
+        
+        # Add text annotation for excluded values
+        n_harm_excluded = n_harm - n_harm_focused
+        n_unharm_excluded = n_unharm - n_unharm_focused
+        ax3.text(0.02, 0.98, 
+                 f'Excluded outliers:\nHarmonized: {n_harm_excluded:,}\nUnharmonized: {n_unharm_excluded:,}',
+                 transform=ax3.transAxes, fontsize=9, verticalalignment='top',
+                 bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
+        
+        # Labels and legend
+        ax3.set_ylabel('Density (Harmonized)', fontsize=10, color='lightcoral')
+        ax3_twin.set_ylabel('Density (Unharmonized)', fontsize=10, color='skyblue')
+        ax3.tick_params(axis='y', labelcolor='lightcoral', labelsize=8)
+        ax3_twin.tick_params(axis='y', labelcolor='skyblue', labelsize=8)
+        
+        # Combine legends
+        lines1, labels1 = ax3.get_legend_handles_labels()
+        lines2, labels2 = ax3_twin.get_legend_handles_labels()
+        ax3.legend(lines1 + lines2, labels1 + labels2, loc='upper right', fontsize=8)
+        
+        ax3.set_title(f'Focused View (Median ± 5 STD)', fontsize=11)
+        ax3.set_xlabel(f"Unit: {data['harmonized_unit']}", fontsize=10)
+        ax3.grid(axis='y', linestyle='--', alpha=0.7)
+        ax3.tick_params(axis='x', labelsize=8)
+    else:
+        ax3.text(0.5, 0.5, 'Insufficient data for focused view', 
+                 ha='center', va='center', transform=ax3.transAxes)
+        ax3.set_title('Focused View (Median ± 5 STD)', fontsize=11)
+    
     plt.tight_layout()
     plt.savefig(output_path, dpi=150)
     plt.close(fig)
@@ -170,7 +242,7 @@ def generate_plot(data, output_path):
 
 def analyze_data(test_mode, output_path):
     """Main analysis function."""
-    top_n = 3 if test_mode else 30
+    top_n = 3 if test_mode else 100
     parquet_limit = 10000 if test_mode else None
     
     print(f"--- {'TEST' if test_mode else 'FULL'} MODE ---")
@@ -188,7 +260,7 @@ def analyze_data(test_mode, output_path):
     plot_paths = []
     summary_stats = []
     
-    for i, group in top_groups.iterrows():
+    for i_idx, (i_original, group) in enumerate(top_groups.iterrows()):
         omop_id_str = str(group['harmonization_omop::OMOP_ID'])
         test_abbr = group['cleaned::TEST_NAME_ABBREVIATION']
         unit = str(group['cleaned::MEASUREMENT_UNIT'])
@@ -198,11 +270,10 @@ def analyze_data(test_mode, output_path):
         try:
             omop_id_filter = str(int(float(omop_id_str)))
         except ValueError:
-            print(f"Warning: Skipping group {i+1} - invalid OMOP ID: '{omop_id_str}'")
+            print(f"Warning: Skipping group {i_idx+1} - invalid OMOP ID: '{omop_id_str}'")
             continue
         
-        print(f"Processing {i+1}/{len(top_groups)}: {test_abbr} ({omop_id_filter}), unit '{unit}'")
-        
+        print(f"Processing {i_idx+1}/{len(top_groups)}: {test_abbr} ({omop_id_filter}), unit '{unit}'")
         # Filter TXT data
         txt_mask = (
             (analysis_df['harmonization_omop::OMOP_ID'] == omop_id_str) &
@@ -247,14 +318,14 @@ def analyze_data(test_mode, output_path):
     # Create summary table
     summary_df = pd.DataFrame(summary_stats)
     
-    # --- CHANGE 1: Round numeric statistics to 4 decimal places ---
+    # Round numeric statistics to 4 decimal places
     numeric_cols = [
         'unharmonized_mean', 'unharmonized_median', 'unharmonized_std',
         'harmonized_mean', 'harmonized_median', 'harmonized_std'
     ]
     summary_df[numeric_cols] = summary_df[numeric_cols].round(4)
     
-    # --- CHANGE 2: Save as TSV file with tab separator ---
+    # Save as TSV file with tab separator
     summary_path = os.path.join(output_dir, 'summary_statistics.tsv')
     summary_df.to_csv(summary_path, index=False, sep='\t')
     
