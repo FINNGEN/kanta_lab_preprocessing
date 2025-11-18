@@ -51,7 +51,6 @@ def initialize_qc_columns(df, args):
     df.loc[:, 'QC_PASS'] = "1"    
     return df
 
-
 def fix_omop_conversion(df, args):
     """
     Apply unit conversion factors and update QC notes based on OMOP ID lookup table.
@@ -75,6 +74,7 @@ def fix_omop_conversion(df, args):
         Configuration object containing:
         - omop_fix_table: Lookup table with columns:
             * harmonization_omop::OMOP_ID: OMOP identifier to match on
+            * COLUMN_NAME: Column name to apply threshold filter on
             * VALUE_THRESHOLD: Threshold value for comparison
             * SIDE: Comparison operator ('<' or '>')
             * CONVERSION: Multiplication factor to apply
@@ -104,10 +104,23 @@ def fix_omop_conversion(df, args):
     mask = pd.Series(False, index=merged.index)
     
     # Apply vectorized comparisons based on SIDE operator
-    # For '<': Convert if measured value is below threshold
-    mask |= (merged['SIDE'] == '<') & (merged['extracted::MEASUREMENT_VALUE_MERGED'] < merged['VALUE_THRESHOLD'])
-    # For '>': Convert if measured value is above threshold
-    mask |= (merged['SIDE'] == '>') & (merged['extracted::MEASUREMENT_VALUE_MERGED'] > merged['VALUE_THRESHOLD'])
+    # For '<': Convert if measured value is below threshold in the specified column
+    less_than_mask = (merged['SIDE'] == '<') & \
+                     (merged['COLUMN_NAME'].notna())
+    
+    for idx in merged[less_than_mask].index:
+        col_name = merged.loc[idx, 'COLUMN_NAME']
+        if col_name in df.columns:
+            mask.loc[idx] = df.loc[idx, col_name] < merged.loc[idx, 'VALUE_THRESHOLD']
+    
+    # For '>': Convert if measured value is above threshold in the specified column
+    greater_than_mask = (merged['SIDE'] == '>') & \
+                        (merged['COLUMN_NAME'].notna())
+    
+    for idx in merged[greater_than_mask].index:
+        col_name = merged.loc[idx, 'COLUMN_NAME']
+        if col_name in df.columns:
+            mask.loc[idx] = df.loc[idx, col_name] > merged.loc[idx, 'VALUE_THRESHOLD']
     
     # Get the actual index positions where mask is True
     mask_idx = mask[mask].index
@@ -132,6 +145,7 @@ def fix_omop_conversion(df, args):
     df.loc[mask_idx, 'QC_NOTES'] = concatenated_notes
     
     return df
+
 
 def check_dates_in_measurement(df, args):
     """

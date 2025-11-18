@@ -1,0 +1,2 @@
+harmonization_omop::OMOP_ID	THRESHOLD	SIDE	QC_NOTES	MISC
+3022756	1	<	WRONG_UNIT	Wrong unit for harmonized value at source
