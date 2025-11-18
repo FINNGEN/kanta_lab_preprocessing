@@ -23,6 +23,7 @@ def qc(df, args):
         .pipe(check_dates_in_measurement, args)
         .pipe(initialize_qc_columns, args)
         .pipe(fix_omop_conversion, args)
+        .pipe(flag_omop_qc, args)
     )
     return df
 
@@ -249,22 +250,87 @@ def check_dates_in_measurement(df, args):
     return df[~err_mask]
 
 
-def high_low_filters(df, args):
+def flag_omop_qc(df, args):
     """
-    Placeholder function for high/low value filtering.
+    Flag measurements that fail QC thresholds and mark them as QC failures.
     
-    TODO: Implement filtering logic for values outside acceptable ranges.
+    This function identifies measurement values that fall outside acceptable ranges
+    and marks them as QC failures by setting QC_PASS to 0. For example, if a 
+    measurement is below an expected minimum threshold, it may indicate incorrect
+    units or data entry errors.
+    
+    The function operates IN-PLACE on the input DataFrame.
     
     Parameters:
     -----------
     df : pandas.DataFrame
-        Input dataframe
+        Main dataframe containing:
+        - 'harmonization_omop::OMOP_ID': OMOP concept identifier
+        - 'extracted::MEASUREMENT_VALUE_MERGED': Numeric measurement values to check
+        - 'QC_PASS': Quality control pass/fail flag (1=pass, 0=fail)
+        - 'QC_NOTES': Quality control notes column
+        Modified in-place.
+        
     args : object
-        Configuration object
+        Configuration object containing:
+        - omop_qc_table: Lookup table with columns:
+            * harmonization_omop::OMOP_ID: OMOP identifier to match on
+            * THRESHOLD: Threshold value for comparison
+            * SIDE: Comparison operator ('<' or '>')
+            * QC_NOTES: Description of the QC failure
+            * MISC: Additional information (optional)
         
     Returns:
     --------
     pandas.DataFrame
-        Filtered dataframe (currently unmodified)
+        The input dataframe, modified in-place with QC_PASS flags and updated QC notes
+        
+    Example:
+    --------
+    If a measurement is 0.5 and threshold is 1 with SIDE='<',
+    the row will be flagged: QC_PASS set to 0, QC_NOTES updated with failure reason
     """
+    # Merge lookup table to add threshold and QC criteria columns
+    # Using left join to preserve all original rows
+    merged = df.merge(
+        args.omop_qc,
+        on='harmonization_omop::OMOP_ID', 
+        how='left', 
+        suffixes=('', '_qc')
+    )
+    
+    # Create boolean mask identifying rows that fail QC
+    # Start with all False
+    mask = pd.Series(False, index=merged.index)
+    
+    # Apply vectorized comparisons based on SIDE operator
+    # For '<': Fail QC if measured value is below threshold
+    mask |= (merged['SIDE'] == '<') & \
+            (merged['extracted::MEASUREMENT_VALUE_MERGED'] < merged['THRESHOLD'])
+    
+    # For '>': Fail QC if measured value is above threshold
+    mask |= (merged['SIDE'] == '>') & \
+            (merged['extracted::MEASUREMENT_VALUE_MERGED'] > merged['THRESHOLD'])
+    
+    # Get the actual index positions where mask is True
+    mask_idx = mask[mask].index
+    
+    # Set QC_PASS to 0 for flagged measurements
+    df.loc[mask_idx, 'QC_PASS'] = "0"
+    
+    # Update QC notes for flagged values
+    # Get existing notes and new notes as strings
+    existing_notes = df.loc[mask_idx, 'QC_NOTES'].astype(str)
+    new_notes = merged.loc[mask_idx, 'QC_NOTES_qc'].astype(str)
+    
+    # Concatenate notes: if existing is 'NA', replace with new; otherwise append with separator
+    concatenated_notes = np.where(
+        existing_notes == 'NA',  
+        new_notes,  # Replace 'NA' with new note
+        existing_notes + '; ' + new_notes  # Append to existing notes
+    )
+    
+    # Write concatenated notes back to original dataframe
+    df.loc[mask_idx, 'QC_NOTES'] = concatenated_notes
+    
     return df

@@ -58,6 +58,7 @@ config = {
     'posneg_map':'core/data/negpos_mapping.tsv',
     'plusab_map':'core/data/kanta_plusplus_abnormality.tsv',
     'omop_unit_fix':'core/data/omop_conversion_fix.tsv',
+    'omop_qc':'core/data/omop_qc.tsv',
 
     'date_time_format': "%Y-%m-%dT%H:%M:%S",
     'free_text_measurement_replacements': [

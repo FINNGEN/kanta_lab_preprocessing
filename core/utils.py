@@ -28,6 +28,11 @@ def init_omop_unit_fix(args):
     f= pd.read_csv(f,sep='\t').astype({'harmonization_omop::OMOP_ID': str})
     return f
 
+def init_omop_qc(args):
+    f=os.path.join(Path(dir_path).parent.absolute(),args.config['omop_qc'])
+    f= pd.read_csv(f,sep='\t').astype({'harmonization_omop::OMOP_ID': str})
+    return f
+    
     
 def init_plus_mapping(args):
 
