@@ -16,8 +16,6 @@ def harmonization(df,args):
 
     return df
 
-
-
 def unit_harmonization(df,args):
     """"
     Creates two new columns for VALUE/UNIT harmonization
@@ -32,10 +30,10 @@ def unit_harmonization(df,args):
         df.loc[~mask,'harmonization_omop::MEASUREMENT_VALUE'] = df.loc[~mask,'harmonization_omop::CONVERSION_FACTOR'].astype(float)*df.loc[~mask,'MEASUREMENT_VALUE'].astype(float)
         # Convert X to measurement value in the formula and evaluate
         df.loc[mask, 'harmonization_omop::MEASUREMENT_VALUE'] = df.loc[mask].apply(
-                lambda row: round(eval(row['harmonization_omop::CONVERSION_FACTOR'].replace('X', str(float(row['MEASUREMENT_VALUE'])))),2), 
-                axis=1
-            )
-            
+            lambda row: round(eval(row['harmonization_omop::CONVERSION_FACTOR'].replace(',', '.').replace('X', str(float(row['MEASUREMENT_VALUE'])))), 2),
+            axis=1
+        )
+        
         #BRINGS BACK STR TYPE
         df[['harmonization_omop::MEASUREMENT_VALUE','MEASUREMENT_VALUE','harmonization_omop::CONVERSION_FACTOR','harmonization_omop::MEASUREMENT_UNIT']]=df[['harmonization_omop::MEASUREMENT_VALUE','MEASUREMENT_VALUE','harmonization_omop::CONVERSION_FACTOR','harmonization_omop::MEASUREMENT_UNIT']].fillna("NA")
         

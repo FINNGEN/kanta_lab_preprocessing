@@ -118,7 +118,11 @@ task sort {
   # sort file
   zcat ~{chunk} | sort -t $'\t'  -k ~{sep=" -k " sort_cols}  > tmp.txt
   #add sex
-  join --header -t $'\t' -o auto -e NA tmp.txt ~{sex_map} | awk -F'\t' 'BEGIN {OFS="\t"} { t = $1; $1 = $2; $2 = t; print; }' >  ~{out_file}
+  awk -F'\t' 'BEGIN {OFS="\t"} 
+  NR==FNR {sex[$1]=$2; next} 
+  NR==1 {print "SEX", $0; next} 
+  {print (sex[$1] ? sex[$1] : "NA"), $0}' \
+  ~{sex_map} tmp.txt > ~{out_file}
   # check file size
   count_tmp=$(wc -l < tmp.txt)
   count_out=$(wc -l < ~{out_file})

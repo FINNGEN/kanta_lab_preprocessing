@@ -16,7 +16,7 @@ workflow kanta_core {
       input: docker = kanta_docker, prefix = i,chunk = split.chunks[i]
     }
   }
-  String base_prefix =  "kanta" + if test then "_test" else ""
+  String base_prefix =  "kanta" + if test then "_test" else prefix
   # merge chunks & logs
   call merge { input: prefix = base_prefix,munged_chunks = munge.munged_chunk,docker=kanta_docker}
   call merge_logs {input: prefix =  base_prefix,logs = flatten(munge.logs)}

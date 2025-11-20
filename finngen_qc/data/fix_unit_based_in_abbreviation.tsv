@@ -13,6 +13,7 @@ du-prot	g	g/24h
 du-na	mmol	mmol/24h
 du-kors-v	nmol	nmol/24h
 b-hkr	osuus	ratio
+b-hkr		ratio
 b-erytrosyytit,tilavuusosuus	osuus	ratio
 b-pvk+tkd,hkr	osuus	ratio
 b-retind	osuus	%
@@ -24,9 +25,9 @@ ab-ph		ph
 pt-gfreepi	form	ml/min/173m2
 pt-gfreepi		ml/min/173m2
 u-osmoest	mosm/l	mosm/kgh2o
-u-suhti	g/ml kg/l
+u-suhti	g/ml	kg/l
 p-tsh	mlu/l	miu/l
-b-xkoe	form
+b-xkoe	form	
 p-inr		inr
 u-suhtih		kg/l
 s-k/l-s-v		ratio
@@ -38,3 +39,8 @@ b-crp		mg/l
 du-ca	mmol	mmol/24h
 u-keto-o	l	estimate
 eryt	e6/l	e12/l
+p-uraat	mmol/l	umol/l
+s-uraat	mmol/l	umol/l
+kreatiniini	mmol/l	umol/l
+p-krea	mmol/l	umol/l
+s-krea	mmol/l	umol/l

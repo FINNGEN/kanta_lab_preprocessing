@@ -23,7 +23,7 @@ config = {
     },
     "source_cols" : ['MEASUREMENT_VALUE','MEASUREMENT_UNIT','TEST_NAME_ABBREVIATION'],
     # ACCESSORY COLUMNS
-    'other_cols' : ['paikallinentutkimusnimikeid','laboratoriotutkimusnimikeid','APPROX_EVENT_DAY','TIME','ROW_ID'],
+    'other_cols' : ['paikallinentutkimusnimikeid','laboratoriotutkimusnimikeid','APPROX_EVENT_DAY','TIME','ROW_ID','SEX'],
     # Cols used for sorting in the wdl.
     # N.B. the order is important as it is kept in the grepping!
     'sort_cols' : ['FINNGENID','APPROX_EVENT_DAY','TIME','laboratoriotutkimusnimikeid','paikallinentutkimusnimikeid','tutkimusvastauksentilaid','tutkimustulosarvo','tutkimustulosyksikko','tutkimustulosteksti'],
@@ -61,7 +61,8 @@ config = {
         'MEASUREMENT_FREE_TEXT',
         'SERVICE_PROVIDER_ID',
         'STATEMENT_ID',
-   	'STATEMENT_TEXT'  
+   	'STATEMENT_TEXT',
+        'SEX'
     ],
     'cleaned_cols':    [
         'TEST_NAME_ABBREVIATION',
@@ -163,7 +164,8 @@ config = {
     ],
 
     'abbreviation_replacements': [(r'–','-')],
-    'harmonization_repo':'https://raw.githubusercontent.com/FINNGEN/kanta_lab_harmonisation_public/adding-formulas-to-units-conversion/MAPPING_TABLES/',
+    #'harmonization_repo':'https://raw.githubusercontent.com/FINNGEN/kanta_lab_harmonisation_public/refs/heads/main/MAPPING_TABLES/,
+    'harmonization_repo':'https://raw.githubusercontent.com/FINNGEN/kanta_lab_harmonisation_public/refs/heads/development/MAPPING_TABLES/',
     #list of harmonization files along with columns to use
     'harmonization_files' : {
         'usagi_units':[['sourceCode'],'UNITSfi.usagi.csv'],

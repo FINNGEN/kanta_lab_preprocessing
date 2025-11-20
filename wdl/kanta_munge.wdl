@@ -3,8 +3,8 @@ version 1.0
 workflow kanta_munge {
   input {
     File kanta_data
-    String prefix
     String kanta_docker
+    String prefix
     # test mode will use only 100k lines and 4 cpus
     Boolean test
   }
@@ -26,7 +26,7 @@ workflow kanta_munge {
     }
   }
   # MERGE CHUNKS AND LOGS
-  String base_prefix = "kanta" +  if test then "_test" else ""
+  String base_prefix = "kanta" +  if test then "_test" else prefix
   call merge_logs {
     input:
     prefix = base_prefix,
@@ -137,16 +137,5 @@ task split{
   }
 }
 
-task sex_map {
-  input {File min_pheno}
-  String sex_file = "sex_map.txt"
-  command <<<
-  # get sex col
-  sexcol=$(awk '{for(i=1;i<=NF;i++){if($i=="SEX"){print i; exit}}}' <(zcat ~{min_pheno} | head -n1))
-  # extract sex only and sort
-  zcat ~{min_pheno} | cut -f 1,$sexcol | (sed -u 1q ; sort )>> ~{sex_file}
-  >>>
-  runtime {disks: "local-disk ~{ceil(size(min_pheno,'GB')) * 3} HDD"}
-  output {File sex_map = sex_file}
-}
+
 

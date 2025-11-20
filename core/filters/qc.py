@@ -48,11 +48,12 @@ def initialize_qc_columns(df, args):
     pandas.DataFrame
         Dataframe with QC columns added
     """
+    df = df.copy()
     df.loc[:, 'QC_NOTES'] = 'NA'
     df.loc[:, 'QC_PASS'] = "1"    
     return df
 
-def fix_omop_conversion(df, args):
+def fix_omop_conversion_old(df, args):
     """
     Apply unit conversion factors and update QC notes based on OMOP ID lookup table.
     
@@ -144,7 +145,102 @@ def fix_omop_conversion(df, args):
     
     # Write concatenated notes back to original dataframe
     df.loc[mask_idx, 'QC_NOTES'] = concatenated_notes
+    # Create error dataframe with flagged rows
+    qc_df = df.loc[mask_idx].copy()
+    qc_df['ERR'] = 'QC'
+    qc_df['ERR_VALUE'] = (
+        qc_df['cleaned::TEST_NAME_ABBREVIATION'].astype(str).fillna("") + ';' + 
+        qc_df['QC_NOTES'].astype(str).fillna("")
+    )
+ 
+    qc_df[args.config['err_cols']].to_csv(args.warn_file, mode='a', index=False, header=False,sep="\t")
     
+    return df
+
+
+
+def fix_omop_conversion(df, args):
+    """
+    Apply OMOP conversion rules based on current rule table format.
+    Vectorized, index-safe, and includes QC note updates + QC file output.
+    """
+
+    df = df.copy().reset_index(drop=True)
+    rules = args.omop_fix_table.copy().reset_index(drop=True)
+
+    all_fixed_idx = []
+
+    for _, rule in rules.iterrows():
+
+        omop = rule["harmonization_omop::OMOP_ID"]
+        cmp_col = rule["COLUMN_NAME"]
+        thr = rule["VALUE_THRESHOLD"]
+        op = rule["SIDE"]
+        mult = rule["CONVERSION"]
+        note = rule["NOTES"]
+
+        # Skip rules referencing columns not present in df
+        if cmp_col not in df.columns:
+            continue
+
+        # Base OMOP match
+        mask = df["harmonization_omop::OMOP_ID"] == omop
+
+        # Apply comparison
+        if op == "<":
+            mask &= df[cmp_col] < thr
+        elif op == ">":
+            mask &= df[cmp_col] > thr
+        else:
+            raise ValueError(f"Unsupported operator: {op}")
+
+        # Skip rule if no rows match
+        if not mask.any():
+            continue
+
+        mask_idx = df.index[mask].tolist()
+        all_fixed_idx.extend(mask_idx)
+
+        # Apply conversion to MEASUREMENT_VALUE_MERGED (your current behavior)
+        df.loc[mask, "extracted::MEASUREMENT_VALUE_MERGED"] = (
+            df.loc[mask, "extracted::MEASUREMENT_VALUE_MERGED"] * mult
+        )
+
+        # ------------------------------
+        # QC NOTES UPDATE (your block)
+        # ------------------------------
+        existing_notes = df.loc[mask, "QC_NOTES"].astype(str)
+        new_notes = str(note)
+
+        concatenated_notes = np.where(
+            existing_notes == "NA",
+            new_notes,
+            existing_notes + "; " + new_notes
+        )
+
+        df.loc[mask, "QC_NOTES"] = concatenated_notes
+
+    # ------------------------------
+    # QC ERROR OUTPUT (your block)
+    # ------------------------------
+    if all_fixed_idx:
+        qc_df = df.loc[all_fixed_idx].copy()
+
+        qc_df["ERR"] = "QC_CONVERT"
+        qc_df["ERR_VALUE"] = (
+            qc_df["cleaned::TEST_NAME_ABBREVIATION"].astype(str).fillna("") +
+            ";" +
+            qc_df["QC_NOTES"].astype(str)
+        )
+
+        qc_df[args.config["err_cols"]].to_csv(
+            args.warn_file,
+            mode="a",
+            index=False,
+            header=False,
+            sep="\t"
+        )
+
     return df
 
 
@@ -332,5 +428,12 @@ def flag_omop_qc(df, args):
     
     # Write concatenated notes back to original dataframe
     df.loc[mask_idx, 'QC_NOTES'] = concatenated_notes
-    
+
+    qc_df = df.loc[mask_idx].copy()
+    qc_df['ERR'] = 'QC_PASS'
+    qc_df['ERR_VALUE'] = (
+        qc_df['cleaned::TEST_NAME_ABBREVIATION'].astype(str).fillna("") + ';' + 
+        qc_df['QC_NOTES'].astype(str).fillna("")
+    )
+    qc_df[args.config['err_cols']].to_csv(args.warn_file, mode='a', index=False, header=False,sep="\t")
     return df
