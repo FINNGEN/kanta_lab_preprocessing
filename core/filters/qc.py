@@ -53,109 +53,6 @@ def initialize_qc_columns(df, args):
     df.loc[:, 'QC_PASS'] = "1"    
     return df
 
-def fix_omop_conversion_old(df, args):
-    """
-    Apply unit conversion factors and update QC notes based on OMOP ID lookup table.
-    
-    This function corrects measurement values that fall outside expected thresholds
-    by applying conversion factors. For example, if a glucose value is below a 
-    threshold, it may indicate the value is in mg/dL and needs conversion to mmol/L.
-    
-    The function operates IN-PLACE on the input DataFrame.
-    
-    Parameters:
-    -----------
-    df : pandas.DataFrame
-        Main dataframe containing:
-        - 'harmonization_omop::OMOP_ID': OMOP concept identifier
-        - 'extracted::MEASUREMENT_VALUE_MERGED': Numeric measurement values
-        - 'QC_NOTES': Quality control notes column
-        Modified in-place.
-        
-    args : object
-        Configuration object containing:
-        - omop_fix_table: Lookup table with columns:
-            * harmonization_omop::OMOP_ID: OMOP identifier to match on
-            * COLUMN_NAME: Column name to apply threshold filter on
-            * VALUE_THRESHOLD: Threshold value for comparison
-            * SIDE: Comparison operator ('<' or '>')
-            * CONVERSION: Multiplication factor to apply
-            * NOTES: Description of the correction applied
-        
-    Returns:
-    --------
-    pandas.DataFrame
-        The input dataframe, modified in-place with corrected values and updated QC notes
-        
-    Example:
-    --------
-    If a glucose measurement is 90 and threshold is 100 with SIDE='<' and CONVERSION=0.0555,
-    the value will be converted: 90 * 0.0555 = 4.995 mmol/L
-    """
-    # Merge lookup table to add threshold and conversion columns
-    # Using left join to preserve all original rows
-    merged = df.merge(
-        args.omop_fix_table,
-        on='harmonization_omop::OMOP_ID', 
-        how='left', 
-        suffixes=('', '_threshold')
-    )
-    
-    # Create boolean mask identifying rows that need conversion
-    # Start with all False
-    mask = pd.Series(False, index=merged.index)
-    
-    # Apply vectorized comparisons based on SIDE operator
-    # For '<': Convert if measured value is below threshold in the specified column
-    less_than_mask = (merged['SIDE'] == '<') & \
-                     (merged['COLUMN_NAME'].notna())
-    
-    for idx in merged[less_than_mask].index:
-        col_name = merged.loc[idx, 'COLUMN_NAME']
-        if col_name in df.columns:
-            mask.loc[idx] = df.loc[idx, col_name] < merged.loc[idx, 'VALUE_THRESHOLD']
-    
-    # For '>': Convert if measured value is above threshold in the specified column
-    greater_than_mask = (merged['SIDE'] == '>') & \
-                        (merged['COLUMN_NAME'].notna())
-    
-    for idx in merged[greater_than_mask].index:
-        col_name = merged.loc[idx, 'COLUMN_NAME']
-        if col_name in df.columns:
-            mask.loc[idx] = df.loc[idx, col_name] > merged.loc[idx, 'VALUE_THRESHOLD']
-    
-    # Get the actual index positions where mask is True
-    mask_idx = mask[mask].index
-    
-    # Apply conversion factor to flagged measurements
-    df.loc[mask_idx, 'extracted::MEASUREMENT_VALUE_MERGED'] = \
-        merged.loc[mask_idx, 'extracted::MEASUREMENT_VALUE_MERGED'] * merged.loc[mask_idx, 'CONVERSION']
-    
-    # Update QC notes for converted values
-    # Get existing notes and new notes as strings
-    existing_notes = df.loc[mask_idx, 'QC_NOTES'].astype(str)
-    new_notes = merged.loc[mask_idx, 'NOTES'].astype(str)
-    
-    # Concatenate notes: if existing is 'NA', replace with new; otherwise append
-    concatenated_notes = np.where(
-        existing_notes == 'NA',  
-        new_notes,  # Replace 'NA' with new note
-        existing_notes + '; ' + new_notes  # Append to existing notes
-    )
-    
-    # Write concatenated notes back to original dataframe
-    df.loc[mask_idx, 'QC_NOTES'] = concatenated_notes
-    # Create error dataframe with flagged rows
-    qc_df = df.loc[mask_idx].copy()
-    qc_df['ERR'] = 'QC'
-    qc_df['ERR_VALUE'] = (
-        qc_df['cleaned::TEST_NAME_ABBREVIATION'].astype(str).fillna("") + ';' + 
-        qc_df['QC_NOTES'].astype(str).fillna("")
-    )
- 
-    qc_df[args.config['err_cols']].to_csv(args.warn_file, mode='a', index=False, header=False,sep="\t")
-    
-    return df
 
 
 
@@ -355,8 +252,6 @@ def flag_omop_qc(df, args):
     measurement is below an expected minimum threshold, it may indicate incorrect
     units or data entry errors.
     
-    The function operates IN-PLACE on the input DataFrame.
-    
     Parameters:
     -----------
     df : pandas.DataFrame
@@ -365,11 +260,10 @@ def flag_omop_qc(df, args):
         - 'extracted::MEASUREMENT_VALUE_MERGED': Numeric measurement values to check
         - 'QC_PASS': Quality control pass/fail flag (1=pass, 0=fail)
         - 'QC_NOTES': Quality control notes column
-        Modified in-place.
         
     args : object
         Configuration object containing:
-        - omop_qc_table: Lookup table with columns:
+        - omop_qc: Lookup table with columns:
             * harmonization_omop::OMOP_ID: OMOP identifier to match on
             * THRESHOLD: Threshold value for comparison
             * SIDE: Comparison operator ('<' or '>')
@@ -379,61 +273,62 @@ def flag_omop_qc(df, args):
     Returns:
     --------
     pandas.DataFrame
-        The input dataframe, modified in-place with QC_PASS flags and updated QC notes
-        
-    Example:
-    --------
-    If a measurement is 0.5 and threshold is 1 with SIDE='<',
-    the row will be flagged: QC_PASS set to 0, QC_NOTES updated with failure reason
+        DataFrame with QC_PASS flags and updated QC notes
     """
-    # Merge lookup table to add threshold and QC criteria columns
-    # Using left join to preserve all original rows
-    merged = df.merge(
-        args.omop_qc,
-        on='harmonization_omop::OMOP_ID', 
-        how='left', 
-        suffixes=('', '_qc')
-    )
+    df = df.copy().reset_index(drop=True)
     
-    # Create boolean mask identifying rows that fail QC
-    # Start with all False
-    mask = pd.Series(False, index=merged.index)
+    # Process each QC rule separately
+    for _, qc_rule in args.omop_qc.iterrows():
+        omop_id = qc_rule['harmonization_omop::OMOP_ID']
+        threshold = qc_rule['THRESHOLD']
+        side = qc_rule['SIDE']
+        qc_note = qc_rule['QC_NOTES']
+        
+        # Create mask for rows matching this OMOP ID
+        omop_mask = df['harmonization_omop::OMOP_ID'] == omop_id
+        
+        # Apply threshold comparison based on side
+        if side == '<':
+            fail_mask = omop_mask & (df['extracted::MEASUREMENT_VALUE_MERGED'] < threshold)
+        elif side == '>':
+            fail_mask = omop_mask & (df['extracted::MEASUREMENT_VALUE_MERGED'] > threshold)
+        else:
+            continue
+        
+        # Skip if no rows match
+        if not fail_mask.any():
+            continue
+        
+        # Get indices of failed rows
+        fail_idx = df.index[fail_mask].tolist()
+        
+        # Set QC_PASS to 0 for flagged measurements
+        df.loc[fail_idx, 'QC_PASS'] = "0"
+        
+        # Update QC notes for flagged values
+        existing_notes = df.loc[fail_idx, 'QC_NOTES'].astype(str)
+        
+        # Concatenate notes: if existing is 'NA', replace with new; otherwise append
+        concatenated_notes = np.where(
+            existing_notes == 'NA',  
+            str(qc_note),  # Replace 'NA' with new note
+            existing_notes + '; ' + str(qc_note)  # Append to existing notes
+        )
+        
+        # Write concatenated notes back to dataframe
+        df.loc[fail_idx, 'QC_NOTES'] = concatenated_notes
     
-    # Apply vectorized comparisons based on SIDE operator
-    # For '<': Fail QC if measured value is below threshold
-    mask |= (merged['SIDE'] == '<') & \
-            (merged['extracted::MEASUREMENT_VALUE_MERGED'] < merged['THRESHOLD'])
+    # Create error dataframe with all flagged rows
+    failed_mask = df['QC_PASS'] == "0"
+    if failed_mask.any():
+        qc_df = df[failed_mask].copy()
+        qc_df['ERR'] = 'QC_PASS'
+        qc_df['ERR_VALUE'] = (
+            qc_df['cleaned::TEST_NAME_ABBREVIATION'].astype(str).fillna("") + ';' + 
+            qc_df['QC_NOTES'].astype(str).fillna("")
+        )
+        qc_df[args.config['err_cols']].to_csv(
+            args.warn_file, mode='a', index=False, header=False, sep="\t"
+        )
     
-    # For '>': Fail QC if measured value is above threshold
-    mask |= (merged['SIDE'] == '>') & \
-            (merged['extracted::MEASUREMENT_VALUE_MERGED'] > merged['THRESHOLD'])
-    
-    # Get the actual index positions where mask is True
-    mask_idx = mask[mask].index
-    
-    # Set QC_PASS to 0 for flagged measurements
-    df.loc[mask_idx, 'QC_PASS'] = "0"
-    
-    # Update QC notes for flagged values
-    # Get existing notes and new notes as strings
-    existing_notes = df.loc[mask_idx, 'QC_NOTES'].astype(str)
-    new_notes = merged.loc[mask_idx, 'QC_NOTES_qc'].astype(str)
-    
-    # Concatenate notes: if existing is 'NA', replace with new; otherwise append with separator
-    concatenated_notes = np.where(
-        existing_notes == 'NA',  
-        new_notes,  # Replace 'NA' with new note
-        existing_notes + '; ' + new_notes  # Append to existing notes
-    )
-    
-    # Write concatenated notes back to original dataframe
-    df.loc[mask_idx, 'QC_NOTES'] = concatenated_notes
-
-    qc_df = df.loc[mask_idx].copy()
-    qc_df['ERR'] = 'QC_PASS'
-    qc_df['ERR_VALUE'] = (
-        qc_df['cleaned::TEST_NAME_ABBREVIATION'].astype(str).fillna("") + ';' + 
-        qc_df['QC_NOTES'].astype(str).fillna("")
-    )
-    qc_df[args.config['err_cols']].to_csv(args.warn_file, mode='a', index=False, header=False,sep="\t")
     return df

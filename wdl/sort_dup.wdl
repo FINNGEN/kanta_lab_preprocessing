@@ -115,14 +115,12 @@ task sort {
   }
   String out_file = "kanta_sorted_" + index
   command <<<
-  # sort file
-  zcat ~{chunk} | sort -t $'\t'  -k ~{sep=" -k " sort_cols}  > tmp.txt
+  zcat ~{chunk} | sort -t $'\t' -k ~{sep=" -k " sort_cols} > tmp.txt
+
   #add sex
-  awk -F'\t' 'BEGIN {OFS="\t"} 
-  NR==FNR {sex[$1]=$2; next} 
-  NR==1 {print "SEX", $0; next} 
-  {print (sex[$1] ? sex[$1] : "NA"), $0}' \
-  ~{sex_map} tmp.txt > ~{out_file}
+  awk -F'\t' 'BEGIN {OFS="\t"}  NR==FNR {sex[$1]=$2; next} NR==1 {print $0, "SEX"; next} {print $0, (sex[$1] ? sex[$1] : "NA")}' \
+      ~{sex_map} tmp.txt > ~{out_file}
+  
   # check file size
   count_tmp=$(wc -l < tmp.txt)
   count_out=$(wc -l < ~{out_file})

@@ -7,7 +7,7 @@
     "kanta_munge.split.n_chunks": 32,
     # TEST INPUTS
     "kanta_munge.prefix": "_dev",
-    "kanta_munge.kanta_data": "gs://fg-3/kanta_v2/dev/finngen_R12_kanta_laboratory_responses_reports_internal_2.0_2025_11_18_unique.tsv.gz",
+    "kanta_munge.kanta_data": "gs://fg-3/kanta_v3/dev/finngen_R12_kanta_laboratory_responses_reports_internal_2.0_2025_11_21_unique.tsv.gz",
 
 }
 
