@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import operator
 
 
 def qc(df, args):
@@ -243,6 +244,7 @@ def check_dates_in_measurement(df, args):
     return df[~err_mask]
 
 
+
 def flag_omop_qc(df, args):
     """
     Flag measurements that fail QC thresholds and mark them as QC failures.
@@ -266,7 +268,7 @@ def flag_omop_qc(df, args):
         - omop_qc: Lookup table with columns:
             * harmonization_omop::OMOP_ID: OMOP identifier to match on
             * THRESHOLD: Threshold value for comparison
-            * SIDE: Comparison operator ('<' or '>')
+            * SIDE: Comparison operator ('<', '>', '<=', '>=', '==', '!=')
             * QC_NOTES: Description of the QC failure
             * MISC: Additional information (optional)
         
@@ -277,6 +279,16 @@ def flag_omop_qc(df, args):
     """
     df = df.copy().reset_index(drop=True)
     
+    # Map string operators to operator functions
+    ops = {
+        '<': operator.lt,
+        '<=': operator.le,
+        '>': operator.gt,
+        '>=': operator.ge,
+        '==': operator.eq,
+        '!=': operator.ne
+    }
+    
     # Process each QC rule separately
     for _, qc_rule in args.omop_qc.iterrows():
         omop_id = qc_rule['harmonization_omop::OMOP_ID']
@@ -284,16 +296,15 @@ def flag_omop_qc(df, args):
         side = qc_rule['SIDE']
         qc_note = qc_rule['QC_NOTES']
         
+        # Skip if operator not recognized
+        if side not in ops:
+            continue
+        
         # Create mask for rows matching this OMOP ID
         omop_mask = df['harmonization_omop::OMOP_ID'] == omop_id
         
-        # Apply threshold comparison based on side
-        if side == '<':
-            fail_mask = omop_mask & (df['extracted::MEASUREMENT_VALUE_MERGED'] < threshold)
-        elif side == '>':
-            fail_mask = omop_mask & (df['extracted::MEASUREMENT_VALUE_MERGED'] > threshold)
-        else:
-            continue
+        # Apply threshold comparison using the operator function
+        fail_mask = omop_mask & ops[side](df['extracted::MEASUREMENT_VALUE_MERGED'], threshold)
         
         # Skip if no rows match
         if not fail_mask.any():

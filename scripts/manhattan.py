@@ -10,7 +10,7 @@ from qmplot import manhattanplot
 
 DATA=sys.argv[1]
 LAB=sys.argv[2]
-OUT='/mnt/disks/data/kanta/analysis/gwas/plots/'
+OUT='/mnt/disks/data/kanta/test/'
 print(DATA,LAB)
 
 fig_path= os.path.join(OUT,f"{LAB}.png")

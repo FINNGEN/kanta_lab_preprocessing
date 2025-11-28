@@ -1,10 +1,14 @@
 harmonization_omop::OMOP_ID	THRESHOLD	SIDE	QC_NOTES	MISC	conceptName
+3000963	500	>	IMPLAUSIBLE_VALUE	NA	Hemoglobin [Mass/volume] in Blood
+3010813	2000	>	IMPLAUSIBLE_VALUE	NA	Leukocytes [#/volume] in Blood
+3026361	20	>	IMPLAUSIBLE_VALUE	NA	Erythrocytes [#/volume] in Blood
 3004410	0	<	IMPOSSIBLE_VALUE	NA	Hemoglobin A1c/Hemoglobin.total in Blood
 3004775	1000	>	IMPLAUSIBLE_VALUE	NA	Volume in Urine collected for unspecified duration
 3006571	100	>	IMPOSSIBLE_VALUE	NA	Polymorphonuclear cells/100 leukocytes in Synovial fluid
 3007461	5000	>	WRONG UNIT	Probably wrong unit for extracted values	Platelets [#/volume] in Blood
 3009035	10000	>	WRONG UNIT	Probably wrong unit for extracted values	Cobalamin (Vitamin B12) [Moles/volume] in Serum or Plasma
-3009542	100	>	IMPOSSIBLE_VALUE	Impossible values. Could emerge from the ad hoc harmonization	Hematocrit [Volume Fraction] of Blood
+3009542	100	>	IMPOSSIBLE_VALUE	Impossible values. They can also stem from misreported unit (ratio,5) at source	Hematocrit [Volume Fraction] of Blood
+3009542	0	<=	IMPOSSIBLE_VALUE	Impossible values	Hematocrit [Volume Fraction] of Blood
 3010503	1000	>	IMPOSSIBLE_VALUE	NA	CD19 cells [#/volume] in Blood
 3011412	50	>	WRONG UNIT	Probably wrong unit for extracted values	CD3 cells [#/volume] in Blood
 3013742	5	>	WRONG UNIT	Probably wrong unit for extracted values	Prealbumin [Mass/volume] in Serum or Plasma
@@ -17,3 +21,4 @@ harmonization_omop::OMOP_ID	THRESHOLD	SIDE	QC_NOTES	MISC	conceptName
 3023103	50	>	IMPLAUSIBLE_VALUE	Probably wrong unit for extracted values	Potassium [Moles/volume] in Serum or Plasma
 3024731	0	<	IMPOSSIBLE_VALUE	NA	MCV [Entitic volume]
 3025271	10	<	WRONG_UNIT	Probably wrong unit for extracted values	CD3-CD16+CD56+ (Natural killer) cells [#/volume] in Blood
+3003338	1000	>	WRONG_UNIT	Probably wrong source unit	MCHC [Mass/volume]
