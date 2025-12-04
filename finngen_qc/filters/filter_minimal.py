@@ -146,7 +146,7 @@ def fix_date(df,args):
     
     #df['APPROX_EVENT_DATETIME'] = pd.to_datetime(df.APPROX_EVENT_DAY +" "+df.TIME,errors='coerce').dt.strftime(args.config['date_time_format'])
     df['APPROX_EVENT_DATETIME'] =df.APPROX_EVENT_DAY +"T"+df.TIME
-    err_mask = pd.to_datetime(df.APPROX_EVENT_DATETIME, format=args.config['date_time_format'], errors='coerce').notna()
+    err_mask = pd.to_datetime(df.APPROX_EVENT_DATETIME, format=args.config['date_time_format'], errors='coerce').isna()
     err_df = df[err_mask].copy()
     err_df['ERR'] = 'DATE'
     err_df['ERR_VALUE'] = err_df.APPROX_EVENT_DAY +" "+err_df.TIME

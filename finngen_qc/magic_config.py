@@ -71,7 +71,7 @@ config = {
     ],
     
     'err_cols':['ROW_ID','APPROX_EVENT_DATETIME','ERR','ERR_VALUE'],
-    'date_time_format': "%Y-%m-%dT%H:%M:%S",
+    'date_time_format': "%Y-%m-%dT%H:%M",
 
     #REJECTION LINES
     'NA_kws': ['Puuttuu','""',"TYHJÄ","_","NULL","-1"], # FOR ALL COLUMNS DEFAULT
