@@ -10,7 +10,7 @@ from qmplot import manhattanplot
 
 DATA=sys.argv[1]
 LAB=sys.argv[2]
-OUT='/mnt/disks/data/kanta/test/'
+OUT=sys.argv[3]
 print(DATA,LAB)
 
 fig_path= os.path.join(OUT,f"{LAB}.png")
@@ -21,7 +21,10 @@ if os.path.isfile(pfile):
     df = pd.read_pickle(pfile)
 else:
     print(DATA)
-    df = pd.read_csv(DATA,sep=' ',usecols=['CHROM','GENPOS','ID','LOG10P'])
+    df = pd.read_csv(DATA,
+                     sep=' ',
+                     usecols=['CHROM','GENPOS','ID','LOG10P'],
+                     dtype={"CHROM": int, "GENPOS": int, "ID": str})
     df.to_pickle(pfile)
 
 #df = df.sample(100000, replace=False).sort_index()

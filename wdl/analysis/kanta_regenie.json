@@ -1,6 +1,6 @@
 {    "kanta_regenie.docker": "eu.gcr.io/finngen-refinery-dev/regenie:3.3_r12",
-     "kanta_regenie.kanta_parquet": "gs://fg-3/kanta_v3/dev/release/kanta_dev_core.parquet",
-     #"kanta_regenie.kanta_parquet": "gs://fg-3/kanta_v3/dev/hemat/b-hkr_conversion.parquet",
+     #"kanta_regenie.kanta_parquet": "gs://fg-3/kanta_v3/dev/release/kanta_dev_core.parquet",
+     "kanta_regenie.kanta_parquet": "gs://fg-3/kanta_v2/core/release/data/finngen_R13_kanta_lab_2.0.parquet",
      "kanta_regenie.measurement_col_name": "MEASUREMENT_VALUE_MERGED",
      "kanta_regenie.cov_file": "gs://r12-data/pheno/R12_COV_V2.FID.txt.gz",
      "kanta_regenie.is_binary": false,
