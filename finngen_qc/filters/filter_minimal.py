@@ -40,7 +40,7 @@ def fix_abbreviation(df,args):
 
     # replace problematic characters in abbrevation (strange minus sign)
     values = args.config['abbreviation_replacements']
-    abb_df = df[['FINNGENID', 'APPROX_EVENT_DATETIME','TEST_NAME_ABBREVIATION','MEASUREMENT_UNIT']].copy()
+    abb_df = df[['ROW_ID', 'APPROX_EVENT_DATETIME','TEST_NAME_ABBREVIATION','MEASUREMENT_UNIT']].copy()
     for rep in args.config['abbreviation_replacements']:
         df.loc[:,col] = df.loc[:,col].replace(rep[0],rep[1],regex=True)
      

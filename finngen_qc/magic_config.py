@@ -164,8 +164,7 @@ config = {
     ],
 
     'abbreviation_replacements': [(r'–','-')],
-    #'harmonization_repo':'https://raw.githubusercontent.com/FINNGEN/kanta_lab_harmonisation_public/refs/heads/main/MAPPING_TABLES/,
-    'harmonization_repo':'https://raw.githubusercontent.com/FINNGEN/kanta_lab_harmonisation_public/refs/heads/development/MAPPING_TABLES/',
+    'harmonization_repo':'https://raw.githubusercontent.com/FINNGEN/kanta_lab_harmonisation_public/refs/heads/BRANCH/MAPPING_TABLES/',
     #list of harmonization files along with columns to use
     'harmonization_files' : {
         'usagi_units':[['sourceCode'],'UNITSfi.usagi.csv'],

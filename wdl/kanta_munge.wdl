@@ -96,11 +96,12 @@ task munge {
     File chunk
     String prefix
     Int cpus
+    String harmonization_branch
   }
   String out_chunk =  "~{prefix}_munged.txt.gz"
   command <<<
   set -euxo pipefail
-  python3 /finngen_qc/main.py  --out .  --raw-data ~{chunk} --log info --mp --harmonization --gz --prefix ~{prefix}
+  python3 /finngen_qc/main.py  --out .  --raw-data ~{chunk} --log info --mp --harmonization --gz --prefix ~{prefix} --harmonization-gh-branch ~{harmonization_branch}
   zcat ~{out_chunk} | wc -l
   >>>
   runtime {
