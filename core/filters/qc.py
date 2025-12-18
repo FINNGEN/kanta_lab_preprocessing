@@ -25,9 +25,95 @@ def qc(df, args):
         .pipe(initialize_qc_columns, args)
         .pipe(fix_omop_conversion, args)
         .pipe(flag_omop_qc, args)
+        .pipe(flag_omop_extraction_blacklist,args)
     )
     return df
 
+def flag_omop_extraction_blacklist(df, args):
+    """
+    Flag measurements for extraction blacklist and mark them as QC failures.
+    
+    This function identifies measurements that should be excluded based on the
+    extraction blacklist (e.g., unit mismatches) and marks them as QC failures
+    by setting QC_PASS to 0, setting MEASUREMENT_VALUE_MERGED to NA, and adding
+    appropriate QC notes. Only processes rows where extracted::MEASUREMENT_VALUE
+    is not NA.
+    
+    Parameters:
+    -----------
+    df : pandas.DataFrame
+        Main dataframe containing:
+        - 'harmonization_omop::OMOP_ID': OMOP concept identifier
+        - 'extracted::MEASUREMENT_VALUE': Original extracted measurement values
+        - 'extracted::MEASUREMENT_VALUE_MERGED': Numeric measurement values to nullify
+        - 'QC_PASS': Quality control pass/fail flag (1=pass, 0=fail)
+        - 'QC_NOTES': Quality control notes column
+        
+    args : object
+        Configuration object containing:
+        - omop_extraction_blacklist: Lookup table with columns:
+            * harmonization_omop::OMOP_ID: OMOP identifier to match on
+            * QC_NOTES: Description of the QC failure (e.g., "Mismatch of units")
+        
+    Returns:
+    --------
+    pandas.DataFrame
+        DataFrame with nullified MEASUREMENT_VALUE_MERGED, QC_PASS flags set to 0,
+        and updated QC notes
+    """
+    df = df.copy().reset_index(drop=True)
+    
+    # Process each blacklist rule separately
+    for _, blacklist_rule in args.omop_extraction_blacklist.iterrows():
+        omop_id = blacklist_rule['harmonization_omop::OMOP_ID']
+        qc_note = blacklist_rule['QC_NOTES']
+        
+        # Create mask for rows matching this OMOP ID AND where MEASUREMENT_VALUE is not NA
+        blacklist_mask = (
+            (df['harmonization_omop::OMOP_ID'] == omop_id) &
+            (df['extracted::MEASUREMENT_VALUE'].notna())
+        )
+        
+        # Skip if no rows match
+        if not blacklist_mask.any():
+            continue
+        
+        # Get indices of blacklisted rows
+        blacklist_idx = df.index[blacklist_mask].tolist()
+        
+        # Set MEASUREMENT_VALUE_MERGED to NA
+        df.loc[blacklist_idx, 'extracted::MEASUREMENT_VALUE_MERGED'] = np.nan
+        
+        # Set QC_PASS to 0 for flagged measurements
+        df.loc[blacklist_idx, 'QC_PASS'] = "0"
+        
+        # Update QC notes for flagged values
+        existing_notes = df.loc[blacklist_idx, 'QC_NOTES'].astype(str)
+        
+        # Concatenate notes: if existing is 'NA', replace with new; otherwise append
+        concatenated_notes = np.where(
+            existing_notes == 'NA',  
+            str(qc_note),  # Replace 'NA' with new note
+            existing_notes + '; ' + str(qc_note)  # Append to existing notes
+        )
+        
+        # Write concatenated notes back to dataframe
+        df.loc[blacklist_idx, 'QC_NOTES'] = concatenated_notes
+    
+    # Create error dataframe with all flagged rows
+    failed_mask = df['QC_PASS'] == "0"
+    if failed_mask.any():
+        qc_df = df[failed_mask].copy()
+        qc_df['ERR'] = 'QC_PASS'
+        qc_df['ERR_VALUE'] = (
+            qc_df['cleaned::TEST_NAME_ABBREVIATION'].astype(str).fillna("") + ';' + 
+            qc_df['QC_NOTES'].astype(str).fillna("")
+        )
+        qc_df[args.config['err_cols']].to_csv(
+            args.warn_file, mode='a', index=False, header=False, sep="\t"
+        )
+    
+    return df
 
 def initialize_qc_columns(df, args):
     """

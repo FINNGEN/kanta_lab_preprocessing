@@ -4,7 +4,7 @@ from functools import partial
 import multiprocessing as mp
 import numpy as np
 from datetime import datetime
-from utils import file_exists,log_levels,configure_logging,make_sure_path_exists,progressBar,batched,mapcount,read_map,estimate_lines,write_chunk,init_log_files,init_unit_table,init_posneg_mapping,get_stuff_from_finngen_qc,init_plus_mapping,init_omop_unit_fix,init_omop_qc
+from utils import file_exists,log_levels,configure_logging,make_sure_path_exists,progressBar,batched,mapcount,read_map,estimate_lines,write_chunk,init_log_files,init_unit_table,init_posneg_mapping,get_stuff_from_finngen_qc,init_plus_mapping,init_omop_unit_fix,init_omop_qc,init_omop_extraction_blacklist
 from magic_config import config
 from datetime import datetime
 from filters.extract import extract_all
@@ -184,6 +184,8 @@ if __name__=='__main__':
     args.ab_limits = pd.read_csv(os.path.join(dir_path,args.config['abnormality_table']),sep='\t',dtype={"ID":int})
     args.omop_fix_table = init_omop_unit_fix(args)
     args.omop_qc = init_omop_qc(args)
+    args.omop_extraction_blacklist = init_omop_extraction_blacklist(args)
+    print(args.omop_extraction_blacklist)
     
     if os.path.basename(args.raw_data) == "raw_data_test.txt":
         logger.warning("RUNNING IN TEST MODE")

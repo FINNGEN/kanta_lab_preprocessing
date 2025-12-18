@@ -23,6 +23,13 @@ def get_stuff_from_finngen_qc(args):
 
     return args
 
+
+def init_omop_extraction_blacklist(args):
+    f=os.path.join(Path(dir_path).parent.absolute(),args.config['omop_extraction_blacklist'])
+    f= pd.read_csv(f,sep='\t').astype({'harmonization_omop::OMOP_ID': str})
+    return f
+
+    
 def init_omop_unit_fix(args):
     f=os.path.join(Path(dir_path).parent.absolute(),args.config['omop_unit_fix'])
     f= pd.read_csv(f,sep='\t').astype({'harmonization_omop::OMOP_ID': str})
