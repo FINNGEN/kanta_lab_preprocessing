@@ -1,0 +1,15 @@
+{
+    "kanta_munge.test": false,
+    "kanta_munge.kanta_docker": "europe-west1-docker.pkg.dev/finngen-refinery-dev/fg-refinery-registry/kanta:v4.dev",
+    #"kanta_munge.kanta_data": "gs://fg-3/kanta_v2/pre-munged/finngen_R12_kanta_laboratory_responses_reports_internal_2.0_2025_04_24_unique.tsv.gz",
+    #"kanta_munge.prefix": "finngen_R13_kanta_lab_1.0.txt.gz",
+    "kanta_munge.munge.cpus": 8,
+    "kanta_munge.munge.harmonization_branch": "development",
+
+    "kanta_munge.split.n_chunks": 32,
+    # TEST INPUTS
+    "kanta_munge.prefix": "_dev",
+    "kanta_munge.kanta_data": "gs://fg-3/kanta_v3/dev/finngen_R12_kanta_laboratory_responses_reports_internal_2.0_2025_11_21_unique.tsv.gz",
+
+}
+

@@ -1,32 +1,33 @@
 config = {
     # DIRECT COLUMN MAPPING
     'rename_cols' : {
-        'FINNGENID':                      'FINNGENID',
-        'EVENT_AGE' :                     'EVENT_AGE',
-        'tutkimuskoodistonjarjestelmaid': 'CODING_SYSTEM',
-        'paikallinentutkimusnimike':      'TEST_NAME_ABBREVIATION',
-        'tutkimustulosarvo':              'MEASUREMENT_VALUE',
-        'tutkimustulosyksikko':           'MEASUREMENT_UNIT',
-        'tutkimusvastauksentilaid':       'MEASUREMENT_STATUS',
-        'tuloksenpoikkeavuusid':          'TEST_OUTCOME',
-        'viitearvoryhma':                 'REFERENCE_RANGE_GROUP',
-        'viitevalialkuarvo':              'REFERENCE_RANGE_LOWER_VALUE',
-        'viitevalialkuyksikko':           'REFERENCE_RANGE_LOWER_UNIT',
-        'viitevaliloppuarvo':             'REFERENCE_RANGE_UPPER_VALUE',
-        'viitevaliloppuyksikko':          'REFERENCE_RANGE_UPPER_UNIT',
-        'tutkimuksenlisatieto' :          'MEASUREMENT_EXTRA_INFO',
-        'tutkimustulosteksti':            'MEASUREMENT_FREE_TEXT',
-        'antaja_organisaatioid':          'SERVICE_PROVIDER_ID',
-        'lausunnontilaid':                'STATEMENT_ID',
-   	'lausuntoteksti':                 'STATEMENT_TEXT'  
+        'FINNGENID':                       'FINNGENID',
+        'EVENT_AGE' :                      'EVENT_AGE',
+        'tutkimuskoodistonjarjestelma':    'CODING_SYSTEM',
+        'paikallinentutkimusnimike_selite':'TEST_NAME_ABBREVIATION',
+        'tutkimustulosarvo':               'MEASUREMENT_VALUE',
+        'tutkimustulosyksikko':            'MEASUREMENT_UNIT',
+        'tutkimusvastauksentila':          'MEASUREMENT_STATUS',
+        'tuloksenpoikkeavuus':             'TEST_OUTCOME',
+        'viitearvoryhma':                  'REFERENCE_RANGE_GROUP',
+        'viitevalialkuarvo':               'REFERENCE_RANGE_LOWER_VALUE',
+        'viitevalialkuyksikko':            'REFERENCE_RANGE_LOWER_UNIT',
+        'viitevaliloppuarvo':              'REFERENCE_RANGE_UPPER_VALUE',
+        'viitevaliloppuyksikko':           'REFERENCE_RANGE_UPPER_UNIT',
+        'tutkimustulosteksti':            'MEASUREMENT_FREE_TEXT'
+        #'tutkimuksenlisatieto' :          'MEASUREMENT_EXTRA_INFO',
+        #'antaja_organisaatioid':          'SERVICE_PROVIDER_ID',
+        #'lausunnontilaid':                'STATEMENT_ID',
+   	#'lausuntoteksti':                 'STATEMENT_TEXT'  
         
     },
     "source_cols" : ['MEASUREMENT_VALUE','MEASUREMENT_UNIT','TEST_NAME_ABBREVIATION'],
     # ACCESSORY COLUMNS
-    'other_cols' : ['paikallinentutkimusnimikeid','laboratoriotutkimusnimikeid','APPROX_EVENT_DAY','TIME','ROW_ID','SEX'],
+    'other_cols' : ['paikallinentutkimusnimike_koodi','laboratoriotutkimusnimike','APPROX_EVENT_DAY','TIME','ROW_ID','SEX'],
+
     # Cols used for sorting in the wdl.
     # N.B. the order is important as it is kept in the grepping!
-    'sort_cols' : ['FINNGENID','APPROX_EVENT_DAY','TIME','laboratoriotutkimusnimikeid','paikallinentutkimusnimikeid','tutkimusvastauksentilaid','tutkimustulosarvo','tutkimustulosyksikko','tutkimustulosteksti'],
+     'sort_cols' : ['FINNGENID','APPROX_EVENT_DAY','TIME','laboratoriotutkimusnimike','paikallinentutkimusnimike_koodi','tutkimusvastauksentila','tutkimustulosarvo','tutkimustulosyksikko'],#,'tutkimustulosteksti'],
     # LIST OF OUTPUT COLUMNS TO INCLUDE (VALUES ABOVE PLUS NEWLY GENERATED COLUMNS)
     'out_cols' :    [
         'ROW_ID',
@@ -57,11 +58,11 @@ config = {
         'source::MEASUREMENT_VALUE',
         'source::MEASUREMENT_UNIT',
         'source::TEST_NAME_ABBREVIATION',
-        'MEASUREMENT_EXTRA_INFO',
         'MEASUREMENT_FREE_TEXT',
-        'SERVICE_PROVIDER_ID',
-        'STATEMENT_ID',
-   	'STATEMENT_TEXT',
+        #'MEASUREMENT_EXTRA_INFO',
+        #'SERVICE_PROVIDER_ID',
+        #'STATEMENT_ID',
+   	#'STATEMENT_TEXT',
         'SEX'
     ],
     'cleaned_cols':    [
