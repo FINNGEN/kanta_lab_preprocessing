@@ -100,18 +100,17 @@ def get_lab_abbrv(df,args):
     df[col] = df[col].str.replace('"', '')     # remove single quotes
     return df
 
-
 def lab_id_source(df,args):
     """
     Update/create TEST_ID and TEST_ID SOURCE.
     In this function we uses local_lab_id (paikallinentutkimusnimikeid)  and thl lab_id (laboratoriotutkimusnimikeid) if possible.
     """
     
-    local_mask =  (df['laboratoriotutkimusnimikeid'] == 'NA')
+    local_mask =  (df['laboratoriotutkimusnimike'] == 'NA')
     df["TEST_ID_IS_NATIONAL"] = np.where(local_mask,"0","1")
-    df["TEST_ID"] = np.where(local_mask,df.paikallinentutkimusnimikeid,df.laboratoriotutkimusnimikeid)
+    df["TEST_ID"] = np.where(local_mask,df.paikallinentutkimusnimike_koodi,df.laboratoriotutkimusnimike)
     return df
-    
+
 def filter_measurement_status(df,args):
     """
     Here we remove values that are not in the accepted value list.

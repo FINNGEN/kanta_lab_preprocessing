@@ -1,8 +1,8 @@
 {
-    "kanta_sort_dup.test":false,
-    "kanta_sort_dup.kanta_data":"gs://fg-3/kanta_v2/finngen_R12_kanta_laboratory_responses_reports_internal_2.0.txt.gz",
-    "kanta_sort_dup.sex_map.min_pheno": "gs://finngen-production-library-red/finngen_R12/phenotype_1.0/data/finngen_R12_minimum_1.0.txt.gz",
-    "kanta_sort_dup.get_cols.branch": "dev", 
+    "kanta_sort_dup.test":true,
+    "kanta_sort_dup.kanta_data":"gs://fg-cromwell-4/pre_merge/8912deec-6313-4dd5-b5ff-ecf0c9ece66d/call-merge_ft/shard-0/finngen_R14_kanta_laboratory_responses_2014_2015_internal_1.0_cleaned_merged.txt.gz",
+    "kanta_sort_dup.sex_map.min_pheno": "gs://finngen-production-library-red/finngen_R13/phenotype_1.0/data/finngen_R13_minimum_1.0.txt.gz",
+    "kanta_sort_dup.kanta_docker": "eu.gcr.io/finngen-sandbox-v3-containers/kanta:dev",
     "kanta_sort_dup.split.n_chunks": 15, #N.B it should be < 16
    
 }

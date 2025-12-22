@@ -5,20 +5,22 @@ workflow kanta_sort_dup{
     # works with 100k lines
     Boolean test
     File kanta_data
+    String kanta_docker
   }
-
-  call get_cols {}  # metadata
+  String bio_docker = "eu.gcr.io/finngen-sandbox-v3-containers/bioinformatics:1.0.1"
+  call get_cols {input:docker=kanta_docker}  # metadata
   # split input in chunks
   call split {
     input:
     test = test,
     kanta_data = kanta_data,
     cols = get_cols.cols,
-    s_cols = get_cols.s_cols
+    s_cols = get_cols.s_cols,
+    docker=bio_docker
   }
 
   # builds sex dictionary mapping from pheno file
-  call sex_map {}
+  call sex_map {input: docker=bio_docker}
 
   # extract columns sort and extract duplicates/errs
   scatter (i in range(length(split.chunks))) {
@@ -27,8 +29,8 @@ workflow kanta_sort_dup{
       index = i,
       chunk = split.chunks[i],
       sort_cols = split.sort_cols,
-      sex_map = sex_map.sex_map
-
+      sex_map = sex_map.sex_map,
+      docker=bio_docker
     }
   }
   # merge chunks (unique/dup/err)
@@ -38,6 +40,7 @@ workflow kanta_sort_dup{
     sorted_chunks = sort.sorted_chunk,
     sort_cols = split.sort_cols,
     header = split.header,
+    docker= bio_docker,
     prefix = if test then prefix+ "_test"  else prefix 
   }
 }
@@ -48,6 +51,7 @@ task merge {
     Array[File] sorted_chunks
     Array[String] sort_cols
     String prefix
+    String docker
   }
 
   Int chunk_size = ceil(size(sorted_chunks,"GB"))
@@ -65,7 +69,7 @@ task merge {
   # initial empty values
   values = ['' for _ in cols]
   date = datetime.now().strftime("%Y_%m_%d")
-  prefix = '~{prefix}' + f"_{date}"
+  prefix = '~{prefix}' +  "_{}".format(date)
   unique = prefix + "_unique.tsv.gz"
   dups   = prefix + "_duplicates.tsv.gz"
   errs   = prefix + "_err.tsv.gz"
@@ -100,6 +104,7 @@ task merge {
   >>>
   runtime {
     disks:   "local-disk ~{chunk_size*4+10}  HDD"
+    docker : "~{docker}"
   }
   output {
     Array[File] kanta_files = glob("~{prefix}*gz")
@@ -111,6 +116,7 @@ task sort {
     File chunk
     Array[String] sort_cols
     Int index
+    String docker
     File sex_map
   }
   String out_file = "kanta_sorted_" + index
@@ -138,6 +144,7 @@ task sort {
 
   runtime {
     disks:   "local-disk ~{ceil(size(chunk,'GB'))*3 + 10} HDD"
+    docker: "~{docker}"
   }
 
   output {
@@ -146,16 +153,19 @@ task sort {
 }
 
 task get_cols {
-  input {String branch}
+  input {
+    String docker
+  }
 
   command <<<
   # get required columns to cut from git repository
-  curl -s https://raw.githubusercontent.com/FINNGEN/kanta_lab_preprocessing/~{branch}/finngen_qc/magic_config.py > config.py
+  cp /finngen_qc/magic_config.py ./config.py
   python3 -c "import config;o= open('./columns.txt','wt') ;o.write('\n'.join(list(config.config['rename_cols'].keys())) + '\n');o.write('\n'.join(config.config['other_cols'])+ '\n')"
   python3 -c "import config;o= open('./sort_columns.txt','wt') ;o.write('\n'.join(config.config['sort_cols'])+ '\n')"
   >>>
   runtime {
     disks:   "local-disk 10 HDD"
+    docker : "~{docker}"
   }
   output {
     Array[String] cols = read_lines("columns.txt")
@@ -170,6 +180,7 @@ task split {
     Int n_chunks
     Array[String] cols
     Array[String] s_cols
+    String docker
   }
  
   Int disk_size = ceil(size(kanta_data,"GB"))*10*n_chunks
@@ -199,6 +210,7 @@ task split {
 
   runtime {
     disks: "local-disk ~{disk_size} HDD"
+    docker : "~{docker}"
   }
 
   output {
@@ -209,7 +221,10 @@ task split {
 }
 
 task sex_map {
-  input {File min_pheno}
+  input {
+    File min_pheno
+    String docker
+  }
   String sex_file = "sex_map.txt"
   command <<<
   # get sex col
@@ -217,6 +232,9 @@ task sex_map {
   # extract sex only and sort
   zcat ~{min_pheno} | cut -f 1,$sexcol | (sed -u 1q ; sort )>> ~{sex_file}
   >>>
-  runtime {disks: "local-disk ~{ceil(size(min_pheno,'GB')) * 3} HDD"}
+  runtime {
+    disks: "local-disk ~{ceil(size(min_pheno,'GB')) * 3} HDD"
+    docker : "~{docker}"
+  }
   output {File sex_map = sex_file}
 }

@@ -28,9 +28,9 @@ This is the file that contains mostly just workable data for analysis, like valu
 | `QC_PASS` | Boolean indicator of numerical QC.|TO BE IMPLEMENTED |
 
 
-## METADATA FILE
+## EXTENDED_COLUMNS FILE
 
-This is the file that contains all columns, including mostly empty and/or uninformative ones. It can be used as a default file for analysis, but there are pre-harmonization (source) columns that might lead to confusion. Very useful for debugging pruposes
+This is the file that contains all columns, including mostly empty and/or uninformative ones. It can be used as a default file for analysis, but there are pre-harmonization (source) columns that might lead to confusion. Very useful for debugging pruposes or for custom QCing. The columns unique to this file are:
 
 | Column Name | Easy Description | Technical Notes |
 |---|---|---|
@@ -56,7 +56,7 @@ The raw to output column mapping is as follows:
 |FINNGENID|FINNGENID|
 |EVENT_AGE|EVENT_AGE|
 |tutkimuskoodistonjarjestelmaid|CODING_SYSTEM|
-|paikallinentutkimusnimike|TEST_NAME_ABBREVIATION|
+|paikallinentutkimusnimike_selite|TEST_NAME_ABBREVIATION|
 |tutkimustulosarvo|MEASUREMENT_VALUE|
 |tutkimustulosyksikko|MEASUREMENT_UNIT|
 |tutkimusvastauksentilaid|MEASUREMENT_STATUS|
@@ -93,7 +93,7 @@ The code performs the following actions:
 - all type of NA/missing values (Puuttuu,"_" etc.) are replaced with "NA"
 - entries with invalid hetu root are removed (and logged)
 - entries with invalid measurement status are removed (and logged)
-- TEST_ID_IS_NATIONAL is created checking if `laboratoriotutkimusnimikeid` is not NA (1 national/0 regional)
+- TEST_ID_IS_NATIONAL is created checking if `laboratoriotutkimusnimike_koodi` is not NA (1 national/0 regional)
 - TEST_ID is created assigning the regional id for regional labs and a 
 - TEST_NAME_ABBREVIATION is updated for national labs [through a mapping](/finngen_qc/data/thl_lab_id_abbrv_map.tsv)
 - CODING_SYSTEM is updated when available (problematic ATM, see table above)
@@ -175,7 +175,8 @@ This filter extracts info from the free text column:
 This is for all sorts of QCing of the data, ideally for outlier filter/removal:
 - all extracted values that can be misinterpreted as dates are removed (DDMMYY) as they can either be birth dates or the exact date of the examination, which is shifted +- 2 weeks for each FINNGENID
 - we perform a post harmonization fix for certain values where a mismatch of units exist. For the time being we've only seen his happen on the whole OMOP\_ID scale with Hematocrit, where some values are in the [0,1] range instead of the [0,100] range as expected. This is mostly linked to extracted values, but it also affects heavily harmonized values. The mapping file can be found in the [data folder](/core/data/omop_conversion_fix.tsv)
-
+- we use [a table](/core/data/omop_qc.tsv) to perform basic QC. The table enumerates thresholds for which we find values that are impossible/implausible or for which the pipeline cannot handle potential issues with unit. If en entry matches the criteria in the table, `QC_PASS` is set to 0 and `QC_NOTES` is updated to describe what went wrong according to our analysis
+- we use [a table](/core/data/omop_extraction_blacklist.tsv) to mask out extracted values from the `MEASUREMENT_VALUE_MERGED` column. QC columns are also updated. ATM it only involves a specific OMOP id for which two units coexist and conversion between them is not so obvious without a significant ad hoc modification in the pipeline.
 
 ### [OUTCOME](/core/filters/outcome.py)
 - `TEST_OUTCOME_IMPUTED` is generated from the (merged) numerical values based on thresholds learned from the data when both values and outcomes are present
