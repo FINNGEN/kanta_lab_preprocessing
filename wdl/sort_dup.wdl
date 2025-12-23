@@ -7,20 +7,22 @@ workflow kanta_sort_dup{
     File kanta_data
     String kanta_docker
   }
-  String bio_docker = "eu.gcr.io/finngen-sandbox-v3-containers/bioinformatics:1.0.1"
-  call get_cols {input:docker=kanta_docker}  # metadata
+  # this has python 3.6, needed in the merge step.
+  String base_docker = "eu.gcr.io/finngen-sandbox-v3-containers/kanta:v3_base"
+  call get_cols {input:docker=kanta_docker}  
   # split input in chunks
+  # s_cols (names) --> sort_cols (indices)
   call split {
     input:
     test = test,
     kanta_data = kanta_data,
     cols = get_cols.cols,
     s_cols = get_cols.s_cols,
-    docker=bio_docker
+    docker=base_docker
   }
 
   # builds sex dictionary mapping from pheno file
-  call sex_map {input: docker=bio_docker}
+  call sex_map {input: docker=base_docker}
 
   # extract columns sort and extract duplicates/errs
   scatter (i in range(length(split.chunks))) {
@@ -30,7 +32,7 @@ workflow kanta_sort_dup{
       chunk = split.chunks[i],
       sort_cols = split.sort_cols,
       sex_map = sex_map.sex_map,
-      docker=bio_docker
+      docker=base_docker
     }
   }
   # merge chunks (unique/dup/err)
@@ -40,7 +42,7 @@ workflow kanta_sort_dup{
     sorted_chunks = sort.sorted_chunk,
     sort_cols = split.sort_cols,
     header = split.header,
-    docker= bio_docker,
+    docker= base_docker,
     prefix = if test then prefix+ "_test"  else prefix 
   }
 }
@@ -58,7 +60,10 @@ task merge {
   command <<<
   # CONCAT PRE-SORTED FILES
   echo "SORT FILES"
-  /usr/bin/time -v sort -t $'\t' -m -k ~{sep=" -k " sort_cols}  ~{sep=" " sorted_chunks}  > sorted.txt
+  for col in ~{sep=' ' sort_cols}; do  echo "${col},${col}" >> sort_keys.tmp;    done
+  SORT_ARGS=$(cat sort_keys.tmp | xargs -I {} echo "-k {}" | tr '\n' ' ')
+  /usr/bin/time -v sort -t $'\t' -m $SORT_ARGS ~{sep=" " sorted_chunks} > sorted.txt
+  #/usr/bin/time -v sort -t $'\t' -m -k ~{sep=" -k " sort_cols}  ~{sep=" " sorted_chunks}  > sorted.txt
   # REMOVE DUPS
   python3 <<EOF
   from operator import itemgetter
@@ -120,8 +125,12 @@ task sort {
     File sex_map
   }
   String out_file = "kanta_sorted_" + index
+
   command <<<
-  zcat ~{chunk} | sort -t $'\t' -k ~{sep=" -k " sort_cols} > tmp.txt
+  for col in ~{sep=' ' sort_cols}; do  echo "${col},${col}" >> sort_keys.tmp;    done
+  SORT_ARGS=$(cat sort_keys.tmp | xargs -I {} echo "-k {}" | tr '\n' ' ')
+  zcat ~{chunk} | sort -t $'\t' $SORT_ARGS > tmp.txt
+  #zcat ~{chunk} | sort -t $'\t'  -k ~{sep=" -k " sort_cols}  > ~{out_file}
 
   #add sex
   awk -F'\t' 'BEGIN {OFS="\t"}  NR==FNR {sex[$1]=$2; next} NR==1 {print $0, "SEX"; next} {print $0, (sex[$1] ? sex[$1] : "NA")}' \
