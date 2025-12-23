@@ -6,8 +6,7 @@ SELECT
   APPROX_EVENT_DATETIME,
   
   -- OMOP harmonization
-  multiIf(`harmonization_omop::OMOP_ID` = '-1', 'NA', `harmonization_omop::OMOP_ID` = '0', 'NA', `harmonization_omop::OMOP_ID`) AS OMOP_CONCEPT_ID,
-  
+    if(`harmonization_omop::OMOP_ID` IN ('-1', '0'), 'NA', `harmonization_omop::OMOP_ID`) AS OMOP_CONCEPT_ID,
   -- Test identification
   TEST_ID,
   TEST_ID_IS_NATIONAL,
@@ -43,14 +42,12 @@ SELECT
   CODING_SYSTEM AS CODING_SYSTEM_OID,
   
   -- Provider and QC
-  SERVICE_PROVIDER_ID,
+  --SERVICE_PROVIDER_ID,
   QC_NOTES,
   `QC_PASS` AS QC_PASS
     
 FROM file({filePathMungedTxtGz:String}, TSVWithNames) kanta_lab_table
 	 
--- Sorting by ROW_ID
-ORDER BY ROW_ID
 	  
 -- Set output format to TSV-gzipped with a header
 FORMAT TSVWithNames

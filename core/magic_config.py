@@ -28,11 +28,11 @@ config = {
         'source::MEASUREMENT_VALUE',
         'source::MEASUREMENT_UNIT',
         'source::TEST_NAME_ABBREVIATION',
-        'MEASUREMENT_EXTRA_INFO',
         'MEASUREMENT_FREE_TEXT',
-        'SERVICE_PROVIDER_ID',
-        'STATEMENT_ID',
-        'STATEMENT_TEXT',
+        #'MEASUREMENT_EXTRA_INFO',
+        #'SERVICE_PROVIDER_ID',
+        #'STATEMENT_ID',
+        #'STATEMENT_TEXT',
         'SEX'
         
     ],
@@ -47,8 +47,8 @@ config = {
     ],
     'sensitive_cols':[
         'MEASUREMENT_FREE_TEXT',
-        'STATEMENT_ID',
-        'STATEMENT_TEXT'
+        #'STATEMENT_ID',
+        #'STATEMENT_TEXT'
     ],
 
     'err_cols':['ROW_ID','APPROX_EVENT_DATETIME','ERR','ERR_VALUE'],

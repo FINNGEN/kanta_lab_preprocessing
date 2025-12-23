@@ -25,8 +25,10 @@ workflow kanta_munge {
       chunk = split.chunks[i]
     }
   }
+
+  call GetCurrentDate{}
   # MERGE CHUNKS AND LOGS
-  String base_prefix = "kanta" +  if test then "_test" else prefix
+  String base_prefix = prefix + (if test then "_test" else "") + "_" + GetCurrentDate.date_string
   call merge_logs {
     input:
     prefix = base_prefix,
@@ -47,7 +49,7 @@ task merge {
     String docker 
 
   }
-  String out_file = prefix +"_munged.txt.gz"
+  String out_file = prefix +".txt.gz"
 
   command <<<
   # write header
@@ -140,3 +142,12 @@ task split{
 
 
 
+task GetCurrentDate {
+  command <<<
+    date +%Y_%m_%d | tr -d '\n'
+  >>>
+
+  output {
+    String date_string = read_string(stdout())
+  }
+}

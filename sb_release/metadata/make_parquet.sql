@@ -43,17 +43,15 @@ SELECT
   nullIf(CODING_SYSTEM_OID, 'NA') :: Nullable(String) AS CODING_SYSTEM_OID,
   
   -- Provider and QC
-  nullIf(SERVICE_PROVIDER_ID, 'NA') :: Nullable(String) AS SERVICE_PROVIDER_ID,
+  --nullIf(SERVICE_PROVIDER_ID, 'NA') :: Nullable(String) AS SERVICE_PROVIDER_ID,
   nullIf(QC_NOTES, 'NA') :: Nullable(String) AS QC_NOTES,
   nullIf(QC_PASS, 'NA') :: Nullable(Int8) AS QC_PASS
-
-FROM file({filePathCleanTxtGz:String}, TSVWithNames)
-
--- Make the output deterministic by using ORDER BY on all columns
-ORDER BY ROW_ID
-
-FORMAT Parquet
-SETTINGS
-    input_format_tsv_use_best_effort_in_schema_inference = 0,
-    output_format_parquet_compression_method = 'zstd',
-    output_format_parquet_string_as_string = 1
+    
+  FROM file({filePathCleanTxtGz:String}, TSVWithNames)
+	 
+	  
+	  FORMAT Parquet
+	  SETTINGS
+	  input_format_tsv_use_best_effort_in_schema_inference = 0,
+	  output_format_parquet_compression_method = 'zstd',
+	  output_format_parquet_string_as_string = 1;

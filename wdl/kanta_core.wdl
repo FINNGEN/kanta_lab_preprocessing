@@ -76,7 +76,7 @@ task release {
   
   >>>
   runtime {
-    docker : "~{docker}"
+    docker : "eu.gcr.io/finngen-sandbox-v3-containers/kanta:parquet"
     disks: "local-disk ~{ceil(size(munged_data,'GB')) * 4 + 10} HDD"
     memory: "~{mem} GB"
     cpu : mem/4
@@ -169,7 +169,7 @@ task split{
   Int chunks = if test then 4  else n_chunks
   command <<<
   zcat ~{kanta_data} | head -n1 > header.txt
-  zcat ~{kanta_data} | sed -E 1d ~{if test then " | head -n 10000 "  else ""} > tmp.tsv
+  zcat ~{kanta_data} | sed -E 1d ~{if test then " | head -n 100000 "  else ""} > tmp.tsv
   for f in {00..~{chunks-1}}; do cat header.txt | bgzip -c > kanta$f.gz; done
   split tmp.tsv -n l/~{chunks} -d kanta --filter='gzip >> $FILE.gz'
   >>>
