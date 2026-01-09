@@ -4,6 +4,7 @@ workflow kanta_core {
   input {
     String prefix
     String kanta_docker
+    String release_docker
     # test mode will use only 100k lines and 4 cpus
     Boolean test
     File kanta_munged_data
@@ -21,7 +22,7 @@ workflow kanta_core {
   call merge { input: prefix = base_prefix,munged_chunks = munge.munged_chunk,docker=kanta_docker}
   call merge_logs {input: prefix =  base_prefix,logs = flatten(munge.logs)}
   # build parquet and release file
-  call release { input: docker = kanta_docker, mem = if test then 4 else 64, prefix = prefix, munged_data  = merge.merged_file}
+  call release { input: docker = release_docker, mem = if test then 4 else 64, prefix = prefix, munged_data  = merge.merged_file}
   call validate_outputs {input : parquet_file = release.core_files[1],docker=kanta_docker}
 }
 
