@@ -6,3 +6,5 @@ numpy==2.2.3
 # More info: https://pandas.pydata.org/pandas-docs/stable/getting_started/install.html#compression
 pandas[pyarrow]==2.2.2
 duckdb==1.1.3
+#FOR PLOTTING
+matplotlib>=3.9.0
