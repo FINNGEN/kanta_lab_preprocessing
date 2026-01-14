@@ -170,14 +170,20 @@ def fix_omop_conversion(df, args):
         # Base OMOP match
         mask = df["harmonization_omop::OMOP_ID"] == omop
 
-        # Apply comparison
+        # 1. Identify which values are valid floats/numbers
+        # pd.to_numeric converts non-numbers to NaN; .notna() creates a boolean mask
+        is_numeric = pd.to_numeric(df[cmp_col], errors='coerce').notna()
+
+        # 2. Update the mask to ensure the value is numeric before comparing
+        mask &= is_numeric
+
+        # 3. Apply comparison
         if op == "<":
-            mask &= df[cmp_col] < thr
+            mask &= df[cmp_col].astype(float, errors='ignore') < thr
         elif op == ">":
-            mask &= df[cmp_col] > thr
+            mask &= df[cmp_col].astype(float, errors='ignore') > thr
         else:
             raise ValueError(f"Unsupported operator: {op}")
-
         # Skip rule if no rows match
         if not mask.any():
             continue

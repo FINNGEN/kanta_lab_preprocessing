@@ -185,7 +185,6 @@ if __name__=='__main__':
     args.omop_fix_table = init_omop_unit_fix(args)
     args.omop_qc = init_omop_qc(args)
     args.omop_extraction_blacklist = init_omop_extraction_blacklist(args)
-    print(args.omop_extraction_blacklist)
     
     if os.path.basename(args.raw_data) == "raw_data_test.txt":
         logger.warning("RUNNING IN TEST MODE")

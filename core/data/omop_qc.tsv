@@ -3,12 +3,13 @@ harmonization_omop::OMOP_ID	THRESHOLD	SIDE	QC_NOTES	MISC	conceptName
 3010813	2000	>	IMPLAUSIBLE_VALUE	NA	Leukocytes [#/volume] in Blood
 3026361	20	>	IMPLAUSIBLE_VALUE	NA	Erythrocytes [#/volume] in Blood
 3004410	0	<	IMPOSSIBLE_VALUE	NA	Hemoglobin A1c/Hemoglobin.total in Blood
-3004775	1000	>	IMPLAUSIBLE_VALUE	NA	Volume in Urine collected for unspecified duration
+3004410	250	>	WRONG_UNIT	Probably wrong source unit	Hemoglobin A1c/Hemoglobin.total in Blood
+3004775	5000	>	IMPLAUSIBLE_VALUE	NA	Volume in Urine collected for unspecified duration
 3006571	100	>	IMPOSSIBLE_VALUE	NA	Polymorphonuclear cells/100 leukocytes in Synovial fluid
 3007461	5000	>	WRONG UNIT	Probably wrong unit for extracted values	Platelets [#/volume] in Blood
 3009035	10000	>	WRONG UNIT	Probably wrong unit for extracted values	Cobalamin (Vitamin B12) [Moles/volume] in Serum or Plasma
 3009542	100	>	IMPOSSIBLE_VALUE	Impossible values. They can also stem from misreported unit (ratio,5) at source	Hematocrit [Volume Fraction] of Blood
-3009542	0	<=	IMPOSSIBLE_VALUE	Impossible values	Hematocrit [Volume Fraction] of Blood
+3009542	0	<=	IMPOSSIBLE_VALUE	Impossible values. Some values are exactly 0 which indicates faulty reading or something of the sort	Hematocrit [Volume Fraction] of Blood
 3010503	1000	>	IMPOSSIBLE_VALUE	NA	CD19 cells [#/volume] in Blood
 3011412	50	>	WRONG UNIT	Probably wrong unit for extracted values	CD3 cells [#/volume] in Blood
 3013742	5	>	WRONG UNIT	Probably wrong unit for extracted values	Prealbumin [Mass/volume] in Serum or Plasma
@@ -20,5 +21,66 @@ harmonization_omop::OMOP_ID	THRESHOLD	SIDE	QC_NOTES	MISC	conceptName
 3022756	5000	>	IMPOSSIBLE_VALUE	NA	Ceruloplasmin [Mass/volume] in Serum or Plasma
 3023103	50	>	IMPLAUSIBLE_VALUE	Probably wrong unit for extracted values	Potassium [Moles/volume] in Serum or Plasma
 3024731	0	<	IMPOSSIBLE_VALUE	NA	MCV [Entitic volume]
+3024731	2000	>	IMPOSSIBLE_VALUE	NA	MCV [Entitic volume]
 3025271	10	<	WRONG_UNIT	Probably wrong unit for extracted values	CD3-CD16+CD56+ (Natural killer) cells [#/volume] in Blood
 3003338	1000	>	WRONG_UNIT	Probably wrong source unit	MCHC [Mass/volume]
+3020564	10000	>	WRONG_UNIT	Probably wrong source unit	Creatinine [Moles/volume] in Serum or Plasma
+3019550	10000	>	WRONG_UNIT	Probably wrong source unit	Sodium [Moles/volume] in Serum or Plasma
+3020460	1000	>	WRONG_UNIT	Probably wrong source unit	C reactive protein [Mass/volume] in Serum or Plasma
+3001308	0	<	IMPOSSIBLE_VALUE	NA	Cholesterol in LDL [Moles/volume] in Serum or Plasma
+3001308	20	>	IMPLAUSIBLE_VALUE	NA	Cholesterol in LDL [Moles/volume] in Serum or Plasma
+3023602	15	>	IMPLAUSIBLE_VALUE	NA	Cholesterol in HDL [Moles/volume] in Serum or Plasma
+3018251	100	>	WRONG_UNIT	Probably wrong source unit	Fasting glucose [Moles/volume] in Serum or Plasma
+40764999	400	>	IMPLAUSIBLE_VALUE	NA	Glomerular filtration rate/1.73 sq M.predicted [Volume Rate/Area] in Serum, Plasma or Blood by Creatinine-based formula (CKD-EPI)
+3002385	0	<	IMPOSSIBLE_VALUE	NA	Erythrocyte distribution width [Ratio]
+3002385	100	>	IMPOSSIBLE_VALUE	NA	Erythrocyte distribution width [Ratio]
+3013707	200	>	IMPLAUSIBLE_VALUE	NA	Erythrocyte sedimentation rate by Westergren method
+3001604	100	>	IMPOSSIBLE_VALUE	NA	Monocytes [#/volume] in Blood
+3016431	5	>	IMPOSSIBLE_VALUE	NA	Calcium.ionized [Moles/volume] adjusted to pH 7.4 in Serum or Plasma
+3021347	3	>	IMPLAUSIBLE_VALUE	NA	Calcium.ionized [Moles/volume] in Serum or Plasma
+3024561	60	>	IMPOSSIBLE_VALUE	NA	Albumin [Mass/volume] in Serum or Plasma
+43054903	300	>	IMPLAUSIBLE_VALUE	NA	Holo-transcobalamin II [Moles/volume] in Serum
+3020682	10000	>	IMPOSSIBLE_VALUE	NA	Albumin/Creatinine [Ratio] in Urine
+3026493	10000	>	WRONG_UNIT	Probably wrong source unit	Urate [Moles/volume] in Serum or Plasma
+3019150	0.5	<	WRONG_UNIT	Probably wrong source unit	Specific gravity of Urine by Refractometry
+3019150	2	>	WRONG_UNIT	Probably wrong source unit	Specific gravity of Urine by Refractometry
+3026782	0	<	IMPOSSIBLE_VALUE	NA	Osmolality of Urine
+3022948	1000	>	IMPOSSIBLE_VALUE	NA	Iron [Moles/volume] in Serum or Plasma
+3014576	30	<	IMPLAUSIBLE_VALUE	NA	Chloride [Moles/volume] in Serum or Plasma
+3016502	102	>	IMPLAUSIBLE_VALUE	NA	Oxygen saturation in Arterial blood
+3013742	10	>	WRONG_UNIT	Probably wrong source unit	Prealbumin [Mass/volume] in Serum or Plasma
+46236952	400	>	IMPLAUSIBLE_VALUE	NA	Glomerular filtration rate/1.73 sq M.predicted [Volume Rate/Area] in Serum, Plasma or Blood by Creatinine-based formula (MDRD) [ml/min/173m2], sample-wise median
+3011960	50000	>	WRONG_UNIT	Probably wrong source unit	Natriuretic peptide B [Mass/volume] in Serum or Plasma
+3022621	3	<	IMPLAUSIBLE_VALUE	NA	pH of Urine by Test strip
+3022621	10	>	IMPOSSIBLE_VALUE	NA	pH of Urine by Test strip
+3006217	0	<	IMPOSSIBLE_VALUE	NA	Methemoglobin/Hemoglobin.total in Arterial blood
+3024889	100	>	WRONG_UNIT	Probably wrong source unit	Methemoglobin/Hemoglobin.total in Venous blood
+3046279	10000	>	WRONG_UNIT	Probably wrong source unit	Procalcitonin [Mass/volume] in Serum or Plasma
+3018405	40	>	IMPLAUSIBLE_VALUE	NA	Lactate [Moles/volume] in Arterial blood
+3020427	10	>	IMPLAUSIBLE_VALUE	NA	Coagulation factor X inhibitor [Units/volume] in Platelet poor plasma by Coagulation assay
+3043409	20	>	IMPOSSIBLE_VALUE	NA	Potassium [Moles/volume] in Arterial blood
+3000570	1000	>	IMPLAUSIBLE_VALUE	NA	Elastase.pancreatic [Mass/mass] in Stool
+3030366	4	>	IMPLAUSIBLE_VALUE	NA	Cystatin C [Mass/volume] in Serum or Plasma
+3017044	1000	>	WRONG_UNIT	Probably wrong source unit	Thyrotropin receptor Ab [Units/volume] in Serum
+3050449	100000	>	IMPLAUSIBLE_VALUE	NA	Albumin [Mass/time] in Urine collected for unspecified duration
+3006184	600	>	IMPLAUSIBLE_VALUE	NA	Hemoglobin [Mass/volume] in Capillary blood
+3000475	2000000	>	IMPLAUSIBLE_VALUE	NA	Leukocytes [#/volume] in Synovial fluid
+3039000	0	<	IMPOSSIBLE_VALUE	NA	Anion gap in Blood
+3010130	250	>	IMPLAUSIBLE_VALUE	NA	Cytomegalovirus IgG Ab [Units/volume] in Serum or Plasma
+3010838	40	>	IMPLAUSIBLE_VALUE	NA	Calcium [Moles/time] in 24 hour Urine
+3019897	1	<	IMPLAUSIBLE_VALUE	NA	Erythrocyte distribution width [Ratio] by Automated count
+3009466	3000	>	IMPLAUSIBLE_VALUE	NA	Valproate [Moles/volume] in Serum or Plasma
+3006270	1500	>	IMPLAUSIBLE_VALUE	NA	Folate [Moles/volume] in Blood
+3051014	100	>	IMPLAUSIBLE_VALUE	NA	Leukocytes [#/area] in Urine sediment by Automated count
+3022756	100000	>	IMPLAUSIBLE_VALUE	NA	Ceruloplasmin [Mass/volume] in Serum or Plasma
+3001405	100000	>	WRONG_UNIT	Probably wrong source unit	CD3+CD8+ (T8 suppressor) cells [#/volume] in Blood
+3005791	1000	>	WRONG_UNIT	Probably wrong source unit	Eosinophil cationic protein (ECP) [Mass/volume] in Serum
+3035941	0	<	IMPOSSIBLE_VALUE	NA	MCH [Entitic mass]
+3031309	200	>	IMPOSSIBLE_VALUE	NA	Prolactin monomeric/Prolactin.total in Serum or Plasma [%], sample-wise median
+3003245	5	>	WRONG_UNIT	Probably wrong source unit	Complement C1 esterase inhibitor [Mass/volume] in Serum or Plasma
+3008832	5000	>	WRONG_UNIT	Probably wrong source unit	Norclozapine [Moles/volume] in Serum or Plasma
+3015736	4	<	IMPLAUSIBLE_VALUE	NA	pH of Urine
+3015736	10	>	IMPLAUSIBLE_VALUE	NA	pH of Urine
+3015377	15	>	IMPLAUSIBLE_VALUE	NA	Calcium [Moles/volume] in Serum or Plasma
+3009508	200	>	WRONG_UNIT	Probably wrong source unit	Creatinine [Moles/volume] in Urine
+3016771	10000	>	WRONG_UNIT	Probably wrong source unit	Amylase [Enzymatic activity/volume] in Serum or Plasma

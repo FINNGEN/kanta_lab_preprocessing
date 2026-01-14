@@ -1,3 +1,5 @@
 harmonization_omop::OMOP_ID	COLUMN_NAME	VALUE_THRESHOLD	SIDE	CONVERSION	NOTES	MISC
 3009542	extracted::MEASUREMENT_VALUE_MERGED	1	<	100	100xConverted	Hematocrit works in two different units mismatched at source
 3022756	extracted::MEASUREMENT_VALUE	1	<	1000	1000xConverted	We're fixing the extracted ones only
+3020564	harmonization_omop::MEASUREMENT_VALUE	3000	>	0.01	.01xConverted	Seems like these values are misreported
+3023103	harmonization_omop::MEASUREMENT_VALUE	25	>	0.1	.01xConverted	Seems like these values are misreported

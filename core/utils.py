@@ -32,12 +32,12 @@ def init_omop_extraction_blacklist(args):
     
 def init_omop_unit_fix(args):
     f=os.path.join(Path(dir_path).parent.absolute(),args.config['omop_unit_fix'])
-    f= pd.read_csv(f,sep='\t').astype({'harmonization_omop::OMOP_ID': str})
+    f= pd.read_csv(f,sep='\t').astype({'harmonization_omop::OMOP_ID': str,'VALUE_THRESHOLD':float})
     return f
 
 def init_omop_qc(args):
     f=os.path.join(Path(dir_path).parent.absolute(),args.config['omop_qc'])
-    f= pd.read_csv(f,sep='\t').astype({'harmonization_omop::OMOP_ID': str})
+    f= pd.read_csv(f,sep='\t').astype({'harmonization_omop::OMOP_ID': str,'THRESHOLD':float})
     return f
     
     

@@ -4,6 +4,8 @@ import os
 import argparse
 from pathlib import Path
 
+#python3 -c "import pandas as pd; v3=pd.read_csv('kanta_v3_omop_analysis.tsv',sep='\t'); v2=pd.read_csv('kanta_v2_omop_analysis.tsv',sep='\t'); names=pd.read_csv('/mnt/disks/data/kanta/meta/omop_name_table.tsv',sep='\t'); names['NAME']=names['conceptId'].astype(str); m=v3.merge(v2,on='NAME',how='left',suffixes=('_v3','_v2')); m=m.merge(names[['NAME','conceptName']],on='NAME',how='left'); cols=[c for c in v3.columns if c!='NAME']; out={'NAME':m['NAME']}; out.update({c:m.apply(lambda r,col=c:pd.NA if pd.isna(r[f'{col}_v2']) or r[f'{col}_v2']==0 else round(r[f'{col}_v3']/r[f'{col}_v2'],3),axis=1) for c in cols}); out['conceptName']=m['conceptName']; pd.DataFrame(out).to_csv('relative_change.tsv',sep='\t',index=False,na_rep='NA'); print('Done')"
+
 def analyze_omop_data(file_path, columns, binary_columns, output_folder, test_mode=False, top_n=None,prefix =""):
     """
     Analyze non-NA entries for specified columns broken down by OMOP ID.
