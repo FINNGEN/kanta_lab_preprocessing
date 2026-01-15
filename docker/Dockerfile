@@ -9,4 +9,5 @@ RUN  pip3 install -r requirements.txt
 ADD finngen_qc finngen_qc
 ADD core core
 ADD sb_release sb_release
+ADD qc_scripts qc_scripts
 

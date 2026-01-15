@@ -36,21 +36,12 @@ task compare_versions {
     File old_parquet
   }
   command <<<
-  python3 /sb_release/counts.py ~{new_parquet} -c FINNGENID,MEASUREMENT_VALUE_HARMONIZED,MEASUREMENT_VALUE_EXTRACTED,TEST_OUTCOME,TEST_OUTCOME_TEXT_EXTRACTED,OUTCOME_POS_EXTRACTED -b QC_PASS -o . --prefix ~{prefix}
-  python3 /sb_release/counts.py ~{old_parquet} -c FINNGENID,MEASUREMENT_VALUE_HARMONIZED,MEASUREMENT_VALUE_EXTRACTED,TEST_OUTCOME,TEST_OUTCOME_TEXT_EXTRACTED,OUTCOME_POS_EXTRACTED -b QC_PASS -o . --prefix old
+  python3 /qc_scripts/counts.py ~{new_parquet} -c FINNGENID,MEASUREMENT_VALUE_HARMONIZED,MEASUREMENT_VALUE_EXTRACTED,TEST_OUTCOME,TEST_OUTCOME_TEXT_EXTRACTED,OUTCOME_POS_EXTRACTED -b QC_PASS -o . --prefix ~{prefix}
+  python3 /qc_scripts/counts.py ~{old_parquet} -c FINNGENID,MEASUREMENT_VALUE_HARMONIZED,MEASUREMENT_VALUE_EXTRACTED,TEST_OUTCOME,TEST_OUTCOME_TEXT_EXTRACTED,OUTCOME_POS_EXTRACTED -b QC_PASS -o . --prefix old
   python3 -c "import csv, sys; reader = csv.DictReader(sys.stdin); print('conceptId\tconceptName'); [print(f\"{row['conceptId']}\t{row['conceptName']}\") for row in reader]" < /finngen_qc/data/LABfi_ALL.usagi.csv > omop_name_table.tsv
   ls
-  # Define your bash variables
-  NEW_FILE='~{prefix}_omop_analysis.tsv'
-  OLD_FILE='old_omop_analysis.tsv'
-  NEW_LAB="~{prefix}"
-  OLD_LAB="~{basename(old_parquet,'.parquet')}"
-
-  # Run the command using os.environ to pull the bash variables into Python
-  export NEW_FILE OLD_FILE NEW_LAB OLD_LAB MPLCONFIGDIR='/tmp/matplotlib_cache'; mkdir -p $MPLCONFIGDIR; python3 -c "import os, pandas as pd, matplotlib.pyplot as plt, numpy as np; NF,OF,NL,OL=os.environ['NEW_FILE'],os.environ['OLD_FILE'],os.environ['NEW_LAB'],os.environ['OLD_LAB']; v_new=pd.read_csv(NF,sep='\t'); v_old=pd.read_csv(OF,sep='\t'); names=pd.read_csv('omop_name_table.tsv',sep='\t'); names['NAME']=names['conceptId'].astype(str); m=v_new.merge(v_old,on='NAME',how='left',suffixes=('_'+NL,'_'+OL)).merge(names[['NAME','conceptName']],on='NAME',how='left'); cols=[c for c in v_new.columns if c!='NAME']; out={'NAME':m['NAME']}; out.update({c:m.apply(lambda r,col=c: np.nan if pd.isna(r[f'{col}_{OL}']) or r[f'{col}_{OL}']==0 else round(r[f'{col}_{NL}']/r[f'{col}_{OL}'],3),axis=1) for c in cols}); df_out=pd.DataFrame(out); df_out.to_csv('relative_change.tsv',sep='\t',index=False,na_rep='NA'); fig,ax=plt.subplots(len(cols),3,figsize=(24,6*len(cols)),squeeze=False); [(lambda mask,i,col: (ax[i,0].scatter(m.loc[mask,f'{col}_{NL}'],df_out.loc[mask,col],alpha=0.4,s=20), ax[i,0].set_xscale('log'), ax[i,0].axhline(1,color='red',ls='--'), ax[i,0].set_title(f'{col}: Full Scatter'), ax[i,1].scatter(m.loc[mask,f'{col}_{NL}'],df_out.loc[mask,col],alpha=0.4,s=20,color='orange'), ax[i,1].set_ylim(0,2), ax[i,1].set_xscale('log'), ax[i,1].axhline(1,color='red',ls='--'), ax[i,1].set_title(f'{col}: Zoomed Scatter'), ax[i,2].hist(df_out.loc[mask,col].dropna(),bins=50,range=(0,2),color='green',alpha=0.6,edgecolor='black'), ax[i,2].axvline(1,color='red',ls='--'), ax[i,2].text(0.95,0.95,f'n > 2.0: {sum(df_out.loc[mask,col] > 2)}',transform=ax[i,2].transAxes,ha='right',va='top',bbox=dict(boxstyle='round',facecolor='white',alpha=0.5)), ax[i,2].set_title(f'{col}: RelChange Hist')))( (df_out[col].notna()), i, col) for i,col in enumerate(cols)]; plt.tight_layout(); plt.savefig('relative_change_analysis.png',dpi=200); plt.close()"
-
-  mv ./relative_change_analysis.png ~{prefix}_analysis.png
-  mv ./relative_change.tsv ~{prefix}_analysis.tsv
+  python3 /qc_scripts/count_plot.py --new ~{prefix}_omop_analysis.tsv  --old ./old_omop_analysis.tsv --names ./omop_name_table.tsv --new_suffix ~{prefix} --old_suffix ~{basename(old_parquet,'.parquet')} --out_tsv ~{prefix}_analysis.tsv --out_img ~{prefix}_analysis.png
+  ls
   >>>
   output {
     File figure = "~{prefix}_analysis.png" 

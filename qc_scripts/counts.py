@@ -4,7 +4,6 @@ import os
 import argparse
 from pathlib import Path
 
-#python3 -c "import pandas as pd; import matplotlib.pyplot as plt; import numpy as np; v3=pd.read_csv('kanta_v3_omop_analysis.tsv',sep='\t'); v2=pd.read_csv('kanta_v2_omop_analysis.tsv',sep='\t'); names=pd.read_csv('/mnt/disks/data/kanta/meta/omop_name_table.tsv',sep='\t'); names.__setitem__('NAME',names['conceptId'].astype(str)); m=v3.merge(v2,on='NAME',how='left',suffixes=('_v3','_v2')).merge(names[['NAME','conceptName']],on='NAME',how='left'); cols=[c for c in v3.columns if c!='NAME']; out={'NAME':m['NAME']}; out.update({c:m.apply(lambda r,col=c:pd.NA if pd.isna(r[f'{col}_v2']) or r[f'{col}_v2']==0 else round(r[f'{col}_v3']/r[f'{col}_v2'],3),axis=1) for c in cols}); out.__setitem__('conceptName',m['conceptName']); df_out=pd.DataFrame(out); df_out.to_csv('relative_change.tsv',sep='\t',index=False,na_rep='NA'); print('Saved relative_change.tsv'); fig,axes=plt.subplots(len(cols),2,figsize=(16,4*len(cols))); axes=axes.reshape(-1,2) if len(cols)>1 else axes.reshape(1,2); [(lambda data,i,col: (axes[i,0].hist(data,bins=50,edgecolor='black',alpha=0.7), axes[i,0].axvline(x=1.0,color='red',linestyle='--',linewidth=2,label='No change (1.0)'), axes[i,0].set_xlabel('Relative Change (v3/v2)'), axes[i,0].set_ylabel('Frequency'), axes[i,0].set_title(f'{col} - Full Distribution'), axes[i,0].legend(), axes[i,0].grid(True,alpha=0.3), axes[i,0].text(0.98,0.98,f'Mean: {data.mean():.3f}\\nMedian: {data.median():.3f}\\nN: {len(data)}',transform=axes[i,0].transAxes,verticalalignment='top',horizontalalignment='right',bbox=dict(boxstyle='round',facecolor='wheat',alpha=0.5)), axes[i,1].hist(data[data<=2],bins=50,edgecolor='black',alpha=0.7), axes[i,1].axvline(x=1.0,color='red',linestyle='--',linewidth=2,label='No change (1.0)'), axes[i,1].set_xlabel('Relative Change (v3/v2)'), axes[i,1].set_ylabel('Frequency'), axes[i,1].set_title(f'{col} - Zoomed [0,2]'), axes[i,1].set_xlim(0,2), axes[i,1].legend(), axes[i,1].grid(True,alpha=0.3), axes[i,1].text(0.98,0.98,f'Mean: {data[data<=2].mean():.3f}\\nMedian: {data[data<=2].median():.3f}\\nN [0,2]: {len(data[data<=2])}\\nN >2: {len(data[data>2])}',transform=axes[i,1].transAxes,verticalalignment='top',horizontalalignment='right',bbox=dict(boxstyle='round',facecolor='wheat',alpha=0.5))))(df_out[col].dropna(),i,col) for i,col in enumerate(cols) if len(df_out[col].dropna())>0]; plt.tight_layout(); plt.savefig('relative_change_histograms.png',dpi=300,bbox_inches='tight'); plt.close(); print('Saved relative_change_histograms.png'); print('Done!')"
 def analyze_omop_data(file_path, columns, binary_columns, output_folder, test_mode=False, top_n=None, prefix=""):
     """
     Analyze non-NA entries for specified columns broken down by OMOP ID.
@@ -213,7 +212,7 @@ def analyze_omop_data(file_path, columns, binary_columns, output_folder, test_mo
             f.write("\t".join(row) + "\n")
     
     print(f"TSV output saved to: {tsv_file}")
-    print("\n" + output)
+    #print("\n" + output)
     
     # Close connection
     con.close()

@@ -11,9 +11,7 @@ def harmonization(df,args):
         .pipe(fix_unit_based_on_abbreviation,args)
         .pipe(omop_mapping,args)
         .pipe(unit_harmonization,args)
-
     )
-
     return df
 
 def unit_harmonization(df,args):
