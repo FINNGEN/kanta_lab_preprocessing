@@ -40,9 +40,33 @@ workflow kanta_munge {
     prefix = base_prefix,
     munged_chunks = munge.munged_chunk
   }
+  call analysis {input: docker = kanta_docker,merged_file = merge.munged}
 }
 
+task analysis {
+  input {
+    File merged_file
+    String docker
+  }
 
+  command <<<
+  # this step creates the table of most common unit per OMOP_ID
+  python3 /finngen_qc/scripts/create_harmonization_table.py ~{merged_file}
+  # this step creates a table of counts of OMP_ID,TEST_NAME,UNIT(cleaned) that do not have harmonized values, meaning something is not specificied in the tables
+  # it also returns the counts of TEST_NAME,UNIT(cleaned) that do not have a mapping
+  python3 /finngen_qc/scripts/unharmonized.py ~{merged_file}  -o unharmonized_values.txt -u unmapped_entries.txt
+  >>>
+  runtime {
+    disks: "local-disk ~{ceil(size(merged_file,'GB')) + 2} HDD"
+    docker : "~{docker}"
+  }
+
+  output {
+    File harmonization_counts = "harmonization_counts.txt"
+    File unharmonized_values = "unharmonized_values.txt"
+    File umapped_entries = "unmapped_entries.txt"
+  }
+}
 task merge {
   input {
     Array[File] munged_chunks
@@ -58,7 +82,6 @@ task merge {
   # merge files without headers
   while read f; do echo $f && date +%Y-%m-%dT%H:%M:%S && zcat $f | sed -E 1d | bgzip -c >> ~{out_file} ; done < <(cat ~{write_lines(munged_chunks)} | sort -V )
 
-  python3 /finngen_qc/scripts/create_harmonization_table.py ~{out_file}
   >>>
   runtime {
     disks: "local-disk ~{ceil(size(munged_chunks,'GB')) * 4 + 10} HDD"
@@ -67,7 +90,6 @@ task merge {
  
   output {
     File munged = out_file
-    File harmonization_counts = "harmonization_counts.txt"
   }
 }
 
@@ -150,8 +172,10 @@ task GetCurrentDate {
   command <<<
     date +%Y_%m_%d | tr -d '\n'
   >>>
-
   output {
     String date_string = read_string(stdout())
+  }
+  runtime {
+    volatile: true
   }
 }
