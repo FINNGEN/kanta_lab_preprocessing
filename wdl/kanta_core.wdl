@@ -58,8 +58,6 @@ task compare_versions {
 }
 
 
-
-
 task validate_outputs {
   input {
     String docker
@@ -99,7 +97,7 @@ task release {
     String prefix
   }
   String core_prefix = prefix +  "_core"
-  String meta_prefix = prefix +  "_metadata_columns"
+  String meta_prefix = prefix +  "extended_columns"
   command <<<
   echo ~{mem}
   set -euxo pipefail
