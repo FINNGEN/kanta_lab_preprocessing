@@ -42,6 +42,7 @@ workflow kanta_munge {
   }
 }
 
+
 task merge {
   input {
     Array[File] munged_chunks
@@ -56,6 +57,8 @@ task merge {
   zcat ~{munged_chunks[0]} | head -n1 | bgzip -c > ~{out_file}
   # merge files without headers
   while read f; do echo $f && date +%Y-%m-%dT%H:%M:%S && zcat $f | sed -E 1d | bgzip -c >> ~{out_file} ; done < <(cat ~{write_lines(munged_chunks)} | sort -V )
+
+  python3 /finngen_qc/scripts/create_harmonization_table.py ~{out_file}
   >>>
   runtime {
     disks: "local-disk ~{ceil(size(munged_chunks,'GB')) * 4 + 10} HDD"
@@ -64,6 +67,7 @@ task merge {
  
   output {
     File munged = out_file
+    File harmonization_counts = "harmonization_counts.txt"
   }
 }
 

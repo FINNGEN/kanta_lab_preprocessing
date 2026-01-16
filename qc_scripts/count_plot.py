@@ -19,6 +19,8 @@ def main():
     # Output Options
     parser.add_argument("--out_tsv", default='relative_change.tsv', help="Output filename for TSV data")
     parser.add_argument("--out_img", default='relative_change_histograms.png', help="Output filename for the plots")
+    parser.add_argument("--out_disappeared", default='disappeared_omop_ids.tsv', help="Output filename for disappeared IDs")
+    parser.add_argument("--out_appeared", default='appeared_omop_ids.tsv', help="Output filename for appeared IDs")
     
     args = parser.parse_args()
 
@@ -34,20 +36,44 @@ def main():
         print(f"Warning: {args.names} not found. Proceeding without concept names.")
         names = pd.DataFrame(columns=['NAME', 'conceptName'])
 
-    # 2. Merging
+    # 2. Identify disappeared and appeared OMOP IDs
+    print("\nAnalyzing OMOP ID changes...")
+    old_ids = set(old_ver['NAME'].astype(str))
+    new_ids = set(new_ver['NAME'].astype(str))
+    
+    disappeared_ids = sorted(old_ids - new_ids)
+    appeared_ids = sorted(new_ids - old_ids)
+    
+    print(f"Old version OMOP IDs: {len(old_ids):,}")
+    print(f"New version OMOP IDs: {len(new_ids):,}")
+    print(f"Disappeared IDs (in old, not in new): {len(disappeared_ids):,}")
+    print(f"Appeared IDs (in new, not in old): {len(appeared_ids):,}")
+    
+    # Save disappeared IDs
+    disappeared_df = pd.DataFrame({'NAME': disappeared_ids})
+    disappeared_df.to_csv(args.out_disappeared, sep='\t', index=False)
+    print(f"Disappeared IDs saved to: {args.out_disappeared}")
+    
+    # Save appeared IDs
+    appeared_df = pd.DataFrame({'NAME': appeared_ids})
+    appeared_df.to_csv(args.out_appeared, sep='\t', index=False)
+    print(f"Appeared IDs saved to: {args.out_appeared}")
+
+    # 3. Merging
+    print("\nMerging data for analysis...")
     m = new_ver.merge(old_ver, on='NAME', how='left', suffixes=(args.new_suffix, args.old_suffix))
     m = m.merge(names[['NAME', 'conceptName']], on='NAME', how='left')
     
     # Identify numeric columns for analysis
     cols = [c for c in new_ver.columns if c != 'NAME']
 
-    # 3. Calculate Global Growth Factor (A)
+    # 4. Calculate Global Growth Factor (A)
     total_new_sum = new_ver[cols].sum().sum()
     total_old_sum = old_ver[cols].sum().sum()
     A = total_new_sum / total_old_sum if total_old_sum != 0 else 1.0
     print(f"Global Growth Factor (Total New / Total Old): {A:.4f}")
 
-    # 4. Generate Output Table
+    # 5. Generate Output Table
     print("Generating output table...")
     out = {'NAME': m['NAME']}
     
@@ -68,7 +94,7 @@ def main():
     df_out = pd.DataFrame(out)
     df_out.to_csv(args.out_tsv, sep='\t', index=False, na_rep='NA')
 
-    # 5. Visualization
+    # 6. Visualization
     print("Generating plots...")
     fig, axes = plt.subplots(len(cols), 2, figsize=(16, 6 * len(cols)))
     if len(cols) == 1:
@@ -124,7 +150,11 @@ def main():
 
     plt.tight_layout()
     plt.savefig(args.out_img, dpi=300, bbox_inches='tight')
-    print(f"Done! Results saved to {args.out_tsv} and {args.out_img}")
+    print(f"\nDone! Results saved to:")
+    print(f"  - {args.out_tsv}")
+    print(f"  - {args.out_img}")
+    print(f"  - {args.out_disappeared}")
+    print(f"  - {args.out_appeared}")
 
 if __name__ == "__main__":
     main()

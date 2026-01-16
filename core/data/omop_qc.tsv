@@ -2,6 +2,7 @@ harmonization_omop::OMOP_ID	THRESHOLD	SIDE	QC_NOTES	MISC	conceptName
 3000963	500	>	IMPLAUSIBLE_VALUE	NA	Hemoglobin [Mass/volume] in Blood
 3010813	2000	>	IMPLAUSIBLE_VALUE	NA	Leukocytes [#/volume] in Blood
 3026361	20	>	IMPLAUSIBLE_VALUE	NA	Erythrocytes [#/volume] in Blood
+3026361	0	<	IMPLAUSIBLE_VALUE	NA	Erythrocytes [#/volume] in Blood
 3004410	0	<	IMPOSSIBLE_VALUE	NA	Hemoglobin A1c/Hemoglobin.total in Blood
 3004410	250	>	WRONG_UNIT	Probably wrong source unit	Hemoglobin A1c/Hemoglobin.total in Blood
 3004775	5000	>	IMPLAUSIBLE_VALUE	NA	Volume in Urine collected for unspecified duration
@@ -20,10 +21,11 @@ harmonization_omop::OMOP_ID	THRESHOLD	SIDE	QC_NOTES	MISC	conceptName
 3022756	1	<	WRONG_UNIT	Wrong unit for harmonized value at source	Ceruloplasmin [Mass/volume] in Serum or Plasma
 3022756	5000	>	IMPOSSIBLE_VALUE	NA	Ceruloplasmin [Mass/volume] in Serum or Plasma
 3023103	50	>	IMPLAUSIBLE_VALUE	Probably wrong unit for extracted values	Potassium [Moles/volume] in Serum or Plasma
-3024731	0	<	IMPOSSIBLE_VALUE	NA	MCV [Entitic volume]
+3024731	0	<=	IMPOSSIBLE_VALUE	NA	MCV [Entitic volume]
 3024731	2000	>	IMPOSSIBLE_VALUE	NA	MCV [Entitic volume]
 3025271	10	<	WRONG_UNIT	Probably wrong unit for extracted values	CD3-CD16+CD56+ (Natural killer) cells [#/volume] in Blood
 3003338	1000	>	WRONG_UNIT	Probably wrong source unit	MCHC [Mass/volume]
+3003338	100	<	WRONG_UNIT	Probably wrong source unit	MCHC [Mass/volume]
 3020564	10000	>	WRONG_UNIT	Probably wrong source unit	Creatinine [Moles/volume] in Serum or Plasma
 3019550	10000	>	WRONG_UNIT	Probably wrong source unit	Sodium [Moles/volume] in Serum or Plasma
 3020460	1000	>	WRONG_UNIT	Probably wrong source unit	C reactive protein [Mass/volume] in Serum or Plasma
@@ -48,9 +50,8 @@ harmonization_omop::OMOP_ID	THRESHOLD	SIDE	QC_NOTES	MISC	conceptName
 3022948	1000	>	IMPOSSIBLE_VALUE	NA	Iron [Moles/volume] in Serum or Plasma
 3014576	30	<	IMPLAUSIBLE_VALUE	NA	Chloride [Moles/volume] in Serum or Plasma
 3016502	102	>	IMPLAUSIBLE_VALUE	NA	Oxygen saturation in Arterial blood
-3013742	10	>	WRONG_UNIT	Probably wrong source unit	Prealbumin [Mass/volume] in Serum or Plasma
 46236952	400	>	IMPLAUSIBLE_VALUE	NA	Glomerular filtration rate/1.73 sq M.predicted [Volume Rate/Area] in Serum, Plasma or Blood by Creatinine-based formula (MDRD) [ml/min/173m2], sample-wise median
-3011960	50000	>	WRONG_UNIT	Probably wrong source unit	Natriuretic peptide B [Mass/volume] in Serum or Plasma
+3011960	50000	>	IMPLAUSIBLE_VALUE	NA	Natriuretic peptide B [Mass/volume] in Serum or Plasma
 3022621	3	<	IMPLAUSIBLE_VALUE	NA	pH of Urine by Test strip
 3022621	10	>	IMPOSSIBLE_VALUE	NA	pH of Urine by Test strip
 3006217	0	<	IMPOSSIBLE_VALUE	NA	Methemoglobin/Hemoglobin.total in Arterial blood
@@ -60,7 +61,7 @@ harmonization_omop::OMOP_ID	THRESHOLD	SIDE	QC_NOTES	MISC	conceptName
 3020427	10	>	IMPLAUSIBLE_VALUE	NA	Coagulation factor X inhibitor [Units/volume] in Platelet poor plasma by Coagulation assay
 3043409	20	>	IMPOSSIBLE_VALUE	NA	Potassium [Moles/volume] in Arterial blood
 3000570	1000	>	IMPLAUSIBLE_VALUE	NA	Elastase.pancreatic [Mass/mass] in Stool
-3030366	4	>	IMPLAUSIBLE_VALUE	NA	Cystatin C [Mass/volume] in Serum or Plasma
+3030366	40	>	IMPLAUSIBLE_VALUE	NA	Cystatin C [Mass/volume] in Serum or Plasma
 3017044	1000	>	WRONG_UNIT	Probably wrong source unit	Thyrotropin receptor Ab [Units/volume] in Serum
 3050449	100000	>	IMPLAUSIBLE_VALUE	NA	Albumin [Mass/time] in Urine collected for unspecified duration
 3006184	600	>	IMPLAUSIBLE_VALUE	NA	Hemoglobin [Mass/volume] in Capillary blood
@@ -83,4 +84,18 @@ harmonization_omop::OMOP_ID	THRESHOLD	SIDE	QC_NOTES	MISC	conceptName
 3015736	10	>	IMPLAUSIBLE_VALUE	NA	pH of Urine
 3015377	15	>	IMPLAUSIBLE_VALUE	NA	Calcium [Moles/volume] in Serum or Plasma
 3009508	200	>	WRONG_UNIT	Probably wrong source unit	Creatinine [Moles/volume] in Urine
-3016771	10000	>	WRONG_UNIT	Probably wrong source unit	Amylase [Enzymatic activity/volume] in Serum or Plasma
+3016771	1000000	>	WRONG_UNIT	Probably wrong source unit	Amylase [Enzymatic activity/volume] in Serum or Plasma
+3018418	2	<	IMPLAUSIBLE_VALUE	NA	pH of Serum or Plasma
+3018418	10	>	IMPLAUSIBLE_VALUE	NA	pH of Serum or Plasma
+3005772	1000	>	WRONG_UNIT	Probably wrong source unit	Bilirubin.conjugated [Moles/volume] in Serum or Plasma
+3012544	6	<	IMPOSSIBLE_VALUE	NA	pH of Venous blood
+3048816	5	>	IMPLAUSIBLE_VALUE	NA	Calcium.ionized [Moles/volume] adjusted to pH 7.4 in Blood
+3009343	6	<	IMPOSSIBLE_VALUE	NA	pH of Capillary blood
+3022217	10	>	IMPLAUSIBLE_VALUE	NA	INR in Platelet poor plasma by Coagulation assay
+3019800	1000000	>	IMPLAUSIBLE_VALUE	NA	Troponin T.cardiac [Mass/volume] in Serum or Plasma
+3010517	0	<	IMPOSSIBLE_VALUE	NA	Carboxyhemoglobin/Hemoglobin.total in Venous blood
+3024889	0	<	IMPOSSIBLE_VALUE	NA	Methemoglobin/Hemoglobin.total in Venous blood
+3000330	0.3	<	IMPLAUSIBLE_VALUE	NA	Specific gravity of Urine by Test strip
+3023081	0	<	IMPOSSIBLE_VALUE	NA	Carboxyhemoglobin/Hemoglobin.total in Blood
+3007930	0	<	IMPOSSIBLE_VALUE	NA	Methemoglobin/Hemoglobin.total in Blood
+3020427	10	<	IMPLAUSIBLE_VALUE	NA	Coagulation factor X inhibitor [Units/volume] in Platelet poor plasma by Coagulation assay
