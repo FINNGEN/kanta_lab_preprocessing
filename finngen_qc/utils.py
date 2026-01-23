@@ -27,7 +27,9 @@ def init_harmonization(args,logger):
         rename = {col:new_col for col,new_col in args.config['harmonization_col_map'].items() if col in cols}
         args.config[key] = pd.read_csv(os.path.join(dir_path,'data',fname),usecols = cols,sep = sep).rename(columns=rename).drop_duplicates()
         
-    #SPECIFIC RENAMING NEEDED
+    #PROCESSING OF INPUT TABLES TO FIX UNITS, FILTER VALUES ETC
+    assert args.config['usagi_units']['ADD_INFO:UniqueForLab'].dtype=='bool'
+    args.config['usagi_units'] =args.config['usagi_units'][args.config['usagi_units']['ADD_INFO:UniqueForLab'] == True]
     args.config['unit_conversion']= args.config['unit_conversion'].rename(columns={'source_unit_valid':'MEASUREMENT_UNIT'})
     args.config['unit_conversion']['only_to_omop_concepts']= args.config['unit_conversion']['only_to_omop_concepts'].astype("Int64")
     args.config['usagi_mapping']['harmonization_omop::OMOP_ID'] =args.config['usagi_mapping']['harmonization_omop::OMOP_ID'].astype(int)

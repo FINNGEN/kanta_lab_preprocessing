@@ -12,7 +12,7 @@ harmonization_omop::OMOP_ID	THRESHOLD	SIDE	QC_NOTES	MISC	conceptName
 3009542	100	>	IMPOSSIBLE_VALUE	Impossible values. They can also stem from misreported unit (ratio,5) at source	Hematocrit [Volume Fraction] of Blood
 3009542	0	<=	IMPOSSIBLE_VALUE	Impossible values. Some values are exactly 0 which indicates faulty reading or something of the sort	Hematocrit [Volume Fraction] of Blood
 3010503	1000	>	IMPOSSIBLE_VALUE	NA	CD19 cells [#/volume] in Blood
-3011412	50	>	WRONG UNIT	Probably wrong unit for extracted values	CD3 cells [#/volume] in Blood
+3011412	30	>	WRONG UNIT	Probably wrong unit for extracted values	CD3 cells [#/volume] in Blood
 3013742	5	>	WRONG UNIT	Probably wrong unit for extracted values	Prealbumin [Mass/volume] in Serum or Plasma
 3016750	2000	>	WRONG UNIT	Probably wrong unit for extracted values	Collection duration of Urine
 3017766	1	>	WRONG UNIT	Probably wrong unit for extracted values	Complement C4 [Mass/volume] in Serum or Plasma
@@ -70,7 +70,7 @@ harmonization_omop::OMOP_ID	THRESHOLD	SIDE	QC_NOTES	MISC	conceptName
 3010130	250	>	IMPLAUSIBLE_VALUE	NA	Cytomegalovirus IgG Ab [Units/volume] in Serum or Plasma
 3010838	40	>	IMPLAUSIBLE_VALUE	NA	Calcium [Moles/time] in 24 hour Urine
 3019897	1	<	IMPLAUSIBLE_VALUE	NA	Erythrocyte distribution width [Ratio] by Automated count
-3009466	3000	>	IMPLAUSIBLE_VALUE	NA	Valproate [Moles/volume] in Serum or Plasma
+3009466	2500	>	IMPLAUSIBLE_VALUE	NA	Valproate [Moles/volume] in Serum or Plasma
 3006270	1500	>	IMPLAUSIBLE_VALUE	NA	Folate [Moles/volume] in Blood
 3051014	100	>	IMPLAUSIBLE_VALUE	NA	Leukocytes [#/area] in Urine sediment by Automated count
 3022756	100000	>	IMPLAUSIBLE_VALUE	NA	Ceruloplasmin [Mass/volume] in Serum or Plasma
@@ -99,3 +99,6 @@ harmonization_omop::OMOP_ID	THRESHOLD	SIDE	QC_NOTES	MISC	conceptName
 3023081	0	<	IMPOSSIBLE_VALUE	NA	Carboxyhemoglobin/Hemoglobin.total in Blood
 3007930	0	<	IMPOSSIBLE_VALUE	NA	Methemoglobin/Hemoglobin.total in Blood
 3020427	10	<	IMPLAUSIBLE_VALUE	NA	Coagulation factor X inhibitor [Units/volume] in Platelet poor plasma by Coagulation assay
+3003434	10000	>	IMPLAUSIBLE_VALUE	NA	Protein [Mass/volume] in Pleural fluid
+3040151	0	<	IMPOSSIBLE_VALUE	NA	Glucose [Moles/volume] in Capillary blood
+3040151	100	>	IMPLAUSIBLE_VALUE	NA	Glucose [Moles/volume] in Capillary blood

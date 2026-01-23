@@ -40,21 +40,24 @@ workflow kanta_munge {
     prefix = base_prefix,
     munged_chunks = munge.munged_chunk
   }
-  call analysis {input: docker = kanta_docker,merged_file = merge.munged}
+  call analysis {input: docker = kanta_docker,merged_file = merge.munged,prefix = base_prefix}
 }
 
 task analysis {
   input {
     File merged_file
+    String  prefix
     String docker
   }
 
+  String unharm = prefix + "_unharmonized_values.txt"
+  String unmap  = prefix+ "_unmapped_entries.txt"
   command <<<
   # this step creates the table of most common unit per OMOP_ID
   python3 /finngen_qc/scripts/create_harmonization_table.py ~{merged_file}
   # this step creates a table of counts of OMP_ID,TEST_NAME,UNIT(cleaned) that do not have harmonized values, meaning something is not specificied in the tables
   # it also returns the counts of TEST_NAME,UNIT(cleaned) that do not have a mapping
-  python3 /finngen_qc/scripts/unharmonized.py ~{merged_file}  -o unharmonized_values.txt -u unmapped_entries.txt
+  python3 /finngen_qc/scripts/unharmonized.py ~{merged_file}  -o ~{unharm} -u ~{unmap}
   >>>
   runtime {
     disks: "local-disk ~{ceil(size(merged_file,'GB')) + 2} HDD"
@@ -63,8 +66,8 @@ task analysis {
 
   output {
     File harmonization_counts = "harmonization_counts.txt"
-    File unharmonized_values = "unharmonized_values.txt"
-    File umapped_entries = "unmapped_entries.txt"
+    File unharmonized_values = "~{unharm}"
+    File umapped_entries = "~{unmap}"
   }
 }
 task merge {
@@ -77,11 +80,10 @@ task merge {
   String out_file = prefix +".txt.gz"
 
   command <<<
-  # write header
-  zcat ~{munged_chunks[0]} | head -n1 | bgzip -c > ~{out_file}
-  # merge files without headers
-  while read f; do echo $f && date +%Y-%m-%dT%H:%M:%S && zcat $f | sed -E 1d | bgzip -c >> ~{out_file} ; done < <(cat ~{write_lines(munged_chunks)} | sort -V )
-
+  # Get the exact first line to use as a filter
+  FIRST_LINE=$(zcat ~{munged_chunks[0]} | head -n1)
+  # Use that string to delete duplicates in the stream
+  sort -V ~{write_lines(munged_chunks)} | xargs pigz -dc | sed "1b; /^$FIRST_LINE$/d" | pigz -c > ~{out_file}
   >>>
   runtime {
     disks: "local-disk ~{ceil(size(munged_chunks,'GB')) * 4 + 10} HDD"
@@ -175,7 +177,7 @@ task GetCurrentDate {
   output {
     String date_string = read_string(stdout())
   }
-  runtime {
+  meta {
     volatile: true
   }
 }

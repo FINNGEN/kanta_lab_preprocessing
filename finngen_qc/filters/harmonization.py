@@ -8,6 +8,7 @@ def harmonization(df,args):
         df
         .pipe(approve_status,args)
         .pipe(check_usagi_unit,args)
+        .pipe(dump_unit_before_fix,args)
         .pipe(fix_unit_based_on_abbreviation,args)
         .pipe(omop_mapping,args)
         .pipe(unit_harmonization,args)
@@ -36,6 +37,17 @@ def unit_harmonization(df,args):
         df[['harmonization_omop::MEASUREMENT_VALUE','MEASUREMENT_VALUE','harmonization_omop::CONVERSION_FACTOR','harmonization_omop::MEASUREMENT_UNIT']]=df[['harmonization_omop::MEASUREMENT_VALUE','MEASUREMENT_VALUE','harmonization_omop::CONVERSION_FACTOR','harmonization_omop::MEASUREMENT_UNIT']].fillna("NA")
         
     return df
+
+
+def dump_unit_before_fix(df,args):
+    """
+    Step needed for bookkeeping purposes. We build a new column called 'cleaned-pre-fix::MEASUREMENT_UNIT' before injecting units. This way we can keep track of what's going on at the source and compare values before we manually merge them into single distributions
+    """
+    col = 'MEASUREMENT_UNIT'
+    copy_col = "cleaned-pre-fix::MEASUREMENT_UNIT"
+    df[copy_col] = df[col]
+    return df
+    
 
 def omop_mapping(df,args):
     """

@@ -48,6 +48,7 @@ config = {
         'cleaned::TEST_NAME_ABBREVIATION',
         'cleaned::MEASUREMENT_VALUE',
         'cleaned::MEASUREMENT_UNIT',
+        'cleaned-pre-fix::MEASUREMENT_UNIT',
         'harmonization_omop::MEASUREMENT_VALUE',
         'harmonization_omop::MEASUREMENT_UNIT',
         'harmonization_omop::CONVERSION_FACTOR',
@@ -168,7 +169,7 @@ config = {
     'harmonization_repo':'https://raw.githubusercontent.com/FINNGEN/kanta_lab_harmonisation_public/refs/heads/BRANCH/MAPPING_TABLES/',
     #list of harmonization files along with columns to use
     'harmonization_files' : {
-        'usagi_units':[['sourceCode'],'UNITSfi.usagi.csv'],
+        'usagi_units':[['sourceCode','ADD_INFO:UniqueForLab'],'UNITSfi.usagi.csv'],
         'unit_abbreviation_fix':[['TEST_NAME_ABBREVIATION','source_unit_clean','source_unit_clean_fix'],'fix_unit_based_in_abbreviation.tsv'],
         'usagi_mapping':[['mappingStatus','conceptId','ADD_INFO:omopQuantity','ADD_INFO:testNameAbbreviation','ADD_INFO:measurementUnit'],'LABfi_ALL.usagi.csv'],
         'unit_conversion':[['omop_quantity','source_unit_valid','to_source_unit_valid','conversion','only_to_omop_concepts'],'quantity_source_unit_conversion.tsv']

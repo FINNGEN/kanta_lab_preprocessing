@@ -7,7 +7,7 @@ def main():
     parser = argparse.ArgumentParser(description="Find most common units for OMOP IDs.")
     # Use nargs='?' to make the positional argument optional
     parser.add_argument("input", nargs='?', 
-                        default=os.path.expanduser("~/fg-3/kanta_v3/munged/kanta_v3_harmonized_2025_12_23.txt.gz"), 
+                        default=os.path.expanduser("~/fg-3/kanta_v3/munged/kanta_v3_harmonized_2025_01_16.txt.gz"), 
                         help="Path to the input .gz or .txt file")
     parser.add_argument("--test", action="store_true", help="Only process the first 10,000 lines")
     parser.add_argument("--out", default="harmonization_counts.txt", help="Output filename")

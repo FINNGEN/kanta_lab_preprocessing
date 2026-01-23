@@ -2,12 +2,12 @@
     "kanta_core.test": false,
     "kanta_core.prefix": "kanta_dev",
     # DATA INPUTS
-    "kanta_core.kanta_munged_data":"gs://fg-3/kanta_v3/munged/kanta_v3_harmonized_2025_12_23.txt.gz",
+    "kanta_core.kanta_munged_data":"gs://fg-3/kanta_v3/munged/kanta_v3_harmonized_2026_01_16.txt.gz",
     "kanta_core.validate_outputs.inclusion_list": "gs://finngen-production-library-red/all_allowed_ids_to_sb/finngen_R14_finngenid_actual_inclusion_list.txt",
     # RUNTIME
-    "kanta_core.kanta_docker":"eu.gcr.io/finngen-sandbox-v3-containers/kanta:qc_updates",
+    "kanta_core.kanta_docker":"eu.gcr.io/finngen-sandbox-v3-containers/kanta:dev.2",
     #"kanta_core.release_docker":"eu.gcr.io/finngen-sandbox-v3-containers/kanta:parquet",
-    "kanta_core.analysis_docker": "eu.gcr.io/finngen-sandbox-v3-containers/kanta:plot",
+    #"kanta_core.analysis_docker": "eu.gcr.io/finngen-sandbox-v3-containers/kanta:plot",
     "kanta_core.split.n_chunks": 32,
     "kanta_core.munge.cpus": 8,
     #ANALYSIS

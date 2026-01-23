@@ -97,7 +97,7 @@ task release {
     String prefix
   }
   String core_prefix = prefix +  "_core"
-  String meta_prefix = prefix +  "extended_columns"
+  String meta_prefix = prefix +  "_extended_columns"
   command <<<
   echo ~{mem}
   set -euxo pipefail

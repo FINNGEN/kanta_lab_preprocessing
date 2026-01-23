@@ -18,6 +18,7 @@ config = {
         'cleaned::TEST_NAME_ABBREVIATION',
         'cleaned::MEASUREMENT_VALUE',
         'cleaned::MEASUREMENT_UNIT',
+        'cleaned-pre-fix::MEASUREMENT_UNIT',
         'harmonization_omop::MEASUREMENT_VALUE',
         'harmonization_omop::MEASUREMENT_UNIT',
         'harmonization_omop::CONVERSION_FACTOR',

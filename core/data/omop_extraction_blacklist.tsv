@@ -1,2 +1,7 @@
 harmonization_omop::OMOP_ID	QC_NOTES
 3004410	Mismatch of units
+3006217	Negative values that makes us think there's a bigger issue at play and anyways not many values are affected
+3010517	Negative values that makes us think there's a bigger issue at play and anyways not many values are affected
+3024889	Negative values that makes us think there's a bigger issue at play and anyways not many values are affected
+3023081	Negative values that makes us think there's a bigger issue at play and anyways not many values are affected
+3007930	Negative values that makes us think there's a bigger issue at play and anyways not many values are affected
