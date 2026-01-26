@@ -136,7 +136,7 @@ task munge {
   >>>
   runtime {
     docker : "~{docker}"
-    disks: "local-disk ~{ceil(size(chunk,'GB')) * 4 + 10} HDD"
+    disks: "local-disk ~{ceil(size(chunk,'GB')) * 4 + 8} HDD"
     mem: "~{cpus} GB"
     cpu : "~{cpus}"
   }
