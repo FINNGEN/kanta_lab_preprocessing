@@ -65,7 +65,7 @@ task analysis {
   }
 
   output {
-    File harmonization_counts = "harmonization_counts.txt"
+    File harmonization_counts = "harmonization_counts.tsv"
     File unharmonized_values = "~{unharm}"
     File umapped_entries = "~{unmap}"
   }

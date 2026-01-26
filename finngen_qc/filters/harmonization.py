@@ -21,6 +21,7 @@ def unit_harmonization(df,args):
     """
     if args.harmonization:
         # add CONVERSION column
+        args.config['unit_conversion'].to_csv("./tmp.txt",sep='\t',index=False)
         df = pd.merge(df,args.config['unit_conversion'],on=['harmonization_omop::OMOP_ID','harmonization_omop::omopQuantity','MEASUREMENT_UNIT'],how='left').fillna(np.nan)
         # MAKE SURE MEASUREMENT VALUES is as float column
         df['MEASUREMENT_VALUE'] =pd.to_numeric(df['MEASUREMENT_VALUE'],errors='coerce')

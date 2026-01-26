@@ -10,7 +10,7 @@ def main():
                         default=os.path.expanduser("~/fg-3/kanta_v3/munged/kanta_v3_harmonized_2025_01_16.txt.gz"), 
                         help="Path to the input .gz or .txt file")
     parser.add_argument("--test", action="store_true", help="Only process the first 10,000 lines")
-    parser.add_argument("--out", default="harmonization_counts.txt", help="Output filename")
+    parser.add_argument("--out", default="harmonization_counts.tsv", help="Output filename")
     args = parser.parse_args()
 
     # Column Mapping
@@ -33,8 +33,8 @@ def main():
             args.input, 
             sep='\t', 
             usecols=[id_in, qt_in, un_in],
-            nrows=1000000 if args.test else None,
-            chunksize=1_000_000, 
+            nrows=2000000 if args.test else None,
+            chunksize=2_000_000, 
             engine='c',
             low_memory=False
         )
