@@ -177,6 +177,7 @@ This is for all sorts of QCing of the data, ideally for outlier filter/removal:
 - we perform a post harmonization fix for certain values where a mismatch of units exist. For the time being we've only seen his happen on the whole OMOP\_ID scale with Hematocrit, where some values are in the [0,1] range instead of the [0,100] range as expected. This is mostly linked to extracted values, but it also affects heavily harmonized values. The mapping file can be found in the [data folder](/core/data/omop_conversion_fix.tsv)
 - we use [a table](/core/data/omop_qc.tsv) to perform basic QC. The table enumerates thresholds for which we find values that are impossible/implausible or for which the pipeline cannot handle potential issues with unit. If en entry matches the criteria in the table, `QC_PASS` is set to 0 and `QC_NOTES` is updated to describe what went wrong according to our analysis
 - we use [a table](/core/data/omop_extraction_blacklist.tsv) to mask out extracted values from the `MEASUREMENT_VALUE_MERGED` column. QC columns are also updated. ATM it only involves a specific OMOP id for which two units coexist and conversion between them is not so obvious without a significant ad hoc modification in the pipeline.
+- we flag values for which the `TEST_OUTCOME` column does not match the `extracted::IS_POS` column
 
 ### [OUTCOME](/core/filters/outcome.py)
 - `TEST_OUTCOME_IMPUTED` is generated from the (merged) numerical values based on thresholds learned from the data when both values and outcomes are present

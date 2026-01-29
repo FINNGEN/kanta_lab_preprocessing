@@ -70,7 +70,7 @@ config = {
     'free_text_result_strings' : ("tutkimuksentulos:", "resultat:", "provresultat:","tutkimuksen tulos:", "tulos:", "vastaus:"),
     'status_indicators' : ('<', '>', 'yli', 'alle'),
     'abnormality_table':"data/abnormality_estimation.table.tsv",
-
+    'outcome_mismatch':[['N','1']]
     
 
 }

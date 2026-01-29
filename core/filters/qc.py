@@ -25,8 +25,78 @@ def qc(df, args):
         .pipe(initialize_qc_columns, args)
         .pipe(fix_omop_conversion, args)
         .pipe(flag_omop_qc, args)
+        .pipe(flag_outcome_mismatch,args)
         .pipe(flag_omop_extraction_blacklist,args)
     )
+    return df
+
+def flag_outcome_mismatch(df, args):
+    """
+    Identifies and flags records where the categorical test outcome and the 
+    extracted binary result do not align based on a predefined mismatch list.
+
+    The function applies a mask to find rows matching specified pairs (e.g., ['N', 1]),
+    marks them as failed (QC_PASS = "0"), appends a descriptive note to QC_NOTES, 
+    and logs the flagged records to a central warning file.
+
+    Args:
+        df (pd.DataFrame): The main dataframe containing test results.
+        args (Namespace): Configuration object containing:
+            - config['outcome_mismatch']: List of [OUTCOME, IS_POS] pairs to flag.
+            - config['err_cols']: List of columns to export to the error log.
+            - warn_file: Path to the TSV file for logging failures.
+
+    Returns:
+        pd.DataFrame: The dataframe with updated QC_PASS and QC_NOTES columns.
+    """
+    
+    # 1. Define the columns to check and the mismatch criteria
+    check_cols = ['TEST_OUTCOME', 'extracted::IS_POS']
+    match_tuples = [tuple(x) for x in args.config['outcome_mismatch']]
+    qc_note = "Outcome mismatch detected"
+
+    # 2. Create the mask for failures
+    # We create a MultiIndex from the columns and check if they exist in our list of mismatch pairs
+    fail_mask = pd.MultiIndex.from_frame(df[check_cols]).isin(match_tuples)
+
+    # 3. Skip if no rows match the mismatch criteria
+    if not fail_mask.any():
+        return df
+
+    # 4. Get indices of failed rows
+    fail_idx = df.index[fail_mask].tolist()
+
+    # 5. Set QC_PASS to 0 for flagged measurements
+    df.loc[fail_idx, 'QC_PASS'] = "0"
+
+    # 6. Update QC notes for flagged values
+    existing_notes = df.loc[fail_idx, 'QC_NOTES'].astype(str)
+    
+    # Concatenate notes: if existing is 'NA' or empty, replace; otherwise append
+    concatenated_notes = np.where(
+        (existing_notes == 'NA') | (existing_notes == 'nan') | (existing_notes == ''),
+        str(qc_note),
+        existing_notes + '; ' + str(qc_note)
+    )
+    df.loc[fail_idx, 'QC_NOTES'] = concatenated_notes
+
+    # 7. Create error dataframe/log with all flagged rows
+    # Note: We filter by QC_PASS == "0" to capture this rule's (and potentially previous rules') failures
+    failed_rows_mask = df['QC_PASS'] == "0"
+    
+    if failed_rows_mask.any():
+        qc_df = df[failed_rows_mask].copy()
+        qc_df['ERR'] = 'QC_PASS'
+        qc_df['ERR_VALUE'] = (
+            qc_df['cleaned::TEST_NAME_ABBREVIATION'].astype(str).fillna("") + ';' + 
+            qc_df['QC_NOTES'].astype(str).fillna("")
+        )
+        
+        # Append to the warning file
+        qc_df[args.config['err_cols']].to_csv(
+            args.warn_file, mode='a', index=False, header=False, sep="\t"
+        )
+
     return df
 
 def flag_omop_extraction_blacklist(df, args):
