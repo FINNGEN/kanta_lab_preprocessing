@@ -38,7 +38,6 @@ def init_harmonization(args,logger):
     logger.debug(args.config['unit_abbreviation_fix'][args.config['unit_abbreviation_fix'].TEST_NAME_ABBREVIATION =='p-tt-inr'])
     logger.debug(args.config['usagi_mapping'][args.config['usagi_mapping']["TEST_NAME_ABBREVIATION"] == 'p-vrab-o'])
 
-
     if args.harmonization:
         '''
         this step creates a new df where the table of unit conversion is merged with the table of target units.
