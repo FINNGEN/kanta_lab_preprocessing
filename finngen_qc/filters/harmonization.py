@@ -15,6 +15,53 @@ def harmonization(df,args):
     )
     return df
 
+
+def harmonization_debug(df, args):
+    # Initialize the counter with the starting size
+    args._last_row_count = len(df)
+    print(f"STARTING HARMONIZATION | Rows: {len(df)}")
+
+    df = (
+        df
+        .pipe(approve_status, args)
+        .pipe(log_step, args, "approve_status")
+        
+        .pipe(check_usagi_unit, args)
+        .pipe(log_step, args, "check_usagi_unit")
+        
+        .pipe(dump_unit_before_fix, args)
+        .pipe(log_step, args, "dump_unit_before_fix")
+        
+        .pipe(fix_unit_based_on_abbreviation, args)
+        .pipe(log_step, args, "fix_unit_based_on_abbreviation")
+        
+        .pipe(omop_mapping, args)
+        .pipe(log_step, args, "omop_mapping") # <--- Likely culprit 1
+        
+        .pipe(unit_harmonization, args)
+        .pipe(log_step, args, "unit_harmonization") # <--- Likely culprit 2
+    )
+    return df
+
+def log_step(df, args, step_name):
+    current_rows = len(df)
+    # We store the previous count in args to track changes across pipes
+    last_rows = getattr(args, '_last_row_count', current_rows)
+    diff = current_rows - last_rows
+    
+    msg = f"STEP: {step_name} | Rows: {current_rows} | Change: {diff:+d}"
+    
+    if diff != 0:
+        # Using warning or error so it stands out if the count changes
+        print(msg)
+    else:
+        print(msg)
+    
+    # Update the tracker
+    args._last_row_count = current_rows
+    return df
+
+
 def unit_harmonization(df,args):
     """"
     Creates two new columns for VALUE/UNIT harmonization

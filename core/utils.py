@@ -13,16 +13,25 @@ dir_path = os.path.dirname(os.path.realpath(__file__))
 
 def get_stuff_from_finngen_qc(args):
     args.fg_config = fg_config.config
-    fg_data = os.path.join(os.path.dirname(os.path.dirname(__file__)),'finngen_qc')
-    args.config['unit_map'] = read_map(os.path.join(os.path.join(fg_data,args.fg_config['unit_map_file'])))
-    for key,value in args.fg_config['harmonization_files'].items():
-        cols,fname = value
+    fg_data = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'finngen_qc')
+    
+    args.config['unit_map'] = read_map(os.path.join(fg_data, args.fg_config['unit_map_file']))
+    
+    for key, value in args.fg_config['harmonization_files'].items():
+        # FIX 1: Unpack all 3 elements to match your new config structure
+        cols, fname, subfolder = value
+        # FIX 2: Use os.path.basename to point to the flat file in /data/
+        # This ignores the subfolder structure (e.g., 'VOCABULARIES/UNITSfi/')
+        local_fname = os.path.basename(fname)
+        local_path = os.path.join(fg_data, 'data', local_fname)
+        
         sep = ',' if fname.endswith('.csv') else '\t'
-        rename = {col:new_col for col,new_col in args.fg_config['harmonization_col_map'].items() if col in cols}
-        args.config[key] = pd.read_csv(os.path.join(fg_data,'data',fname),usecols = cols,sep = sep).rename(columns=rename).drop_duplicates()
+        rename = {col: new_col for col, new_col in args.fg_config['harmonization_col_map'].items() if col in cols}
+        
+        # Load the file from the flat data directory
+        args.config[key] = pd.read_csv(local_path, usecols=cols, sep=sep).rename(columns=rename).drop_duplicates()
 
     return args
-
 
 def init_omop_extraction_blacklist(args):
     f=os.path.join(Path(dir_path).parent.absolute(),args.config['omop_extraction_blacklist'])

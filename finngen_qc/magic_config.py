@@ -166,13 +166,30 @@ config = {
     ],
 
     'abbreviation_replacements': [(r'–','-')],
-    'harmonization_repo':'https://raw.githubusercontent.com/FINNGEN/kanta_lab_harmonisation_public/refs/heads/BRANCH/MAPPING_TABLES/',
+    'harmonization_repo':'https://raw.githubusercontent.com/FINNGEN/kanta_lab_harmonisation_public/refs/heads/BRANCH/VOCABULARIES/',
     #list of harmonization files along with columns to use
     'harmonization_files' : {
-        'usagi_units':[['sourceCode','ADD_INFO:UniqueForLab'],'UNITSfi.usagi.csv'],
-        'unit_abbreviation_fix':[['TEST_NAME_ABBREVIATION','source_unit_clean','source_unit_clean_fix'],'fix_unit_based_in_abbreviation.tsv'],
-        'usagi_mapping':[['mappingStatus','conceptId','ADD_INFO:omopQuantity','ADD_INFO:testNameAbbreviation','ADD_INFO:measurementUnit'],'LABfi_ALL.usagi.csv'],
-        'unit_conversion':[['omop_quantity','source_unit_valid','to_source_unit_valid','conversion','only_to_omop_concepts'],'quantity_source_unit_conversion.tsv']
+        # Format: [ [cols], 'subfolder/filename', 'subfolder' ]
+        'usagi_units': [
+            ['sourceCode','ADD_INFO:UniqueForLab'], 
+            'UNITSfi/UNITSfi.usagi.csv', 
+            'UNITSfi'
+        ],
+        'unit_abbreviation_fix': [
+            ['TEST_NAME_ABBREVIATION','source_unit_clean','source_unit_clean_fix'],
+            'LABfi_ALL/fix_unit_based_in_abbreviation.tsv', 
+            'LABfi_ALL'
+        ],
+        'usagi_mapping': [
+            ['mappingStatus','conceptId','ADD_INFO:omopQuantity','ADD_INFO:testNameAbbreviation','ADD_INFO:measurementUnit'],
+            'LABfi_ALL/LABfi_ALL.usagi.csv', 
+            'LABfi_ALL'
+        ],
+        'unit_conversion': [
+            ['omop_quantity','source_unit_valid','to_source_unit_valid','conversion','only_to_omop_concepts'],
+            'LABfi_ALL/quantity_source_unit_conversion.tsv', 
+            'LABfi_ALL'
+        ]
     },
     
     'harmonization_col_map' : {

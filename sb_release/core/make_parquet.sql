@@ -14,7 +14,9 @@ SELECT
   nullIf(TEST_OUTCOME_IMPUTED, 'NA') :: Nullable(String) AS TEST_OUTCOME_IMPUTED,
   nullIf(OUTCOME_POS_EXTRACTED, 'NA') :: Nullable(Int8) AS OUTCOME_POS_EXTRACTED,
   nullIf(TEST_OUTCOME_TEXT_EXTRACTED, 'NA') :: Nullable(String) AS TEST_OUTCOME_TEXT_EXTRACTED,
-  nullIf(QC_PASS, 'NA') :: Nullable(Int8) AS QC_PASS
+  nullIf(QC_PASS, 'NA') :: Nullable(Int8) AS QC_PASS,
+  nullIf(QC_NOTES, 'NA') :: Nullable(String) AS QC_NOTES
+
 
   FROM file({filePathCleanTxtGz:String}, TSVWithNames)
 	 

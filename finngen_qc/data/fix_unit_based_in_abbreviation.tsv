@@ -44,3 +44,21 @@ s-uraat	mmol/l	umol/l
 kreatiniini	mmol/l	umol/l
 p-krea	mmol/l	umol/l
 s-krea	mmol/l	umol/l
+u-alb		ug/l
+albumiini	g/l	mg/l
+album	g/l	mg/l
+kol/hdlsuhde		ratio
+kol/hdl-su		ratio
+kol/hdl		ratio
+kolesterolinjahdl-kolest.suhde		ratio
+u-suhti		mg/l
+u-suhteellinentiheys		ratio
+u-suhtih		ratio
+u-ominp-h		ratio
+non-hdl		mmol/l
+p-hb	g/l	mg/l
+p-hb		mg/l
+fp-gluk	nmol/l	mmol/l
+fp-glukoosi	nmol/l	mmol/l
+s-b12-vit		pmol/l
+p-b12-vit		pmol/l

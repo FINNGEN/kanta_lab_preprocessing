@@ -7,25 +7,36 @@ import urllib.request
 import http.client as httplib
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
-def init_harmonization(args,logger):
-
+def init_harmonization(args, logger):
     logger.info("UPDATING USAGI")
-    repo = args.config['harmonization_repo'].replace('BRANCH',args.harmonization_gh_branch)
-    print(repo)
-    urls = [(repo+elem[1],os.path.join(dir_path,'data',elem[1])) for elem in args.config['harmonization_files'].values()]
+    repo = args.config['harmonization_repo'].replace('BRANCH', args.harmonization_gh_branch)
+    
+    # We unpack the 3 elements here: cols (0), remote_path (1), subfolder (2)
+    # We use os.path.basename to ensure it saves to /data/file.csv, NOT /data/subfolder/file.csv
+    urls = [
+        (repo + elem[1], os.path.join(dir_path, 'data', os.path.basename(elem[1]))) 
+        for elem in args.config['harmonization_files'].values()
+    ]
+
     try:
-        for url,out_file in urls:
-            urllib.request.urlretrieve(url,out_file)
-    except:
-        logger.warning("COULD NOT DOWNLOAD FILES: USAGI FILES NOT UPDATED")
+        for url, out_file in urls:
+            urllib.request.urlretrieve(url, out_file)
+    except Exception as e:
+        logger.warning(f"COULD NOT DOWNLOAD FILES: {e}")
         logger.warning(urls)
 
-    # READ IN JAVIER/USAGI FILES WITH PROPER RENAMING OF COLUMNS
-    for key,value in args.config['harmonization_files'].items():
-        cols,fname = value
+    # READ IN FILES WITH PROPER UNPACKING
+    for key, value in args.config['harmonization_files'].items():
+        # FIX: Unpack all THREE values to avoid ValueError
+        cols, fname, subfolder = value
+        # Use basename so pandas looks in 'data/' directly
+        local_file = os.path.join(dir_path, 'data', os.path.basename(fname))
+        
         sep = ',' if fname.endswith('.csv') else '\t'
-        rename = {col:new_col for col,new_col in args.config['harmonization_col_map'].items() if col in cols}
-        args.config[key] = pd.read_csv(os.path.join(dir_path,'data',fname),usecols = cols,sep = sep).rename(columns=rename).drop_duplicates()
+        rename = {col: new_col for col, new_col in args.config['harmonization_col_map'].items() if col in cols}
+        
+        # Load from the flat local path
+        args.config[key] = pd.read_csv(local_file, usecols=cols, sep=sep).rename(columns=rename).drop_duplicates()
         
     #PROCESSING OF INPUT TABLES TO FIX UNITS, FILTER VALUES ETC
     assert args.config['usagi_units']['ADD_INFO:UniqueForLab'].dtype=='bool'
@@ -73,6 +84,21 @@ def init_harmonization(args,logger):
     logger.debug(args.config['unit_abbreviation_fix'])
     logger.debug("UNIT CONVERSION")
     logger.debug(args.config['unit_conversion'])
+    for key, df in args.config.items():
+        if isinstance(df, pd.DataFrame):
+            duplicate_count = df.duplicated().sum()
+            if duplicate_count > 0:
+                logger.error(f"DATA INTEGRITY ERROR: DataFrame '{key}' contains {duplicate_count} duplicated rows.")
+                logger.debug(df[df.duplicated(keep=False)])
+
+    # Clean duplicates in unit_abbreviation_fix to prevent row multiplication
+    df_fix = args.config['unit_abbreviation_fix']
+    duplicates = df_fix[df_fix.duplicated(subset=['TEST_NAME_ABBREVIATION', 'source_unit_clean'], keep=False)]
+
+    if not duplicates.empty:
+        logger.warning(f"Dupli0cate mappings found in unit_abbreviation_fix:\n{duplicates}")
+        args.config['unit_abbreviation_fix'] = df_fix.drop_duplicates(subset=['TEST_NAME_ABBREVIATION', 'source_unit_clean'], keep='first')
+        
     return args
 
     
