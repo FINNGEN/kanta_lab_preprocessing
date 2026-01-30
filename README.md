@@ -140,15 +140,16 @@ options:
 
 The `core` folder contains the pipeline that produces a similar file, which is used for analysis purposes.
 
-The current version outputs extra columns, which are taken from the `MEASUREMENT_FREE_TEXT` column, which cannot be shared due to data privacy reasons for the time being. The columns are:
+The current version outputs new columns, which are taken from the `MEASUREMENT_FREE_TEXT` column, which cannot be shared due to data privacy reasons for the time being. The columns are:
 
 | Column Name | Easy Description | General Notes | Technical Notes |
 |---|---|---|---|
 | `MEASUREMENT_VALUE_EXTRACTED` | Numerical values | The column is mutually exclusive with `harmonization_omop::MEASUREMENT_VALUE`. In our analysis the units seemed to be pretty much always coherent with our target OMOP units, albeit for occasional clusters of outliers that are present also in the core data. | The content of the `MEASUREMENT_FREE_TEXT` colum is cleaned by removal of spaces, converted to lower case, the target omop unit is removed if present, certain result strings are removed. If we're left with a pure float number, it's considered to be an extracted value. |
-| `extracted::MEASUREMENT_VALUE_MERGED` | extracted::MEASUREMENT_VALUE_MERGED | Merge of original value column and of extracted value column |  |
+| `extracted::MEASUREMENT_VALUE_MERGED` | extracted::MEASUREMENT_VALUE_MERGED | Merge of harmonized value column and of extracted value column |  |
 | `OUTCOME_POS_EXTRACTED` | Boolean | Pos(1) or Neg(0) status | We extracted all strings containing the substring pos/neg and we manually mapped them to pos/neg statuses. The mapping is stored in the [data folder](/core/data/negpos_mapping.tsv). We also added positive extractions linked to (mostly) from presence in urine measurements. They are often formatted as +/++ or with numerical indicators like 3+. The mapping is stored in the [data folder](/core/data/kanta_plusplus_abnormality.tsv) |
 | `TEST_OUTCOME_TEXT_EXTRACTED` | Strings | Simplified/summarized strings present in free text. E.g. (YLI 3.0 ml --> >3ml). |  |
-| `QC_PASS` | Boolean | Pass(1) or Fail (0) QC. |  Based on table [to be defined] |
+| `QC_PASS` | Boolean indicator of numerical QC.| Values are initialized as `2` (unchcked). Through [a table](/core/data/omop_qc.tsv) containing numerical thresholds (e.g. impossible or implausible values) the column is updated to `1` (checked and passed) or `0` (checked and not passed). These filters are not to be taken as definite but they are the ones used in the analysis side for GWAS and downstream analyses. We always recommend to double check yourself based on your needs. |
+| `QC_NOTES` | Description of QC considerations. | Post-harmonization ad hoc conversions are annotated here (like Hematocrit [0,1] --> [0,100] conversion). It also includes flagging of mismatches between `TEST_OUTCOME` and `OUTCOME_POS_EXTRACTED` |
 
 
 ## TECHNICAL INFO
@@ -163,8 +164,9 @@ This filter extracts info from the free text column:
 
 - extract\_measurement: This function extracts numerical measurement values from the "MEASUREMENT_FREE_TEXT" column and stores them in a new column called "extracted::MEASUREMENT_VALUE". It also creates a "extracted::MEASUREMENT_VALUE_MERGED" column, which prioritizes values from the "harmonization_omop::MEASUREMENT_VALUE" column if available, otherwise using the newly extracted values.
 
-- extract\_positive: This function merges the input DataFrame (df) with a posneg_table based on the "MEASUREMENT_FREE_TEXT" column. It's designed to bring in pre-existing positive/negative classifications or related information associated with the free text measurements. 
+- extract\_positive: This function takes in a [table](/core/data/negpos_mapping.tsv) and maps these full free text fields (manually checked by us) to 1(pos)/0(neg) outcomes. These free text contains the substrings `pos` or `neg` in them.
 
+- extract\_plus\_ab" This function takes in a [table](/core/data/kanta_plusplus_abnormality.tsv) and maps these full free text fields (manually checked by us) to 1(pos)/0(neg) outcomes. These strings contains the sign `+` in them.
 
 ### [QC](/core/filters/qc.py)
 
