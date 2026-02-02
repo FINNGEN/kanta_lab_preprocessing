@@ -55,14 +55,15 @@ def init_plus_mapping(args):
     f=os.path.join(Path(dir_path).parent.absolute(),args.config['plusab_map'])
     df =  pd.read_csv(f,sep='\t',dtype=str)
     df['extracted::TEST_OUTCOME_TEXT'] = df['MEASUREMENT_FREE_TEXT']
-    df = df[df['extracted::IS_POS']=="1"]
+    df = df[df['extracted::IS_POS'].isin(["1", "0"])]
     return df
 
 def init_posneg_mapping(args):
 
-    df =  pd.read_csv(os.path.join(Path(dir_path).parent.absolute(),args.config['posneg_map']),sep='\t',usecols=['MEASUREMENT_FREE_TEXT','MAPPED']).dropna(subset='MAPPED')
-    df = df.astype({'MAPPED': int}).astype({'MAPPED': str}).rename(columns={"MAPPED":"extracted::IS_POS"})
-    
+    col_name='extracted::IS_POS'
+    df =  pd.read_csv(os.path.join(Path(dir_path).parent.absolute(),args.config['posneg_map']),sep='\t',usecols=['MEASUREMENT_FREE_TEXT',col_name]).dropna(subset=col_name)
+    df = df.astype({col_name: int}).astype({col_name: str})
+
     return df
 
 def init_unit_table(args):

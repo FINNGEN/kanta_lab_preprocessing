@@ -159,7 +159,7 @@ task split{
   zcat ~{kanta_data} | head -n1 > header.txt
   zcat ~{kanta_data} | sed -E 1d ~{if test then " | head -n 4000000 "  else ""} > tmp.tsv
   for f in {00..~{chunks-1}}; do cat header.txt | bgzip -c > kanta$f.gz; done
-  split tmp.tsv -n l/~{chunks} -d kanta --filter='gzip >> $FILE.gz'
+  split tmp.tsv -n l/~{chunks} --verbose -d kanta --filter='gzip >> $FILE.gz'
   >>>
   runtime {disks: "local-disk ~{ceil(size(kanta_data,'GB')) * 10 + 20} HDD"}
   output {

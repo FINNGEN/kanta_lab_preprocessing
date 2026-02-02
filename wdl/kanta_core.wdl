@@ -25,6 +25,7 @@ workflow kanta_core {
   # build parquet and release file
   call release { input: docker = select_first([release_docker, kanta_docker]), mem = if test then 4 else 64, prefix = prefix, munged_data  = merge.merged_file}
   call validate_outputs {input : parquet_file = release.core_files[1],docker=kanta_docker}
+  call build_pos_tables{input:merged_file = merge.merged_file,docker=kanta_docker}
   call compare_versions {input: new_parquet=release.core_files[1],docker=select_first([analysis_docker, kanta_docker]),prefix=prefix}
 }
 
@@ -57,6 +58,28 @@ task compare_versions {
   
 }
 
+
+
+task build_pos_tables{
+  input {
+    String docker
+    File merged_file
+  }
+
+  command <<<
+  bash /qc_scripts/extract_pos_counts.sh ~{merged_file} --map /finngen_qc/data/LABfi_ALL.usagi.csv --pn_orig /core/data/negpos_mapping.tsv --plus_orig /core/data/kanta_plusplus_abnormality.tsv
+  >>>
+  output{
+    File plus_summary = "./plusplus_summary.tsv"
+    File posneg_summary = "./pos_neg_summary.tsv"
+  }
+  
+  runtime {
+    disks: "local-disk ~{ceil(size(merged_file,'GB')) + 10} HDD"
+    docker : "~{docker}"
+  }
+  
+}
 
 task validate_outputs {
   input {
