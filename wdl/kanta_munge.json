@@ -1,6 +1,6 @@
 {
     "kanta_munge.test": false,
-    "kanta_munge.kanta_docker": "europe-west1-docker.pkg.dev/finngen-refinery-dev/fg-refinery-registry/kanta:dev.7",
+    "kanta_munge.kanta_docker": "europe-west1-docker.pkg.dev/finngen-refinery-dev/fg-refinery-registry/kanta:dev.8",
     "kanta_munge.kanta_data": "gs://fg-3/kanta_v3/pre-munged/finngen_R14_kanta_laboratory_responses_internal_1.0_2025_12_23_unique.tsv.gz",
     "kanta_munge.prefix": "kanta_v3_harmonized",
     "kanta_munge.munge.cpus": 8,

@@ -52,12 +52,16 @@ task analysis {
 
   String unharm = prefix + "_unharmonized_values.txt"
   String unmap  = prefix+ "_unmapped_entries.txt"
+  String injection =  prefix+ "_candidate_injections.txt"
   command <<<
   # this step creates the table of most common unit per OMOP_ID
-  python3 /finngen_qc/scripts/create_harmonization_table.py ~{merged_file}
+  python3 /qc_scripts/create_harmonization_table.py ~{merged_file}
   # this step creates a table of counts of OMP_ID,TEST_NAME,UNIT(cleaned) that do not have harmonized values, meaning something is not specificied in the tables
   # it also returns the counts of TEST_NAME,UNIT(cleaned) that do not have a mapping
-  python3 /finngen_qc/scripts/unharmonized.py ~{merged_file}  -o ~{unharm} -u ~{unmap}
+  python3 /qc_scripts/unharmonized.py ~{merged_file}  -o ~{unharm} -u ~{unmap}
+  python3 /qc_scripts/test_units.py --data ~{merged_file} --audit_list ~{unharm} --output ~{injection}
+
+  
   >>>
   runtime {
     disks: "local-disk ~{ceil(size(merged_file,'GB')) + 2} HDD"
@@ -68,6 +72,7 @@ task analysis {
     File harmonization_counts = "harmonization_counts.tsv"
     File unharmonized_values = "~{unharm}"
     File umapped_entries = "~{unmap}"
+    File injection_candidates = "~{injection}"
   }
 }
 task merge {

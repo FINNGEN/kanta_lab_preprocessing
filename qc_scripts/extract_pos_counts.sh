@@ -7,6 +7,10 @@ PN_ORIG=""
 PLUS_ORIG=""
 PN_SUMMARY="pos_neg_summary.tsv"
 PLUS_SUMMARY="plusplus_summary.tsv"
+# New files specifically formatted for Google Sheets
+PN_PASTE="pos_neg_summary_pasteable.tsv"
+PLUS_PASTE="plusplus_summary_pasteable.tsv"
+
 PN_WARN="PN_RECONCILIATION_WARNINGS.tsv"
 PLUS_WARN="PLUS_RECONCILIATION_WARNINGS.tsv"
 TEST_LINES=1000000
@@ -24,9 +28,10 @@ while [[ "$#" -gt 0 ]]; do
     esac
 done
 
-export MAP_FILE PN_ORIG PLUS_ORIG PN_SUMMARY PLUS_SUMMARY PN_WARN PLUS_WARN
+export MAP_FILE PN_ORIG PLUS_ORIG PN_SUMMARY PLUS_SUMMARY PN_PASTE PLUS_PASTE PN_WARN PLUS_WARN
 
 # --- 2. EXTRACTION LOGIC ---
+# (Keeping your existing logic here...)
 LAST_FILE_LOG=".last_input_source"
 LAST_INPUT=$(cat "$LAST_FILE_LOG" 2>/dev/null)
 
@@ -57,46 +62,60 @@ if needs_extraction; then
         next
     }
     {
+        if (NR % 1000000 == 0) {
+            printf "\rProcessed %dM lines...", NR/1000000 > "/dev/stderr"
+        }
         tx = clean($c_tx); id = clean($c_id); pos = clean($c_p); om = clean($c_o)
         if (tx == "") next
         l_tx = tolower(tx); p_val = (pos == "" ? "NA" : pos)
         if (l_tx ~ /pos|neg/) print tx "\t" p_val "\t" id > "subset_pn.tsv"
-        if (tx ~ /\+/) print (om==""?"NA":om) "\t" tx "\t" p_val "\t" id > "subset_pl.tsv"
-    }'
+        if (tx ~ /\+/) {
+            if (om != "-1") {
+                print (om==""?"NA":om) "\t" tx "\t" p_val "\t" id > "subset_pl.tsv"
+            }
+        }
+    }
+    END { printf "\nExtraction complete. Total lines processed: %d\n", NR > "/dev/stderr" }'
 
     echo "Step 2: Sorting and aggregating (Npeople >= 5)..."
-    sort -t$'\t' -k1,3 subset_pn.tsv | awk -F'\t' '
-    {
-        key = $1 "\t" $2
-        if (key != last_key && last_key != "") {
-            if (nppl >= 5) print last_key "\t" cnt "\t" nppl
-            cnt = 0; nppl = 0; last_id = ""
+    if [[ -f subset_pn.tsv ]]; then
+        sort -t$'\t' -k1,3 subset_pn.tsv | awk -F'\t' '
+        {
+            key = $1 "\t" $2
+            if (key != last_key && last_key != "") {
+                if (nppl >= 5) print last_key "\t" cnt "\t" nppl
+                cnt = 0; nppl = 0; last_id = ""
+            }
+            cnt++; if ($3 != last_id) { nppl++; last_id = $3 }; last_key = key
         }
-        cnt++; if ($3 != last_id) { nppl++; last_id = $3 }; last_key = key
-    }
-    END { if (nppl >= 5) print last_key "\t" cnt "\t" nppl }' > tmp_pn.raw
-
-    sort -t$'\t' -k1,4 subset_pl.tsv | awk -F'\t' '
-    {
-        key = $1 "\t" $2 "\t" $3
-        if (key != last_key && last_key != "") {
-            if (nppl >= 5) print last_key "\t" cnt "\t" nppl
-            cnt = 0; nppl = 0; last_id = ""
+        END { if (nppl >= 5) print last_key "\t" cnt "\t" nppl }' > tmp_pn.raw
+    fi
+    if [[ -f subset_pl.tsv ]]; then
+        sort -t$'\t' -k1,4 subset_pl.tsv | awk -F'\t' '
+        {
+            key = $1 "\t" $2 "\t" $3
+            if (key != last_key && last_key != "") {
+                if (nppl >= 5) print last_key "\t" cnt "\t" nppl
+                cnt = 0; nppl = 0; last_id = ""
+            }
+            cnt++; if ($4 != last_id) { nppl++; last_id = $4 }; last_key = key
         }
-        cnt++; if ($4 != last_id) { nppl++; last_id = $4 }; last_key = key
-    }
-    END { if (nppl >= 5) print last_key "\t" cnt "\t" nppl }' > tmp_pl.raw
-    
-    rm subset_pn.tsv subset_pl.tsv
+        END { if (nppl >= 5) print last_key "\t" cnt "\t" nppl }' > tmp_pl.raw
+    fi
+    rm -f subset_pn.tsv subset_pl.tsv
 else
     echo "Using existing aggregated data for $INPUT_RAW."
 fi
 
 # --- 3. RECONCILE (Python) ---
-echo "Step 3: Reconciling and appending warnings..."
+echo "Step 3: Reconciling and creating pasteable outputs..."
 
 python3 -c "
 import csv, os
+
+def escape_sheets(val):
+    s = str(val)
+    return f\"'{s}\" if s.startswith('+') or s.startswith('-') or s.startswith('=') else s
 
 def load_ref(path, use_omop=False):
     data = {}
@@ -112,27 +131,18 @@ def load_ref(path, use_omop=False):
     return data
 
 def check_row(key, current_pos, nppl, ref_dict, warn_list):
-    # 1. NEW ENTRY
     if key not in ref_dict:
         msg = '!! WARNING: NEW ENTRY !!'
         warn_list.append([str(key), current_pos, nppl, msg])
         return msg
-    
-    # 2. EXACT MATCH (Keep existing note)
     if current_pos in ref_dict[key]:
         return ref_dict[key][current_pos]
-    
-    # 3. STATUS MISMATCH (Keep existing note and append warning)
     known_statuses = sorted([s for s in ref_dict[key].keys() if s])
     known_str = '/'.join(known_statuses)
-    
-    # Get any pre-existing note from any status for this text to preserve it
     existing_notes = [n for n in ref_dict[key].values() if n]
     base_note = existing_notes[0] if existing_notes else ''
-    
     msg = f'!! WARNING: Status Mismatch (Ref has {known_str}) !!'
     warn_list.append([str(key), current_pos, nppl, msg])
-    
     return f'{base_note} {msg}'.strip()
 
 omop_map = {}
@@ -147,29 +157,46 @@ if os.path.exists('tmp_pn.raw'):
     res = []
     with open('tmp_pn.raw', 'r') as f:
         for line in f:
-            tx, pos, cnt, nppl = line.strip('\n').split('\t')
+            parts = line.strip('\n').split('\t')
+            if len(parts) < 4: continue
+            tx, pos, cnt, nppl = parts
             res.append([tx, pos, cnt, nppl, check_row(tx, pos, nppl, pn_refs, pn_warns)])
     res.sort(key=lambda x: int(x[2]), reverse=True)
+    # Write Normal TSV
     with open(os.environ['PN_SUMMARY'], 'w') as f:
         f.write('MEASUREMENT_FREE_TEXT\textracted::IS_POS\tCOUNT\tNpeople\tNOTES\n')
         for r in res: f.write('\t'.join(r) + '\n')
+    # Write Pasteable TSV
+    with open(os.environ['PN_PASTE'], 'w') as f:
+        f.write('MEASUREMENT_FREE_TEXT\textracted::IS_POS\tCOUNT\tNpeople\tNOTES\n')
+        for r in res: f.write('\t'.join(escape_sheets(x) for x in r) + '\n')
 
 if os.path.exists('tmp_pl.raw'):
     res = []
     with open('tmp_pl.raw', 'r') as f:
         for line in f:
-            om, tx, pos, cnt, nppl = line.strip('\n').split('\t')
+            parts = line.strip('\n').split('\t')
+            if len(parts) < 5: continue
+            om, tx, pos, cnt, nppl = parts
             desc = omop_map.get(om, 'NOT_IN_MAP') if om != 'NA' else 'NO_OMOP_ID'
             res.append([om, tx, pos, desc, cnt, nppl, check_row((om, tx), pos, nppl, pl_refs, pl_warns)])
     res.sort(key=lambda x: int(x[4]), reverse=True)
+    # Write Normal TSV
     with open(os.environ['PLUS_SUMMARY'], 'w') as f:
         f.write('harmonization_omop::OMOP_ID\tMEASUREMENT_FREE_TEXT\textracted::IS_POS\tDESC\tCOUNT\tNpeople\tNOTES\n')
         for r in res: f.write('\t'.join(r) + '\n')
+    # Write Pasteable TSV
+    with open(os.environ['PLUS_PASTE'], 'w') as f:
+        f.write('harmonization_omop::OMOP_ID\tMEASUREMENT_FREE_TEXT\textracted::IS_POS\tDESC\tCOUNT\tNpeople\tNOTES\n')
+        for r in res: f.write('\t'.join(escape_sheets(x) for x in r) + '\n')
 
-for w_file, w_list, head in [(os.environ['PN_WARN'], pn_warns, 'TEXT\tSTATUS\tNPEOPLE\tISSUE\n'), (os.environ['PLUS_WARN'], pl_warns, 'OMOP_TEXT_KEY\tSTATUS\tNPEOPLE\tISSUE\n')]:
-    with open(w_file, 'w') as f:
-        f.write(head)
-        w_list.sort(key=lambda x: int(x[2]), reverse=True)
-        for w in w_list: f.write('\t'.join(w) + '\n')
 "
-echo "Done. Notes preserved and warnings appended."
+
+echo "Done. Created both standard TSVs and _pasteable.tsv versions."
+
+# --- 4. AUTO-COPY TO CLIPBOARD ---
+if command -v xclip > /dev/null; then
+    cat "$PLUS_PASTE" | xclip -selection clipboard -t text/plain
+    echo ">> CLIPBOARD UPDATED WITH: $PLUS_PASTE <<"
+    echo "You can now Ctrl+V into Google Sheets."
+fi

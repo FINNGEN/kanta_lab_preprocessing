@@ -72,6 +72,7 @@ task build_pos_tables{
   output{
     File plus_summary = "./plusplus_summary.tsv"
     File posneg_summary = "./pos_neg_summary.tsv"
+    File pasteable = glob("./*pasteable*")
   }
   
   runtime {
