@@ -67,7 +67,7 @@ task build_pos_tables{
   }
 
   command <<<
-  bash /qc_scripts/extract_pos_counts.sh ~{merged_file} --map /finngen_qc/data/LABfi_ALL.usagi.csv --pn_orig /core/data/negpos_mapping.tsv --plus_orig /core/data/kanta_plusplus_abnormality.tsv
+  python3 /qc_scripts/extract_pos_counts.py ~{merged_file} --map /finngen_qc/data/LABfi_ALL.usagi.csv --pn_orig /core/data/negpos_mapping.tsv --plus_orig /core/data/kanta_plusplus_abnormality.tsv
   >>>
   output{
     File plus_summary = "./plusplus_summary.tsv"

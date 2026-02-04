@@ -4,6 +4,7 @@ workflow kanta_munge {
   input {
     File kanta_data
     String kanta_docker
+    String? analysis_docker
     String prefix
     # test mode will use only 100k lines and 4 cpus
     Boolean test
@@ -40,7 +41,7 @@ workflow kanta_munge {
     prefix = base_prefix,
     munged_chunks = munge.munged_chunk
   }
-  call analysis {input: docker = kanta_docker,merged_file = merge.munged,prefix = base_prefix}
+  call analysis {input: docker = select_first([analysis_docker,kanta_docker]),merged_file = merge.munged,prefix = base_prefix}
 }
 
 task analysis {
@@ -50,16 +51,14 @@ task analysis {
     String docker
   }
 
-  String unharm = prefix + "_unharmonized_values.txt"
   String unmap  = prefix+ "_unmapped_entries.txt"
   String injection =  prefix+ "_candidate_injections.txt"
   command <<<
   # this step creates the table of most common unit per OMOP_ID
   python3 /qc_scripts/create_harmonization_table.py ~{merged_file}
-  # this step creates a table of counts of OMP_ID,TEST_NAME,UNIT(cleaned) that do not have harmonized values, meaning something is not specificied in the tables
+  # this step creates a candidate injection based on KS values for unharmonized data with source values
   # it also returns the counts of TEST_NAME,UNIT(cleaned) that do not have a mapping
-  python3 /qc_scripts/unharmonized.py ~{merged_file}  -o ~{unharm} -u ~{unmap}
-  python3 /qc_scripts/test_units.py --data ~{merged_file} --audit_list ~{unharm} --output ~{injection}
+  python3 /qc_scripts/unharmonized.py ~{merged_file}  -a ~{injection} -u ~{unmap}
 
   
   >>>
@@ -70,7 +69,6 @@ task analysis {
 
   output {
     File harmonization_counts = "harmonization_counts.tsv"
-    File unharmonized_values = "~{unharm}"
     File umapped_entries = "~{unmap}"
     File injection_candidates = "~{injection}"
   }

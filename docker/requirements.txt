@@ -1,4 +1,8 @@
+# Progress bars for loops
+tqdm
+
 # TODO(Vincent 2024-05-03) Upgrade to numpy 2.0.0, should be out soon.
+# Note: 2.2.3 is already out and specified here!
 numpy==2.2.3
 
 # TODO(Vincent 2024-05-03)
@@ -6,5 +10,6 @@ numpy==2.2.3
 # More info: https://pandas.pydata.org/pandas-docs/stable/getting_started/install.html#compression
 pandas[pyarrow]==2.2.2
 duckdb==1.1.3
-#FOR PLOTTING
+
+# FOR PLOTTING
 matplotlib>=3.9.0
