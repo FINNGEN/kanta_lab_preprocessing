@@ -69,6 +69,7 @@ task analysis {
 
   output {
     File harmonization_counts = "harmonization_counts.tsv"
+    File harmonization_diffs = "harmonization_diffs.tsv"
     File umapped_entries = "~{unmap}"
     File injection_candidates = "~{injection}"
   }

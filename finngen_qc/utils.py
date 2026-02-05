@@ -69,7 +69,10 @@ def init_harmonization(args, logger):
         
         #merges harmonization table from vincent with chosen target unit for each concept id
         logger.debug('merge harmonization counts and table')
-        harmonization_counts = pd.read_csv(args.harmonization,sep='\t')
+        harmonization_counts = pd.read_csv(args.harmonization,sep='\t',usecols=['harmonization_omop::OMOP_ID','harmonization_omop::omopQuantity','harmonization_omop::MEASUREMENT_UNIT'])
+        print(harmonization_counts)
+        harmonization_counts = harmonization_counts.dropna(subset=['harmonization_omop::MEASUREMENT_UNIT'])
+        print(harmonization_counts)
         args.config['unit_conversion'] = pd.merge(args.config['unit_conversion'],harmonization_counts,on=['harmonization_omop::omopQuantity','harmonization_omop::MEASUREMENT_UNIT'])
         #only keep entries where the OMOP ID exception matches the OMOP ID column
         mask = (args.config['unit_conversion']['only_to_omop_concepts'] == args.config['unit_conversion']['harmonization_omop::OMOP_ID'].astype(int)) | (args.config['unit_conversion']['only_to_omop_concepts'].isna())

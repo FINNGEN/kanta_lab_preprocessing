@@ -53,19 +53,19 @@ The raw to output column mapping is as follows:
 | Column in raw file           | Description              |
 |------------------------------|--------------------------|
 |FINNGENID|FINNGENID|
-|EVENT_AGE|EVENT_AGE|
-|tutkimuskoodistonjarjestelmaid|CODING_SYSTEM|
-|paikallinentutkimusnimike_selite|TEST_NAME_ABBREVIATION|
-|tutkimustulosarvo|MEASUREMENT_VALUE|
-|tutkimustulosyksikko|MEASUREMENT_UNIT|
-|tutkimusvastauksentilaid|MEASUREMENT_STATUS|
-|tuloksenpoikkeavuusid|TEST_OUTCOME|
-|viitearvoryhma|REFERENCE_RANGE_GROUP|
-|viitevalialkuarvo|REFERENCE_RANGE_LOWER_VALUE|
-|viitevalialkuyksikko|REFERENCE_RANGE_LOWER_UNIT|
-|viitevaliloppuarvo|REFERENCE_RANGE_UPPER_VALUE|
-|viitevaliloppuyksikko|REFERENCE_RANGE_UPPER_UNIT|
-|tutkimuksenlisatiet | MEASUREMENT_EXTRA_INFO |
+|EVENT\_AGE|EVENT\_AGE|
+|tutkimuskoodistonjarjestelmaid|CODING\_SYSTEM|
+|paikallinentutkimusnimike\_selite|TEST\_NAME\_ABBREVIATION|
+|tutkimustulosarvo|MEASUREMENT\_VALUE|
+|tutkimustulosyksikko|MEASUREMENT\_UNIT|
+|tutkimusvastauksentilaid|MEASUREMENT\_STATUS|
+|tuloksenpoikkeavuus|TEST\_OUTCOME|
+|viitearvoryhma|REFERENCE\_RANGE\_GROUP|
+|viitevalialkuarvo|REFERENCE\_RANGE\_LOWER\_VALUE|
+|viitevalialkuyksikko|REFERENCE\_RANGE\_LOWER\_UNIT|
+|viitevaliloppuarvo|REFERENCE\_RANGE\_UPPER\_VALUE|
+|viitevaliloppuyksikko|REFERENCE\_RANGE\_UPPER\_UNIT|
+|tutkimustulosteksti|MEASUREMENT\_FREE\_TEXT|
 
 ![Summary of the wdl pipeline](./kanta_pipeline.png)
 

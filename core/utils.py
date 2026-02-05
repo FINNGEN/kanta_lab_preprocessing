@@ -33,37 +33,62 @@ def get_stuff_from_finngen_qc(args):
 
     return args
 
+import os
+import pandas as pd
+from pathlib import Path
+
 def init_omop_extraction_blacklist(args):
-    f=os.path.join(Path(dir_path).parent.absolute(),args.config['omop_extraction_blacklist'])
-    f= pd.read_csv(f,sep='\t').astype({'harmonization_omop::OMOP_ID': str})
+    """
+    Loads the blacklist configuration file. 
+    Identifies specific OMOP_IDs that should be excluded from the extraction process 
+    to prevent irrelevant or low-quality data from being processed.
+    """
+    f = os.path.join(Path(dir_path).parent.absolute(), args.config['omop_extraction_blacklist'])
+    f = pd.read_csv(f, sep='\t').astype({'harmonization_omop::OMOP_ID': str})
     return f
 
-    
 def init_omop_unit_fix(args):
-    f=os.path.join(Path(dir_path).parent.absolute(),args.config['omop_unit_fix'])
-    f= pd.read_csv(f,sep='\t').astype({'harmonization_omop::OMOP_ID': str,'VALUE_THRESHOLD':float})
+    """
+    Loads the unit correction mapping.
+    Used to standardize measurement units and apply numeric thresholds (VALUE_THRESHOLD) 
+    to identify results that require scaling or unit transformation.
+    """
+    f = os.path.join(Path(dir_path).parent.absolute(), args.config['omop_unit_fix'])
+    f = pd.read_csv(f, sep='\t').astype({'harmonization_omop::OMOP_ID': str, 'VALUE_THRESHOLD': float})
     return f
 
 def init_omop_qc(args):
-    f=os.path.join(Path(dir_path).parent.absolute(),args.config['omop_qc'])
-    f= pd.read_csv(f,sep='\t').astype({'harmonization_omop::OMOP_ID': str,'THRESHOLD':float})
+    """
+    Loads the Quality Control (QC) threshold configuration.
+    Sets the numeric boundaries (THRESHOLD) for specific OMOP_IDs to flag 
+    outliers or biologically impossible values during data validation.
+    """
+    f = os.path.join(Path(dir_path).parent.absolute(), args.config['omop_qc'])
+    f = pd.read_csv(f, sep='\t').astype({'harmonization_omop::OMOP_ID': str, 'THRESHOLD': float})
     return f
-    
-    
-def init_plus_mapping(args):
 
-    f=os.path.join(Path(dir_path).parent.absolute(),args.config['plusab_map'])
-    df =  pd.read_csv(f,sep='\t',dtype=str)
+def init_plus_mapping(args):
+    """
+    Initializes mapping for qualitative 'plus/minus' test results.
+    Standardizes free-text outcomes and filters the dataset to retain only 
+    rows with valid binary positive/negative indicators ("1" or "0").
+    """
+    f = os.path.join(Path(dir_path).parent.absolute(), args.config['plusab_map'])
+    df = pd.read_csv(f, sep='\t', dtype=str)
     df['extracted::TEST_OUTCOME_TEXT'] = df['MEASUREMENT_FREE_TEXT']
     df = df[df['extracted::IS_POS'].isin(["1", "0"])]
     return df
 
 def init_posneg_mapping(args):
-
-    col_name='extracted::IS_POS'
-    df =  pd.read_csv(os.path.join(Path(dir_path).parent.absolute(),args.config['posneg_map']),sep='\t',usecols=['MEASUREMENT_FREE_TEXT',col_name]).dropna(subset=col_name)
+    """
+    Initializes the mapping for positive/negative text-based results.
+    Extracts the binary status from free-text measurements and ensures 
+    the result column is formatted as a string for consistent logical checks.
+    """
+    col_name = 'extracted::IS_POS'
+    path = os.path.join(Path(dir_path).parent.absolute(), args.config['posneg_map'])
+    df = pd.read_csv(path, sep='\t', usecols=['MEASUREMENT_FREE_TEXT', col_name]).dropna(subset=col_name)
     df = df.astype({col_name: int}).astype({col_name: str})
-
     return df
 
 def init_unit_table(args):

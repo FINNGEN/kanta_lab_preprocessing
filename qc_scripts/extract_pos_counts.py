@@ -15,54 +15,75 @@ def escape_sheets(val):
 
 def apply_reconciliation(new_df, ref_path, join_cols):
     """
-    Standardizes join logic while preserving original column formatting.
-    Creates a 'shadow key' for matching to handle type/space mismatches.
+    Standardizes join logic and calculates numerical ratios (New/Old).
     """
+    # Initialize default columns
+    new_df['ratio_COUNT'] = "NA"
+    new_df['ratio_Npeople'] = "NA"
+    new_df['NOTES'] = "NA"
+
     if not ref_path or not os.path.exists(ref_path):
-        new_df['NOTES'] = "NA"
         return new_df
     
     try:
-        # Load ref - force string
+        # Load ref - force string for keys
         ref_df = pd.read_csv(ref_path, sep='\t', dtype=str).fillna("NA")
         
-        # Identify the NOTES column
+        # Identify relevant columns in reference
         notes_col = next((c for c in ref_df.columns if c.upper() == "NOTES"), None)
+        count_col = next((c for c in ref_df.columns if c.upper() == "COUNT"), None)
+        nppl_col = next((c for c in ref_df.columns if c.upper() == "NPEOPLE"), None)
         
-        # Create shadow keys for matching (Stripped and Stringified)
-        # This allows matching '3009261 ' with '3009261' without changing the output text
+        # Create shadow keys for matching
         def make_shadow_key(df, cols):
             return df[cols].astype(str).apply(lambda x: "_".join(x.str.strip()), axis=1)
 
         new_df['_match_key'] = make_shadow_key(new_df, join_cols)
         ref_df['_match_key'] = make_shadow_key(ref_df, join_cols)
 
-        # Prepare reference for mapping
-        if notes_col:
-            # Drop duplicates in ref to prevent row explosion, keep first note
-            ref_lookup = ref_df.drop_duplicates('_match_key').set_index('_match_key')[notes_col]
-        else:
-            ref_lookup = pd.Series(dtype=str)
+        # Drop duplicates in ref to prevent row explosion
+        ref_df = ref_df.drop_duplicates('_match_key').set_index('_match_key')
 
-        # Map notes based on shadow key
-        ref_keys = set(ref_df['_match_key'])
+        def get_ratio(new_val, old_series, key):
+            try:
+                if key not in old_series.index:
+                    return "NA"
+                old_val = float(old_series.get(key, 0))
+                if old_val == 0:
+                    return "NA"
+                # Return as a float rounded to 3 decimal places for clean sorting
+                return round(float(new_val) / old_val, 3)
+            except:
+                return "NA"
+
+        # 1. Calculate Ratios
+        if count_col:
+            ref_counts = pd.to_numeric(ref_df[count_col], errors='coerce').fillna(0)
+            new_df['ratio_COUNT'] = new_df.apply(
+                lambda row: get_ratio(row['COUNT'], ref_counts, row['_match_key']), axis=1
+            )
         
+        if nppl_col:
+            ref_nppl = pd.to_numeric(ref_df[nppl_col], errors='coerce').fillna(0)
+            new_df['ratio_Npeople'] = new_df.apply(
+                lambda row: get_ratio(row['Npeople'], ref_nppl, row['_match_key']), axis=1
+            )
+
+        # 2. Map Notes
+        ref_keys = set(ref_df.index)
         def finalize_note(key):
             if key not in ref_keys:
                 return "!! WARNING: NEW ENTRY !!"
             if notes_col:
-                val = str(ref_lookup.get(key, "NA")).strip()
+                val = str(ref_df.loc[key, notes_col]).strip()
                 return val if val not in ["NA", "nan", "None", ""] else "NA"
             return "NA"
 
         new_df['NOTES'] = new_df['_match_key'].apply(finalize_note)
-        
-        # Drop the shadow key before returning
         new_df.drop(columns=['_match_key'], inplace=True)
         
     except Exception as e:
         print(f"  Warning: Reconciliation failed: {e}")
-        new_df['NOTES'] = "NA"
         
     return new_df
 
@@ -101,7 +122,6 @@ def process_data(input_file, map_file, pn_orig=None, plus_orig=None, test_lines=
 
     for i, chunk in enumerate(reader):
         chunk = chunk.rename(columns={v: k for k, v in col_map.items()})
-        # Fill NA but DO NOT strip() the 'text' column here as requested
         chunk['id'] = chunk['id'].fillna("NA")
         chunk['text'] = chunk['text'].fillna("NA")
         chunk['pos'] = chunk['pos'].fillna("NA")
@@ -113,14 +133,19 @@ def process_data(input_file, map_file, pn_orig=None, plus_orig=None, test_lines=
 
     print("\nAggregating...")
 
+    # Column layout
+    pn_cols = ['MEASUREMENT_FREE_TEXT', 'extracted::IS_POS', 'COUNT', 'ratio_COUNT', 'Npeople', 'ratio_Npeople', 'NOTES']
+    pl_cols = ['harmonization_omop::OMOP_ID', 'MEASUREMENT_FREE_TEXT', 'extracted::IS_POS', 'DESC', 'COUNT', 'ratio_COUNT', 'Npeople', 'ratio_Npeople', 'NOTES']
+
     if pn_frames:
         pn_res = pd.concat(pn_frames).groupby(['text', 'pos']).agg(
             COUNT=('id', 'count'), Npeople=('id', 'nunique')).reset_index()
         pn_res = pn_res[pn_res['Npeople'] >= 5].sort_values('COUNT', ascending=False)
         pn_res = pn_res.rename(columns={'text': 'MEASUREMENT_FREE_TEXT', 'pos': 'extracted::IS_POS'})
         pn_res = apply_reconciliation(pn_res, pn_orig, ['MEASUREMENT_FREE_TEXT', 'extracted::IS_POS'])
-        pn_res.to_csv("pos_neg_summary.tsv", sep='\t', index=False)
-        pn_res.map(escape_sheets).to_csv("pos_neg_summary_pasteable.tsv", sep='\t', index=False)
+        
+        pn_res[pn_cols].to_csv("pos_neg_summary.tsv", sep='\t', index=False)
+        pn_res[pn_cols].map(escape_sheets).to_csv("pos_neg_summary_pasteable.tsv", sep='\t', index=False)
 
     if plus_frames:
         pl_res = pd.concat(plus_frames).groupby(['omop', 'text', 'pos']).agg(
@@ -132,13 +157,11 @@ def process_data(input_file, map_file, pn_orig=None, plus_orig=None, test_lines=
             'pos': 'extracted::IS_POS'
         })
         pl_res['DESC'] = pl_res['harmonization_omop::OMOP_ID'].map(lambda x: omop_map.get(x, "NOT_IN_MAP"))
-        
         pl_res = apply_reconciliation(pl_res, plus_orig, 
-                                     ['harmonization_omop::OMOP_ID', 'MEASUREMENT_FREE_TEXT', 'extracted::IS_POS'])
+                                      ['harmonization_omop::OMOP_ID', 'MEASUREMENT_FREE_TEXT', 'extracted::IS_POS'])
         
-        cols = ['harmonization_omop::OMOP_ID', 'MEASUREMENT_FREE_TEXT', 'extracted::IS_POS', 'DESC', 'COUNT', 'Npeople', 'NOTES']
-        pl_res[cols].to_csv("plusplus_summary.tsv", sep='\t', index=False)
-        pl_res[cols].map(escape_sheets).to_csv("plusplus_summary_pasteable.tsv", sep='\t', index=False)
+        pl_res[pl_cols].to_csv("plusplus_summary.tsv", sep='\t', index=False)
+        pl_res[pl_cols].map(escape_sheets).to_csv("plusplus_summary_pasteable.tsv", sep='\t', index=False)
 
     print("Done.")
 

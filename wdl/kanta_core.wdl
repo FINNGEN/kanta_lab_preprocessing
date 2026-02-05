@@ -25,7 +25,8 @@ workflow kanta_core {
   # build parquet and release file
   call release { input: docker = select_first([release_docker, kanta_docker]), mem = if test then 4 else 64, prefix = prefix, munged_data  = merge.merged_file}
   call validate_outputs {input : parquet_file = release.core_files[1],docker=kanta_docker}
-  call build_pos_tables{input:merged_file = merge.merged_file,docker=kanta_docker}
+  # CHECKS AND PLOTS
+  call build_pos_tables{input:merged_file = merge.merged_file,docker=select_first([analysis_docker, kanta_docker])}
   call compare_versions {input: new_parquet=release.core_files[1],docker=select_first([analysis_docker, kanta_docker]),prefix=prefix}
 }
 
@@ -54,10 +55,7 @@ task compare_versions {
     disks: "local-disk ~{2*ceil(size(new_parquet,'GB')) + 10} HDD"
     docker : "~{docker}"
   }
-
-  
 }
-
 
 
 task build_pos_tables{
