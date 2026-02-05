@@ -7,7 +7,7 @@
     # RUNTIME
     "kanta_core.kanta_docker":"europe-west1-docker.pkg.dev/finngen-refinery-dev/fg-refinery-registry/kanta:dev.7",
     #"kanta_core.release_docker":"eu.gcr.io/finngen-sandbox-v3-containers/kanta:parquet",
-    "kanta_core.analysis_docker": "europe-west1-docker.pkg.dev/finngen-refinery-dev/fg-refinery-registry/kanta:dev.11",
+    "kanta_core.analysis_docker": "europe-west1-docker.pkg.dev/finngen-refinery-dev/fg-refinery-registry/kanta:dev.12",
     "kanta_core.split.n_chunks": 32,
     "kanta_core.munge.cpus": 8,
     #ANALYSIS

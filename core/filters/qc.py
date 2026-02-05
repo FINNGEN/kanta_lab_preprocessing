@@ -33,46 +33,52 @@ def qc(df, args):
 def flag_outcome_mismatch(df, args):
     """
     Identifies and flags records where the categorical test outcome and the 
-    extracted binary result do not align based on a predefined mismatch list.
+    extracted binary result do not align, setting QC_PASS to 0 for mismatches.
     """
+    # 0. Preparation and Index Reset
+    df = df.copy().reset_index(drop=True)
+    df['QC_PASS'] = df['QC_PASS'].astype(int)
     
+    ops = {
+        '<': operator.lt, '<=': operator.le, '>': operator.gt,
+        '>=': operator.ge, '==': operator.eq, '!=': operator.ne
+    }
+
     # 1. Define the columns to check and the mismatch criteria
     check_cols = ['TEST_OUTCOME', 'extracted::IS_POS']
     match_tuples = [tuple(x) for x in args.config['outcome_mismatch']]
     qc_note = "OUTCOME_EXTRACT_CONFLICT"
 
     # 2. Create the mask for failures
-    # Logic: MultiIndex check is efficient for paired-column validation
+    # Logic: MultiIndex check identifies rows matching the "bad" pairs
     fail_mask = pd.MultiIndex.from_frame(df[check_cols]).isin(match_tuples)
 
-    # 3. Skip if no rows match the mismatch criteria
-    if not fail_mask.any():
-        return df
+    # 3. Update QC Status and Notes for flagged values
+    if fail_mask.any():
+        # Set QC_PASS to 0 for mismatches
+        df.loc[fail_mask, 'QC_PASS'] = 0
+        
+        # Handle Note Concatenation
+        existing_notes = df.loc[fail_mask, 'QC_NOTES'].astype(str)
+        concatenated_notes = np.where(
+            (existing_notes == 'NA') | (existing_notes == 'nan') | (existing_notes == ''),
+            str(qc_note),
+            existing_notes + '; ' + str(qc_note)
+        )
+        df.loc[fail_mask, 'QC_NOTES'] = concatenated_notes
 
-    # 4. Update QC notes for flagged values (Step 5 - QC_PASS assignment removed)
-    existing_notes = df.loc[fail_mask, 'QC_NOTES'].astype(str)
-    
-    # Concatenate notes: if existing is 'NA' or empty, replace; otherwise append
-    concatenated_notes = np.where(
-        (existing_notes == 'NA') | (existing_notes == 'nan') | (existing_notes == ''),
-        str(qc_note),
-        existing_notes + '; ' + str(qc_note)
-    )
-    df.loc[fail_mask, 'QC_NOTES'] = concatenated_notes
-
-    # 5. Create error dataframe/log using the local fail_mask
-    # We use fail_mask specifically to log only the mismatches found in this step
-    qc_df = df[fail_mask].copy()
-    qc_df['ERR'] = 'QC_NOTE_APPENDED'
-    qc_df['ERR_VALUE'] = (
-        qc_df['cleaned::TEST_NAME_ABBREVIATION'].astype(str).fillna("") + ';' + 
-        qc_df['QC_NOTES'].astype(str).fillna("")
-    )
-    
-    # Append to the warning file
-    qc_df[args.config['err_cols']].to_csv(
-        args.warn_file, mode='a', index=False, header=False, sep="\t"
-    )
+        # 4. Create error dataframe/log for external warning file
+        qc_df = df[fail_mask].copy()
+        qc_df['ERR'] = 'QC_NOTE_APPENDED'
+        qc_df['ERR_VALUE'] = (
+            qc_df['cleaned::TEST_NAME_ABBREVIATION'].astype(str).fillna("") + ';' + 
+            qc_df['QC_NOTES'].astype(str).fillna("")
+        )
+        
+        # Append to the warning file
+        qc_df[args.config['err_cols']].to_csv(
+            args.warn_file, mode='a', index=False, header=False, sep="\t"
+        )
 
     return df
 
@@ -389,9 +395,6 @@ def check_dates_in_measurement(df, args):
     return df[~err_mask]
 
 
-import operator
-import numpy as np
-import pandas as pd
 
 def flag_omop_qc(df, args):
     """
