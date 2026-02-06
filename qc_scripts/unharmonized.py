@@ -3,6 +3,7 @@ import argparse
 import sys
 import pandas as pd
 import numpy as np
+import gc
 from collections import Counter
 from scipy.stats import ks_2samp
 from tqdm import tqdm
@@ -10,25 +11,28 @@ from tqdm import tqdm
 def get_deciles(series):
     if series is None or len(series) == 0:
         return "NA"
-    clean_series = pd.to_numeric(pd.Series(series), errors='coerce').dropna()
-    if clean_series.empty:
+    # Using numpy for speed and memory efficiency
+    arr = np.array(series, dtype=np.float32)
+    arr = arr[~np.isnan(arr)]
+    if arr.size == 0:
         return "NA"
-    return clean_series.quantile(np.linspace(0, 1, 11)).round(4).tolist()
+    # np.percentile takes 0-100
+    return np.percentile(arr, np.linspace(0, 100, 11)).round(4).tolist()
 
 def main():
-    parser = argparse.ArgumentParser(description="Vectorized Audit - Sorted by N_SOURCE.")
+    parser = argparse.ArgumentParser(description="Full Audit - Memory Optimized - Keeps All Samples")
     parser.add_argument("input", help="Path to the kanta_..._munged.txt.gz file")
     parser.add_argument("-u", "--unmapped-output", required=True, help="Output TSV for unmapped tests")
     parser.add_argument("-a", "--audit-output", required=True, help="Output TSV for the audited mismatches")
-    parser.add_argument("--min_count", type=int, default=1000, help="Min count to include in audit (default: 100)")
+    parser.add_argument("--min_count", type=int, default=1000, help="Min count to include in audit")
     parser.add_argument(
-    "--test", 
-    type=int, 
-    nargs='?',       # Allows 0 or 1 arguments
-    const=1000000,   # Value if --test is present but no number is given
-    default=None,    # Value if --test is not present at all (or use sys.maxsize)
-    help="Limit number of lines to process. Use --test for default 1M or --test <N>."
-)
+        "--test", 
+        type=int, 
+        nargs='?', 
+        const=1000000, 
+        default=None, 
+        help="Limit lines. Use --test for 1M or --test <N>."
+    )
     args = parser.parse_args()
 
     COL_OMOP = "harmonization_omop::OMOP_ID"
@@ -41,11 +45,11 @@ def main():
     unmapped_counts = Counter()
     mapped_test_names = set()
     
-    # Audit storage
     src_samples = {}
     harm_ref_samples = {}
     harm_unit_counts = {}
 
+    # Chunksize 250k is usually the "sweet spot" for 32GB VMs
     reader = pd.read_csv(
         args.input, sep='\t', compression='gzip',
         usecols=[COL_OMOP, COL_TEST, COL_UNIT, COL_SRC_VAL, COL_HARM_VAL, COL_HARM_UNIT],
@@ -53,13 +57,12 @@ def main():
         keep_default_na=False
     )
 
-    # Progress bar tracking lines
     pbar = tqdm(total=args.test, desc="Lines Processed")
 
     for chunk in reader:
-        # Pre-convert to numeric for identification
-        s_num = pd.to_numeric(chunk[COL_SRC_VAL], errors='coerce')
-        h_num = pd.to_numeric(chunk[COL_HARM_VAL], errors='coerce')
+        # Pre-convert for memory efficiency (float32 saves 50% vs float64)
+        s_num = pd.to_numeric(chunk[COL_SRC_VAL], errors='coerce').astype(np.float32)
+        h_num = pd.to_numeric(chunk[COL_HARM_VAL], errors='coerce').astype(np.float32)
         chunk[COL_OMOP] = chunk[COL_OMOP].astype(str).replace(['nan', 'None', '', 'NA'], '-1')
         
         # 1. Unmapped Logic
@@ -69,33 +72,37 @@ def main():
             for (t_name, t_unit), count in u_batch.items():
                 unmapped_counts[(t_name, t_unit)] += count
         
-        # 2. Mismatch/Audit Logic
+        # 2. Mismatch Logic
         mapped_mask = ~u_mask
         mapped_test_names.update(chunk.loc[mapped_mask, COL_TEST].unique())
         
         # Mismatch = Mapped, Source is numeric, but Harmonized is NaN
         m_mask = mapped_mask & s_num.notna() & h_num.isna()
-        
         if m_mask.any():
-            m_groups = chunk[m_mask].groupby([COL_OMOP, COL_TEST, COL_UNIT])
-            for (oid, abbr, unit), group in m_groups:
+            m_data = chunk[m_mask]
+            m_vals = s_num[m_mask]
+            # Use index groups for fast slicing
+            for (oid, abbr, unit), idx in m_data.groupby([COL_OMOP, COL_TEST, COL_UNIT]).groups.items():
                 key = (oid, abbr, unit)
                 if key not in src_samples: src_samples[key] = []
-                # Keep all samples for the count, even if NaN in numeric context later
-                src_samples[key].extend(s_num[group.index].tolist())
+                # Store as numpy arrays inside the list to reduce Python object overhead
+                src_samples[key].append(m_vals.loc[idx].values)
 
         # 3. Reference Logic (Successes)
         h_mask = h_num.notna()
         if h_mask.any():
-            h_groups = chunk[h_mask].groupby(COL_OMOP)
-            for oid, group in h_groups:
+            h_data = chunk[h_mask]
+            h_vals = h_num[h_mask]
+            for oid, idx in h_data.groupby(COL_OMOP).groups.items():
                 if oid not in harm_ref_samples:
                     harm_ref_samples[oid] = []
                     harm_unit_counts[oid] = Counter()
-                harm_unit_counts[oid].update(group[COL_HARM_UNIT].astype(str).tolist())
-                harm_ref_samples[oid].extend(h_num[group.index].tolist())
+                harm_unit_counts[oid].update(h_data.loc[idx, COL_HARM_UNIT].astype(str).tolist())
+                harm_ref_samples[oid].append(h_vals.loc[idx].values)
 
         pbar.update(len(chunk))
+        del chunk
+        gc.collect()
 
     pbar.close()
 
@@ -109,13 +116,14 @@ def main():
 
     # --- Write Audit ---
     final_audit = []
-    for (oid, abbr, unit), vals in src_samples.items():
-        n_src = len(vals)
-        # Apply strict count threshold
+    for (oid, abbr, unit), list_of_arrays in src_samples.items():
+        # Flatten all chunks back into a single array
+        all_src = np.concatenate(list_of_arrays)
+        n_src = len(all_src)
         if n_src < args.min_count: continue
         
-        s_vals = pd.Series(vals)
-        h_vals = pd.Series(harm_ref_samples.get(oid, []))
+        ref_arrays = harm_ref_samples.get(oid, [])
+        all_harm = np.concatenate(ref_arrays) if ref_arrays else np.array([], dtype=np.float32)
         
         u_counts = harm_unit_counts.get(oid, Counter())
         clean_u = {k: v for k, v in u_counts.items() if str(k).lower() not in ['nan', 'none', 'na', '', '-1']}
@@ -126,20 +134,19 @@ def main():
             "TEST_ABBR": abbr,
             "ORIG_UNIT": unit,
             "N_SOURCE": n_src,
-            "N_HARM": len(h_vals),
+            "N_HARM": len(all_harm),
             "SUGGESTED_UNIT": "",
             "NOTES": "",
-            "SOURCE_DECILES": get_deciles(s_vals),
-            "HARM_DECILES": get_deciles(h_vals),
+            "SOURCE_DECILES": get_deciles(all_src),
+            "HARM_DECILES": get_deciles(all_harm),
             "KS_STAT": "NA"
         }
 
-        # Numeric comparison only if enough reference data exists
-        if len(h_vals) >= 5: 
-            # Drop NaNs for the actual KS test calculation
-            s_clean = s_vals.dropna()
-            if not s_clean.empty:
-                ks_stat, _ = ks_2samp(s_clean, h_vals)
+        if len(all_harm) >= 5: 
+            # Drop NaNs just in case for KS test
+            s_clean = all_src[~np.isnan(all_src)]
+            if s_clean.size > 0:
+                ks_stat, _ = ks_2samp(s_clean, all_harm)
                 res_row["KS_STAT"] = f"{ks_stat:.4f}"
                 if ks_stat < 0.3:
                     res_row["SUGGESTED_UNIT"], res_row["NOTES"] = most_common_unit, "SUCCESS"
@@ -159,7 +166,7 @@ def main():
         with open(args.audit_output, 'w') as f:
             f.write("OMOP_ID\tTEST_ABBR\tORIG_UNIT\tN_SOURCE\tN_HARM\tSUGGESTED_UNIT\tNOTES\tSOURCE_DECILES\tHARM_DECILES\tKS_STAT\n")
 
-    print(f"\nAudit complete. Threshold set to {args.min_count}. Processed {args.test} lines.")
+    print(f"\nAudit complete. All samples preserved. Processed {args.test if args.test else 'full'} file.")
 
 if __name__ == "__main__":
     main()

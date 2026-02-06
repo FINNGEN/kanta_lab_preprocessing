@@ -55,16 +55,20 @@ task analysis {
   String injection =  prefix+ "_candidate_injections.txt"
   command <<<
   # this step creates the table of most common unit per OMOP_ID
-  python3 /qc_scripts/create_harmonization_table.py ~{merged_file}
+  #echo "harmonization table"
+  #python3 /qc_scripts/create_harmonization_table.py ~{merged_file}
   # this step creates a candidate injection based on KS values for unharmonized data with source values
   # it also returns the counts of TEST_NAME,UNIT(cleaned) that do not have a mapping
+  echo "unharmonized & injection"
   python3 /qc_scripts/unharmonized.py ~{merged_file}  -a ~{injection} -u ~{unmap}
 
   
   >>>
   runtime {
-    disks: "local-disk ~{ceil(size(merged_file,'GB')) + 2} HDD"
+    disks: "local-disk ~{ceil(size(merged_file,'GB')) + 20} HDD"
     docker : "~{docker}"
+    memory: "16 GB"
+
   }
 
   output {

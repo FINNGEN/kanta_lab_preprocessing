@@ -28,6 +28,34 @@ workflow kanta_core {
   # CHECKS AND PLOTS
   call build_pos_tables{input:merged_file = merge.merged_file,docker=select_first([analysis_docker, kanta_docker])}
   call compare_versions {input: new_parquet=release.core_files[1],docker=select_first([analysis_docker, kanta_docker]),prefix=prefix}
+  call qc_extracted {input: core_parquet=release.core_files[1],docker=select_first([analysis_docker, kanta_docker]),prefix=prefix}
+
+}
+
+
+task qc_extracted {
+  input {
+    File core_parquet
+    String docker
+    String prefix
+  }
+
+  File dist_summary = prefix + "_analysis_summary.tsv"
+  File rejected_ids = prefix +  "_rejected_ids.tsv"
+  command <<<<
+    python3 /qc_scripts/omop_extracted_dist.py --full
+    cp analysis_summary.tsv ~{dist_summary}
+    cp rejected_ids.tsv ~{rejected_ids}
+  >>>
+  output {
+    File summary  = dist_summary
+    File rejected = rejected_ids
+    Array[File] plots = glob("./plots/*png")
+  }
+   runtime {
+    disks: "local-disk ~{2*ceil(size(core_parquet,'GB')) + 10} HDD"
+    docker : "~{docker}"
+  }
 }
 
 task compare_versions {
