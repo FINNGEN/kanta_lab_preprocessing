@@ -43,9 +43,7 @@ task qc_extracted {
   File dist_summary = prefix + "_analysis_summary.tsv"
   File rejected_ids = prefix +  "_rejected_ids.tsv"
   command <<<<
-    python3 /qc_scripts/omop_extracted_dist.py --full
-    cp analysis_summary.tsv ~{dist_summary}
-    cp rejected_ids.tsv ~{rejected_ids}
+    python3 /qc_scripts/omop_extracted_dist.py --full --name ~{prefix}
   >>>
   output {
     File summary  = dist_summary

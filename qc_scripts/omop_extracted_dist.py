@@ -56,6 +56,7 @@ def main():
     parser.add_argument('--file_path', type=str, default=default_parquet, help="Input Parquet path")
     parser.add_argument('--ref_path', type=str, default=default_ref_path, help="Usagi CSV path")
     parser.add_argument('--output_dir', type=str, default='./plots', help="Output directory for PNGs")
+    parser.add_argument('--name', type=str, default="analysis", help="Custom prefix for the output files")
     parser.add_argument('--test', type=int, nargs='?', const=10000, default=None, help="Limit rows per ID")
     
     args = parser.parse_args()
@@ -76,6 +77,8 @@ def main():
 
     conn = duckdb.connect()
 
+    # Determine IDs and Suffixes
+    run_suffix = ""
     if args.full or args.random is not None:
         print(f"STATUS: Fetching unique OMOP IDs from {args.file_path}...")
         unique_query = f"SELECT DISTINCT OMOP_CONCEPT_ID FROM '{args.file_path}' WHERE OMOP_CONCEPT_ID IS NOT NULL"
@@ -83,29 +86,30 @@ def main():
         
         if args.full:
             omop_ids = sorted(ids_in_parquet)
-            run_suffix = "full"
+            # No suffix added for full as requested
         else:
             count = min(args.random, len(ids_in_parquet))
             omop_ids = random.sample(ids_in_parquet, count)
-            run_suffix = f"random_{count}"
+            run_suffix += f"_random_{count}"
     elif args.ids:
         omop_ids = [int(i.strip()) for i in args.ids.split(',')]
-        run_suffix = f"ids_{args.ids.replace(',', '_')[:30]}"
     else:
         omop_ids = DEFAULT_IDS
-        run_suffix = "default"
 
     if args.test:
         run_suffix += f"_test_{args.test}"
 
-    summary_file = f"analysis_summary_{run_suffix}.tsv"
-    rejected_file = f"rejected_ids_{run_suffix}.tsv"
+    # Construct the final filename base
+    final_base = f"{args.name}{run_suffix}"
+
+    summary_file = f"{final_base}_summary.tsv"
+    rejected_file = f"{final_base}_rejected.tsv"
 
     summary_results = []
     rejected_results = []
     limit_clause = f"LIMIT {args.test}" if args.test is not None else ""
     
-    for omop_id in tqdm(omop_ids, desc=f"Analyzing {run_suffix}"):
+    for omop_id in tqdm(omop_ids, desc=f"Analyzing {final_base}"):
         desc = ref_map.get(omop_id, "Unknown Concept")
         
         query = f"""
@@ -127,10 +131,8 @@ def main():
             rejected_results.append({"OMOP_ID": omop_id, "REASON": "QUERY_ERROR", "Description": desc})
             continue
 
-        # Filter and track removals
         ext_raw = df['ext'].dropna()
         har_raw = df['har'].dropna()
-        
         ext_clean, n_ext_rem = sigma_filter(ext_raw)
         har_clean, n_har_rem = sigma_filter(har_raw)
 
@@ -138,17 +140,12 @@ def main():
             rejected_results.append({"OMOP_ID": omop_id, "REASON": "SIGMA_FILTERED_TO_EMPTY", "Description": desc})
             continue
 
-        # Statistics and Ratios
-        n_ext = len(ext_clean)
-        n_har = len(har_clean)
-        
-        # Calculate Percentage Removed (Total removed / Total numeric rows)
+        n_ext, n_har = len(ext_clean), len(har_clean)
         total_numeric = len(ext_raw) + len(har_raw)
         total_removed = n_ext_rem + n_har_rem
         sigma_reject_pct = round((total_removed / total_numeric) * 100, 2) if total_numeric > 0 else 0.0
-
         ext_ratio = round(n_ext / n_har, 3) if n_har > 0 else 0.0
-        ks_stat, p_val = stats.ks_2samp(ext_clean, har_clean) if (n_ext > 0 and n_har > 0) else (np.nan, 1.0)
+        ks_stat, _ = stats.ks_2samp(ext_clean, har_clean) if (n_ext > 0 and n_har > 0) else (np.nan, 1.0)
         status_label = "SUCCESS" if (np.isnan(ks_stat) or ks_stat < 0.3) else "FAIL"
 
         summary_results.append({
@@ -156,58 +153,39 @@ def main():
             "EXT_MEDIAN": format_scientific(ext_clean.median()), 
             "OG_MEDIAN": format_scientific(har_clean.median()), 
             "KS": round(ks_stat, 3) if not np.isnan(ks_stat) else 1.0, 
-            "N_EXTRACTED": n_ext, 
-            "EXT_RATIO": ext_ratio,
-            "SIGMA_REJECTED_PCT": sigma_reject_pct,
-            "Description": desc,
+            "N_EXTRACTED": n_ext, "EXT_RATIO": ext_ratio,
+            "SIGMA_REJECTED_PCT": sigma_reject_pct, "Description": desc,
             "EXT_DECILES": get_deciles(ext_clean), "HAR_DECILES": get_deciles(har_clean)
         })
 
-        # --- Optimized Plotting Section ---
+        # --- Plotting ---
         fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 10), sharex=True)
-        
-        # Use rasterized=True to speed up rendering and fix the 'loc' warning
         if not ext_clean.empty:
-            sns.scatterplot(
-                x=df.loc[ext_clean.index, 'ext'], 
-                y=df.loc[ext_clean.index, 'EVENT_AGE'], 
-                color='red', alpha=0.3, label='Extracted', 
-                ax=ax1, s=25, rasterized=True
-            )
-            if ext_clean.nunique() > 1: 
-                sns.kdeplot(ext_clean, ax=ax2, color='red', label='Extracted PDF')
-            else: 
-                ax2.axvline(ext_clean.iloc[0], color='red', linestyle='--')
+            sns.scatterplot(x=df.loc[ext_clean.index, 'ext'], y=df.loc[ext_clean.index, 'EVENT_AGE'], 
+                            color='red', alpha=0.3, label='Extracted', ax=ax1, s=25, rasterized=True)
+            if ext_clean.nunique() > 1: sns.kdeplot(ext_clean, ax=ax2, color='red', label='Extracted PDF')
+            else: ax2.axvline(ext_clean.iloc[0], color='red', linestyle='--')
         
         if not har_clean.empty:
-            sns.scatterplot(
-                x=df.loc[har_clean.index, 'har'], 
-                y=df.loc[har_clean.index, 'EVENT_AGE'], 
-                color='blue', alpha=0.3, label='Harmonized', 
-                ax=ax1, s=25, rasterized=True
-            )
-            if har_clean.nunique() > 1: 
-                sns.kdeplot(har_clean, ax=ax2, color='blue', label='Harmonized PDF')
-            else: 
-                ax2.axvline(har_clean.iloc[0], color='blue', linestyle='--')
+            sns.scatterplot(x=df.loc[har_clean.index, 'har'], y=df.loc[har_clean.index, 'EVENT_AGE'], 
+                            color='blue', alpha=0.3, label='Harmonized', ax=ax1, s=25, rasterized=True)
+            if har_clean.nunique() > 1: sns.kdeplot(har_clean, ax=ax2, color='blue', label='Harmonized PDF')
+            else: ax2.axvline(har_clean.iloc[0], color='blue', linestyle='--')
         
-        # Explicitly set legend location to 'upper right' to avoid the slow "best" search
         ax1.legend(loc='upper right')
         ax1.set_title(f"OMOP {omop_id}: {desc}\nRatio: {ext_ratio} | KS: {round(ks_stat,3)} | Sigma Reject: {sigma_reject_pct}%")
         
-        # Save the figure
-        plot_path = os.path.join(args.output_dir, f"{run_suffix}_omop_{omop_id}.png")
+        plot_path = os.path.join(args.output_dir, f"{final_base}_omop_{omop_id}.png")
         fig.savefig(plot_path, dpi=150, bbox_inches='tight')
         plt.close(fig)
 
-    final_df = pd.DataFrame(summary_results)
-    if not final_df.empty:
-        final_df = final_df.sort_values("N_EXTRACTED", ascending=False).reset_index(drop=True)
+    if summary_results:
+        final_df = pd.DataFrame(summary_results).sort_values("N_EXTRACTED", ascending=False).reset_index(drop=True)
         final_df['RANK'] = final_df.index + 1
         final_df.to_csv(summary_file, sep='\t', index=False)
     
     pd.DataFrame(rejected_results).to_csv(rejected_file, sep='\t', index=False)
-    print(f"\nDONE. Results in {summary_file}")
+    print(f"\nDONE. Prefix: {final_base}")
 
 if __name__ == "__main__":
     main()
