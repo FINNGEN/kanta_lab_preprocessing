@@ -3,173 +3,164 @@ import argparse
 import sys
 import pandas as pd
 import numpy as np
-import gc
 import os
-import matplotlib.pyplot as plt
+import re
 from scipy.stats import ks_2samp
 from tqdm import tqdm
 
 def get_deciles(series):
-    if series is None or len(series) == 0:
-        return "NA"
-    arr = np.array(series, dtype=np.float32)
-    arr = arr[~np.isnan(arr)]
-    if arr.size == 0:
-        return "NA"
+    if series is None or len(series) == 0: return "NA"
+    arr = pd.to_numeric(pd.Series(series), errors='coerce').dropna()
+    if arr.empty: return "NA"
     deciles = np.percentile(arr, np.linspace(0, 100, 11)).round(4).tolist()
     return "[" + ",".join(str(d) for d in deciles) + "]"
 
+def get_usagi_linkage(usagi_path, rules_df):
+    target_combos = {}
+    for _, row in rules_df.iterrows():
+        t_unit = str(row['source_unit_clean_fix']).strip()
+        t_name = str(row['TEST_NAME_ABBREVIATION']).strip().lower()
+        target_combos[(t_name, t_unit.lower())] = set()
+
+    if os.path.exists(usagi_path):
+        usagi = pd.read_csv(usagi_path, low_memory=False, dtype=str).fillna("NA")
+        for _, row in usagi.iterrows():
+            code = str(row.get('sourceCode', 'NA')).strip().lower()
+            tid = str(row.get('conceptId', 'NA')).strip()
+            match = re.match(r"\s*([^\[\s]+)\s*\[\s*([^\]\s]+)\s*\]", code)
+            if match:
+                u_test, u_unit = match.group(1), match.group(2)
+                if (u_test, u_unit) in target_combos and tid not in ["NA", "0", "-1"]:
+                    target_combos[(u_test, u_unit)].add(tid.split('.')[0])
+
+    linkage_rows = []
+    all_target_omops = set()
+    for _, row in rules_df.iterrows():
+        abbr = str(row['TEST_NAME_ABBREVIATION']).strip()
+        u_pre = str(row['source_unit_clean']).strip()
+        u_fix = str(row['source_unit_clean_fix']).strip()
+        found_ids = sorted(list(target_combos.get((abbr.lower(), u_fix.lower()), [])))
+        all_target_omops.update(found_ids)
+        linkage_rows.append({
+            "TEST_NAME_ABBREVIATION": abbr,
+            "source_unit_clean": u_pre,
+            "source_unit_clean_fix": u_fix,
+            "LINKED_OMOP_IDS": ",".join(found_ids) if found_ids else "MISSING",
+            "MATCH_STATUS": "FOUND" if found_ids else "MISSING"
+        })
+    return pd.DataFrame(linkage_rows).astype(str), all_target_omops
+
 def main():
-    parser = argparse.ArgumentParser(description="Audit Unit Injection Success - Clean Reference Comparison")
-    
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    default_ref = os.path.join(script_dir, "../finngen_qc/data/fix_unit_based_in_abbreviation.tsv")
-    default_input = "~/fg-3/kanta_v3/munged/kanta_v3_harmonized_2026_02_02.txt.gz"
-    default_output = "injection_check.tsv"
-    
-    parser.add_argument("input", nargs='?', default=default_input, help=f"Path to file (default: {default_input})")
-    parser.add_argument("-o", "--output", default=default_output, help=f"Output TSV (default: {default_output})")
-    parser.add_argument("--ref", default=default_ref, help=f"Injection mapping file (default: {default_ref})")
-    parser.add_argument("--min_count", type=int, default=100, help="Min count to include in audit")
+    parser = argparse.ArgumentParser(description="Audit v5.0 - Integer Counts & Capped Samples")
+    parser.add_argument("input", nargs='?', default="~/fg-3/kanta_v3/munged/kanta_v3_harmonized_2026_02_02.txt.gz")
+    parser.add_argument("-o", "--output", default="injection_check.tsv")
+    parser.add_argument("--ref", default=os.path.expanduser("~/Dropbox/Projects/kanta_lab_preprocessing/finngen_qc/data/fix_unit_based_in_abbreviation.tsv"))
+    parser.add_argument("--usagi", default=os.path.expanduser("~/Dropbox/Projects/kanta_lab_preprocessing/finngen_qc/data/LABfi_ALL.usagi.csv"))
     parser.add_argument("--test", type=int, nargs='?', const=1000000, default=None)
     args = parser.parse_args()
 
-    COL_OMOP = "harmonization_omop::OMOP_ID"
-    COL_TEST = "cleaned::TEST_NAME_ABBREVIATION"
-    COL_UNIT_PRE = "cleaned-pre-fix::MEASUREMENT_UNIT"
-    COL_UNIT_CLEAN = "cleaned::MEASUREMENT_UNIT"
-    COL_VAL = "source::MEASUREMENT_VALUE"
-    COL_HARM_VAL = "harmonization_omop::MEASUREMENT_VALUE"
+    df_rules = pd.read_csv(args.ref, sep='\t', dtype=str, keep_default_na=False).fillna("NA").replace("", "NA")
+    df_sanity, target_omops = get_usagi_linkage(args.usagi, df_rules)
 
-    # 1. Load Reference File
-    ref_path = os.path.expanduser(args.ref)
-    if os.path.exists(ref_path):
-        df_ref = pd.read_csv(ref_path, sep='\t', keep_default_na=False)
-        df_ref['source_unit_clean'] = df_ref['source_unit_clean'].replace('', 'NA')
-    else:
-        df_ref = pd.DataFrame(columns=['TEST_NAME_ABBREVIATION', 'source_unit_clean', 'source_unit_clean_fix'])
+    COL_TEST, COL_UNIT_PRE, COL_UNIT_CLEAN, COL_VAL, COL_HARM_VAL = \
+        "cleaned::TEST_NAME_ABBREVIATION", "cleaned-pre-fix::MEASUREMENT_UNIT", \
+        "cleaned::MEASUREMENT_UNIT", "source::MEASUREMENT_VALUE", "harmonization_omop::MEASUREMENT_VALUE"
 
-    pre_samples = {}
-    clean_ref_samples = {}
+    cache_name = "cache_audit_data.tsv.gz"
+    if args.test: cache_name = f"test_{args.test}_{cache_name}"
 
-    input_path = os.path.expanduser(args.input)
-    reader = pd.read_csv(
-        input_path, sep='\t', compression='gzip',
-        usecols=[COL_OMOP, COL_TEST, COL_UNIT_PRE, COL_UNIT_CLEAN, COL_VAL, COL_HARM_VAL],
-        chunksize=250_000, nrows=args.test, engine='c', low_memory=False, keep_default_na=False
-    )
-
-    pbar = tqdm(total=args.test, desc="Auditing Injections")
-    for chunk in reader:
-        src_num = pd.to_numeric(chunk[COL_VAL], errors='coerce').astype(np.float32)
-        harm_num = pd.to_numeric(chunk[COL_HARM_VAL], errors='coerce').astype(np.float32)
-        chunk[COL_OMOP] = chunk[COL_OMOP].astype(str).replace(['nan', 'None', '', 'NA'], '-1')
-        for col in [COL_UNIT_PRE, COL_UNIT_CLEAN]:
-            chunk[col] = chunk[col].astype(str).replace(['nan', 'None', 'NA'], '')
-
-        mask_changed = (chunk[COL_UNIT_PRE] != chunk[COL_UNIT_CLEAN]) & (chunk[COL_UNIT_CLEAN] != "") & (harm_num.notna()) & (chunk[COL_OMOP] != "-1")
-
-        if mask_changed.any():
-            c_data = chunk[mask_changed]
-            c_harm = harm_num[mask_changed]
-            c_src = src_num[mask_changed]
-            for (oid, abbr, u_pre, u_clean), idx in c_data.groupby([COL_OMOP, COL_TEST, COL_UNIT_PRE, COL_UNIT_CLEAN]).groups.items():
-                key = (oid, abbr, u_pre, u_clean)
-                if key not in pre_samples: pre_samples[key] = {"harm": [], "src": []}
-                pre_samples[key]["harm"].append(c_harm.loc[idx].values)
-                pre_samples[key]["src"].append(c_src.loc[idx].values)
-
-        mask_ref = (~mask_changed) & (harm_num.notna()) & (chunk[COL_OMOP] != "-1")
-        if mask_ref.any():
-            r_data = chunk[mask_ref]
-            r_vals = harm_num[mask_ref]
-            for oid, idx in r_data.groupby(COL_OMOP).groups.items():
-                if oid not in clean_ref_samples: clean_ref_samples[oid] = []
-                clean_ref_samples[oid].append(r_vals.loc[idx].values)
-        pbar.update(len(chunk))
-    pbar.close()
-
-    audit_rows = []
-    for (oid, abbr, u_pre, u_clean), data in pre_samples.items():
-        all_harm_injected = np.concatenate(data["harm"])
-        if len(all_harm_injected) < args.min_count: continue
+    if not os.path.exists(cache_name):
+        print(f"Building cache {cache_name}...")
+        with gzip.open(os.path.expanduser(args.input), 'rt') as f:
+            full_header = f.readline().strip().split('\t')
+        col_omop = [h for h in full_header if "OMOP_ID" in h][0]
         
-        all_src_injected = np.concatenate(data["src"])
-        ref_arrays = clean_ref_samples.get(oid, [])
-        all_clean_ref = np.concatenate(ref_arrays) if ref_arrays else np.array([], dtype=np.float32)
+        reader = pd.read_csv(os.path.expanduser(args.input), sep='\t', compression='gzip',
+            usecols=[col_omop, COL_TEST, COL_UNIT_PRE, COL_UNIT_CLEAN, COL_VAL, COL_HARM_VAL],
+            chunksize=500_000, nrows=args.test, engine='c', dtype=str, keep_default_na=False)
 
-        res_row = {
-            "OMOP_ID": oid, 
-            "TEST_NAME_ABBREVIATION": abbr, 
-            "source_unit_clean": u_pre if u_pre != "" else "NA", 
-            "CLEANED_UNIT": u_clean,
-            "N_INJECTED": len(all_harm_injected), 
-            "N_PURE_REF": len(all_clean_ref),
-            "SOURCE_DECILES": get_deciles(all_src_injected), 
-            "HARM_INJECTED_DECILES": get_deciles(all_harm_injected),
-            "HARM_REF_DECILES": get_deciles(all_clean_ref), 
-            "KS_STAT": np.nan, 
-            "KS_mlogp": np.nan,
-            "STATUS": "No Ref Data"
-        }
+        first_chunk = True
+        with tqdm(total=args.test, desc="Caching") as pbar:
+            with gzip.open(cache_name, 'wt') as f_out:
+                for chunk in reader:
+                    chunk = chunk.fillna("NA").replace(["", "nan"], "NA")
+                    mask_data = (chunk[COL_VAL] != "NA") | (chunk[COL_HARM_VAL] != "NA")
+                    mask_target = (chunk[COL_TEST].isin(df_rules['TEST_NAME_ABBREVIATION'].unique())) | (chunk[col_omop].isin(target_omops))
+                    chunk[mask_data & mask_target].to_csv(f_out, sep='\t', index=False, header=first_chunk)
+                    first_chunk = False
+                    pbar.update(len(chunk))
 
-        if len(all_clean_ref) >= 20:
-            ks_stat, p_val = ks_2samp(all_harm_injected, all_clean_ref)
-            res_row["KS_STAT"] = round(ks_stat, 4)
-            res_row["KS_mlogp"] = round(-np.log10(p_val + 1e-300), 4)
+    # Analysis dictionaries
+    samples_injected, samples_baseline = {}, {}
+    count_injected, count_baseline = {}, {}
+    
+    cache_reader = pd.read_csv(cache_name, sep='\t', dtype=str, keep_default_na=False, chunksize=500_000)
+    col_omop_cache = None
+
+    with tqdm(desc="Analyzing") as pbar:
+        for chunk in cache_reader:
+            if col_omop_cache is None: col_omop_cache = [h for h in chunk.columns if "OMOP_ID" in h][0]
+            chunk = chunk.fillna("NA").replace(["", "nan"], "NA")
             
-            if ks_stat < 0.15: res_row["STATUS"] = "EXCELLENT"
-            elif ks_stat < 0.3: res_row["STATUS"] = "SUCCESS"
-            elif ks_stat < 0.5: res_row["STATUS"] = "WARNING"
-            else: res_row["STATUS"] = "FAIL"
-        audit_rows.append(res_row)
+            # 1. Process Injected (Units changed)
+            mask_inj = (chunk[COL_UNIT_PRE] != chunk[COL_UNIT_CLEAN]) & (chunk[COL_HARM_VAL] != "NA")
+            for (oid, abbr, u_pre), group in chunk[mask_inj].groupby([col_omop_cache, COL_TEST, COL_UNIT_PRE]):
+                key = (oid, abbr, u_pre)
+                count_injected[key] = count_injected.get(key, 0) + len(group)
+                if key not in samples_injected: samples_injected[key] = {"harm": [], "src": []}
+                if len(samples_injected[key]["harm"]) < 20000:
+                    samples_injected[key]["harm"].extend(group[COL_HARM_VAL].head(20000 - len(samples_injected[key]["harm"])).tolist())
+                    samples_injected[key]["src"].extend(group[COL_VAL].head(20000 - len(samples_injected[key]["src"])).tolist())
 
-    df_audit = pd.DataFrame(audit_rows)
-    final_df = pd.merge(df_ref, df_audit, on=['TEST_NAME_ABBREVIATION', 'source_unit_clean'], how='outer')
+            # 2. Process Baseline (Units same)
+            mask_base = (chunk[COL_UNIT_PRE] == chunk[COL_UNIT_CLEAN]) & (chunk[COL_HARM_VAL] != "NA") & (chunk[col_omop_cache].isin(target_omops))
+            for oid, group in chunk[mask_base].groupby(col_omop_cache):
+                count_baseline[oid] = count_baseline.get(oid, 0) + len(group)
+                if oid not in samples_baseline: samples_baseline[oid] = []
+                if len(samples_baseline[oid]) < 20000:
+                    samples_baseline[oid].extend(group[COL_HARM_VAL].head(20000 - len(samples_baseline[oid])).tolist())
+            
+            pbar.update(len(chunk))
 
-    def get_flag(row):
-        if pd.isna(row['STATUS']) and pd.notna(row['source_unit_clean_fix']): return "RULE_NOT_FOUND"
-        if pd.isna(row['source_unit_clean_fix']) and pd.notna(row['STATUS']): return "NEW_INJECTION"
-        return "OK"
+    # Construct Results
+    audit_results = []
+    for (oid, abbr, u_pre), data in samples_injected.items():
+        key = (oid, abbr, u_pre)
+        base_vals = samples_baseline.get(oid, [])
+        h_inj = pd.to_numeric(pd.Series(data["harm"]), errors='coerce').dropna()
+        h_ref = pd.to_numeric(pd.Series(base_vals), errors='coerce').dropna()
+        
+        status, ks_stat, ks_mlogp = "OK", np.nan, np.nan
+        if h_ref.empty: status = "NO_BASELINE"
+        elif not h_inj.empty:
+            ks, p = ks_2samp(h_inj, h_ref)
+            ks_stat, ks_mlogp = round(ks, 4), round(-np.log10(p + 1e-300), 4)
+            status = "EXCELLENT" if ks < 0.15 else "SUCCESS" if ks < 0.3 else "WARNING" if ks < 0.5 else "FAIL"
 
-    final_df['AUDIT_FLAG'] = final_df.apply(get_flag, axis=1)
-    final_df['target_unit'] = final_df['CLEANED_UNIT'].fillna(final_df['source_unit_clean_fix'])
-    final_df.drop(columns=['CLEANED_UNIT', 'source_unit_clean_fix'], inplace=True)
+        audit_results.append({
+            "TEST_NAME_ABBREVIATION": abbr, "source_unit_clean": u_pre,
+            "KS_STAT": ks_stat, "KS_mlogp": ks_mlogp, "STATUS": status,
+            "N_INJECTED": int(count_injected[key]), 
+            "N_BASELINE": int(count_baseline.get(oid, 0)),
+            "SOURCE_DECILES": get_deciles(data["src"]), 
+            "HARM_INJECTED_DECILES": get_deciles(data["harm"]), 
+            "BASELINE_DECILES": get_deciles(base_vals)
+        })
 
-    # Sort helper
-    final_df['sort_helper'] = pd.to_numeric(final_df['N_INJECTED'], errors='coerce').fillna(-1)
-    final_df = final_df.sort_values(by='sort_helper', ascending=False).drop(columns=['sort_helper'])
-
-    # Format integers
-    for col in ["N_INJECTED", "N_PURE_REF"]:
-        if col in final_df.columns:
-            final_df[col] = final_df[col].apply(lambda x: str(int(x)) if pd.notnull(x) and not isinstance(x, str) else x)
-
-    final_df = final_df.astype(object).fillna("NO_DATA")
+    # Merge and Format
+    final_df = pd.merge(df_sanity, pd.DataFrame(audit_results), on=['TEST_NAME_ABBREVIATION', 'source_unit_clean'], how='left')
     
-    # Updated column order: OMOP ID moved forward, AUDIT_FLAG moved to end
-    cols = [
-        'TEST_NAME_ABBREVIATION', 'source_unit_clean', 'target_unit', 'STATUS', 
-        'KS_STAT', 'KS_mlogp', 'OMOP_ID', 'N_INJECTED', 
-        'SOURCE_DECILES', 'HARM_INJECTED_DECILES', 'N_PURE_REF', 'HARM_REF_DECILES', 'AUDIT_FLAG'
-    ]
-    final_df = final_df[cols]
+    # Convert N columns to nullable integers and fill missing with 0
+    for col in ['N_INJECTED', 'N_BASELINE']:
+        final_df[col] = pd.to_numeric(final_df[col], errors='coerce').fillna(0).astype(int)
 
+    # Sort by N_INJECTED (Primary) then N_BASELINE (Secondary)
+    final_df = final_df.sort_values(['N_INJECTED', 'N_BASELINE'], ascending=False)
+    
+    # Final cleanup of NA strings for the non-numeric columns
+    final_df = final_df.fillna("NA")
+    
     final_df.to_csv(args.output, sep='\t', index=False)
-    
-    if not df_audit.empty:
-        plt.figure(figsize=(10, 6))
-        plot_df = final_df[final_df['STATUS'] != "NO_DATA"]
-        if not plot_df.empty:
-            plot_df['STATUS'].value_counts().plot(kind='bar', color='royalblue')
-            plt.title("Injection Audit Results")
-            plt.ylabel("Frequency")
-            plt.xticks(rotation=45)
-            plt.tight_layout()
-            plt.savefig("audit_summary.png")
-            print("Generated audit_summary.png")
+    print(f"Audit complete. Results saved to {args.output}")
 
-    print(f"\nAudit complete. Results saved to: {os.path.abspath(args.output)}")
-
-if __name__ == "__main__":
-    main()
+if __name__ == "__main__": main()

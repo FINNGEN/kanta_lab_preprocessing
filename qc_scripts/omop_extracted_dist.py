@@ -77,8 +77,7 @@ def main():
 
     conn = duckdb.connect()
 
-    # Determine IDs and Suffixes
-    run_suffix = ""
+    # Determine IDs
     if args.full or args.random is not None:
         print(f"STATUS: Fetching unique OMOP IDs from {args.file_path}...")
         unique_query = f"SELECT DISTINCT OMOP_CONCEPT_ID FROM '{args.file_path}' WHERE OMOP_CONCEPT_ID IS NOT NULL"
@@ -86,22 +85,22 @@ def main():
         
         if args.full:
             omop_ids = sorted(ids_in_parquet)
-            # No suffix added for full as requested
+            run_suffix = ""
         else:
             count = min(args.random, len(ids_in_parquet))
             omop_ids = random.sample(ids_in_parquet, count)
-            run_suffix += f"_random_{count}"
+            run_suffix = f"_random_{count}"
     elif args.ids:
         omop_ids = [int(i.strip()) for i in args.ids.split(',')]
+        run_suffix = ""
     else:
         omop_ids = DEFAULT_IDS
+        run_suffix = ""
 
     if args.test:
         run_suffix += f"_test_{args.test}"
 
-    # Construct the final filename base
     final_base = f"{args.name}{run_suffix}"
-
     summary_file = f"{final_base}_summary.tsv"
     rejected_file = f"{final_base}_rejected.tsv"
 
@@ -114,7 +113,7 @@ def main():
         
         query = f"""
             SELECT MEASUREMENT_VALUE_EXTRACTED as ext, 
-                   MEASUREMENT_VALUE_HARMONIZED as har,
+                   MEASUREMENT_VALUE_HARMONIZED as harm,
                    EVENT_AGE
             FROM '{args.file_path}'
             WHERE OMOP_CONCEPT_ID = {omop_id} 
@@ -132,48 +131,60 @@ def main():
             continue
 
         ext_raw = df['ext'].dropna()
-        har_raw = df['har'].dropna()
-        ext_clean, n_ext_rem = sigma_filter(ext_raw)
-        har_clean, n_har_rem = sigma_filter(har_raw)
+        harm_raw = df['harm'].dropna()
 
-        if ext_clean.empty and har_clean.empty:
+        ext_clean, n_ext_rem = sigma_filter(ext_raw)
+        harm_clean, n_harm_rem = sigma_filter(harm_raw)
+
+        if ext_clean.empty and harm_clean.empty:
             rejected_results.append({"OMOP_ID": omop_id, "REASON": "SIGMA_FILTERED_TO_EMPTY", "Description": desc})
             continue
 
-        n_ext, n_har = len(ext_clean), len(har_clean)
-        total_numeric = len(ext_raw) + len(har_raw)
-        total_removed = n_ext_rem + n_har_rem
+        n_ext, n_harm = len(ext_clean), len(harm_clean)
+        
+        # New: Ratio of N extracted vs N harmonized reference
+        n_ratio = round(n_ext / n_harm, 4) if n_harm > 0 else 0.0
+
+        total_numeric = len(ext_raw) + len(harm_raw)
+        total_removed = n_ext_rem + n_harm_rem
         sigma_reject_pct = round((total_removed / total_numeric) * 100, 2) if total_numeric > 0 else 0.0
-        ext_ratio = round(n_ext / n_har, 3) if n_har > 0 else 0.0
-        ks_stat, _ = stats.ks_2samp(ext_clean, har_clean) if (n_ext > 0 and n_har > 0) else (np.nan, 1.0)
+        
+        ks_stat, _ = stats.ks_2samp(ext_clean, harm_clean) if (n_ext > 0 and n_harm > 0) else (np.nan, 1.0)
         status_label = "SUCCESS" if (np.isnan(ks_stat) or ks_stat < 0.3) else "FAIL"
 
         summary_results.append({
-            "RANK": 0, "OMOP_ID": omop_id, "STATUS": status_label,
+            "RANK": 0, 
+            "OMOP_ID": omop_id, 
+            "STATUS": status_label,
             "EXT_MEDIAN": format_scientific(ext_clean.median()), 
-            "OG_MEDIAN": format_scientific(har_clean.median()), 
+            "HARM_REF_MEDIAN": format_scientific(harm_clean.median()), 
+            "EXT_HARM_N_RATIO": n_ratio,
             "KS": round(ks_stat, 3) if not np.isnan(ks_stat) else 1.0, 
-            "N_EXTRACTED": n_ext, "EXT_RATIO": ext_ratio,
-            "SIGMA_REJECTED_PCT": sigma_reject_pct, "Description": desc,
-            "EXT_DECILES": get_deciles(ext_clean), "HAR_DECILES": get_deciles(har_clean)
+            "N_EXTRACTED": n_ext, 
+            "N_HARM_REF": n_harm,
+            "SIGMA_REJECTED_PCT": sigma_reject_pct, 
+            "Description": desc,
+            "EXT_DECILES": get_deciles(ext_clean), 
+            "HARM_REF_DECILES": get_deciles(harm_clean)
         })
 
         # --- Plotting ---
         fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 10), sharex=True)
+        
         if not ext_clean.empty:
             sns.scatterplot(x=df.loc[ext_clean.index, 'ext'], y=df.loc[ext_clean.index, 'EVENT_AGE'], 
                             color='red', alpha=0.3, label='Extracted', ax=ax1, s=25, rasterized=True)
             if ext_clean.nunique() > 1: sns.kdeplot(ext_clean, ax=ax2, color='red', label='Extracted PDF')
             else: ax2.axvline(ext_clean.iloc[0], color='red', linestyle='--')
         
-        if not har_clean.empty:
-            sns.scatterplot(x=df.loc[har_clean.index, 'har'], y=df.loc[har_clean.index, 'EVENT_AGE'], 
-                            color='blue', alpha=0.3, label='Harmonized', ax=ax1, s=25, rasterized=True)
-            if har_clean.nunique() > 1: sns.kdeplot(har_clean, ax=ax2, color='blue', label='Harmonized PDF')
-            else: ax2.axvline(har_clean.iloc[0], color='blue', linestyle='--')
+        if not harm_clean.empty:
+            sns.scatterplot(x=df.loc[harm_clean.index, 'harm'], y=df.loc[harm_clean.index, 'EVENT_AGE'], 
+                            color='blue', alpha=0.3, label='Harmonized (Ref)', ax=ax1, s=25, rasterized=True)
+            if harm_clean.nunique() > 1: sns.kdeplot(harm_clean, ax=ax2, color='blue', label='Harmonized PDF')
+            else: ax2.axvline(harm_clean.iloc[0], color='blue', linestyle='--')
         
         ax1.legend(loc='upper right')
-        ax1.set_title(f"OMOP {omop_id}: {desc}\nRatio: {ext_ratio} | KS: {round(ks_stat,3)} | Sigma Reject: {sigma_reject_pct}%")
+        ax1.set_title(f"OMOP {omop_id}: {desc}\nN Ratio (Ext/Harm): {n_ratio} | KS: {round(ks_stat,3)}")
         
         plot_path = os.path.join(args.output_dir, f"{final_base}_omop_{omop_id}.png")
         fig.savefig(plot_path, dpi=150, bbox_inches='tight')
