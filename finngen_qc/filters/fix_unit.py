@@ -58,8 +58,15 @@ def lab_unit_regex(df,args,map_mask=None):
     unit_df['OLD'] = old_col
     unit_df['SOURCE'] = "regex"    
     unit_mask = (unit_df["OLD"] != unit_df[col])
-    #unit_df[unit_mask][['ROW_ID', 'APPROX_EVENT_DATETIME','TEST_NAME_ABBREVIATION','OLD','MEASUREMENT_UNIT','SOURCE']].to_csv(args.unit_file, mode='a', index=False, header=False,sep="\t")
-    unit_df[unit_mask].to_csv(args.unit_file, mode='a', index=False, header=False,sep="\t")
+
+    cols = ['ROW_ID', 'APPROX_EVENT_DATETIME', 'TEST_NAME_ABBREVIATION', 'OLD', 'MEASUREMENT_UNIT', 'SOURCE']
+    unit_df.loc[unit_mask, cols].to_csv(
+        args.unit_file, 
+        mode='a', 
+        index=False, 
+        header=False,
+        sep="\t"
+    )
     return df
 
 def lab_unit_map(df,args):
