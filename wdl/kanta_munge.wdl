@@ -61,13 +61,12 @@ task analysis {
   # it also returns the counts of TEST_NAME,UNIT(cleaned) that do not have a mapping
   python3 /qc_scripts/unharmonized.py ~{merged_file}  -a ~{injection} -u ~{unmap}
   # this step is similar but in reverse. it checks that the injections led to a KS <.3 for harmonized values
-  python3 /qc_scripts/injection_check.py ~{merged_file} -o ~{injection_issues} --min_count 1
+  python3 /qc_scripts/injection_check.py ~{merged_file} -o ~{injection_issues} 
   >>>
   runtime {
     disks: "local-disk ~{ceil(size(merged_file,'GB')) + 20} HDD"
     docker : "~{docker}"
     memory: "16 GB"
-
   }
 
   output {

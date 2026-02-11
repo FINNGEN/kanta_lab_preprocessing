@@ -46,7 +46,6 @@ def init_harmonization(args, logger):
     args.config['usagi_mapping']['harmonization_omop::OMOP_ID'] =args.config['usagi_mapping']['harmonization_omop::OMOP_ID'].astype(int)
     logger.debug(args.config['unit_abbreviation_fix'][args.config['unit_abbreviation_fix'].TEST_NAME_ABBREVIATION =='p-tt-inr'])
     args.config['unit_abbreviation_fix'] = args.config['unit_abbreviation_fix'].fillna("NA")
-    print(args.config['unit_abbreviation_fix'])
     logger.debug(args.config['unit_abbreviation_fix'][args.config['unit_abbreviation_fix'].TEST_NAME_ABBREVIATION =='p-tt-inr'])
     logger.debug(args.config['usagi_mapping'][args.config['usagi_mapping']["TEST_NAME_ABBREVIATION"] == 'p-vrab-o'])
 
