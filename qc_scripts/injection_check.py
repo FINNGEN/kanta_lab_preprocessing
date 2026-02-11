@@ -14,6 +14,7 @@ DEFAULT_REF = os.path.join(SCRIPT_DIR, "..", "finngen_qc", "data", "fix_unit_bas
 DEFAULT_USAGI = os.path.join(SCRIPT_DIR, "..", "finngen_qc", "data", "LABfi_ALL.usagi.csv")
 
 def get_deciles(series):
+    """Calculates deciles and returns as a string, or 'NA' if empty."""
     if series is None or len(series) == 0: return "NA"
     arr = pd.to_numeric(pd.Series(series), errors='coerce').dropna()
     if arr.empty: return "NA"
@@ -21,7 +22,10 @@ def get_deciles(series):
     return "[" + ",".join(str(d) for d in deciles) + "]"
 
 def get_usagi_linkage(usagi_path, rules_df):
+    """Links reference rules to Usagi mapping statuses."""
     target_combos = {}
+    combo_status = {}
+    
     for _, row in rules_df.iterrows():
         t_unit = str(row['source_unit_clean_fix']).strip().lower()
         if t_unit in ["", "nan", "none", "na"]: t_unit = "na"
@@ -29,16 +33,27 @@ def get_usagi_linkage(usagi_path, rules_df):
         target_combos[(t_name, t_unit)] = set()
 
     if os.path.exists(usagi_path):
+        print(f"Loading Usagi statuses from {usagi_path}...")
         usagi = pd.read_csv(usagi_path, low_memory=False, dtype=str).fillna("NA")
+        status_col = 'mappingStatus' if 'mappingStatus' in usagi.columns else 'statusSetBy'
+        
         for _, row in usagi.iterrows():
             code = str(row.get('sourceCode', 'NA')).strip().lower()
             tid = str(row.get('conceptId', 'NA')).strip()
+            curr_status = str(row.get(status_col, 'UNREVIEWED')).strip()
+            
             if "[" in code and code.endswith("]"):
-                u_test = code.split("[")[0].strip()
-                u_unit = code.split("[")[1].replace("]", "").strip()
+                u_parts = code.split("[")
+                u_test = u_parts[0].strip()
+                u_unit = u_parts[1].replace("]", "").strip()
                 if u_unit == "": u_unit = "na"
-                if (u_test, u_unit) in target_combos and tid not in ["NA", "0", "-1"]:
-                    target_combos[(u_test, u_unit)].add(tid.split('.')[0])
+                
+                key = (u_test, u_unit)
+                if key in target_combos and tid not in ["NA", "0", "-1"]:
+                    target_combos[key].add(tid.split('.')[0])
+                    # Prioritize 'APPROVED' status in case of multiple entries
+                    if key not in combo_status or curr_status == "APPROVED":
+                        combo_status[key] = curr_status
 
     linkage_rows = []
     all_target_omops = set()
@@ -48,19 +63,24 @@ def get_usagi_linkage(usagi_path, rules_df):
         u_fix = str(row['source_unit_clean_fix']).strip()
         lookup_unit = u_fix.lower()
         if lookup_unit in ["", "nan", "na"]: lookup_unit = "na"
-        found_ids = sorted(list(target_combos.get((abbr.lower(), lookup_unit), [])))
+        
+        combo_key = (abbr.lower(), lookup_unit)
+        found_ids = sorted(list(target_combos.get(combo_key, [])))
         all_target_omops.update(found_ids)
+        
+        actual_status = combo_status.get(combo_key, "MISSING")
+        
         linkage_rows.append({
             "TEST_NAME_ABBREVIATION": abbr,
             "source_unit_clean": u_pre,
             "source_unit_clean_fix": u_fix,
             "LINKED_OMOP_IDS": ",".join(found_ids) if found_ids else "MISSING",
-            "MATCH_STATUS": "FOUND" if found_ids else "MISSING"
+            "MATCH_STATUS": actual_status
         })
     return pd.DataFrame(linkage_rows).astype(str), all_target_omops
 
 def main():
-    parser = argparse.ArgumentParser(description="Audit v5.2 - Fixed Missing NA Counts")
+    parser = argparse.ArgumentParser(description="Audit v5.6 - Strict NA Formatting")
     parser.add_argument("input", nargs='?', default="~/fg-3/kanta_v3/munged/kanta_v3_harmonized_2026_02_02.txt.gz")
     parser.add_argument("-o", "--output", default="injection_check.tsv")
     parser.add_argument("--ref", default=DEFAULT_REF)
@@ -68,8 +88,9 @@ def main():
     parser.add_argument("--test", type=int, nargs='?', const=1000000, default=None)
     args = parser.parse_args()
 
+    # Load Rules
     df_rules = pd.read_csv(args.ref, sep='\t', dtype=str, keep_default_na=False).fillna("NA").replace("", "NA")
-    df_sanity, target_omops = get_usagi_linkage(args.usagi, df_rules)
+    df_sanity, target_omops = get_usagi_linkage(os.path.expanduser(args.usagi), df_rules)
 
     COL_TEST, COL_UNIT_PRE, COL_UNIT_CLEAN, COL_VAL, COL_HARM_VAL = \
         "cleaned::TEST_NAME_ABBREVIATION", "cleaned-pre-fix::MEASUREMENT_UNIT", \
@@ -78,7 +99,7 @@ def main():
     cache_name = "cache_audit_data.tsv.gz"
     if args.test: cache_name = f"test_{args.test}_{cache_name}"
 
-    # 2. Heavy Data Caching
+    # 1. Build Cache
     if not os.path.exists(cache_name):
         print(f"Building cache {cache_name}...")
         input_path = os.path.expanduser(args.input)
@@ -100,7 +121,7 @@ def main():
                     first_chunk = False
                     pbar.update(len(chunk))
 
-    # 3. Analysis
+    # 2. Analyze
     samples_injected, samples_baseline = {}, {}
     count_injected, count_baseline = {}, {}
     
@@ -136,12 +157,10 @@ def main():
                         samples_baseline[oid].extend(numeric_base[COL_HARM_VAL].head(needed).tolist())
             pbar.update(len(chunk))
 
-    # 4. Results Construction - ITERATE OVER COUNTS, NOT SAMPLES
+    # 3. Final Results Construction
     audit_results = []
     for (oid, abbr, u_pre), total_count in count_injected.items():
         key = (oid, abbr, u_pre)
-        
-        # Get samples if they exist, else empty
         data = samples_injected.get(key, {"harm": [], "src": []})
         base_vals = samples_baseline.get(oid, [])
         
@@ -160,7 +179,7 @@ def main():
 
         audit_results.append({
             "TEST_NAME_ABBREVIATION": abbr, "source_unit_clean": u_pre,
-            "KS_STAT": ks_stat, "KS_mlogp": ks_mlogp, "STATUS": status,
+            "KS_STAT": ks_stat, "KS_mlogp": ks_mlogp, "AUDIT_STATUS": status,
             "N_INJECTED": int(total_count), 
             "N_BASELINE": int(count_baseline.get(oid, 0)),
             "SOURCE_DECILES": get_deciles(data["src"]), 
@@ -171,11 +190,37 @@ def main():
     inj_df = pd.DataFrame(audit_results)
     final_df = pd.merge(df_sanity, inj_df, on=['TEST_NAME_ABBREVIATION', 'source_unit_clean'], how='left')
     
+    # Pre-process counts
     for col in ['N_INJECTED', 'N_BASELINE']:
         final_df[col] = pd.to_numeric(final_df[col], errors='coerce').fillna(0).astype(int)
 
-    final_df = final_df.sort_values(['N_INJECTED', 'N_BASELINE'], ascending=False).fillna("NA")
-    final_df.to_csv(args.output, sep='\t', index=False)
-    print(f"Audit complete. Results saved to {args.output}")
+    # 4. Define FINAL_STATUS logic with explicit 'NA' protection
+    def combine_status(row):
+        audit = row.get('AUDIT_STATUS')
+        if pd.isna(audit) or str(audit).lower() in ["nan", "none"]:
+            audit = "NA"
+        else:
+            audit = str(audit)
+            
+        usagi = row.get('MATCH_STATUS')
+        if pd.isna(usagi) or str(usagi).lower() in ["nan", "none"]:
+            usagi = "NA"
+        else:
+            usagi = str(usagi)
 
-if __name__ == "__main__": main()
+        if usagi == "MISSING":
+            return f"{audit} (NOT_IN_USAGI)"
+        if usagi not in ["APPROVED", "NA", "MISSING"]:
+            return f"{audit} ({usagi})"
+        return audit
+
+    final_df['FINAL_STATUS'] = final_df.apply(combine_status, axis=1)
+
+    # 5. Global Cleanup: Force everything to string and replace any rogue 'nan' with 'NA'
+    final_df = final_df.astype(str).replace(to_replace=[r'^nan$', r'^None$', r'^NaN$'], value='NA', regex=True)
+
+    final_df.to_csv(args.output, sep='\t', index=False)
+    print(f"\nAudit complete. Results saved to {args.output}")
+
+if __name__ == "__main__":
+    main()

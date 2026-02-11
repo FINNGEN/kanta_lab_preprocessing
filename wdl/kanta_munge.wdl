@@ -179,7 +179,7 @@ task split{
 
 task GetCurrentDate {
   command <<<
-    date +%Y_%m_%d | tr -d '\n'
+  date +%Y_%m_%d | tr -d '\n'
   >>>
   output {
     String date_string = read_string(stdout())

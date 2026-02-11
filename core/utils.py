@@ -33,9 +33,6 @@ def get_stuff_from_finngen_qc(args):
 
     return args
 
-import os
-import pandas as pd
-from pathlib import Path
 
 def init_omop_extraction_blacklist(args):
     """

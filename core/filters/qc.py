@@ -293,107 +293,6 @@ def fix_omop_conversion(df, args):
     return df
 
 
-def check_dates_in_measurement(df, args):
-    """
-    Identify and remove rows where measurement values are actually dates.
-    
-    This function detects when numeric measurement fields contain dates encoded
-    as 6-digit integers (DDMMYY format). Such rows are logged to an error file
-    and removed from the dataset.
-    
-    Parameters:
-    -----------
-    df : pandas.DataFrame
-        Input dataframe containing:
-        - extracted::MEASUREMENT_VALUE: Raw measurement value (may contain dates)
-        - harmonization_omop::MEASUREMENT_VALUE: Harmonized measurement value
-        - cleaned::TEST_NAME_ABBREVIATION: Test abbreviation
-        - MEASUREMENT_FREE_TEXT: Free text measurement field
-        
-    args : object
-        Configuration object containing:
-        - err_file: Path to error log file
-        - config['err_cols']: List of column names to write to error log
-        
-    Returns:
-    --------
-    pandas.DataFrame
-        Input dataframe with rows containing date values removed
-        
-    Side Effects:
-    -------------
-    Appends error records to args.err_file
-        
-    Example:
-    --------
-    Value 311299 would be detected as 31/12/99 (Dec 31, 1999) and flagged as error
-    """
-    col_name = "extracted::MEASUREMENT_VALUE"
-    mes_col = "harmonization_omop::MEASUREMENT_VALUE"
-
-    # Initialize error mask (all False)
-    err_mask = pd.Series(False, index=df.index)
-    
-    # Create mask for non-null values to avoid NaN processing errors
-    non_na_mask = df[col_name].notna()
-    
-    # Only process if there are non-null values
-    if non_na_mask.any():
-        # Convert non-null values to string via integer (removes decimals)
-        str_values = df.loc[non_na_mask, col_name].astype(int).astype(str)
-        
-        # Identify potential dates: exactly 6 digits (DDMMYY format)
-        six_digit_mask = str_values.str.len() == 6
-        
-        # Only process if there are six-digit values
-        if six_digit_mask.any():
-            # Get indices of rows with six-digit values
-            six_digit_indices = six_digit_mask[six_digit_mask].index
-            six_digit_values = str_values[six_digit_mask]
-            
-            # Parse date components from DDMMYY format
-            days = six_digit_values.str[:2].astype(int)
-            months = six_digit_values.str[2:4].astype(int)
-            years = six_digit_values.str[4:].astype(int)
-            
-            # Validate date component ranges
-            valid_days = (days >= 1) & (days <= 31)
-            valid_months = (months >= 1) & (months <= 12)
-            valid_years = (years >= 0) & (years <= 99)
-            
-            # Combine all validation checks
-            valid_dates = valid_days & valid_months & valid_years
-            
-            # Get indices of rows with valid date patterns
-            valid_date_indices = six_digit_indices[valid_dates]
-            
-            # Mark these rows as errors
-            err_mask.loc[valid_date_indices] = True
-    
-    # Create error dataframe with flagged rows
-    err_df = df[err_mask].copy()
-    err_df['ERR'] = 'DATE_IN_MEASUREMENT'
-    
-    # Create detailed error value string combining multiple fields
-    err_df['ERR_VALUE'] = (
-        err_df['cleaned::TEST_NAME_ABBREVIATION'].astype(str) + "::" + 
-        err_df[mes_col].astype(str) + "::" + 
-        err_df['MEASUREMENT_FREE_TEXT'].astype(str) + '::' + 
-        err_df[col_name].astype(str)
-    )
-    
-    # Append errors to log file
-    err_df[args.config['err_cols']].to_csv(
-        args.err_file, 
-        mode='a',  # Append mode
-        index=False, 
-        header=False, 
-        sep="\t"
-    )
-    
-    # Return dataframe with error rows removed
-    return df[~err_mask]
-
 
 
 def flag_omop_qc(df, args):
@@ -463,3 +362,75 @@ def flag_omop_qc(df, args):
         )
     
     return df
+
+
+def check_dates_in_measurement(df, args):
+    """
+    Identifies and removes rows where measurement values are incorrectly encoded as dates.
+    
+    This function targets numeric fields that contain 6-digit integers following 
+    the DDMMYY format. It cleans the input to handle potential float-to-string 
+    conversion artifacts (like '.0'), extracts date components via regex, 
+    validates them, and logs flagged rows to an error file.
+    
+    Parameters:
+    -----------
+    df : pandas.DataFrame
+        Input data containing measurement values and metadata.
+    args : object
+        Configuration object containing 'err_file' (path) and 'config["err_cols"]'.
+        
+    Returns:
+    --------
+    pandas.DataFrame
+        Dataframe with detected date-entry rows removed.
+    """
+    col_name = "extracted::MEASUREMENT_VALUE"
+    mes_col = "harmonization_omop::MEASUREMENT_VALUE"
+
+    # 1. Clean data: Convert to string, remove '.0' from floats, and strip whitespace.
+    # This prevents 'inf' or 'NaN' from crashing the processing.
+    clean_series = df[col_name].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
+
+    # 2. Extract potential date components using regex (DD MM YY)
+    # The pattern ^(\d{2})(\d{2})(\d{2})$ ensures we only look at exactly 6 digits.
+    parts = clean_series.str.extract(r'^(\d{2})(\d{2})(\d{2})$')
+
+    # 3. Validate components numerically
+    # pd.to_numeric with errors='coerce' ensures non-matches (NaN) don't break the logic.
+    days = pd.to_numeric(parts[0], errors='coerce')
+    months = pd.to_numeric(parts[1], errors='coerce')
+    years = pd.to_numeric(parts[2], errors='coerce')
+
+    # 4. Create a boolean mask for valid date patterns
+    # Any row failing the range check or the regex match becomes False via .fillna().
+    is_date_mask = (
+        (days >= 1) & (days <= 31) &
+        (months >= 1) & (months <= 12) &
+        (years >= 0) & (years <= 99)
+    ).fillna(False)
+
+    # 5. Process and log errors
+    err_df = df[is_date_mask].copy()
+    
+    if not err_df.empty:
+        # Construct the detailed error message
+        err_df['ERR'] = 'DATE_IN_MEASUREMENT'
+        err_df['ERR_VALUE'] = (
+            err_df['cleaned::TEST_NAME_ABBREVIATION'].astype(str) + "::" + 
+            err_df[mes_col].astype(str) + "::" + 
+            err_df['MEASUREMENT_FREE_TEXT'].astype(str) + '::' + 
+            err_df[col_name].astype(str)
+        )
+        
+        # Append to the external error log
+        err_df[args.config['err_cols']].to_csv(
+            args.err_file, 
+            mode='a', 
+            index=False, 
+            header=False, 
+            sep="\t"
+        )
+
+    # 6. Return the filtered dataframe
+    return df[~is_date_mask]
