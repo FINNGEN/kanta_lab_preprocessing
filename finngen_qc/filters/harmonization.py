@@ -80,9 +80,8 @@ def fix_unit_based_on_abbreviation(df,args):
     col = 'MEASUREMENT_UNIT'
     # this creates new column souce_unit_valid_fix if matching else NA
     df = pd.merge(df,args.config['unit_abbreviation_fix'],left_on = ['TEST_NAME_ABBREVIATION','MEASUREMENT_UNIT'],right_on=['TEST_NAME_ABBREVIATION','source_unit_clean'],how='left').fillna("UNMAPPED")
-    print(df['source_unit_clean_fix'])
     # check where there is a valid entry and put changed element back
-    fix_mask = (df['source_unit_clean_fix'] != "UNMAPPED") & (df['MEASUREMENT_VALUE'] != "NA")
+    fix_mask = (df['source_unit_clean_fix'] != "UNMAPPED") & (df['MEASUREMENT_VALUE'] != "NA") & (df['source_unit_clean_fix'] != "NA")
     # Mask 2: Specifically targeting the "NA" clean fix cases
     mask_na_fix = (df['source_unit_clean_fix'] == "NA")
     unit_fix_mask = fix_mask | mask_na_fix
