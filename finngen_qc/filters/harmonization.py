@@ -79,15 +79,17 @@ def fix_unit_based_on_abbreviation(df,args):
     """
     col = 'MEASUREMENT_UNIT'
     # this creates new column souce_unit_valid_fix if matching else NA
-    df = pd.merge(df,args.config['unit_abbreviation_fix'],left_on = ['TEST_NAME_ABBREVIATION','MEASUREMENT_UNIT'],right_on=['TEST_NAME_ABBREVIATION','source_unit_clean'],how='left').fillna("NA")
+    df = pd.merge(df,args.config['unit_abbreviation_fix'],left_on = ['TEST_NAME_ABBREVIATION','MEASUREMENT_UNIT'],right_on=['TEST_NAME_ABBREVIATION','source_unit_clean'],how='left').fillna("UNMAPPED")
+    print(df['source_unit_clean_fix'])
     # check where there is a valid entry and put changed element back
-    #mask = df['source_unit_clean_fix'] !="NA"
-    mask = (df['source_unit_clean_fix'] != "NA") & (df['MEASUREMENT_VALUE'] != "NA")
-
-    unit_df = df.loc[mask,['ROW_ID', 'APPROX_EVENT_DATETIME','TEST_NAME_ABBREVIATION','MEASUREMENT_UNIT','source_unit_clean_fix']].copy()
+    fix_mask = (df['source_unit_clean_fix'] != "UNMAPPED") & (df['MEASUREMENT_VALUE'] != "NA")
+    # Mask 2: Specifically targeting the "NA" clean fix cases
+    mask_na_fix = (df['source_unit_clean_fix'] == "NA")
+    unit_fix_mask = fix_mask | mask_na_fix
+    unit_df = df.loc[unit_fix_mask,['ROW_ID', 'APPROX_EVENT_DATETIME','TEST_NAME_ABBREVIATION','MEASUREMENT_UNIT','source_unit_clean_fix']].copy()
     # CHANGES
-    df.loc[mask,"harmonization_omop::IS_UNIT_VALID"] = "unit_fixed"
-    df.loc[mask,col] = df.loc[mask,"source_unit_clean_fix"]
+    df.loc[unit_fix_mask,"harmonization_omop::IS_UNIT_VALID"] = "unit_fixed"
+    df.loc[unit_fix_mask,col] = df.loc[unit_fix_mask,"source_unit_clean_fix"]
     # LOG CHANGES
     unit_df['SOURCE'] = "harmonization_fix"    
     unit_df.to_csv(args.unit_file, mode='a', index=False, header=False,sep="\t")
