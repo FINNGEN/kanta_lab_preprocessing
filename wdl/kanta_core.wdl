@@ -40,10 +40,10 @@ task qc_extracted {
     String prefix
   }
 
-  File dist_summary = prefix + "_analysis_summary.tsv"
-  File rejected_ids = prefix +  "_rejected_ids.tsv"
-  command <<<<
-    python3 /qc_scripts/omop_extracted_dist.py --full --name ~{prefix}
+  String dist_summary = prefix + "_analysis_summary.tsv"
+  String rejected_ids = prefix +  "_rejected_ids.tsv"
+  command <<<
+  python3 /qc_scripts/omop_extracted_dist.py --full --name ~{prefix} --file_path ~{core_parquet}
   >>>
   output {
     File summary  = dist_summary
@@ -51,8 +51,8 @@ task qc_extracted {
     Array[File] plots = glob("./plots/*png")
   }
    runtime {
-    disks: "local-disk ~{2*ceil(size(core_parquet,'GB')) + 10} HDD"
-    docker : "~{docker}"
+     disks: "local-disk ~{2*ceil(size(core_parquet,'GB')) + 10} HDD"
+     docker : "~{docker}"
   }
 }
 
@@ -96,7 +96,7 @@ task build_pos_tables{
   output{
     File plus_summary = "./plusplus_summary.tsv"
     File posneg_summary = "./pos_neg_summary.tsv"
-    File pasteable = glob("./*pasteable*")
+    Array[File] pasteable = glob("./*pasteable*")
   }
   
   runtime {

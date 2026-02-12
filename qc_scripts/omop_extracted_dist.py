@@ -142,14 +142,21 @@ def main():
 
         n_ext, n_harm = len(ext_clean), len(harm_clean)
         
-        # New: Ratio of N extracted vs N harmonized reference
+        # Ratio of N extracted vs N harmonized reference
         n_ratio = round(n_ext / n_harm, 4) if n_harm > 0 else 0.0
 
         total_numeric = len(ext_raw) + len(harm_raw)
         total_removed = n_ext_rem + n_harm_rem
         sigma_reject_pct = round((total_removed / total_numeric) * 100, 2) if total_numeric > 0 else 0.0
         
-        ks_stat, _ = stats.ks_2samp(ext_clean, harm_clean) if (n_ext > 0 and n_harm > 0) else (np.nan, 1.0)
+        # --- KS Calculation with mlogp ---
+        if n_ext > 0 and n_harm > 0:
+            ks_stat, p_val = stats.ks_2samp(ext_clean, harm_clean)
+            # Clip p_val to avoid log(0)
+            mlogp = -np.log10(max(p_val, 1e-300))
+        else:
+            ks_stat, mlogp = np.nan, 0.0
+
         status_label = "SUCCESS" if (np.isnan(ks_stat) or ks_stat < 0.3) else "FAIL"
 
         summary_results.append({
@@ -160,6 +167,7 @@ def main():
             "HARM_REF_MEDIAN": format_scientific(harm_clean.median()), 
             "EXT_HARM_N_RATIO": n_ratio,
             "KS": round(ks_stat, 3) if not np.isnan(ks_stat) else 1.0, 
+            "MLOGP": round(mlogp, 2),
             "N_EXTRACTED": n_ext, 
             "N_HARM_REF": n_harm,
             "SIGMA_REJECTED_PCT": sigma_reject_pct, 
@@ -184,7 +192,9 @@ def main():
             else: ax2.axvline(harm_clean.iloc[0], color='blue', linestyle='--')
         
         ax1.legend(loc='upper right')
-        ax1.set_title(f"OMOP {omop_id}: {desc}\nN Ratio (Ext/Harm): {n_ratio} | KS: {round(ks_stat,3)}")
+        title_str = (f"OMOP {omop_id}: {desc}\n"
+                     f"N Ratio: {n_ratio} | KS: {round(ks_stat,3)} | -log10(p): {round(mlogp, 2)}")
+        ax1.set_title(title_str)
         
         plot_path = os.path.join(args.output_dir, f"{final_base}_omop_{omop_id}.png")
         fig.savefig(plot_path, dpi=150, bbox_inches='tight')

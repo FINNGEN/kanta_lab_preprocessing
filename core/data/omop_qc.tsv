@@ -3,6 +3,7 @@ harmonization_omop::OMOP_ID	THRESHOLD	SIDE	QC_NOTES	MISC	conceptName
 3010813	2000	>	IMPLAUSIBLE_VALUE	NA	Leukocytes [#/volume] in Blood
 3026361	20	>	IMPLAUSIBLE_VALUE	NA	Erythrocytes [#/volume] in Blood
 3026361	0	<	IMPLAUSIBLE_VALUE	NA	Erythrocytes [#/volume] in Blood
+3026361	10	==	EXTRACTION_ISSUE	10E12/l gets extracted as 10. Ambguous free text entry	Erythrocytes [#/volume] in Blood
 3004410	0	<	IMPOSSIBLE_VALUE	NA	Hemoglobin A1c/Hemoglobin.total in Blood
 3004410	250	>	WRONG_UNIT	Probably wrong source unit	Hemoglobin A1c/Hemoglobin.total in Blood
 3004775	5000	>	IMPLAUSIBLE_VALUE	NA	Volume in Urine collected for unspecified duration
@@ -11,19 +12,16 @@ harmonization_omop::OMOP_ID	THRESHOLD	SIDE	QC_NOTES	MISC	conceptName
 3009035	10000	>	WRONG UNIT	Probably wrong unit for extracted values	Cobalamin (Vitamin B12) [Moles/volume] in Serum or Plasma
 3009542	100	>	IMPOSSIBLE_VALUE	Impossible values. They can also stem from misreported unit (ratio,5) at source	Hematocrit [Volume Fraction] of Blood
 3009542	0	<=	IMPOSSIBLE_VALUE	Impossible values. Some values are exactly 0 which indicates faulty reading or something of the sort	Hematocrit [Volume Fraction] of Blood
-3010503	1000	>	IMPOSSIBLE_VALUE	NA	CD19 cells [#/volume] in Blood
-3011412	30	>	WRONG UNIT	Probably wrong unit for extracted values	CD3 cells [#/volume] in Blood
 3013742	5	>	WRONG UNIT	Probably wrong unit for extracted values	Prealbumin [Mass/volume] in Serum or Plasma
 3016750	2000	>	WRONG UNIT	Probably wrong unit for extracted values	Collection duration of Urine
 3017766	1	>	WRONG UNIT	Probably wrong unit for extracted values	Complement C4 [Mass/volume] in Serum or Plasma
 3019420	1000	>	WRONG UNIT	Probably wrong unit for extracted values	Tryptase [Mass/volume] in Serum or Plasma
-3020717	50	>	WRONG UNIT	Probably wrong unit for extracted values	Zinc [Moles/volume] in Serum or Plasma
+3020717	40	>	WRONG UNIT	Probably wrong unit for extracted values	Zinc [Moles/volume] in Serum or Plasma
 3022756	1	<	WRONG_UNIT	Wrong unit for harmonized value at source	Ceruloplasmin [Mass/volume] in Serum or Plasma
 3022756	5000	>	IMPOSSIBLE_VALUE	NA	Ceruloplasmin [Mass/volume] in Serum or Plasma
 3023103	50	>	IMPLAUSIBLE_VALUE	Probably wrong unit for extracted values	Potassium [Moles/volume] in Serum or Plasma
 3024731	0	<=	IMPOSSIBLE_VALUE	NA	MCV [Entitic volume]
 3024731	2000	>	IMPOSSIBLE_VALUE	NA	MCV [Entitic volume]
-3025271	10	<	WRONG_UNIT	Probably wrong unit for extracted values	CD3-CD16+CD56+ (Natural killer) cells [#/volume] in Blood
 3003338	1000	>	WRONG_UNIT	Probably wrong source unit	MCHC [Mass/volume]
 3003338	100	<	WRONG_UNIT	Probably wrong source unit	MCHC [Mass/volume]
 3020564	10000	>	WRONG_UNIT	Probably wrong source unit	Creatinine [Moles/volume] in Serum or Plasma
@@ -91,7 +89,7 @@ harmonization_omop::OMOP_ID	THRESHOLD	SIDE	QC_NOTES	MISC	conceptName
 3012544	6	<	IMPOSSIBLE_VALUE	NA	pH of Venous blood
 3048816	5	>	IMPLAUSIBLE_VALUE	NA	Calcium.ionized [Moles/volume] adjusted to pH 7.4 in Blood
 3009343	6	<	IMPOSSIBLE_VALUE	NA	pH of Capillary blood
-3022217	10	>	IMPLAUSIBLE_VALUE	NA	INR in Platelet poor plasma by Coagulation assay
+3022217	15	>	IMPLAUSIBLE_VALUE	NA	INR in Platelet poor plasma by Coagulation assay
 3019800	1000000	>	IMPLAUSIBLE_VALUE	NA	Troponin T.cardiac [Mass/volume] in Serum or Plasma
 3010517	0	<	IMPOSSIBLE_VALUE	NA	Carboxyhemoglobin/Hemoglobin.total in Venous blood
 3024889	0	<	IMPOSSIBLE_VALUE	NA	Methemoglobin/Hemoglobin.total in Venous blood
@@ -101,9 +99,11 @@ harmonization_omop::OMOP_ID	THRESHOLD	SIDE	QC_NOTES	MISC	conceptName
 3020427	10	<	IMPLAUSIBLE_VALUE	NA	Coagulation factor X inhibitor [Units/volume] in Platelet poor plasma by Coagulation assay
 3003434	10000	>	IMPLAUSIBLE_VALUE	NA	Protein [Mass/volume] in Pleural fluid
 3040151	0	<	IMPOSSIBLE_VALUE	NA	Glucose [Moles/volume] in Capillary blood
-3040151	100	>	IMPLAUSIBLE_VALUE	NA	Glucose [Moles/volume] in Capillary blood
+3040151	75	>	IMPLAUSIBLE_VALUE	NA	Glucose [Moles/volume] in Capillary blood
 3014037	500	>	IMPLAUSIBLE_VALUE	NA	CD3+CD4+ (T4 helper) cells/100 cells in Blood
 3041449	3	>	WRONG_UNIT	Probably wrong source unit	Collagen crosslinked C-telopeptide [Mass/volume] in Serum or Plasma
+3014043	100	>	IMPOSSIBLE_VALUE	NA	Spermatozoa Nonprogressive/100 spermatozoa in Semen
+3039429	50000	>	IMPOSSIBLE_VALUE	NA	Cortisol [Moles/volume] in Saliva (oral fluid)
 3006923	NA	NA	NA	NA	Alanine aminotransferase [Enzymatic activity/volume] in Serum or Plasma
 3019900	NA	NA	NA	NA	Cholesterol [Moles/volume] in Serum or Plasma
 3009201	NA	NA	NA	NA	Thyrotropin [Units/volume] in Serum or Plasma
@@ -140,7 +140,6 @@ harmonization_omop::OMOP_ID	THRESHOLD	SIDE	QC_NOTES	MISC	conceptName
 3051714	NA	NA	NA	NA	Fibrin D-dimer FEU [Mass/volume] in Platelet poor plasma
 3000850	NA	NA	NA	NA	Epithelial cells [#/volume] in Urine
 3007164	NA	NA	NA	NA	IgA [Mass/volume] in Serum or Plasma
-3009035	NA	NA	NA	NA	Cobalamin (Vitamin B12) [Moles/volume] in Serum or Plasma
 3020059	NA	NA	NA	NA	Calcium [Moles/volume] corrected for albumin in Serum or Plasma
 3021337	NA	NA	NA	NA	Troponin I.cardiac [Mass/volume] in Serum or Plasma
 3021614	NA	NA	NA	NA	Rheumatoid factor [Units/volume] in Serum or Plasma
@@ -299,7 +298,6 @@ harmonization_omop::OMOP_ID	THRESHOLD	SIDE	QC_NOTES	MISC	conceptName
 3020629	NA	NA	NA	NA	Protein S Free Ag actual/normal in Platelet poor plasma by Immunoassay
 3022806	NA	NA	NA	NA	Fractional oxyhemoglobin in Capillary blood
 42870365	NA	NA	NA	NA	C reactive protein [Mass/volume] in Blood by High sensitivity method
-3040151	NA	NA	NA	NA	Glucose [Moles/volume] in Capillary blood
 3028531	NA	NA	NA	NA	Enolase.neuron specific [Mass/volume] in Serum or Plasma
 3003129	NA	NA	NA	NA	Base excess in Capillary blood by calculation
 3027135	NA	NA	NA	NA	IgG subclass 1 [Mass/volume] in Serum
@@ -360,7 +358,6 @@ harmonization_omop::OMOP_ID	THRESHOLD	SIDE	QC_NOTES	MISC	conceptName
 3048518	NA	NA	NA	NA	aPTT.lupus sensitive actual/normal (normalized LA screen)
 3019497	NA	NA	NA	NA	Choriogonadotropin.beta subunit free [Moles/volume] in Serum or Plasma
 3007847	NA	NA	NA	NA	Interleukin 2 Receptor Soluble [Units/volume] in Serum or Plasma
-3020717	NA	NA	NA	NA	Zinc [Moles/volume] in Serum or Plasma
 3035400	NA	NA	NA	NA	Alkaline phosphatase.liver [Enzymatic activity/volume] in Serum or Plasma
 3009991	NA	NA	NA	NA	Angiotensin converting enzyme [Enzymatic activity/volume] in Cerebral spinal fluid
 43055225	NA	NA	NA	NA	Phosphorylated tau 181 [Mass/volume] in Cerebral spinal fluid by Immunoassay
@@ -381,7 +378,6 @@ harmonization_omop::OMOP_ID	THRESHOLD	SIDE	QC_NOTES	MISC	conceptName
 3020485	NA	NA	NA	NA	Acetaminophen [Moles/volume] in Serum or Plasma
 3017315	NA	NA	NA	NA	Amylase [Enzymatic activity/volume] in Urine
 3016436	NA	NA	NA	NA	Lactate dehydrogenase [Enzymatic activity/volume] in Serum or Plasma
-3039429	NA	NA	NA	NA	Cortisol [Moles/volume] in Saliva (oral fluid)
 3013005	NA	NA	NA	NA	Retinol [Moles/volume] in Serum or Plasma
 3017569	NA	NA	NA	NA	Oxygen content in Arterial blood
 3044242	NA	NA	NA	NA	Glucose [Moles/volume] in Arterial blood
@@ -432,7 +428,6 @@ harmonization_omop::OMOP_ID	THRESHOLD	SIDE	QC_NOTES	MISC	conceptName
 3005532	NA	NA	NA	NA	Lymphocytes/100 leukocytes in Pleural fluid
 3009613	NA	NA	NA	NA	Erythrocytes [#/volume] in Peritoneal fluid
 3013727	NA	NA	NA	NA	Leukocytes other/100 leukocytes in Blood
-3014043	NA	NA	NA	NA	Spermatozoa Nonprogressive/100 spermatozoa in Semen
 40761995	NA	NA	NA	NA	Spermatozoa Progressive [#/volume] in Semen
 42869547	NA	NA	NA	NA	Procollagen type III.N-terminal propeptide [Mass/volume] in Serum
 3023383	NA	NA	NA	NA	Lactate [Moles/volume] in Pleural fluid
@@ -444,3 +439,6 @@ harmonization_omop::OMOP_ID	THRESHOLD	SIDE	QC_NOTES	MISC	conceptName
 3013247	NA	NA	NA	NA	Albumin in CSF/Albumin in Serum or Plasma
 3026048	NA	NA	NA	NA	Bordetella pertussis IgG Ab [Units/volume] in Serum
 40758990	NA	NA	NA	NA	Choriogonadotropin.beta subunit [Mass/volume] in Serum or Plasma
+3010503	NA	NA	NA	NA	CD19 cells [#/volume] in Blood
+3011412	NA	NA	NA	NA	CD3 cells [#/volume] in Blood [e9/l], sample-wise median
+3025271	NA	NA	NA	NA	CD3-CD16+CD56+ (Natural killer) cells [#/volume] in Blood

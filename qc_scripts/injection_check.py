@@ -51,7 +51,6 @@ def get_usagi_linkage(usagi_path, rules_df):
                 key = (u_test, u_unit)
                 if key in target_combos and tid not in ["NA", "0", "-1"]:
                     target_combos[key].add(tid.split('.')[0])
-                    # Prioritize 'APPROVED' status in case of multiple entries
                     if key not in combo_status or curr_status == "APPROVED":
                         combo_status[key] = curr_status
 
@@ -80,7 +79,7 @@ def get_usagi_linkage(usagi_path, rules_df):
     return pd.DataFrame(linkage_rows).astype(str), all_target_omops
 
 def main():
-    parser = argparse.ArgumentParser(description="Audit v5.6 - Strict NA Formatting")
+    parser = argparse.ArgumentParser(description="Audit v5.7 - Simplified Success/Fail Logic")
     parser.add_argument("input", nargs='?', default="~/fg-3/kanta_v3/munged/kanta_v3_harmonized_2026_02_02.txt.gz")
     parser.add_argument("-o", "--output", default="injection_check.tsv")
     parser.add_argument("--ref", default=DEFAULT_REF)
@@ -88,7 +87,6 @@ def main():
     parser.add_argument("--test", type=int, nargs='?', const=1000000, default=None)
     args = parser.parse_args()
 
-    # Load Rules
     df_rules = pd.read_csv(args.ref, sep='\t', dtype=str, keep_default_na=False).fillna("NA").replace("", "NA")
     df_sanity, target_omops = get_usagi_linkage(os.path.expanduser(args.usagi), df_rules)
 
@@ -99,7 +97,6 @@ def main():
     cache_name = "cache_audit_data.tsv.gz"
     if args.test: cache_name = f"test_{args.test}_{cache_name}"
 
-    # 1. Build Cache
     if not os.path.exists(cache_name):
         print(f"Building cache {cache_name}...")
         input_path = os.path.expanduser(args.input)
@@ -112,7 +109,7 @@ def main():
             chunksize=500_000, nrows=args.test, engine='c', dtype=str, keep_default_na=False)
 
         first_chunk = True
-        with tqdm(total=args.test, desc="Caching") as pbar:
+        with tqdm(total=args.test if args.test else None, desc="Caching") as pbar:
             with gzip.open(cache_name, 'wt') as f_out:
                 for chunk in reader:
                     chunk = chunk.fillna("NA").replace(["", "nan"], "NA")
@@ -121,7 +118,6 @@ def main():
                     first_chunk = False
                     pbar.update(len(chunk))
 
-    # 2. Analyze
     samples_injected, samples_baseline = {}, {}
     count_injected, count_baseline = {}, {}
     
@@ -137,7 +133,6 @@ def main():
             for (oid, abbr, u_pre), group in chunk[mask_inj].groupby([col_omop_cache, COL_TEST, COL_UNIT_PRE]):
                 key = (oid, abbr, u_pre)
                 count_injected[key] = count_injected.get(key, 0) + len(group)
-                
                 numeric_group = group[group[COL_HARM_VAL] != "NA"]
                 if not numeric_group.empty:
                     if key not in samples_injected: samples_injected[key] = {"harm": [], "src": []}
@@ -157,7 +152,6 @@ def main():
                         samples_baseline[oid].extend(numeric_base[COL_HARM_VAL].head(needed).tolist())
             pbar.update(len(chunk))
 
-    # 3. Final Results Construction
     audit_results = []
     for (oid, abbr, u_pre), total_count in count_injected.items():
         key = (oid, abbr, u_pre)
@@ -175,7 +169,8 @@ def main():
         else:
             ks, p = ks_2samp(h_inj, h_ref)
             ks_stat, ks_mlogp = round(ks, 4), round(-np.log10(p + 1e-300), 4)
-            status = "EXCELLENT" if ks < 0.15 else "SUCCESS" if ks < 0.3 else "WARNING" if ks < 0.5 else "FAIL"
+            # SIMPLIFIED LOGIC: Success is now binary based on KS threshold
+            status = "SUCCESS" if ks < 0.3 else "FAIL"
 
         audit_results.append({
             "TEST_NAME_ABBREVIATION": abbr, "source_unit_clean": u_pre,
@@ -190,23 +185,12 @@ def main():
     inj_df = pd.DataFrame(audit_results)
     final_df = pd.merge(df_sanity, inj_df, on=['TEST_NAME_ABBREVIATION', 'source_unit_clean'], how='left')
     
-    # Pre-process counts
     for col in ['N_INJECTED', 'N_BASELINE']:
         final_df[col] = pd.to_numeric(final_df[col], errors='coerce').fillna(0).astype(int)
 
-    # 4. Define FINAL_STATUS logic with explicit 'NA' protection
     def combine_status(row):
-        audit = row.get('AUDIT_STATUS')
-        if pd.isna(audit) or str(audit).lower() in ["nan", "none"]:
-            audit = "NA"
-        else:
-            audit = str(audit)
-            
-        usagi = row.get('MATCH_STATUS')
-        if pd.isna(usagi) or str(usagi).lower() in ["nan", "none"]:
-            usagi = "NA"
-        else:
-            usagi = str(usagi)
+        audit = str(row.get('AUDIT_STATUS', 'NA'))
+        usagi = str(row.get('MATCH_STATUS', 'NA'))
 
         if usagi == "MISSING":
             return f"{audit} (NOT_IN_USAGI)"
@@ -215,8 +199,6 @@ def main():
         return audit
 
     final_df['FINAL_STATUS'] = final_df.apply(combine_status, axis=1)
-
-    # 5. Global Cleanup: Force everything to string and replace any rogue 'nan' with 'NA'
     final_df = final_df.astype(str).replace(to_replace=[r'^nan$', r'^None$', r'^NaN$'], value='NA', regex=True)
 
     final_df.to_csv(args.output, sep='\t', index=False)

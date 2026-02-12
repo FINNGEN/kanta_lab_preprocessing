@@ -241,6 +241,8 @@ def fix_omop_conversion(df, args):
             mask &= df[cmp_col].astype(float, errors='ignore') < thr
         elif op == ">":
             mask &= df[cmp_col].astype(float, errors='ignore') > thr
+        elif op == "==":
+            mask &= val_as_float == thr
         else:
             raise ValueError(f"Unsupported operator: {op}")
         # Skip rule if no rows match
