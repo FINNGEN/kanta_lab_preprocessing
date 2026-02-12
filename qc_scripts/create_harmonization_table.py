@@ -42,36 +42,40 @@ def main():
     reference_dict = {}
     if os.path.exists(args.ref):
         ref_df = pd.read_csv(args.ref, sep='\t', usecols=[id_in, qt_in, un_out])
-        reference_dict = {(str(r[id_in]), str(r[qt_in])): str(r[un_out]) for _, r in ref_df.iterrows()}
+        # Clean the reference dictionary to handle string-based nans
+        reference_dict = {
+            (str(r[id_in]), str(r[qt_in])): str(r[un_out]) 
+            for _, r in ref_df.iterrows()
+        }
 
     # --- Vectorized Chunk Reading ---
-    # We use a list to store summarized dataframes.
-    # Appending to a list is O(1), whereas pd.concat in a loop is O(N^2) because it copies data every time.
     summaries = []
-
-    reader = pd.read_csv(
-        args.input, 
-        sep='\t', 
-        usecols=[id_in, qt_in, un_injected, un_source],
-        nrows=args.test,
-        chunksize=1_000_000, 
-        engine='c',
-        low_memory=False
-    )
+    try:
+        reader = pd.read_csv(
+            args.input, 
+            sep='\t', 
+            usecols=[id_in, qt_in, un_injected, un_source],
+            nrows=args.test,
+            chunksize=1_000_000, 
+            engine='c',
+            low_memory=False
+        )
+    except FileNotFoundError:
+        print(f"Error: Input file {args.input} not found.")
+        return
 
     print(f"--- Reading and Summarizing Chunks ---")
     for i, chunk in enumerate(reader):
         print(f" > Reading: {i+1}M lines...", end='\r', flush=True)
-        
-        # Vectorized filtering of invalid IDs
         chunk = chunk[~chunk[id_in].isin([0, -1, "0", "-1"])]
         if chunk.empty: continue
-
-        # Local aggregation (reduces million rows to a few thousand unique combos)
         chunk_summary = chunk.groupby([id_in, qt_in, un_injected, un_source], dropna=False).size().reset_index(name='n')
         summaries.append(chunk_summary)
 
-    # One single vectorized collapse of all chunk summaries
+    if not summaries:
+        print("\nNo data to process.")
+        return
+
     print("\n--- Final Vectorized Collapse ---")
     full_counts = pd.concat(summaries, ignore_index=True)
     full_counts = full_counts.groupby([id_in, qt_in, un_injected, un_source], dropna=False, as_index=False).sum()
@@ -97,11 +101,21 @@ def main():
         ref_key = (str(omop_id), str(qty))
         ref_unit_val = reference_dict.get(ref_key, "N/A")
         
+        # --- FIXED COMPARISON LOGIC ---
+        # Normalize both sides to treat N/A variants as identical
+        def normalize_na(val):
+            v = str(val).lower()
+            return "NA" if v in ["nan", "none", "n/a", "na"] else val
+
+        norm_injected = normalize_na(injected_mode)
+        norm_ref = normalize_na(ref_unit_val)
+
         if ref_unit_val != "N/A":
-            if str(injected_mode) != ref_unit_val:
+            # Only trigger a diff if they aren't both "NA" and aren't equal
+            if norm_injected != norm_ref:
                 note_msg += f" | REF DIFF: ref was {ref_unit_val}"
                 impact_flag = True
-        elif injected_mode != "NA":
+        elif norm_injected != "NA":
             note_msg += " | NEW MAPPING"
             impact_flag = True
 
@@ -112,8 +126,9 @@ def main():
             "cleaned-source": source_mode,
             "REF_UNIT": ref_unit_val,
             "NOTES": note_msg,
-            "PREV_SOURCE": json.dumps(source_prev),
-            "PREV_INJECTED": json.dumps(injected_prev),
+            # Sanitizing quotes for GitHub searchability
+            "PREV_SOURCE": json.dumps(source_prev).replace('"', "'"),
+            "PREV_INJECTED": json.dumps(injected_prev).replace('"', "'"),
             "_total_count": group_total_n
         }
         
@@ -121,16 +136,16 @@ def main():
         if impact_flag:
             diff_rows.append(row_data)
 
-    # Final Output
+    # --- Final Output ---
     result_df = pd.DataFrame(final_rows).sort_values("_total_count", ascending=False)
     result_df[[id_in, qt_in, un_out, "NOTES", "PREV_SOURCE", "PREV_INJECTED"]].to_csv(
-        args.out, sep='\t', index=False, quoting=csv.QUOTE_NONE, escapechar='\\'
+        args.out, sep='\t', index=False
     )
     
     if diff_rows:
         diff_df = pd.DataFrame(diff_rows).sort_values("_total_count", ascending=False).drop(columns=["_total_count"])
         diff_df.rename(columns={un_out: "cleaned-injected"}).to_csv(
-            args.diff_out, sep='\t', index=False, quoting=csv.QUOTE_NONE, escapechar='\\'
+            args.diff_out, sep='\t', index=False
         )
     
     print(f"Done. Main results: {args.out}")

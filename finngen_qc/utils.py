@@ -78,7 +78,6 @@ def init_harmonization(args, logger):
         #DEBUG
         args.config['unit_conversion']['only_to_omop_concepts'] = ~args.config['unit_conversion']['only_to_omop_concepts'].isna().astype(bool)
         logger.debug(args.config['unit_conversion'][~args.config['unit_conversion']['only_to_omop_concepts'].isna()])
-
     #logger.debug(args.config['usagi_units'])
     logger.debug("USGAGI MAPPING")
     logger.debug(args.config['usagi_mapping'])
