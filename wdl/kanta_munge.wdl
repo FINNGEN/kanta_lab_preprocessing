@@ -176,7 +176,6 @@ task split{
 }
 
 
-
 task GetCurrentDate {
   command <<<
   date +%Y_%m_%d | tr -d '\n'

@@ -95,7 +95,6 @@ harmonization_omop::OMOP_ID	THRESHOLD	SIDE	QC_NOTES	MISC	conceptName
 3024889	0	<	IMPOSSIBLE_VALUE	NA	Methemoglobin/Hemoglobin.total in Venous blood
 3000330	0.3	<	IMPLAUSIBLE_VALUE	NA	Specific gravity of Urine by Test strip
 3023081	0	<	IMPOSSIBLE_VALUE	NA	Carboxyhemoglobin/Hemoglobin.total in Blood
-3007930	0	<	IMPOSSIBLE_VALUE	NA	Methemoglobin/Hemoglobin.total in Blood
 3020427	10	<	IMPLAUSIBLE_VALUE	NA	Coagulation factor X inhibitor [Units/volume] in Platelet poor plasma by Coagulation assay
 3003434	10000	>	IMPLAUSIBLE_VALUE	NA	Protein [Mass/volume] in Pleural fluid
 3040151	0	<	IMPOSSIBLE_VALUE	NA	Glucose [Moles/volume] in Capillary blood
@@ -366,7 +365,6 @@ harmonization_omop::OMOP_ID	THRESHOLD	SIDE	QC_NOTES	MISC	conceptName
 3027953	NA	NA	NA	NA	Aldolase [Enzymatic activity/volume] in Serum or Plasma
 3045684	NA	NA	NA	NA	Alkaline phosphatase.other fractions [Enzymatic activity/volume] in Serum or Plasma
 3037534	NA	NA	NA	NA	Parathyrin related protein [Mass/volume] in Serum or Plasma
-3019420	NA	NA	NA	NA	Tryptase [Mass/volume] in Serum or Plasma
 3036535	NA	NA	NA	NA	Thyroglobulin [Mass/volume] in Serum or Plasma
 3027923	NA	NA	NA	NA	C peptide [Moles/volume] in Serum or Plasma
 3035062	NA	NA	NA	NA	Alkaline phosphatase.liver 1 [Enzymatic activity/volume] in Serum or Plasma
