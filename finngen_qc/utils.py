@@ -31,10 +31,8 @@ def init_harmonization(args, logger):
         cols, fname, subfolder = value
         # Use basename so pandas looks in 'data/' directly
         local_file = os.path.join(dir_path, 'data', os.path.basename(fname))
-        
         sep = ',' if fname.endswith('.csv') else '\t'
         rename = {col: new_col for col, new_col in args.config['harmonization_col_map'].items() if col in cols}
-        
         # Load from the flat local path
         args.config[key] = pd.read_csv(local_file, usecols=cols, sep=sep).rename(columns=rename).drop_duplicates()
         
@@ -43,6 +41,9 @@ def init_harmonization(args, logger):
     args.config['usagi_units'] =args.config['usagi_units'][args.config['usagi_units']['ADD_INFO:UniqueForLab'] == True]
     args.config['unit_conversion']= args.config['unit_conversion'].rename(columns={'source_unit_valid':'MEASUREMENT_UNIT'})
     args.config['unit_conversion']['only_to_omop_concepts']= args.config['unit_conversion']['only_to_omop_concepts'].astype("Int64")
+    # THIS PART MAKES SURE NA IS A VALID TARGET UNIT
+    cols_to_fix = ['MEASUREMENT_UNIT', 'harmonization_omop::MEASUREMENT_UNIT']
+    args.config['unit_conversion'][cols_to_fix] = args.config['unit_conversion'][cols_to_fix].fillna("NA")
     args.config['usagi_mapping']['harmonization_omop::OMOP_ID'] =args.config['usagi_mapping']['harmonization_omop::OMOP_ID'].astype(int)
     logger.debug(args.config['unit_abbreviation_fix'][args.config['unit_abbreviation_fix'].TEST_NAME_ABBREVIATION =='p-tt-inr'])
     args.config['unit_abbreviation_fix'] = args.config['unit_abbreviation_fix'].fillna("NA")
@@ -65,13 +66,17 @@ def init_harmonization(args, logger):
         Volume Rate/Area	ml/min/173m2	ml/s/173m2	0.01666667	False	40771922
         Volume Rate/Area	ml/s/173m2	ml/s/173m2	1	False	40771922
         THen in the harmonization step we will merge over OMOP_CONCEPT_ID and cleaned unit and there will be uniquely defined conversion factor
+        N.B.
+        This also accepts cases when the target unit is NA!
         '''
         
         #merges harmonization table from vincent with chosen target unit for each concept id
         logger.debug('merge harmonization counts and table')
         harmonization_counts = pd.read_csv(args.harmonization,sep='\t',usecols=['harmonization_omop::OMOP_ID','harmonization_omop::omopQuantity','harmonization_omop::MEASUREMENT_UNIT'])
-        harmonization_counts = harmonization_counts.dropna(subset=['harmonization_omop::MEASUREMENT_UNIT'])
+        #makse sure that target unit NA is a valid unit if it's in the data!
+        harmonization_counts['harmonization_omop::MEASUREMENT_UNIT'] = harmonization_counts['harmonization_omop::MEASUREMENT_UNIT'].fillna("NA")
         args.config['unit_conversion'] = pd.merge(args.config['unit_conversion'],harmonization_counts,on=['harmonization_omop::omopQuantity','harmonization_omop::MEASUREMENT_UNIT'])
+
         #only keep entries where the OMOP ID exception matches the OMOP ID column
         mask = (args.config['unit_conversion']['only_to_omop_concepts'] == args.config['unit_conversion']['harmonization_omop::OMOP_ID'].astype(int)) | (args.config['unit_conversion']['only_to_omop_concepts'].isna())
         args.config['unit_conversion'] = args.config['unit_conversion'][mask]
