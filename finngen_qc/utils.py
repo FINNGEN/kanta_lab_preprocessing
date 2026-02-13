@@ -48,8 +48,19 @@ def init_harmonization(args, logger):
     logger.debug(args.config['unit_abbreviation_fix'][args.config['unit_abbreviation_fix'].TEST_NAME_ABBREVIATION =='p-tt-inr'])
     args.config['unit_abbreviation_fix'] = args.config['unit_abbreviation_fix'].fillna("NA")
     logger.debug(args.config['unit_abbreviation_fix'][args.config['unit_abbreviation_fix'].TEST_NAME_ABBREVIATION =='p-tt-inr'])
-    logger.debug(args.config['usagi_mapping'][args.config['usagi_mapping']["TEST_NAME_ABBREVIATION"] == 'p-vrab-o'])
 
+    # 1. Detect and warn about trailing/leading spaces
+    mask = args.config['usagi_mapping']['TEST_NAME_ABBREVIATION'].str.strip() != args.config['usagi_mapping']['TEST_NAME_ABBREVIATION']
+
+    if mask.any():
+        offenders = args.config['usagi_mapping'].loc[mask, 'TEST_NAME_ABBREVIATION'].unique().tolist()
+        logger.warning(f"Sanitized spaces in Usagi 'TEST_NAME_ABBREVIATION': {offenders}")
+    
+        # 2. Vectorized strip
+        args.config['usagi_mapping']['TEST_NAME_ABBREVIATION'] = args.config['usagi_mapping']['TEST_NAME_ABBREVIATION'].str.strip()
+
+    logger.debug(args.config['usagi_mapping'][args.config['usagi_mapping']['TEST_NAME_ABBREVIATION'] == 'p-vrab-o'])
+    
     if args.harmonization:
         '''
         this step creates a new df where the table of unit conversion is merged with the table of target units.
