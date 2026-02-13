@@ -81,7 +81,6 @@ def fix_unit_based_on_abbreviation(df,args):
     original_cols = df.columns
     df = pd.merge(df,args.config['unit_abbreviation_fix'],left_on = ['TEST_NAME_ABBREVIATION','MEASUREMENT_UNIT'],right_on=['TEST_NAME_ABBREVIATION','source_unit_clean'],how='left')
     added_cols = df.columns.difference(original_cols)
-    print(added_cols)
     df[added_cols] = df[added_cols].fillna("UNMAPPED")
     # take n
     fix_mask = (df['source_unit_clean_fix'] != "UNMAPPED") & (df['MEASUREMENT_VALUE'] != "NA") & (df['source_unit_clean_fix'] != "NA")
