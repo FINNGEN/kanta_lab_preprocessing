@@ -1,154 +1,156 @@
 import pandas as pd
-import argparse
-import sys
-import os
 import json
-import csv
+import os
+import argparse
+import subprocess
+from io import StringIO
 
-def get_mode_stats(group, col_name, total_n):
-    """Calculates mode (ignoring NA) and top 3 prevalence (including NA)."""
-    stats = group.groupby(col_name, dropna=False)['n'].sum().sort_values(ascending=False)
+def get_mode_stats(group, col):
+    """Calculates distribution and prioritizes real units over NA."""
+    counts = group.groupby(col, dropna=False)['n'].sum()
+    if counts.empty:
+        return "NA", {}
     
-    valid = stats[stats.index.notna() & (stats.index.astype(str).str.lower() != 'nan')]
-    mode = valid.index[0] if not valid.empty else "NA"
+    total = counts.sum()
+    processed_counts = {}
     
-    top_3 = stats.head(3)
-    prevalence = {
-        (str(u) if pd.notna(u) and str(u).lower() != 'nan' else "NA"): round(count / total_n, 4) 
-        for u, count in top_3.items()
-    }
-    return mode, prevalence
+    # Normalize keys to 'NA' or the real string
+    for k, v in counts.items():
+        key = "NA" if str(k) in ['\\N', 'nan', 'None', '', 'NA'] else str(k)
+        processed_counts[key] = processed_counts.get(key, 0) + int(v)
+
+    prev = {k: round(v/total, 4) for k, v in processed_counts.items()}
+    
+    # Filter to find actual units
+    real_units = {k: v for k, v in processed_counts.items() if k != "NA"}
+    
+    if real_units:
+        # Pick the most frequent unit that is NOT NA
+        final_mode = max(real_units, key=real_units.get)
+    else:
+        final_mode = "NA"
+        
+    return final_mode, prev
+
 
 def main():
-    # --- Setup ---
     script_dir = os.path.dirname(os.path.abspath(__file__))
     default_ref_path = os.path.abspath(os.path.join(script_dir, "..", "finngen_qc", "data", "harmonization_counts.tsv"))
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("input", nargs='?', default=os.path.expanduser("~/fg-3/kanta_v3/munged/kanta_v3_harmonized_2026_02_02.txt.gz"))
+    parser.add_argument("--input", required=True, help="Input Parquet file")
     parser.add_argument("--ref", default=default_ref_path)
-    parser.add_argument("--test", nargs='?', type=int, const=2000000)
     parser.add_argument("--out", default="harmonization_counts.tsv")
     parser.add_argument("--diff-out", default="harmonization_diffs.tsv")
+    parser.add_argument("--min-count", type=int, default=1)
     args = parser.parse_args()
 
-    id_in = "harmonization_omop::OMOP_ID"
-    qt_in = "harmonization_omop::omopQuantity"
-    un_injected = "cleaned::MEASUREMENT_UNIT"
-    un_source = "cleaned-pre-fix::MEASUREMENT_UNIT"
-    un_out = "harmonization_omop::MEASUREMENT_UNIT"
+    # Legacy Headers
+    id_ref = "harmonization_omop::OMOP_ID"
+    qt_ref = "harmonization_omop::omopQuantity"
+    un_ref = "harmonization_omop::MEASUREMENT_UNIT"
 
-    # --- Load Reference ---
+    # --- Step 1: Detect Casing ---
+    describe_cmd = ['clickhouse', '--query', f"DESCRIBE file('{args.input}', 'Parquet')", '--format', 'TSVWithNames']
+    schema_info = pd.read_csv(StringIO(subprocess.check_output(describe_cmd).decode()), sep='\t')
+    actual_cols = schema_info['name'].tolist()
+
+    def get_actual_name(target):
+        if target in actual_cols: return target
+        if target.lower() in actual_cols: return target.lower()
+        return None
+
+    id_phys = get_actual_name("OMOP_CONCEPT_ID")
+    qt_phys = get_actual_name("OMOP_QUANTITY")
+    un_injected_phys = get_actual_name("MEASUREMENT_UNIT_CLEANED")
+    un_source_phys = get_actual_name("MEASUREMENT_UNIT_PRE_FIX")
+
+    # --- Step 2: Load Reference ---
     reference_dict = {}
     if os.path.exists(args.ref):
-        ref_df = pd.read_csv(args.ref, sep='\t', usecols=[id_in, qt_in, un_out])
-        # Clean the reference dictionary to handle string-based nans
+        ref_df = pd.read_csv(args.ref, sep='\t').fillna('NA')
         reference_dict = {
-            (str(r[id_in]), str(r[qt_in])): str(r[un_out]) 
-            for _, r in ref_df.iterrows()
+            (str(r[id_ref]), str(r[qt_ref])): str(r[un_ref]) 
+            for _, r in ref_df.iterrows() if id_ref in ref_df.columns
         }
 
-    # --- Vectorized Chunk Reading ---
-    summaries = []
-    try:
-        reader = pd.read_csv(
-            args.input, 
-            sep='\t', 
-            usecols=[id_in, qt_in, un_injected, un_source],
-            nrows=args.test,
-            chunksize=1_000_000, 
-            engine='c',
-            low_memory=False
-        )
-    except FileNotFoundError:
-        print(f"Error: Input file {args.input} not found.")
-        return
+    # --- Step 3: Run Aggregation with NULL handling ---
+    # We use coalesce in SQL to prevent \N from ever entering the omopQuantity field
+    query = f"""
+        SELECT 
+            toString({id_phys}) AS omop_id, 
+            coalesce(nullIf(toString({qt_phys}), ''), 'NA') AS qty, 
+            {un_injected_phys} AS injected, 
+            {un_source_phys} AS source, 
+            count() as n
+        FROM file('{args.input}', 'Parquet')
+        WHERE {id_phys} NOT IN (0, -1, '0', '-1')
+        GROUP BY 1, 2, 3, 4
+        HAVING n >= {args.min_count}
+    """
 
-    print(f"--- Reading and Summarizing Chunks ---")
-    for i, chunk in enumerate(reader):
-        print(f" > Reading: {i+1}M lines...", end='\r', flush=True)
-        chunk = chunk[~chunk[id_in].isin([0, -1, "0", "-1"])]
-        if chunk.empty: continue
-        chunk_summary = chunk.groupby([id_in, qt_in, un_injected, un_source], dropna=False).size().reset_index(name='n')
-        summaries.append(chunk_summary)
+    process = subprocess.run(['clickhouse', '--query', query, '--format', 'TSVWithNames'], 
+                             capture_output=True, text=True, check=True)
+    full_counts = pd.read_csv(StringIO(process.stdout), sep='\t').fillna('NA')
 
-    if not summaries:
-        print("\nNo data to process.")
-        return
+    # --- Step 4: Analysis ---
+    final_rows, diff_rows = [], []
+    def normalize_na(val):
+        v = str(val).lower()
+        return "na" if v in ["nan", "none", "n/a", "na", "", "null", "\\n"] else v
 
-    print("\n--- Final Vectorized Collapse ---")
-    full_counts = pd.concat(summaries, ignore_index=True)
-    full_counts = full_counts.groupby([id_in, qt_in, un_injected, un_source], dropna=False, as_index=False).sum()
-
-    # --- Analysis & Output ---
-    final_rows = []
-    diff_rows = []
-
-    print("--- Calculating Modes and Comparisons ---")
-    for (omop_id, qty), group in full_counts.groupby([id_in, qt_in], dropna=False):
+    for (omop_id, qty), group in full_counts.groupby(['omop_id', 'qty'], dropna=False):
         group_total_n = group['n'].sum()
-        
-        source_mode, source_prev = get_mode_stats(group, un_source, group_total_n)
-        injected_mode, injected_prev = get_mode_stats(group, un_injected, group_total_n)
+        source_mode, source_prev = get_mode_stats(group, 'source')
+        injected_mode, injected_prev = get_mode_stats(group, 'injected')
 
         note_msg = "Injected matches Source"
         impact_flag = False
 
-        if injected_mode != source_mode:
+        if normalize_na(injected_mode) != normalize_na(source_mode):
             note_msg = f"INJECTION CHANGE: Source mode was '{source_mode}'"
             impact_flag = True
 
         ref_key = (str(omop_id), str(qty))
         ref_unit_val = reference_dict.get(ref_key, "N/A")
         
-        # --- FIXED COMPARISON LOGIC ---
-        # Normalize both sides to treat N/A variants as identical
-        def normalize_na(val):
-            v = str(val).lower()
-            return "NA" if v in ["nan", "none", "n/a", "na"] else val
-
         norm_injected = normalize_na(injected_mode)
         norm_ref = normalize_na(ref_unit_val)
 
         if ref_unit_val != "N/A":
-            # Only trigger a diff if they aren't both "NA" and aren't equal
             if norm_injected != norm_ref:
                 note_msg += f" | REF DIFF: ref was {ref_unit_val}"
                 impact_flag = True
-        elif norm_injected != "NA":
+        elif norm_injected != "na":
             note_msg += " | NEW MAPPING"
             impact_flag = True
 
         row_data = {
-            id_in: omop_id,
-            qt_in: qty,
-            un_out: injected_mode,
-            "cleaned-source": source_mode,
-            "REF_UNIT": ref_unit_val,
+            id_ref: omop_id,
+            qt_ref: qty,
+            un_ref: injected_mode,
             "NOTES": note_msg,
-            # Sanitizing quotes for GitHub searchability
             "PREV_SOURCE": json.dumps(source_prev).replace('"', "'"),
             "PREV_INJECTED": json.dumps(injected_prev).replace('"', "'"),
-            "_total_count": group_total_n
+            "_total_count": int(group_total_n)
         }
-        
         final_rows.append(row_data)
         if impact_flag:
             diff_rows.append(row_data)
 
-    # --- Final Output ---
-    result_df = pd.DataFrame(final_rows).sort_values("_total_count", ascending=False)
-    result_df[[id_in, qt_in, un_out, "NOTES", "PREV_SOURCE", "PREV_INJECTED"]].to_csv(
-        args.out, sep='\t', index=False
-    )
-    
-    if diff_rows:
-        diff_df = pd.DataFrame(diff_rows).sort_values("_total_count", ascending=False).drop(columns=["_total_count"])
-        diff_df.rename(columns={un_out: "cleaned-injected"}).to_csv(
-            args.diff_out, sep='\t', index=False
-        )
-    
-    print(f"Done. Main results: {args.out}")
+    if final_rows:
+        res = pd.DataFrame(final_rows).sort_values("_total_count", ascending=False)
+        output_cols = [id_ref, qt_ref, un_ref, "NOTES", "PREV_SOURCE", "PREV_INJECTED"]
+        
+        # Final cleanup for the dataframe to ensure no \N or nan escapes
+        res = res.replace(['\\N', 'nan', None], 'NA')
+        
+        res[output_cols].to_csv(args.out, sep='\t', index=False)
+        if diff_rows:
+            diff_res = pd.DataFrame(diff_rows).sort_values("_total_count", ascending=False).replace(['\\N', 'nan', None], 'NA')
+            diff_res[output_cols].to_csv(args.diff_out, sep='\t', index=False)
+            
+    print(f"Done. Output: {args.out}")
 
 if __name__ == "__main__":
     main()

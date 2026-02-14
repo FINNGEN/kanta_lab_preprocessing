@@ -37,17 +37,26 @@ workflow kanta_munge {
   }
   call merge {
     input:
-    docker = kanta_docker,
+    docker = select_first([analysis_docker,kanta_docker]),
     prefix = base_prefix,
     munged_chunks = munge.munged_chunk
   }
-  call analysis {input: docker = select_first([analysis_docker,kanta_docker]),merged_file = merge.munged,prefix = base_prefix}
+  call analysis {
+    input:
+    docker = select_first([analysis_docker,kanta_docker]),
+    merged_file = merge.merged,
+    merged_parquet=merge.merged_parquet,
+    prefix = base_prefix
+  }
+
 }
+
 
 task analysis {
   input {
+    File merged_parquet
     File merged_file
-    String  prefix
+    String prefix
     String docker
   }
 
@@ -56,12 +65,12 @@ task analysis {
   String injection_issues = prefix+ "_injection_check.tsv"
   command <<<
   # this step creates the table of most common unit per OMOP_ID
-  python3 /qc_scripts/create_harmonization_table.py ~{merged_file}
+  python3 /qc_scripts/create_harmonization_table.py --input ~{merged_parquet} 
+  # this step is similar but in reverse. it checks that the injections led to a KS <.3 for harmonized values
+  python3 /qc_scripts/injection_check.py ~{merged_parquet} -o ~{injection_issues}
   # this step creates a candidate injection based on KS values for unharmonized data with source values
   # it also returns the counts of TEST_NAME,UNIT(cleaned) that do not have a mapping
   python3 /qc_scripts/unharmonized.py ~{merged_file}  -a ~{injection} -u ~{unmap}
-  # this step is similar but in reverse. it checks that the injections led to a KS <.3 for harmonized values
-  python3 /qc_scripts/injection_check.py ~{merged_file} -o ~{injection_issues} 
   >>>
   runtime {
     disks: "local-disk ~{ceil(size(merged_file,'GB')) + 20} HDD"
@@ -77,13 +86,15 @@ task analysis {
     File injection_mismathces =  "~{injection_issues}"
   }
 }
+
+
 task merge {
   input {
     Array[File] munged_chunks
     String prefix
     String docker 
-
   }
+  String parquet_prefix = prefix + "_formatted"
   String out_file = prefix +".txt.gz"
 
   command <<<
@@ -91,6 +102,7 @@ task merge {
   FIRST_LINE=$(zcat ~{munged_chunks[0]} | head -n1)
   # Use that string to delete duplicates in the stream
   sort -V ~{write_lines(munged_chunks)} | xargs pigz -dc | sed "1b; /^$FIRST_LINE$/d" | pigz -c > ~{out_file}
+  bash /sb_release/run.sh ~{out_file} . ~{parquet_prefix} munged
   >>>
   runtime {
     disks: "local-disk ~{ceil(size(munged_chunks,'GB')) * 4 + 10} HDD"
@@ -98,7 +110,8 @@ task merge {
   }
  
   output {
-    File munged = out_file
+    File merged = out_file
+    File merged_parquet = "~{parquet_prefix}.parquet"
   }
 }
 
