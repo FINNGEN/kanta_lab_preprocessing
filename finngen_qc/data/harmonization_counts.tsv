@@ -361,7 +361,7 @@ harmonization_omop::OMOP_ID	harmonization_omop::omopQuantity	harmonization_omop:
 3000570	Mass Content	ug/g	Injected matches Source	{'ug/g': 0.5812, 'NA': 0.4188}	{'ug/g': 0.5812, 'NA': 0.4188}
 3049804	Arbitrary Concentration	iu/ml	Injected matches Source	{'NA': 0.9298, 'iu/ml': 0.0693, 'u/ml': 0.0008}	{'NA': 0.9298, 'iu/ml': 0.0693, 'u/ml': 0.0008}
 3008898	Presence or Threshold	NA	Injected matches Source | REF DIFF: ref was nan	{'NA': 1.0}	{'NA': 1.0}
-44816559	Mass Concentration	NA	Injected matches Source | REF DIFF: ref was nan	{'NA': 1.0}	{'NA': 1.0}
+44816559	Mass Concentration	mg/l	Injected matches Source | REF DIFF: ref was nan	{'NA': 1.0}	{'NA': 1.0}
 3036535	Mass Concentration	ug/l	Injected matches Source	{'NA': 0.5232, 'ug/l': 0.4768}	{'NA': 0.5232, 'ug/l': 0.4768}
 3042194	Presence or Threshold	NA	Injected matches Source | REF DIFF: ref was nan	{'NA': 1.0}	{'NA': 1.0}
 3015916	Arbitrary Concentration	u/ml	Injected matches Source	{'u/ml': 1.0}	{'u/ml': 1.0}

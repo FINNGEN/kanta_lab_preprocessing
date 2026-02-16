@@ -41,7 +41,7 @@ def init_harmonization(args, logger):
     args.config['usagi_units'] =args.config['usagi_units'][args.config['usagi_units']['ADD_INFO:UniqueForLab'] == True]
     args.config['unit_conversion']= args.config['unit_conversion'].rename(columns={'source_unit_valid':'MEASUREMENT_UNIT'})
     args.config['unit_conversion']['only_to_omop_concepts']= args.config['unit_conversion']['only_to_omop_concepts'].astype("Int64")
-    # THIS PART MAKES SURE NA IS A VALID TARGET UNIT
+    # THIS PART MAKES SURE NA IS A VALID TARGET UNIT --> this is relevant for Presence or Threshold OMOP IDs since NA is a valid unit indeed!
     cols_to_fix = ['MEASUREMENT_UNIT', 'harmonization_omop::MEASUREMENT_UNIT']
     args.config['unit_conversion'][cols_to_fix] = args.config['unit_conversion'][cols_to_fix].fillna("NA")
     args.config['usagi_mapping']['harmonization_omop::OMOP_ID'] =args.config['usagi_mapping']['harmonization_omop::OMOP_ID'].astype(int)
@@ -61,39 +61,42 @@ def init_harmonization(args, logger):
 
     logger.debug(args.config['usagi_mapping'][args.config['usagi_mapping']['TEST_NAME_ABBREVIATION'] == 'p-vrab-o'])
     
-    if args.harmonization:
-        '''
-        this step creates a new df where the table of unit conversion is merged with the table of target units.
-        This way we build a table with all possible conversion from all existing units (table 1) to target units (table 2) based on omop mappings
-        e.g.
-        harmonization_omop::OMOP_ID	harmonization_omop::omopQuantity	harmonization_omop::MEASUREMENT_UNIT
-        40771922	Volume Rate/Area	ml/s/173m2
-        is merged with
-        omop_quantity	source_unit_valid	to_source_unit_valid	conversion	only_to_omop_concepts
-        Volume Rate/Area	ml/min/173m2	ml/s/173m2	0.01666667	
-        Volume Rate/Area	ml/s/173m2	ml/s/173m2	1
-        into
-        harmonization_omop::omopQuantity	MEASUREMENT_UNIT	harmonization_omop::MEASUREMENT_UNIT	harmonization_omop::CONVERSION_FACTOR	only_to_omop_concepts	harmonization_omop::OMOP_ID
-        Volume Rate/Area	ml/min/173m2	ml/s/173m2	0.01666667	False	40771922
-        Volume Rate/Area	ml/s/173m2	ml/s/173m2	1	False	40771922
-        THen in the harmonization step we will merge over OMOP_CONCEPT_ID and cleaned unit and there will be uniquely defined conversion factor
-        N.B.
-        This also accepts cases when the target unit is NA!
-        '''
-        
-        #merges harmonization table from vincent with chosen target unit for each concept id
-        logger.debug('merge harmonization counts and table')
-        harmonization_counts = pd.read_csv(args.harmonization,sep='\t',usecols=['harmonization_omop::OMOP_ID','harmonization_omop::omopQuantity','harmonization_omop::MEASUREMENT_UNIT'])
-        #makse sure that target unit NA is a valid unit if it's in the data!
-        harmonization_counts['harmonization_omop::MEASUREMENT_UNIT'] = harmonization_counts['harmonization_omop::MEASUREMENT_UNIT'].fillna("NA")
-        args.config['unit_conversion'] = pd.merge(args.config['unit_conversion'],harmonization_counts,on=['harmonization_omop::omopQuantity','harmonization_omop::MEASUREMENT_UNIT'])
-
-        #only keep entries where the OMOP ID exception matches the OMOP ID column
-        mask = (args.config['unit_conversion']['only_to_omop_concepts'] == args.config['unit_conversion']['harmonization_omop::OMOP_ID'].astype(int)) | (args.config['unit_conversion']['only_to_omop_concepts'].isna())
-        args.config['unit_conversion'] = args.config['unit_conversion'][mask]
-        #DEBUG
-        args.config['unit_conversion']['only_to_omop_concepts'] = ~args.config['unit_conversion']['only_to_omop_concepts'].isna().astype(bool)
-        logger.debug(args.config['unit_conversion'][~args.config['unit_conversion']['only_to_omop_concepts'].isna()])
+    ####################################
+    ### TARGET UNIT AND HARMONIZATION ###
+    ####################################
+    '''
+    this step creates a new df where the table of unit conversion is merged with the table of target units.
+    This way we build a table with all possible conversion from all existing units (table 1) to target units (table 2) based on omop mappings
+    e.g.
+    harmonization_omop::OMOP_ID	harmonization_omop::omopQuantity	harmonization_omop::MEASUREMENT_UNIT
+    40771922	Volume Rate/Area	ml/s/173m2
+    is merged with
+    omop_quantity	source_unit_valid	to_source_unit_valid	conversion	only_to_omop_concepts
+    Volume Rate/Area	ml/min/173m2	ml/s/173m2	0.01666667	
+    Volume Rate/Area	ml/s/173m2	ml/s/173m2	1
+    into
+    harmonization_omop::omopQuantity	MEASUREMENT_UNIT	harmonization_omop::MEASUREMENT_UNIT	harmonization_omop::CONVERSION_FACTOR	only_to_omop_concepts	harmonization_omop::OMOP_ID
+    Volume Rate/Area	ml/min/173m2	ml/s/173m2	0.01666667	False	40771922
+    Volume Rate/Area	ml/s/173m2	ml/s/173m2	1	False	40771922
+    THen in the harmonization step we will merge over OMOP_CONCEPT_ID and cleaned unit and there will be uniquely defined conversion factor
+    N.B.
+    This also accepts cases when the target unit is NA!
+    '''
+    
+    #merges harmonization table from vincent with chosen target unit for each concept id
+    logger.debug('merge harmonization counts and table')
+    harmonization_counts = pd.read_csv(args.harmonization,sep='\t',usecols=['harmonization_omop::OMOP_ID','harmonization_omop::omopQuantity','harmonization_omop::MEASUREMENT_UNIT'])
+    #makse sure that target unit NA is a valid unit if it's in the data!
+    harmonization_counts['harmonization_omop::MEASUREMENT_UNIT'] = harmonization_counts['harmonization_omop::MEASUREMENT_UNIT'].fillna("NA")
+    args.config['unit_conversion'] = pd.merge(args.config['unit_conversion'],harmonization_counts,on=['harmonization_omop::omopQuantity','harmonization_omop::MEASUREMENT_UNIT'])
+    
+    #only keep entries where the OMOP ID exception matches the OMOP ID column
+    mask = (args.config['unit_conversion']['only_to_omop_concepts'] == args.config['unit_conversion']['harmonization_omop::OMOP_ID'].astype(int)) | (args.config['unit_conversion']['only_to_omop_concepts'].isna())
+    args.config['unit_conversion'] = args.config['unit_conversion'][mask]
+    #DEBUG
+    args.config['unit_conversion']['only_to_omop_concepts'] = ~args.config['unit_conversion']['only_to_omop_concepts'].isna().astype(bool)
+    logger.debug(args.config['unit_conversion'][~args.config['unit_conversion']['only_to_omop_concepts'].isna()])
+    
     #logger.debug(args.config['usagi_units'])
     logger.debug("USGAGI MAPPING")
     logger.debug(args.config['usagi_mapping'])

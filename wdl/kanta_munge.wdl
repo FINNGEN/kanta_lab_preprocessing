@@ -70,7 +70,7 @@ task analysis {
   python3 /qc_scripts/injection_check.py ~{merged_parquet} -o ~{injection_issues}
   # this step creates a candidate injection based on KS values for unharmonized data with source values
   # it also returns the counts of TEST_NAME,UNIT(cleaned) that do not have a mapping
-  python3 /qc_scripts/unharmonized.py ~{merged_file}  -a ~{injection} -u ~{unmap}
+  python3 /qc_scripts/unharmonized.py ~{merged_parquet} --min_count 500 --ks-n 100000 -a ~{injection} -u ~{unmap}
   >>>
   runtime {
     disks: "local-disk ~{ceil(size(merged_file,'GB')) + 20} HDD"
@@ -107,6 +107,8 @@ task merge {
   runtime {
     disks: "local-disk ~{ceil(size(munged_chunks,'GB')) * 4 + 10} HDD"
     docker : "~{docker}"
+    memory: "16 GB"
+
   }
  
   output {
@@ -151,7 +153,7 @@ task munge {
   String out_chunk =  "~{prefix}_munged.txt.gz"
   command <<<
   set -euxo pipefail
-  python3 /finngen_qc/main.py  --out .  --raw-data ~{chunk} --log info --mp --harmonization --gz --prefix ~{prefix} --harmonization-gh-branch ~{harmonization_branch}
+  python3 /finngen_qc/main.py  --out .  --raw-data ~{chunk} --log info --mp  --prefix ~{prefix} --harmonization-gh-branch ~{harmonization_branch}
   zcat ~{out_chunk} | wc -l
   >>>
   runtime {

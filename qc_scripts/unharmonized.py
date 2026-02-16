@@ -1,172 +1,137 @@
-import gzip
 import argparse
-import sys
+import subprocess
+import os
 import pandas as pd
 import numpy as np
-import gc
-from collections import Counter
-from scipy.stats import ks_2samp
-from tqdm import tqdm
-
-def get_deciles(series):
-    if series is None or len(series) == 0:
-        return "NA"
-    # Using numpy for speed and memory efficiency
-    arr = np.array(series, dtype=np.float32)
-    arr = arr[~np.isnan(arr)]
-    if arr.size == 0:
-        return "NA"
-    # np.percentile takes 0-100
-    return np.percentile(arr, np.linspace(0, 100, 11)).round(4).tolist()
+from scipy import stats
+import io
+try:
+    from tqdm import tqdm
+except ImportError:
+    def tqdm(iterable, **kwargs):
+        return iterable
 
 def main():
-    parser = argparse.ArgumentParser(description="Full Audit - Memory Optimized - Keeps All Samples")
-    parser.add_argument("input", help="Path to the kanta_..._munged.txt.gz file")
+    parser = argparse.ArgumentParser(description="Audit Script - Target Unit Logic with '-' Placeholder")
+    parser.add_argument("input", help="Path to the input Parquet file")
     parser.add_argument("-u", "--unmapped-output", required=True, help="Output TSV for unmapped tests")
     parser.add_argument("-a", "--audit-output", required=True, help="Output TSV for the audited mismatches")
-    parser.add_argument("--min_count", type=int, default=1000, help="Min count to include in audit")
-    parser.add_argument(
-        "--test", 
-        type=int, 
-        nargs='?', 
-        const=1000000, 
-        default=None, 
-        help="Limit lines. Use --test for 1M or --test <N>."
-    )
+    parser.add_argument("--min_count", type=int, default=1, help="Min count to include")
+    parser.add_argument("--ks-n", type=int, default=5000, help="N samples per group")
     args = parser.parse_args()
 
-    COL_OMOP = "harmonization_omop::OMOP_ID"
-    COL_TEST = "cleaned::TEST_NAME_ABBREVIATION"
-    COL_UNIT = "cleaned::MEASUREMENT_UNIT"
-    COL_SRC_VAL = "source::MEASUREMENT_VALUE"
-    COL_HARM_VAL = "harmonization_omop::MEASUREMENT_VALUE"
-    COL_HARM_UNIT = "harmonization_omop::MEASUREMENT_UNIT"
+    COL_OMOP = "OMOP_CONCEPT_ID"
+    COL_TEST = "TEST_NAME"
+    COL_UNIT_CLEAN = "MEASUREMENT_UNIT_CLEANED"
+    COL_VAL_CLEAN = "MEASUREMENT_VALUE_CLEANED"
+    COL_HARM_VAL = "MEASUREMENT_VALUE_HARMONIZED"
+    COL_HARM_UNIT = "MEASUREMENT_UNIT_HARMONIZED"
 
-    unmapped_counts = Counter()
-    mapped_test_names = set()
+    # --- STEP 1 & 2: GLOBAL STATS & CANDIDATE IDENTIFICATION ---
+    print(f"[*] Step 1 & 2: Querying ClickHouse for candidates...")
     
-    src_samples = {}
-    harm_ref_samples = {}
-    harm_unit_counts = {}
+    global_ref_q = f"""
+    SELECT {COL_OMOP}, 
+           count({COL_HARM_VAL}) AS N_REF_TOTAL, 
+           topK(1)({COL_HARM_UNIT})[1] AS REF_UNIT,
+           quantiles(0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0)({COL_HARM_VAL}) AS HARM_DECILES
+    FROM file('{args.input}', Parquet) 
+    WHERE {COL_HARM_VAL} IS NOT NULL 
+    GROUP BY {COL_OMOP}
+    """
 
-    # Chunksize 250k is usually the "sweet spot" for 32GB VMs
-    reader = pd.read_csv(
-        args.input, sep='\t', compression='gzip',
-        usecols=[COL_OMOP, COL_TEST, COL_UNIT, COL_SRC_VAL, COL_HARM_VAL, COL_HARM_UNIT],
-        chunksize=250_000, nrows=args.test, engine='c', low_memory=False,
-        keep_default_na=False
-    )
+    audit_query = f"""
+    WITH ref_stats AS ({global_ref_q})
+    SELECT a.{COL_OMOP} AS OMOP_ID, 
+           ifNull(nullIf(a.{COL_TEST}, ''), 'NA') AS TEST_ABBR, 
+           ifNull(nullIf(a.{COL_UNIT_CLEAN}, ''), 'NA') AS ORIG_UNIT,
+           ifNull(r.REF_UNIT, 'NA') AS UNIT_POOL,
+           count() AS N_SOURCE, 
+           ifNull(r.N_REF_TOTAL, 0) AS N_REF_TOTAL,
+           quantiles(0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0)(a.{COL_VAL_CLEAN}) AS SOURCE_DECILES,
+           ifNull(toString(r.HARM_DECILES), 'NA') AS HARM_DECILES
+    FROM file('{args.input}', Parquet) AS a
+    LEFT JOIN ref_stats AS r ON a.{COL_OMOP} = r.{COL_OMOP}
+    WHERE (a.{COL_OMOP} IS NOT NULL AND a.{COL_OMOP} != '' AND a.{COL_OMOP} != '-1')
+      AND a.{COL_VAL_CLEAN} IS NOT NULL AND a.{COL_HARM_VAL} IS NULL
+    GROUP BY OMOP_ID, TEST_ABBR, ORIG_UNIT, UNIT_POOL, N_REF_TOTAL, HARM_DECILES
+    HAVING N_SOURCE >= {args.min_count} 
+    ORDER BY N_SOURCE DESC 
+    FORMAT TabSeparatedWithNames
+    """
+    
+    run_clickhouse(audit_query, args.audit_output)
+    df_audit = pd.read_csv(args.audit_output, sep='\t', keep_default_na=False, na_values=[''])
+    
+    if df_audit.empty:
+        print("[!] No candidates found.")
+        return
+    
+    print(f"[+] Step 2 Complete: {len(df_audit)} candidates for auditing.")
 
-    pbar = tqdm(total=args.test, desc="Lines Processed")
-
-    for chunk in reader:
-        # Pre-convert for memory efficiency (float32 saves 50% vs float64)
-        s_num = pd.to_numeric(chunk[COL_SRC_VAL], errors='coerce').astype(np.float32)
-        h_num = pd.to_numeric(chunk[COL_HARM_VAL], errors='coerce').astype(np.float32)
-        chunk[COL_OMOP] = chunk[COL_OMOP].astype(str).replace(['nan', 'None', '', 'NA'], '-1')
+    # --- STEP 3: TARGETED KS SAMPLING ---
+    omops_to_test = df_audit[df_audit['N_REF_TOTAL'] > 0]['OMOP_ID'].unique().astype(str).tolist()
+    
+    if omops_to_test:
+        print(f"[*] Step 3: Fetching raw samples (N={args.ks_n})...")
+        omop_str = "'" + "','".join(omops_to_test) + "'"
+        src_q = f"SELECT {COL_OMOP}, {COL_TEST}, {COL_VAL_CLEAN} FROM file('{args.input}', Parquet) WHERE {COL_OMOP} IN ({omop_str}) AND {COL_VAL_CLEAN} IS NOT NULL LIMIT {args.ks_n} BY {COL_OMOP}, {COL_TEST} FORMAT TabSeparatedWithNames"
+        ref_q = f"SELECT {COL_OMOP}, {COL_HARM_VAL} FROM file('{args.input}', Parquet) WHERE {COL_OMOP} IN ({omop_str}) AND {COL_HARM_VAL} IS NOT NULL LIMIT {args.ks_n} BY {COL_OMOP} FORMAT TabSeparatedWithNames"
         
-        # 1. Unmapped Logic
-        u_mask = chunk[COL_OMOP] == "-1"
-        if u_mask.any():
-            u_batch = chunk[u_mask].groupby([COL_TEST, COL_UNIT]).size()
-            for (t_name, t_unit), count in u_batch.items():
-                unmapped_counts[(t_name, t_unit)] += count
-        
-        # 2. Mismatch Logic
-        mapped_mask = ~u_mask
-        mapped_test_names.update(chunk.loc[mapped_mask, COL_TEST].unique())
-        
-        # Mismatch = Mapped, Source is numeric, but Harmonized is NaN
-        m_mask = mapped_mask & s_num.notna() & h_num.isna()
-        if m_mask.any():
-            m_data = chunk[m_mask]
-            m_vals = s_num[m_mask]
-            # Use index groups for fast slicing
-            for (oid, abbr, unit), idx in m_data.groupby([COL_OMOP, COL_TEST, COL_UNIT]).groups.items():
-                key = (oid, abbr, unit)
-                if key not in src_samples: src_samples[key] = []
-                # Store as numpy arrays inside the list to reduce Python object overhead
-                src_samples[key].append(m_vals.loc[idx].values)
-
-        # 3. Reference Logic (Successes)
-        h_mask = h_num.notna()
-        if h_mask.any():
-            h_data = chunk[h_mask]
-            h_vals = h_num[h_mask]
-            for oid, idx in h_data.groupby(COL_OMOP).groups.items():
-                if oid not in harm_ref_samples:
-                    harm_ref_samples[oid] = []
-                    harm_unit_counts[oid] = Counter()
-                harm_unit_counts[oid].update(h_data.loc[idx, COL_HARM_UNIT].astype(str).tolist())
-                harm_ref_samples[oid].append(h_vals.loc[idx].values)
-
-        pbar.update(len(chunk))
-        del chunk
-        gc.collect()
-
-    pbar.close()
-
-    # --- Write Unmapped ---
-    unmapped_data = [
-        {COL_TEST: k[0], COL_UNIT: k[1], 'COUNT': v, 'HAS_ANY_MAPPING': k[0] in mapped_test_names}
-        for k, v in unmapped_counts.items()
-    ]
-    if unmapped_data:
-        pd.DataFrame(unmapped_data).sort_values('COUNT', ascending=False).to_csv(args.unmapped_output, sep='\t', index=False)
-
-    # --- Write Audit ---
-    final_audit = []
-    for (oid, abbr, unit), list_of_arrays in src_samples.items():
-        # Flatten all chunks back into a single array
-        all_src = np.concatenate(list_of_arrays)
-        n_src = len(all_src)
-        if n_src < args.min_count: continue
-        
-        ref_arrays = harm_ref_samples.get(oid, [])
-        all_harm = np.concatenate(ref_arrays) if ref_arrays else np.array([], dtype=np.float32)
-        
-        u_counts = harm_unit_counts.get(oid, Counter())
-        clean_u = {k: v for k, v in u_counts.items() if str(k).lower() not in ['nan', 'none', 'na', '', '-1']}
-        most_common_unit = max(clean_u, key=clean_u.get) if clean_u else "NA"
-
-        res_row = {
-            "OMOP_ID": oid,
-            "TEST_ABBR": abbr,
-            "ORIG_UNIT": unit,
-            "N_SOURCE": n_src,
-            "N_HARM": len(all_harm),
-            "SUGGESTED_UNIT": "",
-            "NOTES": "",
-            "SOURCE_DECILES": get_deciles(all_src),
-            "HARM_DECILES": get_deciles(all_harm),
-            "KS_STAT": "NA"
-        }
-
-        if len(all_harm) >= 5: 
-            # Drop NaNs just in case for KS test
-            s_clean = all_src[~np.isnan(all_src)]
-            if s_clean.size > 0:
-                ks_stat, _ = ks_2samp(s_clean, all_harm)
-                res_row["KS_STAT"] = f"{ks_stat:.4f}"
-                if ks_stat < 0.3:
-                    res_row["SUGGESTED_UNIT"], res_row["NOTES"] = most_common_unit, "SUCCESS"
-                else:
-                    res_row["NOTES"] = "Distributions differ"
-            else:
-                res_row["NOTES"] = "No valid numeric source values"
-        else:
-            res_row["NOTES"] = "No harmonized reference data"
-
-        final_audit.append(res_row)
-
-    if final_audit:
-        df_audit = pd.DataFrame(final_audit).sort_values("N_SOURCE", ascending=False)
-        df_audit.to_csv(args.audit_output, sep='\t', index=False, na_rep='NA')
+        src_samples = run_clickhouse_to_df(src_q)
+        ref_samples = run_clickhouse_to_df(ref_q)
     else:
-        with open(args.audit_output, 'w') as f:
-            f.write("OMOP_ID\tTEST_ABBR\tORIG_UNIT\tN_SOURCE\tN_HARM\tSUGGESTED_UNIT\tNOTES\tSOURCE_DECILES\tHARM_DECILES\tKS_STAT\n")
+        src_samples, ref_samples = pd.DataFrame(), pd.DataFrame()
 
-    print(f"\nAudit complete. All samples preserved. Processed {args.test if args.test else 'full'} file.")
+    # --- STEP 4: STATISTICS LOOP ---
+    print(f"[*] Step 4: Running KS calculations (D < 0.3 Success)...")
+    df_audit['TARGET_UNIT'] = "-" # Default placeholder
+    df_audit['KS_STAT'] = "NA"
+    df_audit['MLOGP'] = "NA"
+    df_audit['N_HARM_KS'] = 0
+    df_audit['NOTES'] = "NO_REF_DATA"
+
+    for idx, row in tqdm(df_audit.iterrows(), total=len(df_audit), desc="Auditing"):
+        omop, test = str(row['OMOP_ID']), str(row['TEST_ABBR'])
+        if row['N_REF_TOTAL'] == 0: continue
+
+        s2_pool = ref_samples[ref_samples[COL_OMOP].astype(str) == omop][COL_HARM_VAL].values
+        s1 = src_samples[(src_samples[COL_OMOP].astype(str) == omop) & (src_samples[COL_TEST].astype(str) == test)][COL_VAL_CLEAN].values
+
+        if len(s1) > 20 and len(s2_pool) > 20:
+            s1_clean = s1[np.isfinite(s1)]
+            s2_clean = s2_pool[np.isfinite(s2_pool)]
+            df_audit.at[idx, 'N_HARM_KS'] = len(s2_clean)
+
+            d_stat, p_val = stats.ks_2samp(s1_clean, s2_clean)
+            df_audit.at[idx, 'KS_STAT'] = round(d_stat, 4)
+            df_audit.at[idx, 'MLOGP'] = round(-np.log10(max(p_val, 1e-300)), 2)
+            
+            if d_stat < 0.3:
+                df_audit.at[idx, 'TARGET_UNIT'] = row['UNIT_POOL']
+                df_audit.at[idx, 'NOTES'] = "SUCCESS"
+            else:
+                df_audit.at[idx, 'NOTES'] = "KS_FAIL"
+        else:
+            df_audit.at[idx, 'NOTES'] = "INSUFFICIENT_DATA"
+
+    # Final Columns Setup
+    final_cols = [
+        'OMOP_ID', 'TEST_ABBR', 'ORIG_UNIT', 'TARGET_UNIT', 
+        'N_SOURCE', 'N_REF_TOTAL', 'N_HARM_KS', 
+        'KS_STAT', 'MLOGP', 'NOTES', 
+        'SOURCE_DECILES', 'HARM_DECILES'
+    ]
+    df_audit = df_audit[final_cols]
+    df_audit.to_csv(args.audit_output, sep='\t', index=False, na_rep='NA')
+    print(f"\n[!] Audit Finished. File: {args.audit_output}")
+
+def run_clickhouse(q, out):
+    subprocess.run(["clickhouse", "local", "-q", q], stdout=open(out, "w"), check=True)
+
+def run_clickhouse_to_df(q):
+    res = subprocess.run(["clickhouse", "local", "-q", q], capture_output=True, text=True, check=True)
+    return pd.read_csv(io.StringIO(res.stdout), sep='\t', keep_default_na=False, na_values=[''])
 
 if __name__ == "__main__":
     main()

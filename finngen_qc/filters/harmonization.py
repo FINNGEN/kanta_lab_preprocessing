@@ -16,31 +16,86 @@ def harmonization(df,args):
     return df
 
 
-
-
-def unit_harmonization(df,args):
-    """"
-    Creates two new columns for VALUE/UNIT harmonization
+def unit_harmonization(df, args):
     """
-    if args.harmonization:
-        # add CONVERSION column
-        df = pd.merge(df,args.config['unit_conversion'],on=['harmonization_omop::OMOP_ID','harmonization_omop::omopQuantity','MEASUREMENT_UNIT'],how='left').fillna(np.nan)
-        # MAKE SURE MEASUREMENT VALUES is as float column
-        df['MEASUREMENT_VALUE'] =pd.to_numeric(df['MEASUREMENT_VALUE'],errors='coerce')
-        mask = (df['only_to_omop_concepts'] == True)
-        # MULTIPLY VALUE*CONVERSION
-        df.loc[~mask,'harmonization_omop::MEASUREMENT_VALUE'] = df.loc[~mask,'harmonization_omop::CONVERSION_FACTOR'].astype(float)*df.loc[~mask,'MEASUREMENT_VALUE'].astype(float)
-        # Convert X to measurement value in the formula and evaluate
-        df.loc[mask, 'harmonization_omop::MEASUREMENT_VALUE'] = df.loc[mask].apply(
-            lambda row: round(eval(row['harmonization_omop::CONVERSION_FACTOR'].replace(',', '.').replace('X', str(float(row['MEASUREMENT_VALUE'])))), 2),
+    Creates two new columns for VALUE/UNIT harmonization.
+    
+    Process:
+    1. Merge with conversion table (may create duplicates when both general and OMOP-specific conversions exist)
+    2. Handle duplicates by prioritizing OMOP-specific conversions:
+       - _priority = 1 for OMOP-specific (only_to_omop_concepts=True)
+       - _priority = 0 for general conversions
+       - Sort by _priority descending (1 before 0)
+       - Keep first (OMOP-specific) and drop duplicates
+    3. Apply conversions:
+       - Formula-based: conversion factors containing 'X' (e.g., "10.93*X-23.50")
+       - Numeric: simple multiplication (e.g., "0.703")
+    """
+    # Ensure MEASUREMENT_VALUE is float
+    df['MEASUREMENT_VALUE'] = pd.to_numeric(df['MEASUREMENT_VALUE'], errors='coerce')
+    
+    # Add row identifier before merge to track duplicates
+    df['_original_index'] = range(len(df))
+    
+    # Merge with conversion table (creates duplicates when both general and OMOP-specific exist)
+    df = pd.merge(
+        df,
+        args.config['unit_conversion'],
+        on=['harmonization_omop::OMOP_ID', 'harmonization_omop::omopQuantity', 'MEASUREMENT_UNIT'],
+        how='left'
+    )
+    
+    # Handle duplicates: prioritize OMOP-specific conversions over general ones
+    # _priority = 1 for OMOP-specific (only_to_omop_concepts=True)
+    # _priority = 0 for general conversions (only_to_omop_concepts=False/NaN)
+    df['_priority'] = df['only_to_omop_concepts'].apply(lambda x: 1 if x is True else 0)
+    
+    # Sort: same _original_index grouped together, then by _priority descending (1 before 0)
+    # This puts OMOP-specific rows first, general rows second
+    df = df.sort_values(['_original_index', '_priority'], ascending=[True, False])
+    
+    # Keep first row per original index (= OMOP-specific if exists, otherwise general)
+    df = df.drop_duplicates(subset='_original_index', keep='first')
+    df = df.drop(columns=['_original_index', '_priority'])
+    
+    # Initialize result column
+    df['harmonization_omop::MEASUREMENT_VALUE'] = np.nan
+    
+    # Identify rows with conversions and determine if formula or numeric
+    has_conversion = df['harmonization_omop::CONVERSION_FACTOR'].notna()
+    df['_has_formula'] = df['harmonization_omop::CONVERSION_FACTOR'].astype(str).str.contains('X', na=False)
+    
+    # Apply formula-based conversions (conversion factor contains 'X')
+    # Example: "10.93*X-23.50" where X is replaced with MEASUREMENT_VALUE
+    formula_mask = has_conversion & df['_has_formula'] & df['MEASUREMENT_VALUE'].notna()
+    if formula_mask.any():
+        df.loc[formula_mask, 'harmonization_omop::MEASUREMENT_VALUE'] = df.loc[formula_mask].apply(
+            lambda row: round(
+                eval(str(row['harmonization_omop::CONVERSION_FACTOR']).replace(',', '.').replace('X', str(float(row['MEASUREMENT_VALUE'])))),
+                2
+            ),
             axis=1
         )
-        
-        #BRINGS BACK STR TYPE
-        df[['harmonization_omop::MEASUREMENT_VALUE','MEASUREMENT_VALUE','harmonization_omop::CONVERSION_FACTOR','harmonization_omop::MEASUREMENT_UNIT']]=df[['harmonization_omop::MEASUREMENT_VALUE','MEASUREMENT_VALUE','harmonization_omop::CONVERSION_FACTOR','harmonization_omop::MEASUREMENT_UNIT']].fillna("NA")
-        
+    
+    # Apply simple numeric conversions (conversion factor is a number)
+    # Example: "0.703" multiplied by MEASUREMENT_VALUE
+    numeric_mask = has_conversion & ~df['_has_formula'] & df['MEASUREMENT_VALUE'].notna()
+    if numeric_mask.any():
+        df.loc[numeric_mask, 'harmonization_omop::MEASUREMENT_VALUE'] = (
+            pd.to_numeric(df.loc[numeric_mask, 'harmonization_omop::CONVERSION_FACTOR'], errors='coerce') * 
+            df.loc[numeric_mask, 'MEASUREMENT_VALUE']
+        )
+    
+    # Clean up helper column
+    df = df.drop(columns=['_has_formula'])
+    
+    # Convert to string with "NA" placeholders for missing values
+    df[['harmonization_omop::MEASUREMENT_VALUE', 'MEASUREMENT_VALUE', 
+        'harmonization_omop::CONVERSION_FACTOR', 'harmonization_omop::MEASUREMENT_UNIT']] = \
+    df[['harmonization_omop::MEASUREMENT_VALUE', 'MEASUREMENT_VALUE', 
+        'harmonization_omop::CONVERSION_FACTOR', 'harmonization_omop::MEASUREMENT_UNIT']].fillna("NA")
+    
     return df
-
 
 def dump_unit_before_fix(df,args):
     """
