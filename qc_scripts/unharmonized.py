@@ -5,11 +5,29 @@ import pandas as pd
 import numpy as np
 from scipy import stats
 import io
+
 try:
     from tqdm import tqdm
 except ImportError:
     def tqdm(iterable, **kwargs):
         return iterable
+
+def run_clickhouse(q, out):
+    """Runs a query and writes direct to a file path."""
+    try:
+        with open(out, "w") as f:
+            subprocess.run(["clickhouse", "local", "-q", q], stdout=f, check=True)
+    except Exception as e:
+        print(f"[!] ClickHouse execution error: {e}")
+
+def run_clickhouse_to_df(q):
+    """Runs a query and returns a pandas DataFrame."""
+    try:
+        res = subprocess.run(["clickhouse", "local", "-q", q], capture_output=True, text=True, check=True)
+        return pd.read_csv(io.StringIO(res.stdout), sep='\t', keep_default_na=False, na_values=[''])
+    except Exception as e:
+        print(f"[!] ClickHouse to DF error: {e}")
+        return pd.DataFrame()
 
 def main():
     parser = argparse.ArgumentParser(description="Audit Script - Target Unit Logic with '-' Placeholder")
@@ -20,6 +38,23 @@ def main():
     parser.add_argument("--ks-n", type=int, default=5000, help="N samples per group")
     args = parser.parse_args()
 
+    # --- 1. PRE-INITIALIZATION (Ensure files exist no matter what) ---
+    for out_path in [args.unmapped_output, args.audit_output]:
+        os.makedirs(os.path.dirname(os.path.abspath(out_path)), exist_ok=True)
+
+    audit_headers = [
+        'OMOP_ID', 'TEST_ABBR', 'ORIG_UNIT', 'TARGET_UNIT', 
+        'N_SOURCE', 'N_REF_TOTAL', 'N_HARM_KS', 
+        'KS_STAT', 'MLOGP', 'NOTES', 
+        'SOURCE_DECILES', 'HARM_DECILES'
+    ]
+    unmapped_headers = ['TEST_NAME', 'MEASUREMENT_UNIT', 'COUNT', 'HAS_ANY_MAPPING']
+
+    # Initialize files with headers
+    pd.DataFrame(columns=audit_headers).to_csv(args.audit_output, sep='\t', index=False)
+    pd.DataFrame(columns=unmapped_headers).to_csv(args.unmapped_output, sep='\t', index=False)
+
+    # Column Constants
     COL_OMOP = "OMOP_CONCEPT_ID"
     COL_TEST = "TEST_NAME"
     COL_UNIT_CLEAN = "MEASUREMENT_UNIT_CLEANED"
@@ -27,8 +62,34 @@ def main():
     COL_HARM_VAL = "MEASUREMENT_VALUE_HARMONIZED"
     COL_HARM_UNIT = "MEASUREMENT_UNIT_HARMONIZED"
 
-    # --- STEP 1 & 2: GLOBAL STATS & CANDIDATE IDENTIFICATION ---
-    print(f"[*] Step 1 & 2: Querying ClickHouse for candidates...")
+    # --- 2. UNMAPPED LOGIC (With min_count filter) ---
+    print(f"[*] Step 0: Extracting unmapped tests (Min Count: {args.min_count})...")
+    unmapped_query = f"""
+    WITH 
+        mapped_tests AS (
+            SELECT DISTINCT {COL_TEST}
+            FROM file('{args.input}', Parquet)
+            WHERE {COL_OMOP} IS NOT NULL AND {COL_OMOP} != '' AND {COL_OMOP} != '-1'
+        )
+    SELECT 
+        ifNull({COL_TEST}, 'NA') AS {COL_TEST},
+        ifNull({COL_UNIT_CLEAN}, 'NA') AS MEASUREMENT_UNIT,
+        count() AS COUNT,
+        if({COL_TEST} IN mapped_tests, 'True', 'False') AS HAS_ANY_MAPPING
+    FROM file('{args.input}', Parquet)
+    WHERE {COL_OMOP} IS NULL OR {COL_OMOP} = '' OR {COL_OMOP} = '-1'
+    GROUP BY {COL_TEST}, MEASUREMENT_UNIT
+    HAVING COUNT >= {args.min_count}
+    ORDER BY COUNT DESC
+    FORMAT TabSeparated
+    """
+    df_unmapped_data = run_clickhouse_to_df(unmapped_query)
+    if not df_unmapped_data.empty:
+        df_unmapped_data.to_csv(args.unmapped_output, sep='\t', index=False, header=False, mode='a')
+    print(f"[+] Unmapped file updated: {args.unmapped_output}")
+
+    # --- 3. CANDIDATE IDENTIFICATION ---
+    print(f"[*] Step 1 & 2: Querying ClickHouse for audit candidates...")
     
     global_ref_q = f"""
     SELECT {COL_OMOP}, 
@@ -60,16 +121,15 @@ def main():
     FORMAT TabSeparatedWithNames
     """
     
-    run_clickhouse(audit_query, args.audit_output)
-    df_audit = pd.read_csv(args.audit_output, sep='\t', keep_default_na=False, na_values=[''])
+    df_audit = run_clickhouse_to_df(audit_query)
     
     if df_audit.empty:
-        print("[!] No candidates found.")
+        print("[!] No audit candidates found. Audit file remains empty (headers only).")
         return
     
     print(f"[+] Step 2 Complete: {len(df_audit)} candidates for auditing.")
 
-    # --- STEP 3: TARGETED KS SAMPLING ---
+    # --- 4. TARGETED KS SAMPLING ---
     omops_to_test = df_audit[df_audit['N_REF_TOTAL'] > 0]['OMOP_ID'].unique().astype(str).tolist()
     
     if omops_to_test:
@@ -83,9 +143,9 @@ def main():
     else:
         src_samples, ref_samples = pd.DataFrame(), pd.DataFrame()
 
-    # --- STEP 4: STATISTICS LOOP ---
+    # --- 5. STATISTICS LOOP ---
     print(f"[*] Step 4: Running KS calculations (D < 0.3 Success)...")
-    df_audit['TARGET_UNIT'] = "-" # Default placeholder
+    df_audit['TARGET_UNIT'] = "-" 
     df_audit['KS_STAT'] = "NA"
     df_audit['MLOGP'] = "NA"
     df_audit['N_HARM_KS'] = 0
@@ -115,23 +175,10 @@ def main():
         else:
             df_audit.at[idx, 'NOTES'] = "INSUFFICIENT_DATA"
 
-    # Final Columns Setup
-    final_cols = [
-        'OMOP_ID', 'TEST_ABBR', 'ORIG_UNIT', 'TARGET_UNIT', 
-        'N_SOURCE', 'N_REF_TOTAL', 'N_HARM_KS', 
-        'KS_STAT', 'MLOGP', 'NOTES', 
-        'SOURCE_DECILES', 'HARM_DECILES'
-    ]
-    df_audit = df_audit[final_cols]
+    # Final Columns Setup & Write
+    df_audit = df_audit[audit_headers]
     df_audit.to_csv(args.audit_output, sep='\t', index=False, na_rep='NA')
-    print(f"\n[!] Audit Finished. File: {args.audit_output}")
-
-def run_clickhouse(q, out):
-    subprocess.run(["clickhouse", "local", "-q", q], stdout=open(out, "w"), check=True)
-
-def run_clickhouse_to_df(q):
-    res = subprocess.run(["clickhouse", "local", "-q", q], capture_output=True, text=True, check=True)
-    return pd.read_csv(io.StringIO(res.stdout), sep='\t', keep_default_na=False, na_values=[''])
+    print(f"\n[!] All Steps Finished.\nAudit: {args.audit_output}\nUnmapped: {args.unmapped_output}")
 
 if __name__ == "__main__":
     main()

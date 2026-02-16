@@ -44,7 +44,6 @@ workflow kanta_munge {
   call analysis {
     input:
     docker = select_first([analysis_docker,kanta_docker]),
-    merged_file = merge.merged,
     merged_parquet=merge.merged_parquet,
     prefix = base_prefix
   }
@@ -55,7 +54,6 @@ workflow kanta_munge {
 task analysis {
   input {
     File merged_parquet
-    File merged_file
     String prefix
     String docker
   }
@@ -63,6 +61,7 @@ task analysis {
   String unmap  = prefix+ "_unmapped_entries.txt"
   String injection =  prefix+ "_candidate_injections.txt"
   String injection_issues = prefix+ "_injection_check.tsv"
+
   command <<<
   # this step creates the table of most common unit per OMOP_ID
   python3 /qc_scripts/create_harmonization_table.py --input ~{merged_parquet} 
@@ -71,9 +70,11 @@ task analysis {
   # this step creates a candidate injection based on KS values for unharmonized data with source values
   # it also returns the counts of TEST_NAME,UNIT(cleaned) that do not have a mapping
   python3 /qc_scripts/unharmonized.py ~{merged_parquet} --min_count 500 --ks-n 100000 -a ~{injection} -u ~{unmap}
+  #Abnormality estimates
+  #python3 /qc_scripts/abnormality.py --parquet_file ~{merged_parquet}
   >>>
   runtime {
-    disks: "local-disk ~{ceil(size(merged_file,'GB')) + 20} HDD"
+    disks: "local-disk ~{ceil(size(merged_parquet,'GB')) + 20} HDD"
     docker : "~{docker}"
     memory: "16 GB"
   }
@@ -84,6 +85,7 @@ task analysis {
     File umapped_entries = "~{unmap}"
     File injection_candidates = "~{injection}"
     File injection_mismathces =  "~{injection_issues}"
+    Array[File] ab = glob("./abnorm*")
   }
 }
 
