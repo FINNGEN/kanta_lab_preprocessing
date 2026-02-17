@@ -41,17 +41,16 @@ workflow kanta_munge {
     prefix = base_prefix,
     munged_chunks = munge.munged_chunk
   }
-  call analysis {
+  call qc {
     input:
     docker = select_first([analysis_docker,kanta_docker]),
     merged_parquet=merge.merged_parquet,
     prefix = base_prefix
   }
-
 }
 
 
-task analysis {
+task qc {
   input {
     File merged_parquet
     String prefix
@@ -63,15 +62,15 @@ task analysis {
   String injection_issues = prefix+ "_injection_check.tsv"
 
   command <<<
-  # this step creates the table of most common unit per OMOP_ID
-  python3 /qc_scripts/create_harmonization_table.py --input ~{merged_parquet} 
-  # this step is similar but in reverse. it checks that the injections led to a KS <.3 for harmonized values
-  python3 /qc_scripts/injection_check.py ~{merged_parquet} -o ~{injection_issues}
+  # this steps checks the quality of the injected entries
+  time python3 /qc_scripts/injection_check.py ~{merged_parquet} -o ~{injection_issues}
   # this step creates a candidate injection based on KS values for unharmonized data with source values
   # it also returns the counts of TEST_NAME,UNIT(cleaned) that do not have a mapping
-  python3 /qc_scripts/unharmonized.py ~{merged_parquet} --min_count 500 --ks-n 100000 -a ~{injection} -u ~{unmap}
-  #Abnormality estimates
-  #python3 /qc_scripts/abnormality.py --parquet_file ~{merged_parquet}
+  time python3 /qc_scripts/unharmonized.py ~{merged_parquet} --min_count 500 --ks-n 100000 -a ~{injection} -u ~{unmap}
+  # this step creates the table of most common unit per OMOP_ID
+  time python3 /qc_scripts/create_harmonization_table.py --input ~{merged_parquet}
+  #Abnormality estimates --> this step is still way too slow
+  python3 /qc_scripts/abnormality.py --parquet_file ~{merged_parquet} --min-count 1000
   >>>
   runtime {
     disks: "local-disk ~{ceil(size(merged_parquet,'GB')) + 20} HDD"
@@ -80,12 +79,12 @@ task analysis {
   }
 
   output {
-    File harmonization_counts = "harmonization_counts.tsv"
-    File harmonization_diffs = "harmonization_diffs.tsv"
     File umapped_entries = "~{unmap}"
     File injection_candidates = "~{injection}"
     File injection_mismathces =  "~{injection_issues}"
-    Array[File] ab = glob("./abnorm*")
+    File harmonization_counts = "harmonization_counts.tsv"
+    File harmonization_diffs = "harmonization_diffs.tsv"
+    #Array[File] ab = glob("./abnorm*")
   }
 }
 
