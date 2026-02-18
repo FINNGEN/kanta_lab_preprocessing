@@ -8,3 +8,4 @@ harmonization_omop::OMOP_ID	COLUMN_NAME	VALUE_THRESHOLD	SIDE	CONVERSION	NOTES	MI
 3022493	harmonization_omop::MEASUREMENT_VALUE	50000	>	0.001	.001xConverted	Seems like these values have wrong unit
 3024474	harmonization_omop::MEASUREMENT_VALUE	2	<	1000	1000xConverted	Seems like these values have wrong unit
 3026361	harmonization_omop::MEASUREMENT_VALUE	0.1	<	1000	1000xConverted	Unit should be injected to E12/l
+44816559	extracted::MEASUREMENT_VALUE	0	>	0.73	0.73xConverted	Fixes problem with b-peth umol/l mg/l conversion

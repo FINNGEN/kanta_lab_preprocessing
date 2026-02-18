@@ -67,12 +67,19 @@ def main():
 
     # --- Step 2: Load Reference ---
     reference_dict = {}
+    reference_manual_dict = {}
     if os.path.exists(args.ref):
         ref_df = pd.read_csv(args.ref, sep='\t').fillna('NA')
         reference_dict = {
             (str(r[id_ref]), str(r[qt_ref])): str(r[un_ref]) 
             for _, r in ref_df.iterrows() if id_ref in ref_df.columns
         }
+        # Load UNIT_SOURCE column to check for MANUAL mappings
+        if "UNIT_SOURCE" in ref_df.columns:
+            reference_manual_dict = {
+                (str(r[id_ref]), str(r[qt_ref])): str(r["UNIT_SOURCE"]) 
+                for _, r in ref_df.iterrows() if id_ref in ref_df.columns
+            }
 
     # --- Step 3: Run Aggregation with NULL handling ---
     # We use coalesce in SQL to prevent \N from ever entering the omopQuantity field
@@ -106,29 +113,44 @@ def main():
 
         note_msg = "Injected matches Source"
         impact_flag = False
-
+        
+        # Determine the source of the target unit
         if normalize_na(injected_mode) != normalize_na(source_mode):
+            target_source = "INJECTED"
             note_msg = f"INJECTION CHANGE: Source mode was '{source_mode}'"
             impact_flag = True
+        else:
+            target_source = "SOURCE"
 
         ref_key = (str(omop_id), str(qty))
         ref_unit_val = reference_dict.get(ref_key, "N/A")
+        ref_is_manual = reference_manual_dict.get(ref_key, "").upper() == "MANUAL"
         
         norm_injected = normalize_na(injected_mode)
         norm_ref = normalize_na(ref_unit_val)
 
-        if ref_unit_val != "N/A":
-            if norm_injected != norm_ref:
-                note_msg += f" | REF DIFF: ref was {ref_unit_val}"
+        # If reference is marked as MANUAL, do not override it
+        if ref_is_manual:
+            final_unit = ref_unit_val
+            note_msg = f"MANUAL MAPPING (locked) - Current data suggests: {injected_mode}"
+            target_source = "MANUAL"
+            impact_flag = False  # Don't flag manual mappings as diffs
+        else:
+            final_unit = injected_mode
+            
+            if ref_unit_val != "N/A":
+                if norm_injected != norm_ref:
+                    note_msg += f" | REF DIFF: ref was {ref_unit_val}"
+                    impact_flag = True
+            elif norm_injected != "na":
+                note_msg += " | NEW MAPPING"
                 impact_flag = True
-        elif norm_injected != "na":
-            note_msg += " | NEW MAPPING"
-            impact_flag = True
 
         row_data = {
             id_ref: omop_id,
             qt_ref: qty,
-            un_ref: injected_mode,
+            un_ref: final_unit,
+            "UNIT_SOURCE": target_source,
             "NOTES": note_msg,
             "PREV_SOURCE": json.dumps(source_prev).replace('"', "'"),
             "PREV_INJECTED": json.dumps(injected_prev).replace('"', "'"),
@@ -140,7 +162,7 @@ def main():
 
     if final_rows:
         res = pd.DataFrame(final_rows).sort_values("_total_count", ascending=False)
-        output_cols = [id_ref, qt_ref, un_ref, "NOTES", "PREV_SOURCE", "PREV_INJECTED"]
+        output_cols = [id_ref, qt_ref, un_ref, "UNIT_SOURCE", "NOTES", "PREV_SOURCE", "PREV_INJECTED"]
         
         # Final cleanup for the dataframe to ensure no \N or nan escapes
         res = res.replace(['\\N', 'nan', None], 'NA')
