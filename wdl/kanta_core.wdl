@@ -29,7 +29,7 @@ workflow kanta_core {
   call build_pos_tables{input:merged_file = merge.merged_file,docker=select_first([analysis_docker, kanta_docker])}
   call compare_versions {input: new_parquet=release.core_files[1],docker=select_first([analysis_docker, kanta_docker]),prefix=prefix}
   # makes more sense to run locally ATM
-  #call qc_extracted {input: core_parquet=release.core_files[1],docker=select_first([analysis_docker, kanta_docker]),prefix=prefix}
+  call qc_extracted {input: core_parquet=release.core_files[1],docker=select_first([analysis_docker, kanta_docker]),prefix=prefix}
 
 }
 
