@@ -69,8 +69,8 @@ task qc {
   time python3 /qc_scripts/unharmonized.py ~{merged_parquet} --min_count 500 --ks-n 100000 -a ~{injection} -u ~{unmap}
   # this step creates the table of most common unit per OMOP_ID
   time python3 /qc_scripts/create_harmonization_table.py --input ~{merged_parquet}
-  #Abnormality estimates --> this step is still way too slow
-  python3 /qc_scripts/abnormality.py --parquet_file ~{merged_parquet} --min-count 1000
+  #Abnormality estimates 
+  time python3 /qc_scripts/abnormality.py --parquet_file ~{merged_parquet} --min-count 1000 
   >>>
   runtime {
     disks: "local-disk ~{ceil(size(merged_parquet,'GB')) + 20} HDD"
@@ -79,12 +79,14 @@ task qc {
   }
 
   output {
-    File umapped_entries = "~{unmap}"
+    File umapped_entries      = "~{unmap}"
     File injection_candidates = "~{injection}"
-    File injection_mismathces =  "~{injection_issues}"
+    File injection_mismathces = "~{injection_issues}"
     File harmonization_counts = "harmonization_counts.tsv"
-    File harmonization_diffs = "harmonization_diffs.tsv"
-    #Array[File] ab = glob("./abnorm*")
+    File harmonization_diffs  = "harmonization_diffs.tsv"
+    File ab_table             = "abnormality_estimation.table.tsv"
+    File ab_counts            = "abnormality_estimation.txt"
+
   }
 }
 

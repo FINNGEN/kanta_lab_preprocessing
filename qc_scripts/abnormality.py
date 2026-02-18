@@ -80,8 +80,6 @@ def select_threshold(entries, thresholds):
         return 0.95  # Use .95 as starter
 
 def main(args):
-    os.makedirs(args.out, exist_ok=True)
-    
     # Get dynamic system configuration
     threads, memory_limit_gb = get_system_config()
     print(f"System detected: {psutil.cpu_count()} CPUs, {psutil.virtual_memory().total / (1024**3):.1f}GB RAM")
@@ -93,10 +91,11 @@ def main(args):
     con.execute(f"PRAGMA memory_limit='{memory_limit_gb}GB'")
     
     # Set temp directory size to available disk space
-    disk_usage = psutil.disk_usage(args.out)
+    temp_dir = os.getcwd()
+    disk_usage = psutil.disk_usage(temp_dir)
     available_gb = int(disk_usage.free / (1024**3))
     con.execute(f"SET max_temp_directory_size='{available_gb}GB'")
-    con.execute(f"SET temp_directory='{args.out}'")
+    con.execute(f"SET temp_directory='{temp_dir}'")
     
     print(f"Scanning Parquet to identify IDs with at least {args.min_count} entries...")
     
@@ -169,9 +168,53 @@ def main(args):
             if res:
                 results.append(res)
     
-    # --- SAVE LOGIC ---
-    txt_path = os.path.join(args.out, 'abnormality_estimation.table.tsv')
-    with open(txt_path, 'wt') as f:
+    # --- SAVE DETAILED TSV (--ab_ranges) ---
+    with open(args.ab_ranges, 'wt') as f:
+        # Build header dynamically based on thresholds
+        threshold_cols = []
+        for t in sorted(args.thresholds):
+            threshold_cols.append(f'LOWER_{t}')
+        for t in sorted(args.thresholds):
+            threshold_cols.append(f'UPPER_{t}')
+        
+        header = ['ID'] + threshold_cols + ['LOW_5', 'HIGH_95', 'ENTRIES', 'COUNTS']
+        f.write('\t'.join(header) + '\n')
+        
+        for r in results:
+            row_data = [r['ID']]
+            
+            # Add LOWER estimates for each threshold
+            for t in sorted(args.thresholds):
+                val = r['LOW_EST'][t]
+                # Convert NA to "NA", remove asterisks
+                if val == "NA":
+                    row_data.append("NA")
+                else:
+                    row_data.append(str(float(val.replace('*', ''))))
+            
+            # Add UPPER estimates for each threshold
+            for t in sorted(args.thresholds):
+                val = r['HIGH_EST'][t]
+                # Convert NA to "NA", remove asterisks
+                if val == "NA":
+                    row_data.append("NA")
+                else:
+                    row_data.append(str(float(val.replace('*', ''))))
+            
+            # Add percentile bounds
+            row_data.append(r['LOW_P'])
+            row_data.append(r['HIGH_P'])
+            
+            # Add entries count
+            row_data.append(str(r['ENTRIES']))
+            
+            # Add counts dictionary as string
+            row_data.append(str(r['COUNTS']))
+            
+            f.write('\t'.join(row_data) + '\n')
+    
+    # --- SAVE SIMPLIFIED TSV (--ab_table) ---
+    with open(args.ab_table, 'wt') as f:
         # Write header
         f.write('\t'.join(['ID', 'LOW_LIMIT', 'HIGH_LIMIT', 'LOW_PROBLEM', 'HIGH_PROBLEM']) + '\n')
         
@@ -209,16 +252,26 @@ def main(args):
             row = [r['ID'], low_res, high_res, low_problem, high_problem]
             f.write('\t'.join(map(str, row)) + '\n')
             
-    print(f"\nDone. {len(results)} IDs processed and saved to {txt_path}.")
+    print(f"\nDone. {len(results)} IDs processed.")
+    print(f"Simplified results saved to {args.ab_table}.")
+    print(f"Detailed results saved to {args.ab_ranges}.")
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--parquet_file', required=True)
-    parser.add_argument('--out', default="/mnt/disks/data/kanta/abnorm/")
-    parser.add_argument('--min-count', default=1, type=int) 
-    parser.add_argument('--percentile', default=5, type=int)
-    parser.add_argument('--max-walk', default=.5, type=float)
-    parser.add_argument('--batch-size', default=50, type=int, help="Max rows per batch in millions (default: 50M)")
-    parser.add_argument('--thresholds', default=[0.9, 0.95, 0.99], nargs='*', type=float)
-    parser.add_argument("--test", action='store_true')
+    parser = argparse.ArgumentParser(description="Estimate abnormality bounds from medical measurement data")
+    parser.add_argument('--parquet_file', required=True, help="Path to input Parquet file")
+    parser.add_argument('--ab_table', default="abnormality_estimation.table.tsv",
+                        help="Filename for simplified results (default: abnormality_estimation.table.tsv)")
+    parser.add_argument('--ab_ranges', default="abnormality_estimation.txt",
+                        help="Filename for detailed results (default: abnormality_estimation.txt)")
+    parser.add_argument('--min-count', default=1, type=int, 
+                        help="Minimum number of entries per ID (default: 1)")
+    parser.add_argument('--percentile', default=5, type=int,
+                        help="Percentile for bounds calculation (default: 5)")
+    parser.add_argument('--max-walk', default=.5, type=float,
+                        help="Maximum walk parameter (default: 0.5)")
+    parser.add_argument('--batch-size', default=10, type=int, 
+                        help="Max rows per batch in millions (default: 10M)")
+    parser.add_argument('--thresholds', default=[0.9, 0.95, 0.99], nargs='*', type=float,
+                        help="Thresholds for estimation (default: 0.9 0.95 0.99)")
+    parser.add_argument("--test", action='store_true', help="Run in test mode with limited IDs")
     main(parser.parse_args())

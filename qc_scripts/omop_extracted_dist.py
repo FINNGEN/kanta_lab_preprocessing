@@ -49,7 +49,8 @@ def main():
     
     parser = argparse.ArgumentParser(description="OMOP Analysis: ID Selection from Parquet Data")
     group = parser.add_mutually_exclusive_group()
-    group.add_argument('--ids', type=str, help="Comma-separated list of OMOP IDs")
+    group.add_argument('--ids', type=str, nargs='?', const=','.join(map(str, DEFAULT_IDS)), 
+                   help="Comma-separated list of OMOP IDs (if flag used without value, uses DEFAULT_IDS)")
     group.add_argument('--full', action='store_true', help="Process ALL unique IDs found in the Parquet file")
     group.add_argument('--random', type=int, nargs='?', const=10, help="Process N random IDs found in the Parquet file")
 
@@ -57,7 +58,7 @@ def main():
     parser.add_argument('--ref_path', type=str, default=default_ref_path, help="Usagi CSV path")
     parser.add_argument('--output_dir', type=str, default='./plots', help="Output directory for PNGs")
     parser.add_argument('--name', type=str, default="analysis", help="Custom prefix for the output files")
-    parser.add_argument('--test', type=int, nargs='?', const=10000, default=None, help="Limit rows per ID")
+    parser.add_argument('--test', type=int, nargs='?', const=1000000, default=None, help="Limit rows per ID (default 1M for test)")
     
     args = parser.parse_args()
 
@@ -94,6 +95,7 @@ def main():
         omop_ids = [int(i.strip()) for i in args.ids.split(',')]
         run_suffix = ""
     else:
+        # No --ids, --full, or --random provided: use DEFAULT_IDS
         omop_ids = DEFAULT_IDS
         run_suffix = ""
 
@@ -104,31 +106,46 @@ def main():
     summary_file = f"{final_base}_summary.tsv"
     rejected_file = f"{final_base}_rejected.tsv"
 
+      # --- SINGLE QUERY: Fetch all data for all IDs at once ---
+    print(f"STATUS: Fetching data for {len(omop_ids)} OMOP IDs...")
+    ids_str = ','.join(map(str, omop_ids))
+    limit_clause = f"LIMIT {args.test}" if args.test is not None else ""
+    
+    query = f"""
+        SELECT CAST(OMOP_CONCEPT_ID AS INTEGER) as OMOP_CONCEPT_ID,
+               MEASUREMENT_VALUE_EXTRACTED as ext, 
+               MEASUREMENT_VALUE_HARMONIZED as harm,
+               EVENT_AGE
+        FROM '{args.file_path}'
+        WHERE CAST(OMOP_CONCEPT_ID AS INTEGER) IN ({ids_str})
+        AND (MEASUREMENT_VALUE_EXTRACTED IS NOT NULL OR MEASUREMENT_VALUE_HARMONIZED IS NOT NULL)
+        {limit_clause}
+    """
+    
+    try:
+        all_data = conn.execute(query).fetchdf()
+        if all_data.empty:
+            print("ERROR: No data returned from query")
+            sys.exit(1)
+    except Exception as e:
+        print(f"ERROR: Failed to fetch data: {e}")
+        sys.exit(1)
+
+    # Group data by OMOP_CONCEPT_ID
+    grouped = all_data.groupby('OMOP_CONCEPT_ID')
+    
     summary_results = []
     rejected_results = []
-    limit_clause = f"LIMIT {args.test}" if args.test is not None else ""
     
     for omop_id in tqdm(omop_ids, desc=f"Analyzing {final_base}"):
         desc = ref_map.get(omop_id, "Unknown Concept")
         
-        query = f"""
-            SELECT MEASUREMENT_VALUE_EXTRACTED as ext, 
-                   MEASUREMENT_VALUE_HARMONIZED as harm,
-                   EVENT_AGE
-            FROM '{args.file_path}'
-            WHERE OMOP_CONCEPT_ID = {omop_id} 
-            AND (MEASUREMENT_VALUE_EXTRACTED IS NOT NULL OR MEASUREMENT_VALUE_HARMONIZED IS NOT NULL)
-            {limit_clause}
-        """
-        
-        try:
-            df = conn.execute(query).fetchdf()
-            if df.empty:
-                rejected_results.append({"OMOP_ID": omop_id, "REASON": "EMPTY_OR_NON_NUMERIC", "Description": desc})
-                continue
-        except Exception:
-            rejected_results.append({"OMOP_ID": omop_id, "REASON": "QUERY_ERROR", "Description": desc})
+        # Get data for this ID from the grouped data
+        if omop_id not in grouped.groups:
+            rejected_results.append({"OMOP_ID": omop_id, "REASON": "EMPTY_OR_NON_NUMERIC", "Description": desc})
             continue
+        
+        df = grouped.get_group(omop_id)
 
         ext_raw = df['ext'].dropna()
         harm_raw = df['harm'].dropna()

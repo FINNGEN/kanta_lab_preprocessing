@@ -1,5 +1,6 @@
 # Progress bars for loops
 tqdm
+psutil
 
 # TODO(Vincent 2024-05-03) Upgrade to numpy 2.0.0, should be out soon.
 # Note: 2.2.3 is already out and specified here!
