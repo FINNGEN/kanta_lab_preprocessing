@@ -26,9 +26,10 @@ workflow kanta_core {
   call release { input: docker = select_first([release_docker, kanta_docker]), mem = if test then 4 else 64, prefix = prefix, munged_data  = merge.merged_file}
   call validate_outputs {input : parquet_file = release.core_files[1],docker=kanta_docker}
   # CHECKS AND PLOTS
-  call build_pos_tables{input:merged_file = merge.merged_file,docker=select_first([analysis_docker, kanta_docker])}
   call compare_versions {input: new_parquet=release.core_files[1],docker=select_first([analysis_docker, kanta_docker]),prefix=prefix}
-  # makes more sense to run locally ATM
+  # builds updated pos/neg  tables
+  call build_pos_tables{input:merged_file = merge.merged_file,docker=select_first([analysis_docker, kanta_docker])}
+  # checks extraction automatically
   call qc_extracted {input: core_parquet=release.core_files[1],docker=select_first([analysis_docker, kanta_docker]),prefix=prefix}
 
 }
@@ -41,19 +42,19 @@ task qc_extracted {
     String prefix
   }
 
-  String dist_summary = prefix + "_analysis_summary.tsv"
-  String rejected_ids = prefix +  "_rejected_ids.tsv"
+  String dist_summary = prefix + "_extraction_summary.tsv"
   command <<<
-  python3 /qc_scripts/omop_extracted_dist.py --full --name ~{prefix} --file_path ~{core_parquet}
+  # makes KS comparison between extracted and harmonized data for all OMOP IDs with both type of entries
+  python3 /qc_scripts/omop_extracted_dist.py --full  --file_path ~{core_parquet} --summary-file ~{dist_summary}
   >>>
   output {
     File summary  = dist_summary
-    File rejected = rejected_ids
     Array[File] plots = glob("./plots/*png")
   }
    runtime {
      disks: "local-disk ~{2*ceil(size(core_parquet,'GB')) + 10} HDD"
      docker : "~{docker}"
+     memory: "16 GB"
   }
 }
 
@@ -65,16 +66,20 @@ task compare_versions {
     File old_parquet
   }
   command <<<
+  # extracs counts from new release
   python3 /qc_scripts/counts.py ~{new_parquet} -c FINNGENID,MEASUREMENT_VALUE_HARMONIZED,MEASUREMENT_VALUE_EXTRACTED,TEST_OUTCOME,TEST_OUTCOME_TEXT_EXTRACTED,OUTCOME_POS_EXTRACTED -b QC_PASS -o . --prefix ~{prefix}
+  # extracs counts from previous release
   python3 /qc_scripts/counts.py ~{old_parquet} -c FINNGENID,MEASUREMENT_VALUE_HARMONIZED,MEASUREMENT_VALUE_EXTRACTED,TEST_OUTCOME,TEST_OUTCOME_TEXT_EXTRACTED,OUTCOME_POS_EXTRACTED -b QC_PASS -o . --prefix old
-  python3 -c "import csv, sys; reader = csv.DictReader(sys.stdin); print('conceptId\tconceptName'); [print(f\"{row['conceptId']}\t{row['conceptName']}\") for row in reader]" < /finngen_qc/data/LABfi_ALL.usagi.csv > omop_name_table.tsv
+  # extracts omop names
+  python3 -c "import csv, sys; reader = csv.DictReader(sys.stdin); print('conceptId\tconceptName'); [print(f\"{row['conceptId']}\t{row['conceptName']}\") for row in reader]" < /finngen_qc/data/LABfi_ALL.usagi.csv | (sed -u 1q;sort -u) > omop_name_table.tsv
   ls
-  python3 /qc_scripts/count_plot.py --new ~{prefix}_omop_analysis.tsv  --old ./old_omop_analysis.tsv --names ./omop_name_table.tsv --new_suffix ~{prefix} --old_suffix ~{basename(old_parquet,'.parquet')} --out_tsv ~{prefix}_analysis.tsv --out_img ~{prefix}_analysis.png
+  # builds summary table and plots comparisons
+  python3 /qc_scripts/count_plot.py --new ~{prefix}_omop_analysis.tsv  --old ./old_omop_analysis.tsv --names ./omop_name_table.tsv --new_suffix ~{prefix} --old_suffix ~{basename(old_parquet,'.parquet')} --out_tsv ~{prefix}_omop_comparison.tsv --out_img ~{prefix}_omop_comparison.png
   ls
   >>>
   output {
-    File figure = "~{prefix}_analysis.png" 
-    File comparison = "~{prefix}_analysis.tsv" 
+    File figure = "~{prefix}_omop_comparison.png"
+    File comparison = "~{prefix}_omop_comparison.tsv"
     File summary_table = "./~{prefix}_omop_analysis.tsv"
     File summary_md = "./~{prefix}_omop_analysis.md"
     }
@@ -83,7 +88,6 @@ task compare_versions {
     docker : "~{docker}"
   }
 }
-
 
 task build_pos_tables{
   input {

@@ -12,6 +12,7 @@ import argparse
 import duckdb
 import random
 from tqdm import tqdm
+from pathlib import Path
 
 # Set a style for better visualization
 sns.set_theme(style="whitegrid")
@@ -41,6 +42,27 @@ def sigma_filter(data: pd.Series, n_sigma: int = 3):
     n_removed = initial_count - len(cleaned)
     return cleaned, n_removed
 
+def chunk_by_count(id_count_pairs, num_chunks=10):
+    """Split ID-count pairs into roughly equal-sized chunks by total count"""
+    # Sort by count descending to distribute large IDs evenly
+    sorted_pairs = sorted(id_count_pairs, key=lambda x: x[1], reverse=True)
+    
+    chunks = [[] for _ in range(num_chunks)]
+    chunk_totals = [0] * num_chunks
+    
+    # Greedy assignment: add each ID to the chunk with smallest current total
+    for omop_id, count in sorted_pairs:
+        min_idx = chunk_totals.index(min(chunk_totals))
+        chunks[min_idx].append(omop_id)
+        chunk_totals[min_idx] += count
+    
+    return chunks, chunk_totals
+
+def apply_suffix_to_filepath(filepath, suffix):
+    """Insert suffix before file extension. E.g., 'summary.tsv' + '_test_50000' -> 'summary_test_50000.tsv'"""
+    p = Path(filepath)
+    return str(p.parent / (p.stem + suffix + p.suffix))
+
 def main():
     script_dir = os.path.dirname(os.path.abspath(__file__))
     default_parquet = os.path.expanduser("~/fg-3/kanta_v3/core/kanta_dev_2026_02_03_core.parquet")
@@ -57,7 +79,7 @@ def main():
     parser.add_argument('--file_path', type=str, default=default_parquet, help="Input Parquet path")
     parser.add_argument('--ref_path', type=str, default=default_ref_path, help="Usagi CSV path")
     parser.add_argument('--output_dir', type=str, default='./plots', help="Output directory for PNGs")
-    parser.add_argument('--name', type=str, default="analysis", help="Custom prefix for the output files")
+    parser.add_argument('--summary-file', type=str, default='summary.tsv', help="Path to summary output file")
     parser.add_argument('--test', type=int, nargs='?', const=1000000, default=None, help="Limit rows per ID (default 1M for test)")
     
     args = parser.parse_args()
@@ -78,152 +100,256 @@ def main():
 
     conn = duckdb.connect()
 
-    # Determine IDs
+    # Determine IDs and their counts
     if args.full or args.random is not None:
-        print(f"STATUS: Fetching unique OMOP IDs from {args.file_path}...")
-        unique_query = f"SELECT DISTINCT OMOP_CONCEPT_ID FROM '{args.file_path}' WHERE OMOP_CONCEPT_ID IS NOT NULL"
-        ids_in_parquet = conn.execute(unique_query).df()['OMOP_CONCEPT_ID'].astype(int).tolist()
+        print(f"STATUS: Fetching unique OMOP IDs and counts from {args.file_path}...")
+        count_query = f"""
+            SELECT CAST(OMOP_CONCEPT_ID AS INTEGER) as OMOP_CONCEPT_ID, COUNT(*) as count
+            FROM '{args.file_path}'
+            WHERE OMOP_CONCEPT_ID IS NOT NULL
+            AND (MEASUREMENT_VALUE_EXTRACTED IS NOT NULL OR MEASUREMENT_VALUE_HARMONIZED IS NOT NULL)
+            GROUP BY CAST(OMOP_CONCEPT_ID AS INTEGER)
+        """
+        count_df = conn.execute(count_query).df()
+        id_count_pairs = list(zip(count_df['OMOP_CONCEPT_ID'].astype(int), count_df['count']))
         
         if args.full:
-            omop_ids = sorted(ids_in_parquet)
+            # Sort by ID for deterministic order
+            id_count_pairs = sorted(id_count_pairs, key=lambda x: x[0])
             run_suffix = ""
         else:
-            count = min(args.random, len(ids_in_parquet))
-            omop_ids = random.sample(ids_in_parquet, count)
+            # Random sample
+            count = min(args.random, len(id_count_pairs))
+            id_count_pairs = random.sample(id_count_pairs, count)
             run_suffix = f"_random_{count}"
+        
+        omop_ids = [x[0] for x in id_count_pairs]
     elif args.ids:
         omop_ids = [int(i.strip()) for i in args.ids.split(',')]
+        # Fetch counts for these IDs
+        ids_str = ','.join(map(str, omop_ids))
+        count_query = f"""
+            SELECT CAST(OMOP_CONCEPT_ID AS INTEGER) as OMOP_CONCEPT_ID, COUNT(*) as count
+            FROM '{args.file_path}'
+            WHERE CAST(OMOP_CONCEPT_ID AS INTEGER) IN ({ids_str})
+            AND (MEASUREMENT_VALUE_EXTRACTED IS NOT NULL OR MEASUREMENT_VALUE_HARMONIZED IS NOT NULL)
+            GROUP BY CAST(OMOP_CONCEPT_ID AS INTEGER)
+        """
+        count_df = conn.execute(count_query).df()
+        id_count_pairs = list(zip(count_df['OMOP_CONCEPT_ID'].astype(int), count_df['count']))
         run_suffix = ""
     else:
-        # No --ids, --full, or --random provided: use DEFAULT_IDS
+        # Use DEFAULT_IDS
         omop_ids = DEFAULT_IDS
+        ids_str = ','.join(map(str, omop_ids))
+        count_query = f"""
+            SELECT CAST(OMOP_CONCEPT_ID AS INTEGER) as OMOP_CONCEPT_ID, COUNT(*) as count
+            FROM '{args.file_path}'
+            WHERE CAST(OMOP_CONCEPT_ID AS INTEGER) IN ({ids_str})
+            AND (MEASUREMENT_VALUE_EXTRACTED IS NOT NULL OR MEASUREMENT_VALUE_HARMONIZED IS NOT NULL)
+            GROUP BY CAST(OMOP_CONCEPT_ID AS INTEGER)
+        """
+        count_df = conn.execute(count_query).df()
+        id_count_pairs = list(zip(count_df['OMOP_CONCEPT_ID'].astype(int), count_df['count']))
         run_suffix = ""
 
     if args.test:
         run_suffix += f"_test_{args.test}"
 
-    final_base = f"{args.name}{run_suffix}"
-    summary_file = f"{final_base}_summary.tsv"
-    rejected_file = f"{final_base}_rejected.tsv"
+    # Apply suffix to output file
+    summary_file = apply_suffix_to_filepath(args.summary_file, run_suffix) if run_suffix else args.summary_file
 
-      # --- SINGLE QUERY: Fetch all data for all IDs at once ---
-    print(f"STATUS: Fetching data for {len(omop_ids)} OMOP IDs...")
-    ids_str = ','.join(map(str, omop_ids))
+    # --- BATCH PROCESSING: Split into 10 chunks by total count ---
+    print(f"STATUS: Processing {len(omop_ids)} OMOP IDs in 10 balanced batches...")
+    chunks, chunk_totals = chunk_by_count(id_count_pairs, num_chunks=10)
     limit_clause = f"LIMIT {args.test}" if args.test is not None else ""
     
-    query = f"""
-        SELECT CAST(OMOP_CONCEPT_ID AS INTEGER) as OMOP_CONCEPT_ID,
-               MEASUREMENT_VALUE_EXTRACTED as ext, 
-               MEASUREMENT_VALUE_HARMONIZED as harm,
-               EVENT_AGE
-        FROM '{args.file_path}'
-        WHERE CAST(OMOP_CONCEPT_ID AS INTEGER) IN ({ids_str})
-        AND (MEASUREMENT_VALUE_EXTRACTED IS NOT NULL OR MEASUREMENT_VALUE_HARMONIZED IS NOT NULL)
-        {limit_clause}
-    """
-    
-    try:
-        all_data = conn.execute(query).fetchdf()
-        if all_data.empty:
-            print("ERROR: No data returned from query")
-            sys.exit(1)
-    except Exception as e:
-        print(f"ERROR: Failed to fetch data: {e}")
-        sys.exit(1)
-
-    # Group data by OMOP_CONCEPT_ID
-    grouped = all_data.groupby('OMOP_CONCEPT_ID')
-    
     summary_results = []
-    rejected_results = []
     
-    for omop_id in tqdm(omop_ids, desc=f"Analyzing {final_base}"):
-        desc = ref_map.get(omop_id, "Unknown Concept")
-        
-        # Get data for this ID from the grouped data
-        if omop_id not in grouped.groups:
-            rejected_results.append({"OMOP_ID": omop_id, "REASON": "EMPTY_OR_NON_NUMERIC", "Description": desc})
+    for chunk_idx, batch_ids in enumerate(tqdm(chunks, desc=f"Analyzing", total=10)):
+        if not batch_ids:  # Skip empty chunks
             continue
         
-        df = grouped.get_group(omop_id)
-
-        ext_raw = df['ext'].dropna()
-        harm_raw = df['harm'].dropna()
-
-        ext_clean, n_ext_rem = sigma_filter(ext_raw)
-        harm_clean, n_harm_rem = sigma_filter(harm_raw)
-
-        if ext_clean.empty and harm_clean.empty:
-            rejected_results.append({"OMOP_ID": omop_id, "REASON": "SIGMA_FILTERED_TO_EMPTY", "Description": desc})
+        ids_str = ','.join(map(str, batch_ids))
+        chunk_count = chunk_totals[chunk_idx]
+        
+        print(f"  Batch {chunk_idx + 1}/10: {len(batch_ids)} IDs, ~{chunk_count:,} rows")
+        
+        query = f"""
+            SELECT CAST(OMOP_CONCEPT_ID AS INTEGER) as OMOP_CONCEPT_ID,
+                   MEASUREMENT_VALUE_EXTRACTED as ext, 
+                   MEASUREMENT_VALUE_HARMONIZED as harm,
+                   EVENT_AGE
+            FROM '{args.file_path}'
+            WHERE CAST(OMOP_CONCEPT_ID AS INTEGER) IN ({ids_str})
+            AND (MEASUREMENT_VALUE_EXTRACTED IS NOT NULL OR MEASUREMENT_VALUE_HARMONIZED IS NOT NULL)
+            {limit_clause}
+        """
+        
+        try:
+            batch_data = conn.execute(query).fetchdf()
+        except Exception as e:
+            print(f"ERROR: Failed to fetch batch {chunk_idx + 1}: {e}")
+            for bid in batch_ids:
+                desc = ref_map.get(bid, "Unknown Concept")
+                summary_results.append({
+                    "RANK": 0, 
+                    "OMOP_ID": bid, 
+                    "STATUS": "QUERY_ERROR",
+                    "EXT_MEDIAN": "-",
+                    "HARM_REF_MEDIAN": "-",
+                    "EXT_HARM_N_RATIO": 0.0,
+                    "KS": 1.0,
+                    "MLOGP": 0.0,
+                    "N_EXTRACTED": 0,
+                    "N_HARM_REF": 0,
+                    "SIGMA_REJECTED_PCT": 0.0,
+                    "Description": desc,
+                    "EXT_DECILES": "-",
+                    "HARM_REF_DECILES": "-"
+                })
             continue
+        
+        if batch_data.empty:
+            for bid in batch_ids:
+                desc = ref_map.get(bid, "Unknown Concept")
+                summary_results.append({
+                    "RANK": 0, 
+                    "OMOP_ID": bid, 
+                    "STATUS": "EMPTY_OR_NON_NUMERIC",
+                    "EXT_MEDIAN": "-",
+                    "HARM_REF_MEDIAN": "-",
+                    "EXT_HARM_N_RATIO": 0.0,
+                    "KS": 1.0,
+                    "MLOGP": 0.0,
+                    "N_EXTRACTED": 0,
+                    "N_HARM_REF": 0,
+                    "SIGMA_REJECTED_PCT": 0.0,
+                    "Description": desc,
+                    "EXT_DECILES": "-",
+                    "HARM_REF_DECILES": "-"
+                })
+            continue
+        
+        grouped = batch_data.groupby('OMOP_CONCEPT_ID')
+        
+        for omop_id in batch_ids:
+            desc = ref_map.get(omop_id, "Unknown Concept")
+            
+            # Get data for this ID from the grouped data
+            if omop_id not in grouped.groups:
+                summary_results.append({
+                    "RANK": 0, 
+                    "OMOP_ID": omop_id, 
+                    "STATUS": "EMPTY_OR_NON_NUMERIC",
+                    "EXT_MEDIAN": "-",
+                    "HARM_REF_MEDIAN": "-",
+                    "EXT_HARM_N_RATIO": 0.0,
+                    "KS": 1.0,
+                    "MLOGP": 0.0,
+                    "N_EXTRACTED": 0,
+                    "N_HARM_REF": 0,
+                    "SIGMA_REJECTED_PCT": 0.0,
+                    "Description": desc,
+                    "EXT_DECILES": "-",
+                    "HARM_REF_DECILES": "-"
+                })
+                continue
+            
+            df = grouped.get_group(omop_id)
 
-        n_ext, n_harm = len(ext_clean), len(harm_clean)
-        
-        # Ratio of N extracted vs N harmonized reference
-        n_ratio = round(n_ext / n_harm, 4) if n_harm > 0 else 0.0
+            ext_raw = df['ext'].dropna()
+            harm_raw = df['harm'].dropna()
 
-        total_numeric = len(ext_raw) + len(harm_raw)
-        total_removed = n_ext_rem + n_harm_rem
-        sigma_reject_pct = round((total_removed / total_numeric) * 100, 2) if total_numeric > 0 else 0.0
-        
-        # --- KS Calculation with mlogp ---
-        if n_ext > 0 and n_harm > 0:
-            ks_stat, p_val = stats.ks_2samp(ext_clean, harm_clean)
-            # Clip p_val to avoid log(0)
-            mlogp = -np.log10(max(p_val, 1e-300))
-        else:
-            ks_stat, mlogp = np.nan, 0.0
+            ext_clean, n_ext_rem = sigma_filter(ext_raw)
+            harm_clean, n_harm_rem = sigma_filter(harm_raw)
 
-        status_label = "SUCCESS" if (np.isnan(ks_stat) or ks_stat < 0.3) else "FAIL"
+            if ext_clean.empty and harm_clean.empty:
+                summary_results.append({
+                    "RANK": 0, 
+                    "OMOP_ID": omop_id, 
+                    "STATUS": "SIGMA_FILTERED_TO_EMPTY",
+                    "EXT_MEDIAN": "-",
+                    "HARM_REF_MEDIAN": "-",
+                    "EXT_HARM_N_RATIO": 0.0,
+                    "KS": 1.0,
+                    "MLOGP": 0.0,
+                    "N_EXTRACTED": 0,
+                    "N_HARM_REF": 0,
+                    "SIGMA_REJECTED_PCT": 0.0,
+                    "Description": desc,
+                    "EXT_DECILES": "-",
+                    "HARM_REF_DECILES": "-"
+                })
+                continue
 
-        summary_results.append({
-            "RANK": 0, 
-            "OMOP_ID": omop_id, 
-            "STATUS": status_label,
-            "EXT_MEDIAN": format_scientific(ext_clean.median()), 
-            "HARM_REF_MEDIAN": format_scientific(harm_clean.median()), 
-            "EXT_HARM_N_RATIO": n_ratio,
-            "KS": round(ks_stat, 3) if not np.isnan(ks_stat) else 1.0, 
-            "MLOGP": round(mlogp, 2),
-            "N_EXTRACTED": n_ext, 
-            "N_HARM_REF": n_harm,
-            "SIGMA_REJECTED_PCT": sigma_reject_pct, 
-            "Description": desc,
-            "EXT_DECILES": get_deciles(ext_clean), 
-            "HARM_REF_DECILES": get_deciles(harm_clean)
-        })
+            n_ext, n_harm = len(ext_clean), len(harm_clean)
+            
+            # Ratio of N extracted vs N harmonized reference
+            n_ratio = round(n_ext / n_harm, 4) if n_harm > 0 else 0.0
 
-        # --- Plotting ---
-        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 10), sharex=True)
-        
-        if not ext_clean.empty:
-            sns.scatterplot(x=df.loc[ext_clean.index, 'ext'], y=df.loc[ext_clean.index, 'EVENT_AGE'], 
-                            color='red', alpha=0.3, label='Extracted', ax=ax1, s=25, rasterized=True)
-            if ext_clean.nunique() > 1: sns.kdeplot(ext_clean, ax=ax2, color='red', label='Extracted PDF')
-            else: ax2.axvline(ext_clean.iloc[0], color='red', linestyle='--')
-        
-        if not harm_clean.empty:
-            sns.scatterplot(x=df.loc[harm_clean.index, 'harm'], y=df.loc[harm_clean.index, 'EVENT_AGE'], 
-                            color='blue', alpha=0.3, label='Harmonized (Ref)', ax=ax1, s=25, rasterized=True)
-            if harm_clean.nunique() > 1: sns.kdeplot(harm_clean, ax=ax2, color='blue', label='Harmonized PDF')
-            else: ax2.axvline(harm_clean.iloc[0], color='blue', linestyle='--')
-        
-        ax1.legend(loc='upper right')
-        title_str = (f"OMOP {omop_id}: {desc}\n"
-                     f"N Ratio: {n_ratio} | KS: {round(ks_stat,3)} | -log10(p): {round(mlogp, 2)}")
-        ax1.set_title(title_str)
-        
-        plot_path = os.path.join(args.output_dir, f"{final_base}_omop_{omop_id}.png")
-        fig.savefig(plot_path, dpi=150, bbox_inches='tight')
-        plt.close(fig)
+            total_numeric = len(ext_raw) + len(harm_raw)
+            total_removed = n_ext_rem + n_harm_rem
+            sigma_reject_pct = round((total_removed / total_numeric) * 100, 2) if total_numeric > 0 else 0.0
+            
+            # --- KS Calculation with mlogp ---
+            if n_ext > 0 and n_harm > 0:
+                ks_stat, p_val = stats.ks_2samp(ext_clean, harm_clean)
+                # Clip p_val to avoid log(0)
+                mlogp = -np.log10(max(p_val, 1e-300))
+            else:
+                ks_stat, mlogp = np.nan, 0.0
+
+            status_label = "SUCCESS" if (np.isnan(ks_stat) or ks_stat < 0.3) else "FAIL"
+
+            summary_results.append({
+                "RANK": 0, 
+                "OMOP_ID": omop_id, 
+                "STATUS": status_label,
+                "EXT_MEDIAN": format_scientific(ext_clean.median()), 
+                "HARM_REF_MEDIAN": format_scientific(harm_clean.median()), 
+                "EXT_HARM_N_RATIO": n_ratio,
+                "KS": round(ks_stat, 3) if not np.isnan(ks_stat) else 1.0, 
+                "MLOGP": round(mlogp, 2),
+                "N_EXTRACTED": n_ext, 
+                "N_HARM_REF": n_harm,
+                "SIGMA_REJECTED_PCT": sigma_reject_pct, 
+                "Description": desc,
+                "EXT_DECILES": get_deciles(ext_clean), 
+                "HARM_REF_DECILES": get_deciles(harm_clean)
+            })
+
+            # --- Plotting ---
+            fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 10), sharex=True)
+            
+            if not ext_clean.empty:
+                sns.scatterplot(x=df.loc[ext_clean.index, 'ext'], y=df.loc[ext_clean.index, 'EVENT_AGE'], 
+                                color='red', alpha=0.3, label='Extracted', ax=ax1, s=25, rasterized=True)
+                if ext_clean.nunique() > 1: sns.kdeplot(ext_clean, ax=ax2, color='red', label='Extracted PDF')
+                else: ax2.axvline(ext_clean.iloc[0], color='red', linestyle='--')
+            
+            if not harm_clean.empty:
+                sns.scatterplot(x=df.loc[harm_clean.index, 'harm'], y=df.loc[harm_clean.index, 'EVENT_AGE'], 
+                                color='blue', alpha=0.3, label='Harmonized (Ref)', ax=ax1, s=25, rasterized=True)
+                if harm_clean.nunique() > 1: sns.kdeplot(harm_clean, ax=ax2, color='blue', label='Harmonized PDF')
+                else: ax2.axvline(harm_clean.iloc[0], color='blue', linestyle='--')
+            
+            ax1.legend(loc='upper right')
+            title_str = (f"OMOP {omop_id}: {desc}\n"
+                         f"N Ratio: {n_ratio} | KS: {round(ks_stat,3)} | -log10(p): {round(mlogp, 2)}")
+            ax1.set_title(title_str)
+            
+            plot_path = os.path.join(args.output_dir, f"omop_{omop_id}.png")
+            fig.savefig(plot_path, dpi=150, bbox_inches='tight')
+            plt.close(fig)
 
     if summary_results:
         final_df = pd.DataFrame(summary_results).sort_values("N_EXTRACTED", ascending=False).reset_index(drop=True)
         final_df['RANK'] = final_df.index + 1
         final_df.to_csv(summary_file, sep='\t', index=False)
+        print(f"Summary saved to: {summary_file}")
     
-    pd.DataFrame(rejected_results).to_csv(rejected_file, sep='\t', index=False)
-    print(f"\nDONE. Prefix: {final_base}")
+    print(f"\nDONE")
 
 if __name__ == "__main__":
     main()
