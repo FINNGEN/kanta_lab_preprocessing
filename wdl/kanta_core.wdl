@@ -162,7 +162,7 @@ task release {
   
   >>>
   runtime {
-    docker : "eu.gcr.io/finngen-sandbox-v3-containers/kanta:parquet"
+    docker : "~{docker}"
     disks: "local-disk ~{ceil(size(munged_data,'GB')) * 4 + 10} HDD"
     memory: "~{mem} GB"
     cpu : mem/4
