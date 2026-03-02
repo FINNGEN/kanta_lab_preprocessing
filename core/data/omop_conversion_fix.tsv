@@ -1,11 +1,11 @@
-harmonization_omop::OMOP_ID	COLUMN_NAME	VALUE_THRESHOLD	SIDE	CONVERSION	NOTES	MISC
-3009542	extracted::MEASUREMENT_VALUE_MERGED	1	<	100	100xConverted	Hematocrit works in two different units mismatched at source
-3022756	extracted::MEASUREMENT_VALUE	1	<	1000	1000xConverted	We're fixing the extracted ones only
-3020564	harmonization_omop::MEASUREMENT_VALUE	3000	>	0.01	.01xConverted	Seems like these values have wrong unit
-3023103	harmonization_omop::MEASUREMENT_VALUE	25	>	0.1	.01xConverted	Seems like these values have wrong unit
-3009508	extracted::MEASUREMENT_VALUE	150	>	0.001	.001xConverted	Seems like these values have wrong unit
-3013742	harmonization_omop::MEASUREMENT_VALUE	1.5	>	0.001	.001xConverted	Seems like these values have wrong unit
-3022493	harmonization_omop::MEASUREMENT_VALUE	50000	>	0.001	.001xConverted	Seems like these values have wrong unit
-3024474	harmonization_omop::MEASUREMENT_VALUE	2	<	1000	1000xConverted	Seems like these values have wrong unit
-3026361	harmonization_omop::MEASUREMENT_VALUE	0.1	<	1000	1000xConverted	Unit should be injected to E12/l
-44816559	extracted::MEASUREMENT_VALUE	0	>	0.73	0.73xConverted	Fixes problem with b-peth umol/l mg/l conversion
+harmonization_omop::OMOP_ID	COLUMN_NAME	VALUE_THRESHOLD	SIDE	CONVERSION	NOTES	ConceptName	MISC
+3009542	extracted::MEASUREMENT_VALUE_MERGED	1	<	100	100xConverted	Hematocrit [Volume Fraction] of Blood by calculation	Hematocrit works in two different units mismatched at source
+3022756	extracted::MEASUREMENT_VALUE	1	<	1000	1000xConverted	Ceruloplasmin [Mass/volume] in Serum or Plasma	We're fixing the extracted ones only
+3020564	harmonization_omop::MEASUREMENT_VALUE	3000	>	0.01	.01xConverted	Creatinine [Moles/volume] in Serum or Plasma	Seems like these values have wrong unit
+3023103	harmonization_omop::MEASUREMENT_VALUE	25	>	0.1	.01xConverted	Potassium [Moles/volume] in Serum or Plasma	Seems like these values have wrong unit
+3009508	extracted::MEASUREMENT_VALUE	150	>	0.001	.001xConverted	Creatinine [Moles/volume] in Urine	Seems like these values have wrong unit
+3013742	extracted::MEASUREMENT_VALUE_MERGED	1.5	>	0.001	.001xConverted	Prealbumin [Mass/volume] in Serum or Plasma	Seems like these values have wrong unit
+3022493	harmonization_omop::MEASUREMENT_VALUE	50000	>	0.001	.001xConverted	Free Hemoglobin [Mass/volume] in Plasma	Seems like these values have wrong unit
+3024474	extracted::MEASUREMENT_VALUE_MERGED	2	<	1000	1000xConverted	Albumin [Mass/volume] in Cerebral spinal fluid	Seems like these values have wrong unit
+44816559	extracted::MEASUREMENT_VALUE	0	>	0.73	0.73xConverted	Phosphatidylethanol [Mass/volume] in Blood	Fixes problem with b-peth umol/l mg/l conversion
+3037121	extracted::MEASUREMENT_VALUE	10	<	1000	1000xConverted	Protein [Mass/volume] in Urine	Harmonizes g/l into mg/l
