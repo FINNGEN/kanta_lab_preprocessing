@@ -9,3 +9,4 @@ harmonization_omop::OMOP_ID	COLUMN_NAME	VALUE_THRESHOLD	SIDE	CONVERSION	NOTES	Co
 3024474	extracted::MEASUREMENT_VALUE_MERGED	2	<	1000	1000xConverted	Albumin [Mass/volume] in Cerebral spinal fluid	Seems like these values have wrong unit
 44816559	extracted::MEASUREMENT_VALUE	0	>	0.73	0.73xConverted	Phosphatidylethanol [Mass/volume] in Blood	Fixes problem with b-peth umol/l mg/l conversion
 3037121	extracted::MEASUREMENT_VALUE	10	<	1000	1000xConverted	Protein [Mass/volume] in Urine	Harmonizes g/l into mg/l
+3028167	extracted::MEASUREMENT_VALUE	12	<	0.001	.001xConverted	CD3+CD4+ (T4 helper) cells [#/volume] in Blood	Extracted values in mixed units (e6/e9)

@@ -53,7 +53,7 @@ config = {
     ],
 
     'err_cols':['ROW_ID','APPROX_EVENT_DATETIME','ERR','ERR_VALUE'],
-    'dup_cols':['FINNGENID','APPROX_EVENT_DATETIME','harmonization_omop::OMOP_ID','cleaned::TEST_NAME_ABBREVIATION','MEASUREMENT_VALUE_SOURCE','TEST_OUTCOME','MEASUREMENT_FREE_TEXT']
+    'dup_cols':['FINNGENID','APPROX_EVENT_DATETIME','harmonization_omop::OMOP_ID','cleaned::TEST_NAME_ABBREVIATION','source::MEASUREMENT_VALUE','TEST_OUTCOME','MEASUREMENT_FREE_TEXT'],
 
     'omop_unit_map':'finngen_qc/data/harmonization_counts.tsv',
     'posneg_map':'core/data/negpos_mapping.tsv',

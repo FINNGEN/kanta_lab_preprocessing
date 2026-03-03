@@ -2,7 +2,7 @@ harmonization_omop::OMOP_ID	THRESHOLD	SIDE	QC_NOTES	MISC	conceptName
 3000963	500	>	IMPLAUSIBLE_VALUE	NA	Hemoglobin [Mass/volume] in Blood
 3010813	2000	>	IMPLAUSIBLE_VALUE	NA	Leukocytes [#/volume] in Blood
 3026361	20	>	IMPLAUSIBLE_VALUE	NA	Erythrocytes [#/volume] in Blood
-3026361	0	<	IMPLAUSIBLE_VALUE	NA	Erythrocytes [#/volume] in Blood
+3026361	0.5	<	IMPOSSIBLE_VALUE	Issue with wrong mapping that can be addressed here for the time being	Erythrocytes [#/volume] in Blood
 3026361	10	==	EXTRACTION_ISSUE	10E12/l gets extracted as 10. Ambguous free text entry	Erythrocytes [#/volume] in Blood
 3004410	0	<	IMPOSSIBLE_VALUE	NA	Hemoglobin A1c/Hemoglobin.total in Blood
 3004410	250	>	WRONG_UNIT	Probably wrong source unit	Hemoglobin A1c/Hemoglobin.total in Blood
@@ -12,6 +12,7 @@ harmonization_omop::OMOP_ID	THRESHOLD	SIDE	QC_NOTES	MISC	conceptName
 3009035	10000	>	WRONG UNIT	Probably wrong unit for extracted values	Cobalamin (Vitamin B12) [Moles/volume] in Serum or Plasma
 3009542	100	>	IMPOSSIBLE_VALUE	Impossible values. They can also stem from misreported unit (ratio,5) at source	Hematocrit [Volume Fraction] of Blood
 3009542	0	<=	IMPOSSIBLE_VALUE	Impossible values. Some values are exactly 0 which indicates faulty reading or something of the sort	Hematocrit [Volume Fraction] of Blood
+3000081	30000	>	WRONG_UNIT	Probably wrong source unit	cloZAPine [Moles/volume] in Serum or Plasma
 3013742	5	>	WRONG UNIT	Probably wrong unit for extracted values	Prealbumin [Mass/volume] in Serum or Plasma
 3016750	2000	>	WRONG UNIT	Probably wrong unit for extracted values	Collection duration of Urine
 3017766	1	>	WRONG UNIT	Probably wrong unit for extracted values	Complement C4 [Mass/volume] in Serum or Plasma
@@ -26,6 +27,7 @@ harmonization_omop::OMOP_ID	THRESHOLD	SIDE	QC_NOTES	MISC	conceptName
 3003338	100	<	WRONG_UNIT	Probably wrong source unit	MCHC [Mass/volume]
 3020564	10000	>	WRONG_UNIT	Probably wrong source unit	Creatinine [Moles/volume] in Serum or Plasma
 3019550	10000	>	WRONG_UNIT	Probably wrong source unit	Sodium [Moles/volume] in Serum or Plasma
+3019550	76	<	IMPLAUSIBLE_VALUE	Probably wrong source unit	Sodium [Moles/volume] in Serum or Plasma
 3020460	1000	>	WRONG_UNIT	Probably wrong source unit	C reactive protein [Mass/volume] in Serum or Plasma
 3001308	0	<	IMPOSSIBLE_VALUE	NA	Cholesterol in LDL [Moles/volume] in Serum or Plasma
 3001308	20	>	IMPLAUSIBLE_VALUE	NA	Cholesterol in LDL [Moles/volume] in Serum or Plasma
@@ -71,13 +73,12 @@ harmonization_omop::OMOP_ID	THRESHOLD	SIDE	QC_NOTES	MISC	conceptName
 3009466	2500	>	IMPLAUSIBLE_VALUE	NA	Valproate [Moles/volume] in Serum or Plasma
 3006270	1500	>	IMPLAUSIBLE_VALUE	NA	Folate [Moles/volume] in Blood
 3051014	100	>	IMPLAUSIBLE_VALUE	NA	Leukocytes [#/area] in Urine sediment by Automated count
-3022756	100000	>	IMPLAUSIBLE_VALUE	NA	Ceruloplasmin [Mass/volume] in Serum or Plasma
 3001405	100000	>	WRONG_UNIT	Probably wrong source unit	CD3+CD8+ (T8 suppressor) cells [#/volume] in Blood
 3005791	1000	>	WRONG_UNIT	Probably wrong source unit	Eosinophil cationic protein (ECP) [Mass/volume] in Serum
 3035941	0	<	IMPOSSIBLE_VALUE	NA	MCH [Entitic mass]
 3031309	200	>	IMPOSSIBLE_VALUE	NA	Prolactin monomeric/Prolactin.total in Serum or Plasma [%], sample-wise median
 3003245	5	>	WRONG_UNIT	Probably wrong source unit	Complement C1 esterase inhibitor [Mass/volume] in Serum or Plasma
-3008832	5000	>	WRONG_UNIT	Probably wrong source unit	Norclozapine [Moles/volume] in Serum or Plasma
+3008832	10000	>	WRONG_UNIT	Probably wrong source unit	Norclozapine [Moles/volume] in Serum or Plasma
 3015736	4	<	IMPLAUSIBLE_VALUE	NA	pH of Urine
 3015736	10	>	IMPLAUSIBLE_VALUE	NA	pH of Urine
 3015377	15	>	IMPLAUSIBLE_VALUE	NA	Calcium [Moles/volume] in Serum or Plasma
@@ -95,7 +96,6 @@ harmonization_omop::OMOP_ID	THRESHOLD	SIDE	QC_NOTES	MISC	conceptName
 3024889	0	<	IMPOSSIBLE_VALUE	NA	Methemoglobin/Hemoglobin.total in Venous blood
 3000330	0.3	<	IMPLAUSIBLE_VALUE	NA	Specific gravity of Urine by Test strip
 3023081	0	<	IMPOSSIBLE_VALUE	NA	Carboxyhemoglobin/Hemoglobin.total in Blood
-3020427	10	<	IMPLAUSIBLE_VALUE	NA	Coagulation factor X inhibitor [Units/volume] in Platelet poor plasma by Coagulation assay
 3003434	10000	>	IMPLAUSIBLE_VALUE	NA	Protein [Mass/volume] in Pleural fluid
 3040151	0	<	IMPOSSIBLE_VALUE	NA	Glucose [Moles/volume] in Capillary blood
 3040151	75	>	IMPLAUSIBLE_VALUE	NA	Glucose [Moles/volume] in Capillary blood
@@ -103,6 +103,8 @@ harmonization_omop::OMOP_ID	THRESHOLD	SIDE	QC_NOTES	MISC	conceptName
 3041449	3	>	WRONG_UNIT	Probably wrong source unit	Collagen crosslinked C-telopeptide [Mass/volume] in Serum or Plasma
 3014043	100	>	IMPOSSIBLE_VALUE	NA	Spermatozoa Nonprogressive/100 spermatozoa in Semen
 3039429	50000	>	IMPOSSIBLE_VALUE	NA	Cortisol [Moles/volume] in Saliva (oral fluid)
+3032080	10	>	IMPLAUSIBLE_VALUE	NA	INR in Blood by Coagulation assay
+40771025	10000	>	WRONG_UNIT	Probably wrong source unit	25-Hydroxyvitamin D3+25-Hydroxyvitamin D2 [Moles/volume] in Serum or Plasma
 3006923	NA	NA	NA	NA	Alanine aminotransferase [Enzymatic activity/volume] in Serum or Plasma
 3019900	NA	NA	NA	NA	Cholesterol [Moles/volume] in Serum or Plasma
 3009201	NA	NA	NA	NA	Thyrotropin [Units/volume] in Serum or Plasma
@@ -345,7 +347,7 @@ harmonization_omop::OMOP_ID	THRESHOLD	SIDE	QC_NOTES	MISC	conceptName
 3020491	NA	NA	NA	NA	Glucose [Moles/volume] in Blood
 3028167	NA	NA	NA	NA	CD3+CD4+ (T4 helper) cells [#/volume] in Blood
 3016616	NA	NA	NA	NA	Dehydroepiandrosterone sulfate (DHEA-S) [Moles/volume] in Serum or Plasma
-3000081	NA	NA	NA	NA	cloZAPine [Moles/volume] in Serum or Plasma
+3022575	NA	NA	NA	NA	Varicella zoster virus IgG Ab [Units/volume] in Serum
 3005082	NA	NA	NA	NA	Progesterone [Moles/volume] in Serum or Plasma
 3052649	NA	NA	NA	NA	Adenosine deaminase [Enzymatic activity/volume] in Serum or Plasma
 3005757	NA	NA	NA	NA	Coagulation factor V activity actual/normal in Platelet poor plasma by Coagulation assay
@@ -439,4 +441,13 @@ harmonization_omop::OMOP_ID	THRESHOLD	SIDE	QC_NOTES	MISC	conceptName
 40758990	NA	NA	NA	NA	Choriogonadotropin.beta subunit [Mass/volume] in Serum or Plasma
 3010503	NA	NA	NA	NA	CD19 cells [#/volume] in Blood
 3011412	NA	NA	NA	NA	CD3 cells [#/volume] in Blood [e9/l], sample-wise median
-3025271	NA	NA	NA	NA	CD3-CD16+CD56+ (Natural killer) cells [#/volume] in Blood
+3025271	10	<	WRONG_UNIT	Probably wrong source unit	CD3-CD16+CD56+ (Natural killer) cells [#/volume] in Blood
+3011831	NA	NA	NA	NA	Apolipoprotein B/Apolipoprotein A-I [Percentile]
+3035880	NA	NA	NA	NA	pH of Pleural fluid
+3020073	NA	NA	NA	NA	CD3+CD4+ (T4 helper) cells/CD3+CD8+ (T8 suppressor cells) cells [# Ratio] in Specimen
+40757349	NA	NA	NA	NA	CD3+CD4+ (T4 helper) cells/CD3+CD8+ (T8 suppressor cells) cells [# Ratio] in Blood
+3035715	NA	NA	NA	NA	Granulocytes [#/volume] in Blood
+4027681	NA	NA	NA	NA	Cerebrospinal fluid IgG ratio and IgG index
+3002109	NA	NA	NA	NA	Cholesterol in LDL/Cholesterol in HDL [Mass Ratio] in Serum or Plasma
+42868678	NA	NA	NA	NA	Cholesterol non HDL [Moles/volume] in Serum or Plasma
+3012413	NA	NA	NA	NA	Glucose [Moles/volume] in Serum or Plasma --2 hours post meal
