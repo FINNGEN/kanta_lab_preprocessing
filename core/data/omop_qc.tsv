@@ -27,7 +27,7 @@ harmonization_omop::OMOP_ID	THRESHOLD	SIDE	QC_NOTES	MISC	conceptName
 3003338	100	<	WRONG_UNIT	Probably wrong source unit	MCHC [Mass/volume]
 3020564	10000	>	WRONG_UNIT	Probably wrong source unit	Creatinine [Moles/volume] in Serum or Plasma
 3019550	10000	>	WRONG_UNIT	Probably wrong source unit	Sodium [Moles/volume] in Serum or Plasma
-3019550	76	<	IMPLAUSIBLE_VALUE	Probably wrong source unit	Sodium [Moles/volume] in Serum or Plasma
+3019550	75	<	IMPLAUSIBLE_VALUE	Probably wrong source unit	Sodium [Moles/volume] in Serum or Plasma
 3020460	1000	>	WRONG_UNIT	Probably wrong source unit	C reactive protein [Mass/volume] in Serum or Plasma
 3001308	0	<	IMPOSSIBLE_VALUE	NA	Cholesterol in LDL [Moles/volume] in Serum or Plasma
 3001308	20	>	IMPLAUSIBLE_VALUE	NA	Cholesterol in LDL [Moles/volume] in Serum or Plasma
@@ -124,7 +124,6 @@ harmonization_omop::OMOP_ID	THRESHOLD	SIDE	QC_NOTES	MISC	conceptName
 3019069	NA	NA	NA	NA	Monocytes/100 leukocytes in Blood
 3006504	NA	NA	NA	NA	Eosinophils/100 leukocytes in Blood
 3022096	NA	NA	NA	NA	Basophils/100 leukocytes in Blood
-3021589	NA	NA	NA	NA	Normoblasts [#/volume] in Blood
 3025839	NA	NA	NA	NA	Triglyceride [Moles/volume] in Serum or Plasma
 3018095	NA	NA	NA	NA	Leukocytes [#/volume] in Urine
 3013721	NA	NA	NA	NA	Aspartate aminotransferase [Enzymatic activity/volume] in Serum or Plasma
@@ -146,7 +145,6 @@ harmonization_omop::OMOP_ID	THRESHOLD	SIDE	QC_NOTES	MISC	conceptName
 3021614	NA	NA	NA	NA	Rheumatoid factor [Units/volume] in Serum or Plasma
 3030306	NA	NA	NA	NA	Epithelial cells.non-squamous [#/volume] in Urine by Automated count
 3005013	NA	NA	NA	NA	Prostate Specific Ag Free [Mass/volume] in Serum or Plasma
-3041942	NA	NA	NA	NA	Cyclic citrullinated peptide Ab [Units/volume] in Serum
 3012095	NA	NA	NA	NA	Magnesium [Moles/volume] in Serum or Plasma
 3004789	NA	NA	NA	NA	Transferrin [Mass/volume] in Serum or Plasma
 3029879	NA	NA	NA	NA	Epithelial cells.squamous [#/volume] in Urine by Automated count
@@ -170,7 +168,6 @@ harmonization_omop::OMOP_ID	THRESHOLD	SIDE	QC_NOTES	MISC	conceptName
 3003785	NA	NA	NA	NA	Carcinoembryonic Ag [Mass/volume] in Serum or Plasma
 3002173	NA	NA	NA	NA	Hemoglobin [Mass/volume] in Arterial blood
 3014111	NA	NA	NA	NA	Lactate [Moles/volume] in Serum or Plasma
-3044491	NA	NA	NA	NA	Cholesterol non HDL [Mass/volume] in Serum or Plasma
 3017181	NA	NA	NA	NA	Myelocytes/100 leukocytes in Blood
 3017446	NA	NA	NA	NA	Testosterone [Moles/volume] in Serum or Plasma
 3020779	NA	NA	NA	NA	Urea [Moles/volume] in Serum or Plasma
@@ -223,7 +220,7 @@ harmonization_omop::OMOP_ID	THRESHOLD	SIDE	QC_NOTES	MISC	conceptName
 3019145	NA	NA	NA	NA	Choriogonadotropin.beta subunit free [Mass/volume] in Serum or Plasma
 3000515	NA	NA	NA	NA	Antithrombin actual/normal in Platelet poor plasma by Chromogenic method
 3022914	NA	NA	NA	NA	Cancer Ag 19-9 [Units/volume] in Serum or Plasma
-3037121	NA	NA	NA	NA	Protein [Mass/volume] in Urine
+3037121	100000	>	IMPOSSIBLE_VALUE	Mismathc of units	Protein [Mass/volume] in Urine
 3000620	NA	NA	NA	NA	Complement C3 [Mass/volume] in Serum or Plasma
 3016407	NA	NA	NA	NA	Fibrinogen [Mass/volume] in Platelet poor plasma by Coagulation assay
 3029713	NA	NA	NA	NA	Protein.monoclonal band 1 [Mass/volume] in Serum or Plasma by Electrophoresis
@@ -372,7 +369,6 @@ harmonization_omop::OMOP_ID	THRESHOLD	SIDE	QC_NOTES	MISC	conceptName
 3035062	NA	NA	NA	NA	Alkaline phosphatase.liver 1 [Enzymatic activity/volume] in Serum or Plasma
 3036185	NA	NA	NA	NA	Alkaline phosphatase.liver 2 [Enzymatic activity/volume] in Serum or Plasma
 3007821	NA	NA	NA	NA	Glucose [Moles/volume] in Serum or Plasma --baseline
-3022192	NA	NA	NA	NA	Triglyceride [Mass/volume] in Serum or Plasma
 40770918	NA	NA	NA	NA	von Willebrand factor (vWf).activity actual/normal in Platelet poor plasma by Immunoassay
 3006653	NA	NA	NA	NA	Thiamine [Moles/volume] in Blood
 3020485	NA	NA	NA	NA	Acetaminophen [Moles/volume] in Serum or Plasma
@@ -440,7 +436,7 @@ harmonization_omop::OMOP_ID	THRESHOLD	SIDE	QC_NOTES	MISC	conceptName
 3026048	NA	NA	NA	NA	Bordetella pertussis IgG Ab [Units/volume] in Serum
 40758990	NA	NA	NA	NA	Choriogonadotropin.beta subunit [Mass/volume] in Serum or Plasma
 3010503	NA	NA	NA	NA	CD19 cells [#/volume] in Blood
-3011412	NA	NA	NA	NA	CD3 cells [#/volume] in Blood [e9/l], sample-wise median
+3011412	30000	>	IMPLAUSIBLE_VALUE	NA	CD3 cells [#/volume] in Blood [e9/l], sample-wise median
 3025271	10	<	WRONG_UNIT	Probably wrong source unit	CD3-CD16+CD56+ (Natural killer) cells [#/volume] in Blood
 3011831	NA	NA	NA	NA	Apolipoprotein B/Apolipoprotein A-I [Percentile]
 3035880	NA	NA	NA	NA	pH of Pleural fluid
@@ -451,3 +447,548 @@ harmonization_omop::OMOP_ID	THRESHOLD	SIDE	QC_NOTES	MISC	conceptName
 3002109	NA	NA	NA	NA	Cholesterol in LDL/Cholesterol in HDL [Mass Ratio] in Serum or Plasma
 42868678	NA	NA	NA	NA	Cholesterol non HDL [Moles/volume] in Serum or Plasma
 3012413	NA	NA	NA	NA	Glucose [Moles/volume] in Serum or Plasma --2 hours post meal
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					

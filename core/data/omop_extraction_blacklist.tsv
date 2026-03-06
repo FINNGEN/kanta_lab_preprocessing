@@ -1,5 +1,5 @@
 harmonization_omop::OMOP_ID	QC_NOTES	DESC
-3004410	Mismatch of units	Hemoglobin A1c/Hemoglobin.total in Blood
+3004410	Mismatch of units. This *can* be solved at test level.	Hemoglobin A1c/Hemoglobin.total in Blood
 3006217	Negative values that makes us think there's a bigger issue at play and anyways not many values are affected	Methemoglobin/Hemoglobin.total in Arterial blood
 3007930	Negative values that makes us think there's a bigger issue at play and anyways not many values are affected	Methemoglobin/Hemoglobin.total in Blood
 3010517	Negative values that makes us think there's a bigger issue at play and anyways not many values are affected	Carboxyhemoglobin/Hemoglobin.total in Venous blood
@@ -8,3 +8,4 @@ harmonization_omop::OMOP_ID	QC_NOTES	DESC
 3051611	Negative value and potentially 100x conversion for harmonization but unclear	Lipemic interference index of Serum or Plasma
 3020876	Mismatch of units between g/24h and mg/24h. Threshold seems to be at 15 but unclear	Protein [Mass/time] in 24 hour Urine
 3001405	Mismatch of units between e6/l and e9/l in the extracted values	CD3+CD8+ (T8 suppressor) cells [#/volume] in Blood
+3011412	Mismatch of units between e6/l and e9/l in the extracted values	CD3 cells [#/volume] in Blood
