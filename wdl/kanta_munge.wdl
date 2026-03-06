@@ -181,10 +181,19 @@ task split{
   }
   Int chunks = if test then  4  else n_chunks
   command <<<
-  zcat ~{kanta_data} | head -n1 > header.txt
-  zcat ~{kanta_data} | sed -E 1d ~{if test then " | head -n 4000000 "  else ""} > tmp.tsv
-  for f in {00..~{chunks-1}}; do cat header.txt | bgzip -c > kanta$f.gz; done
-  split tmp.tsv -n l/~{chunks} --verbose -d kanta --filter='gzip >> $FILE.gz'
+  FILE=~{kanta_data}
+  TEST=~{if test then 1 else 0}
+  CHUNKS=$(( TEST ? 4 : ~{n_chunks} ))
+  LINES=$(( TEST ? 4000000 : 250000000 ))
+
+  echo "$([[ $TEST -eq 1 ]] && echo TEST || echo FULL) MODE: CHUNKS=$CHUNKS, LINES=$LINES"
+  CHUNK_SIZE=$(( (LINES + CHUNKS - 1) / CHUNKS ))
+  echo "Splitting $LINES lines into $CHUNKS chunks of ~$CHUNK_SIZE each"
+  gzip -dc "$FILE" | head -n1 > header.txt && echo "Header saved to header.txt"
+  cmd="gzip -dc \"$FILE\" | tail -n +2"
+  [[ $TEST -eq 1 ]] && cmd+=" | head -n $LINES"
+  eval "$cmd" | split -l "$CHUNK_SIZE" -d --verbose   --filter='{ cat header.txt; cat; } | bgzip -c > ${FILE}.gz' - kanta
+
   >>>
   runtime {disks: "local-disk ~{ceil(size(kanta_data,'GB')) * 10 + 20} HDD"}
   output {
