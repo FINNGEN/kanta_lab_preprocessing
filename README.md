@@ -102,10 +102,10 @@ The code performs the following actions:
 - Mapping of units. This can be done either via regex (from config) or [through a mapping](/finngen_qc/data/unit_mapping.txt)
 - TEST_OUTCOME is edited to be consistent with the standard definition see AR/LABRA - Poikkeustilanneviestit. This means replacing `<` with `L`, `>` with `H`, `POS` with `A` and `NEG` with `N`.
 
-## [harmonization](/finngen_qc/filters/harmonization.py)
+## [HARMONIZATION](/finngen_qc/filters/harmonization.py)
 - Mapping status is updated (internal thing)
 - IS_UNIT_VALID column is populated based on whether the unit is in usagi list
-- Harmonizes units to make sure all abbreviations with similar units are mapped to the same one (e.g. mg --> mg/24h for du-prot). Based on [a table](/finngen_qc/data/fix_unit_based_in_abbreviation.tsv) 
+- Unit edit or injection to make sure all abbreviations with similar units are mapped to the same one (e.g. mg --> mg/24h for du-prot). Based on [a table](/finngen_qc/data/fix_unit_based_in_abbreviation.tsv) 
 - OMOP mapping from [a table](/finngen_qc/data/LABfi_ALL.usagi.csv)
 - unit harmonization (optional but default) from [a table](/finngen_qc/data/quantity_source_unit_conversion.tsv)
 
