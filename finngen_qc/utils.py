@@ -7,49 +7,117 @@ import urllib.request
 import http.client as httplib
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
-def init_harmonization(args,logger):
-
+def init_harmonization(args, logger):
     logger.info("UPDATING USAGI")
-    repo = args.config['harmonization_repo']
-    urls = [(repo+elem[1],os.path.join(dir_path,'data',elem[1])) for elem in args.config['harmonization_files'].values()]
+    repo = args.config['harmonization_repo'].replace('BRANCH', args.harmonization_gh_branch)
+    
+    # We unpack the 3 elements here: cols (0), remote_path (1), subfolder (2)
+    # We use os.path.basename to ensure it saves to /data/file.csv, NOT /data/subfolder/file.csv
+    urls = [
+        (repo + elem[1], os.path.join(dir_path, 'data', os.path.basename(elem[1]))) 
+        for elem in args.config['harmonization_files'].values()
+    ]
+
     try:
-        for url,out_file in urls:
-            urllib.request.urlretrieve(url,out_file)
-    except:
-        logger.warning("COULD NOT DOWNLOAD FILES: USAGI FILES NOT UPDATED")
+        for url, out_file in urls:
+            urllib.request.urlretrieve(url, out_file)
+    except Exception as e:
+        logger.warning(f"COULD NOT DOWNLOAD FILES: {e}")
         logger.warning(urls)
 
-    # READ IN JAVIER/USAGI FILES WITH PROPER RENAMING OF COLUMNS
-    for key,value in args.config['harmonization_files'].items():
-        cols,fname = value
+    # READ IN FILES WITH PROPER UNPACKING
+    for key, value in args.config['harmonization_files'].items():
+        # FIX: Unpack all THREE values to avoid ValueError
+        cols, fname, subfolder = value
+        # Use basename so pandas looks in 'data/' directly
+        local_file = os.path.join(dir_path, 'data', os.path.basename(fname))
         sep = ',' if fname.endswith('.csv') else '\t'
-        rename = {col:new_col for col,new_col in args.config['harmonization_col_map'].items() if col in cols}
-        args.config[key] = pd.read_csv(os.path.join(dir_path,'data',fname),usecols = cols,sep = sep).rename(columns=rename).drop_duplicates()
+        rename = {col: new_col for col, new_col in args.config['harmonization_col_map'].items() if col in cols}
+        # Load from the flat local path
+        args.config[key] = pd.read_csv(local_file, usecols=cols, sep=sep).rename(columns=rename).drop_duplicates()
         
-    #SPECIFIC RENAMING NEEDED
+    #PROCESSING OF INPUT TABLES TO FIX UNITS, FILTER VALUES ETC
+    assert args.config['usagi_units']['ADD_INFO:UniqueForLab'].dtype=='bool'
+    args.config['usagi_units'] =args.config['usagi_units'][args.config['usagi_units']['ADD_INFO:UniqueForLab'] == True]
     args.config['unit_conversion']= args.config['unit_conversion'].rename(columns={'source_unit_valid':'MEASUREMENT_UNIT'})
     args.config['unit_conversion']['only_to_omop_concepts']= args.config['unit_conversion']['only_to_omop_concepts'].astype("Int64")
+    # THIS PART MAKES SURE NA IS A VALID TARGET UNIT --> this is relevant for Presence or Threshold OMOP IDs since NA is a valid unit indeed!
+    cols_to_fix = ['MEASUREMENT_UNIT', 'harmonization_omop::MEASUREMENT_UNIT']
+    args.config['unit_conversion'][cols_to_fix] = args.config['unit_conversion'][cols_to_fix].fillna("NA")
     args.config['usagi_mapping']['harmonization_omop::OMOP_ID'] =args.config['usagi_mapping']['harmonization_omop::OMOP_ID'].astype(int)
-    logger.debug(args.config['usagi_mapping'][args.config['usagi_mapping']["TEST_NAME_ABBREVIATION"] == 'p-vrab-o'])
+    logger.debug(args.config['unit_abbreviation_fix'][args.config['unit_abbreviation_fix'].TEST_NAME_ABBREVIATION =='p-tt-inr'])
+    args.config['unit_abbreviation_fix'] = args.config['unit_abbreviation_fix'].fillna("NA")
+    logger.debug(args.config['unit_abbreviation_fix'][args.config['unit_abbreviation_fix'].TEST_NAME_ABBREVIATION =='p-tt-inr'])
 
-    if args.harmonization:
-        #merges harmonization table from vincent with chosen target unit for each concept id
-        logger.debug('merge harmonization counts and table')
-        harmonization_counts = pd.read_csv(args.harmonization,sep='\t')
-        args.config['unit_conversion'] = pd.merge(args.config['unit_conversion'],harmonization_counts,on=['harmonization_omop::omopQuantity','harmonization_omop::MEASUREMENT_UNIT'])
-        #only keep entries where the OMOP ID exception matches the OMOP ID column
-        mask = (args.config['unit_conversion']['only_to_omop_concepts'] == args.config['unit_conversion']['harmonization_omop::OMOP_ID'].astype(int)) | (args.config['unit_conversion']['only_to_omop_concepts'].isna())
-        args.config['unit_conversion'] = args.config['unit_conversion'][mask]
-        #DEBUG
-        args.config['unit_conversion']['only_to_omop_concepts'] = ~args.config['unit_conversion']['only_to_omop_concepts'].isna().astype(bool)
-        logger.debug(args.config['unit_conversion'][~args.config['unit_conversion']['only_to_omop_concepts'].isna()])
+    # 1. Detect and warn about trailing/leading spaces
+    mask = args.config['usagi_mapping']['TEST_NAME_ABBREVIATION'].str.strip() != args.config['usagi_mapping']['TEST_NAME_ABBREVIATION']
 
+    if mask.any():
+        offenders = args.config['usagi_mapping'].loc[mask, 'TEST_NAME_ABBREVIATION'].unique().tolist()
+        logger.warning(f"Sanitized spaces in Usagi 'TEST_NAME_ABBREVIATION': {offenders}")
+    
+        # 2. Vectorized strip
+        args.config['usagi_mapping']['TEST_NAME_ABBREVIATION'] = args.config['usagi_mapping']['TEST_NAME_ABBREVIATION'].str.strip()
+
+    logger.debug(args.config['usagi_mapping'][args.config['usagi_mapping']['TEST_NAME_ABBREVIATION'] == 'p-vrab-o'])
+    
+    ####################################
+    ### TARGET UNIT AND HARMONIZATION ###
+    ####################################
+    '''
+    this step creates a new df where the table of unit conversion is merged with the table of target units.
+    This way we build a table with all possible conversion from all existing units (table 1) to target units (table 2) based on omop mappings
+    e.g.
+    harmonization_omop::OMOP_ID	harmonization_omop::omopQuantity	harmonization_omop::MEASUREMENT_UNIT
+    40771922	Volume Rate/Area	ml/s/173m2
+    is merged with
+    omop_quantity	source_unit_valid	to_source_unit_valid	conversion	only_to_omop_concepts
+    Volume Rate/Area	ml/min/173m2	ml/s/173m2	0.01666667	
+    Volume Rate/Area	ml/s/173m2	ml/s/173m2	1
+    into
+    harmonization_omop::omopQuantity	MEASUREMENT_UNIT	harmonization_omop::MEASUREMENT_UNIT	harmonization_omop::CONVERSION_FACTOR	only_to_omop_concepts	harmonization_omop::OMOP_ID
+    Volume Rate/Area	ml/min/173m2	ml/s/173m2	0.01666667	False	40771922
+    Volume Rate/Area	ml/s/173m2	ml/s/173m2	1	False	40771922
+    THen in the harmonization step we will merge over OMOP_CONCEPT_ID and cleaned unit and there will be uniquely defined conversion factor
+    N.B.
+    This also accepts cases when the target unit is NA!
+    '''
+    
+    #merges harmonization table from vincent with chosen target unit for each concept id
+    logger.debug('merge harmonization counts and table')
+    harmonization_counts = pd.read_csv(args.harmonization,sep='\t',usecols=['harmonization_omop::OMOP_ID','harmonization_omop::omopQuantity','harmonization_omop::MEASUREMENT_UNIT'])
+    #makse sure that target unit NA is a valid unit if it's in the data!
+    harmonization_counts['harmonization_omop::MEASUREMENT_UNIT'] = harmonization_counts['harmonization_omop::MEASUREMENT_UNIT'].fillna("NA")
+    args.config['unit_conversion'] = pd.merge(args.config['unit_conversion'],harmonization_counts,on=['harmonization_omop::omopQuantity','harmonization_omop::MEASUREMENT_UNIT'])
+    
+    #only keep entries where the OMOP ID exception matches the OMOP ID column
+    mask = (args.config['unit_conversion']['only_to_omop_concepts'] == args.config['unit_conversion']['harmonization_omop::OMOP_ID'].astype(int)) | (args.config['unit_conversion']['only_to_omop_concepts'].isna())
+    args.config['unit_conversion'] = args.config['unit_conversion'][mask]
+    #DEBUG
+    args.config['unit_conversion']['only_to_omop_concepts'] = ~args.config['unit_conversion']['only_to_omop_concepts'].isna().astype(bool)
+    logger.debug(args.config['unit_conversion'][~args.config['unit_conversion']['only_to_omop_concepts'].isna()])
+    
     #logger.debug(args.config['usagi_units'])
     logger.debug("USGAGI MAPPING")
     logger.debug(args.config['usagi_mapping'])
-    #logger.debug(args.config['unit_abbreviation_fix'])
+    logger.debug(args.config['unit_abbreviation_fix'])
     logger.debug("UNIT CONVERSION")
     logger.debug(args.config['unit_conversion'])
+    for key, df in args.config.items():
+        if isinstance(df, pd.DataFrame):
+            duplicate_count = df.duplicated().sum()
+            if duplicate_count > 0:
+                logger.error(f"DATA INTEGRITY ERROR: DataFrame '{key}' contains {duplicate_count} duplicated rows.")
+                logger.debug(df[df.duplicated(keep=False)])
+
+    # Clean duplicates in unit_abbreviation_fix to prevent row multiplication
+    df_fix = args.config['unit_abbreviation_fix']
+    duplicates = df_fix[df_fix.duplicated(subset=['TEST_NAME_ABBREVIATION', 'source_unit_clean'], keep=False)]
+
+    if not duplicates.empty:
+        logger.warning(f"Dupli0cate mappings found in unit_abbreviation_fix:\n{duplicates}")
+        args.config['unit_abbreviation_fix'] = df_fix.drop_duplicates(subset=['TEST_NAME_ABBREVIATION', 'source_unit_clean'], keep='first')
+        
     return args
 
     
@@ -61,10 +129,10 @@ def init_log_files(args):
     with open(args.warn_file,'wt') as warn:warn.write('\t'.join(args.config['err_cols']) + '\n')
 
     args.unit_file = os.path.join(args.out,f"{args.prefix}_unit.txt")
-    with open(args.unit_file,'wt') as unit:unit.write('\t'.join(['FINREGISTRYID','TEST_DATE_TIME','TEST_NAME_ABBREVIATION','old_unit','MEASUREMENT_UNIT','SOURCE']) + '\n')
+    with open(args.unit_file,'wt') as unit:unit.write('\t'.join(['ROW_ID','TEST_DATE_TIME','TEST_NAME_ABBREVIATION','old_unit','MEASUREMENT_UNIT','SOURCE']) + '\n')
 
     args.abbr_file = os.path.join(args.out,f"{args.prefix}_abbr.txt")
-    with open(args.abbr_file,'wt') as abbr:abbr.write('\t'.join(['FINREGISTRYID','TEST_DATE_TIME','old_abbr','MEASUREMENT_UNIT','TEST_NAME_ABBREVIATION']) + '\n')
+    with open(args.abbr_file,'wt') as abbr:abbr.write('\t'.join(['ROW_ID','TEST_DATE_TIME','old_abbr','MEASUREMENT_UNIT','TEST_NAME_ABBREVIATION']) + '\n')
     
 def mapcount(filename):
 

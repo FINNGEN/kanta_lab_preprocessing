@@ -8,38 +8,104 @@ def harmonization(df,args):
         df
         .pipe(approve_status,args)
         .pipe(check_usagi_unit,args)
+        .pipe(dump_unit_before_fix,args)
         .pipe(fix_unit_based_on_abbreviation,args)
         .pipe(omop_mapping,args)
         .pipe(unit_harmonization,args)
-
     )
-
     return df
 
 
-
-def unit_harmonization(df,args):
-    """"
-    Creates two new columns for VALUE/UNIT harmonization
+def unit_harmonization(df, args):
     """
-    if args.harmonization:
-        # add CONVERSION column
-        df = pd.merge(df,args.config['unit_conversion'],on=['harmonization_omop::OMOP_ID','harmonization_omop::omopQuantity','MEASUREMENT_UNIT'],how='left').fillna(np.nan)
-        # MAKE SURE MEASUREMENT VALUES is as float column
-        df['MEASUREMENT_VALUE'] =pd.to_numeric(df['MEASUREMENT_VALUE'],errors='coerce')
-        mask = (df['only_to_omop_concepts'] == True)
-        # MULTIPLY VALUE*CONVERSION
-        df.loc[~mask,'harmonization_omop::MEASUREMENT_VALUE'] = df.loc[~mask,'harmonization_omop::CONVERSION_FACTOR'].astype(float)*df.loc[~mask,'MEASUREMENT_VALUE'].astype(float)
-        # Convert X to measurement value in the formula and evaluate
-        df.loc[mask, 'harmonization_omop::MEASUREMENT_VALUE'] = df.loc[mask].apply(
-                lambda row: round(eval(row['harmonization_omop::CONVERSION_FACTOR'].replace('X', str(float(row['MEASUREMENT_VALUE'])))),2), 
-                axis=1
-            )
-            
-        #BRINGS BACK STR TYPE
-        df[['harmonization_omop::MEASUREMENT_VALUE','MEASUREMENT_VALUE','harmonization_omop::CONVERSION_FACTOR','harmonization_omop::MEASUREMENT_UNIT']]=df[['harmonization_omop::MEASUREMENT_VALUE','MEASUREMENT_VALUE','harmonization_omop::CONVERSION_FACTOR','harmonization_omop::MEASUREMENT_UNIT']].fillna("NA")
-        
+    Creates two new columns for VALUE/UNIT harmonization.
+    
+    Process:
+    1. Merge with conversion table (may create duplicates when both general and OMOP-specific conversions exist)
+    2. Handle duplicates by prioritizing OMOP-specific conversions:
+       - _priority = 1 for OMOP-specific (only_to_omop_concepts=True)
+       - _priority = 0 for general conversions
+       - Sort by _priority descending (1 before 0)
+       - Keep first (OMOP-specific) and drop duplicates
+    3. Apply conversions:
+       - Formula-based: conversion factors containing 'X' (e.g., "10.93*X-23.50")
+       - Numeric: simple multiplication (e.g., "0.703")
+    """
+    # Ensure MEASUREMENT_VALUE is float
+    df['MEASUREMENT_VALUE'] = pd.to_numeric(df['MEASUREMENT_VALUE'], errors='coerce')
+    
+    # Add row identifier before merge to track duplicates
+    df['_original_index'] = range(len(df))
+    
+    # Merge with conversion table (creates duplicates when both general and OMOP-specific exist)
+    df = pd.merge(
+        df,
+        args.config['unit_conversion'],
+        on=['harmonization_omop::OMOP_ID', 'harmonization_omop::omopQuantity', 'MEASUREMENT_UNIT'],
+        how='left'
+    )
+    
+    # Handle duplicates: prioritize OMOP-specific conversions over general ones
+    # _priority = 1 for OMOP-specific (only_to_omop_concepts=True)
+    # _priority = 0 for general conversions (only_to_omop_concepts=False/NaN)
+    df['_priority'] = df['only_to_omop_concepts'].apply(lambda x: 1 if x is True else 0)
+    
+    # Sort: same _original_index grouped together, then by _priority descending (1 before 0)
+    # This puts OMOP-specific rows first, general rows second
+    df = df.sort_values(['_original_index', '_priority'], ascending=[True, False])
+    
+    # Keep first row per original index (= OMOP-specific if exists, otherwise general)
+    df = df.drop_duplicates(subset='_original_index', keep='first')
+    df = df.drop(columns=['_original_index', '_priority'])
+    
+    # Initialize result column
+    df['harmonization_omop::MEASUREMENT_VALUE'] = np.nan
+    
+    # Identify rows with conversions and determine if formula or numeric
+    has_conversion = df['harmonization_omop::CONVERSION_FACTOR'].notna()
+    df['_has_formula'] = df['harmonization_omop::CONVERSION_FACTOR'].astype(str).str.contains('X', na=False)
+    
+    # Apply formula-based conversions (conversion factor contains 'X')
+    # Example: "10.93*X-23.50" where X is replaced with MEASUREMENT_VALUE
+    formula_mask = has_conversion & df['_has_formula'] & df['MEASUREMENT_VALUE'].notna()
+    if formula_mask.any():
+        df.loc[formula_mask, 'harmonization_omop::MEASUREMENT_VALUE'] = df.loc[formula_mask].apply(
+            lambda row: round(
+                eval(str(row['harmonization_omop::CONVERSION_FACTOR']).replace(',', '.').replace('X', str(float(row['MEASUREMENT_VALUE'])))),
+                2
+            ),
+            axis=1
+        )
+    
+    # Apply simple numeric conversions (conversion factor is a number)
+    # Example: "0.703" multiplied by MEASUREMENT_VALUE
+    numeric_mask = has_conversion & ~df['_has_formula'] & df['MEASUREMENT_VALUE'].notna()
+    if numeric_mask.any():
+        df.loc[numeric_mask, 'harmonization_omop::MEASUREMENT_VALUE'] = (
+            pd.to_numeric(df.loc[numeric_mask, 'harmonization_omop::CONVERSION_FACTOR'], errors='coerce') * 
+            df.loc[numeric_mask, 'MEASUREMENT_VALUE']
+        )
+    
+    # Clean up helper column
+    df = df.drop(columns=['_has_formula'])
+    
+    # Convert to string with "NA" placeholders for missing values
+    df[['harmonization_omop::MEASUREMENT_VALUE', 'MEASUREMENT_VALUE', 
+        'harmonization_omop::CONVERSION_FACTOR', 'harmonization_omop::MEASUREMENT_UNIT']] = \
+    df[['harmonization_omop::MEASUREMENT_VALUE', 'MEASUREMENT_VALUE', 
+        'harmonization_omop::CONVERSION_FACTOR', 'harmonization_omop::MEASUREMENT_UNIT']].fillna("NA")
+    
     return df
+
+def dump_unit_before_fix(df,args):
+    """
+    Step needed for bookkeeping purposes. We build a new column called 'cleaned-pre-fix::MEASUREMENT_UNIT' before injecting units. This way we can keep track of what's going on at the source and compare values before we manually merge them into single distributions
+    """
+    col = 'MEASUREMENT_UNIT'
+    copy_col = "cleaned-pre-fix::MEASUREMENT_UNIT"
+    df[copy_col] = df[col]
+    return df
+    
 
 def omop_mapping(df,args):
     """
@@ -67,13 +133,19 @@ def fix_unit_based_on_abbreviation(df,args):
     """
     col = 'MEASUREMENT_UNIT'
     # this creates new column souce_unit_valid_fix if matching else NA
-    df = pd.merge(df,args.config['unit_abbreviation_fix'],left_on = ['TEST_NAME_ABBREVIATION','MEASUREMENT_UNIT'],right_on=['TEST_NAME_ABBREVIATION','source_unit_clean'],how='left').fillna("NA")
-    # check where there is a valid entry and put changed element back
-    mask = df['source_unit_clean_fix'] !="NA"
-    unit_df = df.loc[mask,['FINNGENID', 'APPROX_EVENT_DATETIME','TEST_NAME_ABBREVIATION','MEASUREMENT_UNIT','source_unit_clean_fix']].copy()
+    original_cols = df.columns
+    df = pd.merge(df,args.config['unit_abbreviation_fix'],left_on = ['TEST_NAME_ABBREVIATION','MEASUREMENT_UNIT'],right_on=['TEST_NAME_ABBREVIATION','source_unit_clean'],how='left')
+    added_cols = df.columns.difference(original_cols)
+    df[added_cols] = df[added_cols].fillna("UNMAPPED")
+    # take n
+    fix_mask = (df['source_unit_clean_fix'] != "UNMAPPED") & (df['MEASUREMENT_VALUE'] != "NA") & (df['source_unit_clean_fix'] != "NA")
+    # Mask 2: Specifically targeting the "NA" clean fix cases
+    mask_na_fix = (df['source_unit_clean_fix'] == "NA")
+    unit_fix_mask = fix_mask | mask_na_fix
+    unit_df = df.loc[unit_fix_mask,['ROW_ID', 'APPROX_EVENT_DATETIME','TEST_NAME_ABBREVIATION','MEASUREMENT_UNIT','source_unit_clean_fix']].copy()
     # CHANGES
-    df.loc[mask,"harmonization_omop::IS_UNIT_VALID"] = "unit_fixed"
-    df.loc[mask,col] = df.loc[mask,"source_unit_clean_fix"]
+    df.loc[unit_fix_mask,"harmonization_omop::IS_UNIT_VALID"] = "unit_fixed"
+    df.loc[unit_fix_mask,col] = df.loc[unit_fix_mask,"source_unit_clean_fix"]
     # LOG CHANGES
     unit_df['SOURCE'] = "harmonization_fix"    
     unit_df.to_csv(args.unit_file, mode='a', index=False, header=False,sep="\t")

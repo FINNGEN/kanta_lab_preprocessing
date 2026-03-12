@@ -18,6 +18,7 @@ config = {
         'cleaned::TEST_NAME_ABBREVIATION',
         'cleaned::MEASUREMENT_VALUE',
         'cleaned::MEASUREMENT_UNIT',
+        'cleaned-pre-fix::MEASUREMENT_UNIT',
         'harmonization_omop::MEASUREMENT_VALUE',
         'harmonization_omop::MEASUREMENT_UNIT',
         'harmonization_omop::CONVERSION_FACTOR',
@@ -28,11 +29,11 @@ config = {
         'source::MEASUREMENT_VALUE',
         'source::MEASUREMENT_UNIT',
         'source::TEST_NAME_ABBREVIATION',
-        'MEASUREMENT_EXTRA_INFO',
         'MEASUREMENT_FREE_TEXT',
-        'SERVICE_PROVIDER_ID',
-        'STATEMENT_ID',
-        'STATEMENT_TEXT',
+        #'MEASUREMENT_EXTRA_INFO',
+        #'SERVICE_PROVIDER_ID',
+        #'STATEMENT_ID',
+        #'STATEMENT_TEXT',
         'SEX'
         
     ],
@@ -41,19 +42,25 @@ config = {
         "extracted::MEASUREMENT_VALUE",
         "extracted::MEASUREMENT_VALUE_MERGED",
         "extracted::IS_POS",
-        "extracted::TEST_OUTCOME_TEXT"
+        "extracted::TEST_OUTCOME_TEXT",
+        "QC_NOTES",
+        "QC_PASS"
     ],
     'sensitive_cols':[
         'MEASUREMENT_FREE_TEXT',
-        'STATEMENT_ID',
-        'STATEMENT_TEXT'
+        #'STATEMENT_ID',
+        #'STATEMENT_TEXT'
     ],
 
-    'err_cols':['ROW_ID','FINNGENID','APPROX_EVENT_DATETIME','ERR','ERR_VALUE'],
-    'dup_cols':['FINNGENID','APPROX_EVENT_DATETIME','harmonization_omop::OMOP_ID','cleaned::TEST_NAME_ABBREVIATION','extracted::MEASUREMENT_VALUE_MERGED','TEST_OUTCOME','extracted::TEST_OUTCOME_TEXT','extracted::IS_POS'],
+    'err_cols':['ROW_ID','APPROX_EVENT_DATETIME','ERR','ERR_VALUE'],
+    'dup_cols':['FINNGENID','APPROX_EVENT_DATETIME','harmonization_omop::OMOP_ID','cleaned::TEST_NAME_ABBREVIATION','source::MEASUREMENT_VALUE','TEST_OUTCOME','MEASUREMENT_FREE_TEXT'],
 
-    'omop_unit_map':'finngen_qc/data/harmonization_counts.txt',
+    'omop_unit_map':'finngen_qc/data/harmonization_counts.tsv',
     'posneg_map':'core/data/negpos_mapping.tsv',
+    'omop_extraction_blacklist':'core/data/omop_extraction_blacklist.tsv',
+    'plusab_map':'core/data/kanta_plusplus_abnormality.tsv',
+    'omop_unit_fix':'core/data/omop_conversion_fix.tsv',
+    'omop_qc':'core/data/omop_qc.tsv',
 
     'date_time_format': "%Y-%m-%dT%H:%M:%S",
     'free_text_measurement_replacements': [
@@ -63,7 +70,7 @@ config = {
     'free_text_result_strings' : ("tutkimuksentulos:", "resultat:", "provresultat:","tutkimuksen tulos:", "tulos:", "vastaus:"),
     'status_indicators' : ('<', '>', 'yli', 'alle'),
     'abnormality_table':"data/abnormality_estimation.table.tsv",
-
+    'outcome_mismatch':[['N','1'],['A','0']]
     
 
 }

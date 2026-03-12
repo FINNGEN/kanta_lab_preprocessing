@@ -1,13 +1,14 @@
 {    "kanta_regenie.docker": "eu.gcr.io/finngen-refinery-dev/regenie:3.3_r12",
-     "kanta_regenie.kanta_parquet": "gs://finngen-production-library-red/finngen_R13/kanta_analysis_1.0/data/finngen_R13_kanta_analysis_1.0.parquet",
-     "kanta_regenie.measurement_col_name": "MEASUREMENT_VALUE_EXTRACTED",
+     #"kanta_regenie.kanta_parquet": "gs://fg-3/kanta_v3/dev/release/kanta_dev_core.parquet",
+     "kanta_regenie.kanta_parquet": "gs://fg-3/kanta_v2/core/release/data/finngen_R13_kanta_lab_2.0.parquet",
+     "kanta_regenie.measurement_col_name": "MEASUREMENT_VALUE_MERGED",
      "kanta_regenie.cov_file": "gs://r12-data/pheno/R12_COV_V2.FID.txt.gz",
      "kanta_regenie.is_binary": false,
      "kanta_regenie.bgen_list": "gs://fg-3/kanta_v2/inputs/bgen_chunks.txt",
 
      # PHENO INFO
      "kanta_regenie.create_pheno_file.docker": "eu.gcr.io/finngen-refinery-dev/kanta:kanta_analysis_v2.2",
-     "kanta_regenie.pheno_omop": '3006315',
+     "kanta_regenie.pheno_omop": '3009542',
      "kanta_regenie.create_pheno_file.min_count": 1, 
      #"kanta_regenie.validate_hits": "gs://fg-3/kanta_v2/inputs/3026361_hits.txt",
 

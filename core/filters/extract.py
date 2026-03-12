@@ -9,25 +9,31 @@ def extract_all(df,args):
         .pipe(extract_measurement,args)
         .pipe(extract_positive,args)
         .pipe(extract_outcome,args)
+        .pipe(extract_plus_ab,args)
     )
     return df
 
-def extract_outcome(df,args):
 
+def extract_outcome(df,args):
     ft_col = "MEASUREMENT_FREE_TEXT"
     col = "extracted::TEST_OUTCOME_TEXT"
+    
+    # Initialize the column with "NA" for all rows
     df[col] = "NA"
-
+    
     col_copy = df[ft_col].copy().str.lower()
-
     replacements = [(rf'^\s*{word}\s*', '') for word in args.config['free_text_result_strings']]
     replacements += args.config['free_text_measurement_replacements']
-
     # Remove common prefixes and standardize format
     for pattern, replacement in replacements:
         col_copy = col_copy.str.replace(pattern, replacement, regex=True)
     # Filter for rows containing abnormal indicators
     status_mask = col_copy.str.contains('|'.join(args.config['status_indicators']), na=False)
+    
+    # Early return if no matches - column already initialized
+    if not status_mask.any():
+        return df
+    
     # Add spaces around comparison operators for consistent parsing
     for indicator in args.config['status_indicators']:
         col_copy.loc[status_mask] = (
@@ -35,12 +41,10 @@ def extract_outcome(df,args):
             .replace(indicator, indicator + " ", regex=True)
             .str.replace(r'\s+', ' ', regex=True)
         )
-
     ft_df = col_copy.loc[status_mask].str.split(' ', expand=True, n=4).reindex(columns=[0, 1, 2, 3])
     ft_df.columns = ['comp', 'value', 'unit','extra']
     if ft_df.empty: return df
     ft_df['ft'] = col_copy.loc[status_mask]
-
     ft_df['comp'] = ft_df['comp'].replace("alle", "<", regex=True).replace("yli", ">", regex=True)
     # merge togethers situations where int is written as float
     ft_df['value'] = ft_df['value'].astype(str).apply(lambda x: re.sub(r'\.$', '', re.sub(r'0+$', '', x)) if '.' in x else x)
@@ -53,21 +57,24 @@ def extract_outcome(df,args):
     ft_df.loc[map_mask,'unit'] = ft_df.loc[map_mask,'unit'].map(args.config['unit_map'])
     # Apply validation conditions directly to create the extracted status
     mask = (
-    ft_df['comp'].isin(['<', '>']) &
-    pd.to_numeric(ft_df['value'], errors='coerce').notna() &
-    (
-        ft_df['unit'].isin(list(args.config['usagi_units']['harmonization_omop::sourceCode'].values))
-        |
-        ft_df['unit'].isna()         
+        ft_df['comp'].isin(['<', '>']) &
+        pd.to_numeric(ft_df['value'], errors='coerce').notna() &
+        (
+            ft_df['unit'].isin(list(args.config['usagi_units']['harmonization_omop::sourceCode'].values))
+            |
+            ft_df['unit'].isna()         
+        )
     )
-)
-    # Initialize all values as "NA" & Only update values that pass the validation
-    ft_df[col] = "NA"
-    if any(mask): ft_df.loc[mask, col] = ft_df.loc[mask, 'comp'] + ft_df.loc[mask, 'value']+  ft_df.loc[mask, 'unit'].fillna("")
-    # Update the original dataframe with the new column
-    df.loc[status_mask,col] = ft_df[col].values
-    return df
+    # Only update values that pass the validation (already initialized as "NA")
+    if any(mask): 
+        df.loc[status_mask & mask, col] = (
+            ft_df.loc[mask, 'comp'] + 
+            ft_df.loc[mask, 'value'] + 
+            ft_df.loc[mask, 'unit'].fillna("")
+        )
     
+    return df
+
 
 def extract_measurement(df, args ):
     """
@@ -99,16 +106,47 @@ def extract_measurement(df, args ):
     df[merged_col_name] = df[omop_col].copy()
     mask = df[omop_col].isna()
     df.loc[mask, merged_col_name] = df.loc[mask, extracted_col_name]
+    df[merged_col_name] = pd.to_numeric(df[merged_col_name], errors='coerce')
+    return df
+
+def add_source_value(df, args):
+    """
+    Updates extracted::MEASUREMENT_VALUE_MERGED column by injecting values from source::MEASUREMENT_VALUE
+    where the merged column is NA and source value is not empty
+    """
+    merged_col_name = "extracted::MEASUREMENT_VALUE_MERGED"
+    source_col = "source::MEASUREMENT_VALUE"
+    
+    # Check where merged is NA and source is not NA/empty
+    mask = df[merged_col_name].isna() & df[source_col].notna() & (df[source_col] != "NA") & (df[source_col] != "")
+    
+    # Inject source values into merged column
+    df.loc[mask, merged_col_name] = pd.to_numeric(df.loc[mask, source_col], errors='coerce')
     
     return df
 
+
+def extract_plus_ab(df,args):
+    
+    ft_col = "MEASUREMENT_FREE_TEXT"
+    pos_col = "extracted::IS_POS"
+    out_col = "extracted::TEST_OUTCOME_TEXT"
+    matching_cols = ['MEASUREMENT_FREE_TEXT', 'harmonization_omop::OMOP_ID']
+    update_cols = [pos_col,out_col]
+    df1_indexed = df.set_index(matching_cols)
+    df2_indexed = args.plus_table.set_index(matching_cols)
+    # Update df1 with values from df2 where indices match
+    df1_indexed.update(df2_indexed[update_cols])
+
+    # Reset index to get back to normal dataframe
+    df = df1_indexed.reset_index()
+
+    return df
 
 
 def extract_positive(df,args):
     """
     Creates new column with pos/neg extracted information
     """
-
     df = pd.merge(df,args.posneg_table, on ="MEASUREMENT_FREE_TEXT",how='left')
-
     return df

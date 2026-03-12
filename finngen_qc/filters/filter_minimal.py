@@ -30,7 +30,7 @@ def fix_abbreviation(df,args):
     Removes characthers from abbreviation
     """
     col = 'TEST_NAME_ABBREVIATION'
-    abb_df = df[['FINNGENID', 'APPROX_EVENT_DATETIME','TEST_NAME_ABBREVIATION','MEASUREMENT_UNIT']].copy()
+    abb_df = df[['ROW_ID', 'APPROX_EVENT_DATETIME','TEST_NAME_ABBREVIATION','MEASUREMENT_UNIT']].copy()
     pattern = '|'.join(args.config['abbreviation_deletions'])
     df[col] = df[col].replace(pattern,'',regex=True)
     #log changes
@@ -40,7 +40,7 @@ def fix_abbreviation(df,args):
 
     # replace problematic characters in abbrevation (strange minus sign)
     values = args.config['abbreviation_replacements']
-    abb_df = df[['FINNGENID', 'APPROX_EVENT_DATETIME','TEST_NAME_ABBREVIATION','MEASUREMENT_UNIT']].copy()
+    abb_df = df[['ROW_ID', 'APPROX_EVENT_DATETIME','TEST_NAME_ABBREVIATION','MEASUREMENT_UNIT']].copy()
     for rep in args.config['abbreviation_replacements']:
         df.loc[:,col] = df.loc[:,col].replace(rep[0],rep[1],regex=True)
      
@@ -55,7 +55,8 @@ def get_service_provider(df,args):
     Updates CODING_SYSTEM based on mapping. Keeps original if missing
     """
     col = 'SERVICE_PROVIDER_ID'
-    df.loc[:,col] = df.loc[:,col].map(args.config['thl_sote_map'])
+    if col in df.columns:
+        df.loc[:,col] = df.loc[:,col].map(args.config['thl_sote_map'])
     return df
 
 
@@ -99,18 +100,17 @@ def get_lab_abbrv(df,args):
     df[col] = df[col].str.replace('"', '')     # remove single quotes
     return df
 
-
 def lab_id_source(df,args):
     """
     Update/create TEST_ID and TEST_ID SOURCE.
     In this function we uses local_lab_id (paikallinentutkimusnimikeid)  and thl lab_id (laboratoriotutkimusnimikeid) if possible.
     """
     
-    local_mask =  (df['laboratoriotutkimusnimikeid'] == 'NA')
+    local_mask =  (df['laboratoriotutkimusnimike'] == 'NA')
     df["TEST_ID_IS_NATIONAL"] = np.where(local_mask,"0","1")
-    df["TEST_ID"] = np.where(local_mask,df.paikallinentutkimusnimikeid,df.laboratoriotutkimusnimikeid)
+    df["TEST_ID"] = np.where(local_mask,df.paikallinentutkimusnimike_koodi,df.laboratoriotutkimusnimike)
     return df
-    
+
 def filter_measurement_status(df,args):
     """
     Here we remove values that are not in the accepted value list.
@@ -146,7 +146,7 @@ def fix_date(df,args):
     
     #df['APPROX_EVENT_DATETIME'] = pd.to_datetime(df.APPROX_EVENT_DAY +" "+df.TIME,errors='coerce').dt.strftime(args.config['date_time_format'])
     df['APPROX_EVENT_DATETIME'] =df.APPROX_EVENT_DAY +"T"+df.TIME
-    err_mask = pd.to_datetime(df.APPROX_EVENT_DATETIME, format=args.config['date_time_format'], errors='coerce').notna()
+    err_mask = pd.to_datetime(df.APPROX_EVENT_DATETIME, format=args.config['date_time_format'], errors='coerce').isna()
     err_df = df[err_mask].copy()
     err_df['ERR'] = 'DATE'
     err_df['ERR_VALUE'] = err_df.APPROX_EVENT_DAY +" "+err_df.TIME

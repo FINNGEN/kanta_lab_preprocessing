@@ -4,7 +4,7 @@ SELECT
   SEX,
   EVENT_AGE,
   APPROX_EVENT_DATETIME,
-  multiIf(`harmonization_omop::OMOP_ID` = '-1', 'NA', `harmonization_omop::OMOP_ID` = '0', 'NA', `harmonization_omop::OMOP_ID`) AS OMOP_CONCEPT_ID,
+  if(`harmonization_omop::OMOP_ID` IN ('-1', '0'), 'NA', `harmonization_omop::OMOP_ID`) AS OMOP_CONCEPT_ID,
   `cleaned::TEST_NAME_ABBREVIATION` AS TEST_NAME,
   `harmonization_omop::MEASUREMENT_UNIT` AS MEASUREMENT_UNIT_HARMONIZED,
   `harmonization_omop::MEASUREMENT_VALUE` AS MEASUREMENT_VALUE_HARMONIZED,
@@ -13,15 +13,11 @@ SELECT
   TEST_OUTCOME,
   `imputed::TEST_OUTCOME` AS TEST_OUTCOME_IMPUTED,
   `extracted::TEST_OUTCOME_TEXT` AS TEST_OUTCOME_TEXT_EXTRACTED,
-  `extracted::IS_POS` AS OUTCOME_POS_EXTRACTED
+  `extracted::IS_POS` AS OUTCOME_POS_EXTRACTED,
+    `QC_PASS` as QC_PASS,
+    QC_NOTES
     
   FROM file({filePathMungedTxtGz:String}, TSVWithNames) kanta_lab_table
-	 
-  -- Sorting by ROW_ID
- ORDER BY ROW_ID
-	  
   -- Set output format to TSV-gzipped with a header
-	  FORMAT TSVWithNames
-	  
-  -- Disable data type inference from TSV text file.
-	  SETTINGS input_format_tsv_use_best_effort_in_schema_inference = 0
+	 FORMAT TSVWithNames
+	 SETTINGS input_format_tsv_use_best_effort_in_schema_inference = 0

@@ -13,23 +13,80 @@ dir_path = os.path.dirname(os.path.realpath(__file__))
 
 def get_stuff_from_finngen_qc(args):
     args.fg_config = fg_config.config
-    fg_data = os.path.join(os.path.dirname(os.path.dirname(__file__)),'finngen_qc')
-    args.config['unit_map'] = read_map(os.path.join(os.path.join(fg_data,args.fg_config['unit_map_file'])))
-    for key,value in args.fg_config['harmonization_files'].items():
-        cols,fname = value
+    fg_data = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'finngen_qc')
+    
+    args.config['unit_map'] = read_map(os.path.join(fg_data, args.fg_config['unit_map_file']))
+    
+    for key, value in args.fg_config['harmonization_files'].items():
+        # FIX 1: Unpack all 3 elements to match your new config structure
+        cols, fname, subfolder = value
+        # FIX 2: Use os.path.basename to point to the flat file in /data/
+        # This ignores the subfolder structure (e.g., 'VOCABULARIES/UNITSfi/')
+        local_fname = os.path.basename(fname)
+        local_path = os.path.join(fg_data, 'data', local_fname)
+        
         sep = ',' if fname.endswith('.csv') else '\t'
-        rename = {col:new_col for col,new_col in args.fg_config['harmonization_col_map'].items() if col in cols}
-        args.config[key] = pd.read_csv(os.path.join(fg_data,'data',fname),usecols = cols,sep = sep).rename(columns=rename).drop_duplicates()
+        rename = {col: new_col for col, new_col in args.fg_config['harmonization_col_map'].items() if col in cols}
+        
+        # Load the file from the flat data directory
+        args.config[key] = pd.read_csv(local_path, usecols=cols, sep=sep).rename(columns=rename).drop_duplicates()
 
     return args
 
-    
-def init_posneg_mapping(args):
 
-    df =  pd.read_csv(os.path.join(Path(dir_path).parent.absolute(),args.config['posneg_map']),sep='\t',usecols=['MEASUREMENT_FREE_TEXT','MAPPED']).dropna(subset='MAPPED')
-    df = df.astype({'MAPPED': int}).astype({'MAPPED': str})
-    
-    return df.rename(columns={"MAPPED":"extracted::IS_POS"})
+def init_omop_extraction_blacklist(args):
+    """
+    Loads the blacklist configuration file. 
+    Identifies specific OMOP_IDs that should be excluded from the extraction process 
+    to prevent irrelevant or low-quality data from being processed.
+    """
+    f = os.path.join(Path(dir_path).parent.absolute(), args.config['omop_extraction_blacklist'])
+    f = pd.read_csv(f, sep='\t').astype({'harmonization_omop::OMOP_ID': str})
+    return f
+
+def init_omop_unit_fix(args):
+    """
+    Loads the unit correction mapping.
+    Used to standardize measurement units and apply numeric thresholds (VALUE_THRESHOLD) 
+    to identify results that require scaling or unit transformation.
+    """
+    f = os.path.join(Path(dir_path).parent.absolute(), args.config['omop_unit_fix'])
+    f = pd.read_csv(f, sep='\t').astype({'harmonization_omop::OMOP_ID': str, 'VALUE_THRESHOLD': float})
+    return f
+
+def init_omop_qc(args):
+    """
+    Loads the Quality Control (QC) threshold configuration.
+    Sets the numeric boundaries (THRESHOLD) for specific OMOP_IDs to flag 
+    outliers or biologically impossible values during data validation.
+    """
+    f = os.path.join(Path(dir_path).parent.absolute(), args.config['omop_qc'])
+    f = pd.read_csv(f, sep='\t').astype({'harmonization_omop::OMOP_ID': str, 'THRESHOLD': float})
+    return f
+
+def init_plus_mapping(args):
+    """
+    Initializes mapping for qualitative 'plus/minus' test results.
+    Standardizes free-text outcomes and filters the dataset to retain only 
+    rows with valid binary positive/negative indicators ("1" or "0").
+    """
+    f = os.path.join(Path(dir_path).parent.absolute(), args.config['plusab_map'])
+    df = pd.read_csv(f, sep='\t', dtype=str)
+    df['extracted::TEST_OUTCOME_TEXT'] = df['MEASUREMENT_FREE_TEXT']
+    df = df[df['extracted::IS_POS'].isin(["1", "0"])]
+    return df
+
+def init_posneg_mapping(args):
+    """
+    Initializes the mapping for positive/negative text-based results.
+    Extracts the binary status from free-text measurements and ensures 
+    the result column is formatted as a string for consistent logical checks.
+    """
+    col_name = 'extracted::IS_POS'
+    path = os.path.join(Path(dir_path).parent.absolute(), args.config['posneg_map'])
+    df = pd.read_csv(path, sep='\t', usecols=['MEASUREMENT_FREE_TEXT', col_name]).dropna(subset=col_name)
+    df = df.astype({col_name: int}).astype({col_name: str})
+    return df
 
 def init_unit_table(args):
 

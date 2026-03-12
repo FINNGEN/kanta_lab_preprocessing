@@ -3,14 +3,13 @@ version 1.0
 workflow kanta_munge {
   input {
     File kanta_data
-    String prefix
     String kanta_docker
+    String? analysis_docker
+    String prefix
     # test mode will use only 100k lines and 4 cpus
     Boolean test
   }
 
-  # builds sex dictionary mapping from pheno file
-  call sex_map {}
   # splits input in chunks
   call split {
     input:
@@ -24,12 +23,13 @@ workflow kanta_munge {
       input:
       docker = kanta_docker,
       prefix = i,
-      chunk = split.chunks[i],
-      sex_map = sex_map.sex_map
+      chunk = split.chunks[i]
     }
   }
+
+  call GetCurrentDate{}
   # MERGE CHUNKS AND LOGS
-  String base_prefix = "kanta" +  if test then "_test" else ""
+  String base_prefix = prefix + (if test then "_test" else "") + "_" + GetCurrentDate.date_string
   call merge_logs {
     input:
     prefix = base_prefix,
@@ -37,34 +37,86 @@ workflow kanta_munge {
   }
   call merge {
     input:
-    docker = kanta_docker,
+    docker = select_first([analysis_docker,kanta_docker]),
     prefix = base_prefix,
     munged_chunks = munge.munged_chunk
   }
+  call qc {
+    input:
+    docker = select_first([analysis_docker,kanta_docker]),
+    merged_parquet=merge.merged_parquet,
+    prefix = base_prefix
+  }
 }
+
+
+task qc {
+  input {
+    File merged_parquet
+    String prefix
+    String docker
+  }
+
+  String unmap  = prefix+ "_unmapped_entries.txt"
+  String injection =  prefix+ "_candidate_injections.txt"
+  String injection_issues = prefix+ "_injection_check.tsv"
+
+  command <<<
+  # this steps checks the quality of the injected entries
+  time python3 /qc_scripts/injection_check.py ~{merged_parquet} -o ~{injection_issues}
+  # this step creates a candidate injection based on KS values for unharmonized data with source values
+  # it also returns the counts of TEST_NAME,UNIT(cleaned) that do not have a mapping
+  time python3 /qc_scripts/unharmonized.py ~{merged_parquet} --min_count 500 --ks-n 100000 -a ~{injection} -u ~{unmap}
+  # this step creates the table of most common unit per OMOP_ID
+  time python3 /qc_scripts/create_harmonization_table.py --input ~{merged_parquet}
+  #Abnormality estimates 
+  time python3 /qc_scripts/abnormality.py --parquet_file ~{merged_parquet} --min-count 1000 
+  >>>
+  runtime {
+    disks: "local-disk ~{ceil(size(merged_parquet,'GB')) + 20} HDD"
+    docker : "~{docker}"
+    memory: "16 GB"
+  }
+
+  output {
+    File umapped_entries      = "~{unmap}"
+    File injection_candidates = "~{injection}"
+    File injection_mismathces = "~{injection_issues}"
+    File harmonization_counts = "harmonization_counts.tsv"
+    File harmonization_diffs  = "harmonization_diffs.tsv"
+    File ab_table             = "abnormality_estimation.table.tsv"
+    File ab_counts            = "abnormality_estimation.txt"
+
+  }
+}
+
 
 task merge {
   input {
     Array[File] munged_chunks
     String prefix
     String docker 
-
   }
-  String out_file = prefix +"_munged.txt.gz"
+  String parquet_prefix = prefix + "_formatted"
+  String out_file = prefix +".txt.gz"
 
   command <<<
-  # write header
-  zcat ~{munged_chunks[0]} | head -n1 | bgzip -c > ~{out_file}
-  # merge files without headers
-  while read f; do echo $f && date +%Y-%m-%dT%H:%M:%S && zcat $f | sed -E 1d | bgzip -c >> ~{out_file} ; done < <(cat ~{write_lines(munged_chunks)} | sort -V )
+  # Get the exact first line to use as a filter
+  FIRST_LINE=$(zcat ~{munged_chunks[0]} | head -n1)
+  # Use that string to delete duplicates in the stream
+  sort -V ~{write_lines(munged_chunks)} | xargs pigz -dc | sed "1b; /^$FIRST_LINE$/d" | pigz -c > ~{out_file}
+  bash /sb_release/run.sh ~{out_file} . ~{parquet_prefix} munged
   >>>
   runtime {
     disks: "local-disk ~{ceil(size(munged_chunks,'GB')) * 4 + 10} HDD"
     docker : "~{docker}"
+    memory: "16 GB"
+
   }
  
   output {
-    File munged = out_file
+    File merged = out_file
+    File merged_parquet = "~{parquet_prefix}.parquet"
   }
 }
 
@@ -99,20 +151,17 @@ task munge {
     File chunk
     String prefix
     Int cpus
-    File sex_map
+    String harmonization_branch
   }
   String out_chunk =  "~{prefix}_munged.txt.gz"
   command <<<
   set -euxo pipefail
-  python3 /finngen_qc/main.py  --out .  --raw-data ~{chunk} --log info --mp --harmonization --gz --prefix ~{prefix}
-  # MERGE WITH SEX EXCLUDING SAMPLES NOT IN SEX MAP (AND THUS IN INCLUSION LIST)
-  join --header -t $'\t' -1 2 -o auto -e NA <(zcat ~{out_chunk} ) ~{sex_map} | awk -F'\t' 'BEGIN {OFS="\t"} { t = $1; $1 = $2; $2 = t; print; }' | bgzip -c > tmp.txt.gz
-  zcat tmp.txt.gz | wc -l  &&  zcat ~{out_chunk} | wc -l
-  mv tmp.txt.gz ~{out_chunk}
+  python3 /finngen_qc/main.py  --out .  --raw-data ~{chunk} --log info --mp  --prefix ~{prefix} --harmonization-gh-branch ~{harmonization_branch}
+  zcat ~{out_chunk} | wc -l
   >>>
   runtime {
     docker : "~{docker}"
-    disks: "local-disk ~{ceil(size(chunk,'GB')) * 4 + 10} HDD"
+    disks: "local-disk ~{ceil(size(chunk,'GB')) * 4 + 8} HDD"
     mem: "~{cpus} GB"
     cpu : "~{cpus}"
   }
@@ -132,10 +181,19 @@ task split{
   }
   Int chunks = if test then  4  else n_chunks
   command <<<
-  zcat ~{kanta_data} | head -n1 > header.txt
-  zcat ~{kanta_data} | sed -E 1d ~{if test then " | head -n 4000000 "  else ""} > tmp.tsv
-  for f in {00..~{chunks-1}}; do cat header.txt | bgzip -c > kanta$f.gz; done
-  split tmp.tsv -n l/~{chunks} -d kanta --filter='gzip >> $FILE.gz'
+  FILE=~{kanta_data}
+  TEST=~{if test then 1 else 0}
+  CHUNKS=$(( TEST ? 4 : ~{n_chunks} ))
+  LINES=$(( TEST ? 4000000 : 250000000 ))
+
+  echo "$([[ $TEST -eq 1 ]] && echo TEST || echo FULL) MODE: CHUNKS=$CHUNKS, LINES=$LINES"
+  CHUNK_SIZE=$(( (LINES + CHUNKS - 1) / CHUNKS ))
+  echo "Splitting $LINES lines into $CHUNKS chunks of ~$CHUNK_SIZE each"
+  gzip -dc "$FILE" | head -n1 > header.txt && echo "Header saved to header.txt"
+  cmd="gzip -dc \"$FILE\" | tail -n +2"
+  [[ $TEST -eq 1 ]] && cmd+=" | head -n $LINES"
+  eval "$cmd" | split -l "$CHUNK_SIZE" -d --verbose   --filter='{ cat header.txt; cat; } | bgzip -c > ${FILE}.gz' - kanta
+
   >>>
   runtime {disks: "local-disk ~{ceil(size(kanta_data,'GB')) * 10 + 20} HDD"}
   output {
@@ -144,16 +202,15 @@ task split{
   }
 }
 
-task sex_map {
-  input {File min_pheno}
-  String sex_file = "sex_map.txt"
-  command <<<
-  # get sex col
-  sexcol=$(awk '{for(i=1;i<=NF;i++){if($i=="SEX"){print i; exit}}}' <(zcat ~{min_pheno} | head -n1))
-  # extract sex only and sort
-  zcat ~{min_pheno} | cut -f 1,$sexcol | (sed -u 1q ; sort )>> ~{sex_file}
-  >>>
-  runtime {disks: "local-disk ~{ceil(size(min_pheno,'GB')) * 3} HDD"}
-  output {File sex_map = sex_file}
-}
 
+task GetCurrentDate {
+  command <<<
+  date +%Y_%m_%d | tr -d '\n'
+  >>>
+  output {
+    String date_string = read_string(stdout())
+  }
+  meta {
+    volatile: true
+  }
+}

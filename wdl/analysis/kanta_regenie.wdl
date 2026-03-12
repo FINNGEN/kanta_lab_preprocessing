@@ -341,7 +341,9 @@ task create_pheno_file {
         file('$PARQUET', Parquet)
     WHERE
         OMOP_CONCEPT_ID = '$PHENO'
+        AND QC_PASS == 1
         AND  $MEASUREMENT_COLUMN IS NOT NULL
+  
   )
   GROUP BY FINNGENID
   HAVING count(*) >= ~{min_count}

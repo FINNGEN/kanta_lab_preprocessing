@@ -13,14 +13,13 @@ SELECT
   nullIf(TEST_OUTCOME, 'NA') :: Nullable(String) AS TEST_OUTCOME,
   nullIf(TEST_OUTCOME_IMPUTED, 'NA') :: Nullable(String) AS TEST_OUTCOME_IMPUTED,
   nullIf(OUTCOME_POS_EXTRACTED, 'NA') :: Nullable(Int8) AS OUTCOME_POS_EXTRACTED,
-  nullIf(TEST_OUTCOME_TEXT_EXTRACTED, 'NA') :: Nullable(String) AS TEST_OUTCOME_TEXT_EXTRACTED
+  nullIf(TEST_OUTCOME_TEXT_EXTRACTED, 'NA') :: Nullable(String) AS TEST_OUTCOME_TEXT_EXTRACTED,
+  nullIf(QC_PASS, 'NA') :: Nullable(Int8) AS QC_PASS,
+  nullIf(QC_NOTES, 'NA') :: Nullable(String) AS QC_NOTES
+
 
   FROM file({filePathCleanTxtGz:String}, TSVWithNames)
 	 
-
--- Make the output deterministic by using ORDER BY on all columns
- ORDER BY ROW_ID
-
 FORMAT Parquet
 SETTINGS
     input_format_tsv_use_best_effort_in_schema_inference = 0,

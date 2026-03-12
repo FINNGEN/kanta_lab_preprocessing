@@ -1,32 +1,33 @@
 config = {
     # DIRECT COLUMN MAPPING
     'rename_cols' : {
-        'FINNGENID':                      'FINNGENID',
-        'EVENT_AGE' :                     'EVENT_AGE',
-        'tutkimuskoodistonjarjestelmaid': 'CODING_SYSTEM',
-        'paikallinentutkimusnimike':      'TEST_NAME_ABBREVIATION',
-        'tutkimustulosarvo':              'MEASUREMENT_VALUE',
-        'tutkimustulosyksikko':           'MEASUREMENT_UNIT',
-        'tutkimusvastauksentilaid':       'MEASUREMENT_STATUS',
-        'tuloksenpoikkeavuusid':          'TEST_OUTCOME',
-        'viitearvoryhma':                 'REFERENCE_RANGE_GROUP',
-        'viitevalialkuarvo':              'REFERENCE_RANGE_LOWER_VALUE',
-        'viitevalialkuyksikko':           'REFERENCE_RANGE_LOWER_UNIT',
-        'viitevaliloppuarvo':             'REFERENCE_RANGE_UPPER_VALUE',
-        'viitevaliloppuyksikko':          'REFERENCE_RANGE_UPPER_UNIT',
-        'tutkimuksenlisatieto' :          'MEASUREMENT_EXTRA_INFO',
-        'tutkimustulosteksti':            'MEASUREMENT_FREE_TEXT',
-        'antaja_organisaatioid':          'SERVICE_PROVIDER_ID',
-        'lausunnontilaid':                'STATEMENT_ID',
-   	'lausuntoteksti':                 'STATEMENT_TEXT'  
+        'FINNGENID':                       'FINNGENID',
+        'EVENT_AGE' :                      'EVENT_AGE',
+        'tutkimuskoodistonjarjestelma':    'CODING_SYSTEM',
+        'paikallinentutkimusnimike_selite':'TEST_NAME_ABBREVIATION',
+        'tutkimustulosarvo':               'MEASUREMENT_VALUE',
+        'tutkimustulosyksikko':            'MEASUREMENT_UNIT',
+        'tutkimusvastauksentila':          'MEASUREMENT_STATUS',
+        'tuloksenpoikkeavuus':             'TEST_OUTCOME',
+        'viitearvoryhma':                  'REFERENCE_RANGE_GROUP',
+        'viitevalialkuarvo':               'REFERENCE_RANGE_LOWER_VALUE',
+        'viitevalialkuyksikko':            'REFERENCE_RANGE_LOWER_UNIT',
+        'viitevaliloppuarvo':              'REFERENCE_RANGE_UPPER_VALUE',
+        'viitevaliloppuyksikko':           'REFERENCE_RANGE_UPPER_UNIT',
+        'tutkimustulosteksti':            'MEASUREMENT_FREE_TEXT'
+        #'tutkimuksenlisatieto' :          'MEASUREMENT_EXTRA_INFO',
+        #'antaja_organisaatioid':          'SERVICE_PROVIDER_ID',
+        #'lausunnontilaid':                'STATEMENT_ID',
+   	#'lausuntoteksti':                 'STATEMENT_TEXT'  
         
     },
     "source_cols" : ['MEASUREMENT_VALUE','MEASUREMENT_UNIT','TEST_NAME_ABBREVIATION'],
     # ACCESSORY COLUMNS
-    'other_cols' : ['paikallinentutkimusnimikeid','laboratoriotutkimusnimikeid','APPROX_EVENT_DAY','TIME','ROW_ID'],
+    'other_cols' : ['paikallinentutkimusnimike_koodi','laboratoriotutkimusnimike','APPROX_EVENT_DAY','TIME','ROW_ID','SEX'],
+
     # Cols used for sorting in the wdl.
     # N.B. the order is important as it is kept in the grepping!
-    'sort_cols' : ['FINNGENID','APPROX_EVENT_DAY','TIME','laboratoriotutkimusnimikeid','paikallinentutkimusnimikeid','tutkimusvastauksentilaid','tutkimustulosarvo','tutkimustulosyksikko','tutkimustulosteksti'],
+     'sort_cols' : ['FINNGENID','APPROX_EVENT_DAY','TIME','laboratoriotutkimusnimike','paikallinentutkimusnimike_koodi','tutkimusvastauksentila','tutkimustulosarvo','tutkimustulosyksikko'],#,'tutkimustulosteksti'],
     # LIST OF OUTPUT COLUMNS TO INCLUDE (VALUES ABOVE PLUS NEWLY GENERATED COLUMNS)
     'out_cols' :    [
         'ROW_ID',
@@ -47,6 +48,7 @@ config = {
         'cleaned::TEST_NAME_ABBREVIATION',
         'cleaned::MEASUREMENT_VALUE',
         'cleaned::MEASUREMENT_UNIT',
+        'cleaned-pre-fix::MEASUREMENT_UNIT',
         'harmonization_omop::MEASUREMENT_VALUE',
         'harmonization_omop::MEASUREMENT_UNIT',
         'harmonization_omop::CONVERSION_FACTOR',
@@ -57,11 +59,12 @@ config = {
         'source::MEASUREMENT_VALUE',
         'source::MEASUREMENT_UNIT',
         'source::TEST_NAME_ABBREVIATION',
-        'MEASUREMENT_EXTRA_INFO',
         'MEASUREMENT_FREE_TEXT',
-        'SERVICE_PROVIDER_ID',
-        'STATEMENT_ID',
-   	'STATEMENT_TEXT'  
+        #'MEASUREMENT_EXTRA_INFO',
+        #'SERVICE_PROVIDER_ID',
+        #'STATEMENT_ID',
+   	#'STATEMENT_TEXT',
+        'SEX'
     ],
     'cleaned_cols':    [
         'TEST_NAME_ABBREVIATION',
@@ -69,8 +72,8 @@ config = {
         'MEASUREMENT_UNIT',
     ],
     
-    'err_cols':['ROW_ID','FINNGENID','APPROX_EVENT_DATETIME','ERR','ERR_VALUE'],
-    'date_time_format': "%Y-%m-%dT%H:%M:%S",
+    'err_cols':['ROW_ID','APPROX_EVENT_DATETIME','ERR','ERR_VALUE'],
+    'date_time_format': "%Y-%m-%dT%H:%M",
 
     #REJECTION LINES
     'NA_kws': ['Puuttuu','""',"TYHJÄ","_","NULL","-1"], # FOR ALL COLUMNS DEFAULT
@@ -163,13 +166,30 @@ config = {
     ],
 
     'abbreviation_replacements': [(r'–','-')],
-    'harmonization_repo':'https://raw.githubusercontent.com/FINNGEN/kanta_lab_harmonisation_public/adding-formulas-to-units-conversion/MAPPING_TABLES/',
+    'harmonization_repo':'https://raw.githubusercontent.com/FINNGEN/kanta_lab_harmonisation_public/refs/heads/BRANCH/VOCABULARIES/',
     #list of harmonization files along with columns to use
     'harmonization_files' : {
-        'usagi_units':[['sourceCode'],'UNITSfi.usagi.csv'],
-        'unit_abbreviation_fix':[['TEST_NAME_ABBREVIATION','source_unit_clean','source_unit_clean_fix'],'fix_unit_based_in_abbreviation.tsv'],
-        'usagi_mapping':[['mappingStatus','conceptId','ADD_INFO:omopQuantity','ADD_INFO:testNameAbbreviation','ADD_INFO:measurementUnit'],'LABfi_ALL.usagi.csv'],
-        'unit_conversion':[['omop_quantity','source_unit_valid','to_source_unit_valid','conversion','only_to_omop_concepts'],'quantity_source_unit_conversion.tsv']
+        # Format: [ [cols], 'subfolder/filename', 'subfolder' ]
+        'usagi_units': [
+            ['sourceCode','ADD_INFO:UniqueForLab'], 
+            'UNITSfi/UNITSfi.usagi.csv', 
+            'UNITSfi'
+        ],
+        'unit_abbreviation_fix': [
+            ['TEST_NAME_ABBREVIATION','source_unit_clean','source_unit_clean_fix'],
+            'LABfi_ALL/fix_unit_based_in_abbreviation.tsv', 
+            'LABfi_ALL'
+        ],
+        'usagi_mapping': [
+            ['mappingStatus','conceptId','ADD_INFO:omopQuantity','ADD_INFO:testNameAbbreviation','ADD_INFO:measurementUnit'],
+            'LABfi_ALL/LABfi_ALL.usagi.csv', 
+            'LABfi_ALL'
+        ],
+        'unit_conversion': [
+            ['omop_quantity','source_unit_valid','to_source_unit_valid','conversion','only_to_omop_concepts'],
+            'LABfi_ALL/quantity_source_unit_conversion.tsv', 
+            'LABfi_ALL'
+        ]
     },
     
     'harmonization_col_map' : {
