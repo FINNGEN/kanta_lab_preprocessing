@@ -69,8 +69,8 @@ task qc {
   time python3 /qc_scripts/unharmonized.py ~{merged_parquet} --min_count 500 --ks-n 100000 -a ~{injection} -u ~{unmap}
   # this step creates the table of most common unit per OMOP_ID
   time python3 /qc_scripts/create_harmonization_table.py --input ~{merged_parquet}
-  #Abnormality estimates 
-  time python3 /qc_scripts/abnormality.py --parquet_file ~{merged_parquet} --min-count 1000 
+  #Abnormality estimates
+  time python3 /qc_scripts/abnormality.py --parquet_file ~{merged_parquet} --min-count 1000
   >>>
   runtime {
     disks: "local-disk ~{ceil(size(merged_parquet,'GB')) + 20} HDD"
@@ -95,7 +95,7 @@ task merge {
   input {
     Array[File] munged_chunks
     String prefix
-    String docker 
+    String docker
   }
   String parquet_prefix = prefix + "_formatted"
   String out_file = prefix +".txt.gz"
@@ -113,7 +113,7 @@ task merge {
     memory: "16 GB"
 
   }
- 
+
   output {
     File merged = out_file
     File merged_parquet = "~{parquet_prefix}.parquet"
@@ -156,7 +156,7 @@ task munge {
   String out_chunk =  "~{prefix}_munged.txt.gz"
   command <<<
   set -euxo pipefail
-  python3 /finngen_qc/main.py  --out .  --raw-data ~{chunk} --log info --mp  --prefix ~{prefix} --harmonization-gh-branch ~{harmonization_branch}
+  python3 /finngen_qc/main.py  --gz --out .  --raw-data ~{chunk} --log info --mp  --prefix ~{prefix} --harmonization-gh-branch ~{harmonization_branch}
   zcat ~{out_chunk} | wc -l
   >>>
   runtime {

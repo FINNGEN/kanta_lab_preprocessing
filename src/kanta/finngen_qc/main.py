@@ -7,7 +7,7 @@ from datetime import datetime
 from utils import file_exists,log_levels,configure_logging,make_sure_path_exists,progressBar,batched,mapcount,read_map,estimate_lines,write_chunk,init_log_files,init_harmonization
 from magic_config import config
 from datetime import datetime
-from filters.filter_minimal import filter_minimal 
+from filters.filter_minimal import filter_minimal
 from filters.fix_unit import unit_fixing
 from filters.harmonization import harmonization
 
@@ -135,7 +135,7 @@ def main(args):
             err_dump = os.path.join(args.out,f"{args.prefix}_duplicates_{i}.txt.gz")
             logger.critical(f"chunk {i}:lines don't add up")
             write_chunk(df,0,err_dump,args.config['out_cols'],final_rename,logger)
-            
+
         progressBar(size,lines)
 
 
@@ -147,17 +147,17 @@ def main(args):
     logger.info(f"{mapcount(args.err_file) -1} err entries")
     assert size == output_lines + mapcount(args.err_file) -1
     logger.info('Duration: {}'.format(datetime.now() - start_time))
-    
+
     return
 
-    
+
 if __name__=='__main__':
-    
+
     parser=argparse.ArgumentParser(description="Kanta Lab preprocessing pipeline: raw data ⇒ clean data.")
     parser.add_argument("--raw-data", type=file_exists, help="Path to input raw file. File should be tsv.", default=os.path.join(dir_path, "test", "raw_data_test.txt"))
     parser.add_argument("--log", default="warning", choices=log_levels, help="Provide logging level. Example '--log debug', default = 'warning'")
     parser.add_argument("--test", action='store_true', help="Reads first chunk only")
-    parser.add_argument("--gz", action='store_true', help="Ouputs to gz",default=True)
+    parser.add_argument("--gz", action='store_true', help="Ouputs to gz")
     parser.add_argument("--mp", default=0, const=os.cpu_count(), nargs='?', type=int, help="Flag for multiproc. Default is '0' (no multiproc). If passed it defaults to cpu count, but one can also specify the number of cpus to use: e.g. '--mp' or '--mp 4'.")
     parser.add_argument('-o', "--out", type=str, help="Folder in which to save the results (default = current working directory)", default=os.getcwd())
     parser.add_argument("--prefix", type=str, default=f"kanta_{datetime.today().strftime('%Y_%m_%d')}", help="Prefix of the out files (default = 'kanta_YYYY_MM_DD')")
@@ -168,7 +168,7 @@ if __name__=='__main__':
     parser.add_argument("--harmonization", type=file_exists, nargs = '?',help="Path to tsv with concept id and target unit.",const = os.path.join(dir_path,'data','harmonization_counts.tsv'),default=os.path.join(dir_path, 'data', 'harmonization_counts.tsv') )
     parser.add_argument("--harmonization-gh-branch", type=str, default="main", help="Name of github branch to use")
 
-    
+
     args = parser.parse_args()
     make_sure_path_exists(args.out)
     # setup logging
@@ -191,18 +191,18 @@ if __name__=='__main__':
     logger.debug(args.config['unit_abbreviation_fix'])
     logger.debug(dict(list(args.config['thl_lab_map'].items())[0:2]))
     init_log_files(args)
-    
-    
+
+
     if os.path.basename(args.raw_data) == "raw_data_test.txt":
         logger.warning("RUNNING IN TEST MODE")
 
     # make sure the chunk size is at least the size of the the jobs
     args.chunk_size = max(args.chunk_size,args.mp)
-    args.out_file = os.path.join(args.out,f"{args.prefix}_munged.txt")  
+    args.out_file = os.path.join(args.out,f"{args.prefix}_munged.txt")
     if args.gz: args.out_file += ".gz"
 
     # Setup pandas
     setup_pandas()
 
-    main(args)    
+    main(args)
     logger.info("END")
