@@ -7,10 +7,10 @@ def test_finngen_qc_e2e():
     """E2E test running finngen_qc/main.py with mock data"""
 
     # Get paths relative to test file
-    test_dir = Path(__file__).parent.parent
-    mock_data = test_dir / "mock_data" / "laboratory_responses_internal_unique.tsv"
-    golden_file = test_dir / "test_simple" / "kanta_munged__GOLDEN.txt"
-    main_script = test_dir.parent / "src" / "kanta" / "finngen_qc" / "main.py"
+    test_dir = Path(__file__).parent
+    mock_data = test_dir / "laboratory_responses_internal_unique.tsv"
+    golden_file = test_dir / "kanta_munged__GOLDEN.txt"
+    main_script = test_dir.parent.parent / "src" / "kanta" / "finngen_qc" / "main.py"
 
     # Verify paths exist
     assert mock_data.exists(), f"Mock data not found at {mock_data}"
