@@ -16,13 +16,15 @@ def test_finngen_qc_e2e():
     assert main_script.exists(), f"Main script not found at {main_script}"
 
     # Create temporary output directory
-    with tempfile.TemporaryDirectory() as tmpdir:
+    tmpdir =  tempfile.TemporaryDirectory(delete=False)
+
+    try:
         # Run the CLI command
         result = subprocess.run(
             [
                 'python', str(main_script),
                 '--raw-data', str(mock_data),
-                '--out', tmpdir,
+                '--out', tmpdir.name,
                 '--log', 'info'
             ],
             capture_output=True,
@@ -38,13 +40,18 @@ def test_finngen_qc_e2e():
         )
 
         # Check that output file was created
-
-        output_files = list(Path(tmpdir).glob("*_munged.txt"))
+        output_files = list(Path(tmpdir.name).glob("*_munged.txt"))
         assert len(output_files) > 0, "No munged output file created"
 
         # Check that log file was created
-        log_files = list(Path(tmpdir).glob("*_log.txt"))
+        log_files = list(Path(tmpdir.name).glob("*_log.txt"))
         assert len(log_files) > 0, "No log file created"
 
         # Check that output is not empty
         assert output_files[0].stat().st_size > 0, "Output file is empty"
+
+    except:
+        print(f"Test failed. Temporary directory preserved at: {tmpdir.name}")
+        raise
+    else:
+        tmpdir.cleanup()
