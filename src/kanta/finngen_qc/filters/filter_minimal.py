@@ -43,11 +43,11 @@ def fix_abbreviation(df,args):
     abb_df = df[['ROW_ID', 'APPROX_EVENT_DATETIME','TEST_NAME_ABBREVIATION','MEASUREMENT_UNIT']].copy()
     for rep in args.config['abbreviation_replacements']:
         df.loc[:,col] = df.loc[:,col].replace(rep[0],rep[1],regex=True)
-     
+
     abb_df['new'] = df[col].copy()
     unit_mask = (abb_df[col] != abb_df['new'])
     abb_df[unit_mask].to_csv(args.abbr_file, mode='a', index=False, header=False,sep="\t")
-   
+
     return df
 
 def get_service_provider(df,args):
@@ -72,7 +72,7 @@ def get_coding_map(df,args):
     # SECOND ROUND
     # create column with mappable name
     col = "CODING_SYSTEM_MAP"
-    df["TMP_SYSTEM"] =  df['CODING_SYSTEM'].str.replace("1.2.246.10.","").str.replace("1.2.246.537.10.","").str.split('.',expand=True,n=1)[0]
+    df["TMP_SYSTEM"] =  df['CODING_SYSTEM'].str.replace("1.2.246.10.","").str.replace("1.2.246.537.10.","").str.split('.',expand=False,n=1).str[0]
     # I need this step since i create some strange entries with value 1 for 1.2.246.537.6.3.2006 and of the sort
     df[col] = df['TMP_SYSTEM'].map(args.config['thl_manual_map']).fillna("NA")
     return df
@@ -105,7 +105,7 @@ def lab_id_source(df,args):
     Update/create TEST_ID and TEST_ID SOURCE.
     In this function we uses local_lab_id (paikallinentutkimusnimikeid)  and thl lab_id (laboratoriotutkimusnimikeid) if possible.
     """
-    
+
     local_mask =  (df['laboratoriotutkimusnimike'] == 'NA')
     df["TEST_ID_IS_NATIONAL"] = np.where(local_mask,"0","1")
     df["TEST_ID"] = np.where(local_mask,df.paikallinentutkimusnimike_koodi,df.laboratoriotutkimusnimike)
@@ -123,7 +123,7 @@ def filter_measurement_status(df,args):
     err_df[args.config['err_cols']].to_csv(args.err_file, mode='a', index=False, header=False,sep="\t")
     return df[~err_mask]
 
-    
+
 def fix_na(df,args):
     """
     Fixes NAs across columns.
@@ -143,7 +143,7 @@ def fix_date(df,args):
     """
     Joins day and time to make a single date field.
     """
-    
+
     #df['APPROX_EVENT_DATETIME'] = pd.to_datetime(df.APPROX_EVENT_DAY +" "+df.TIME,errors='coerce').dt.strftime(args.config['date_time_format'])
     df['APPROX_EVENT_DATETIME'] =df.APPROX_EVENT_DAY +"T"+df.TIME
     err_mask = pd.to_datetime(df.APPROX_EVENT_DATETIME, format=args.config['date_time_format'], errors='coerce').isna()
@@ -164,7 +164,7 @@ def remove_spaces(df,args):
     for col in [col for col in df.columns if col not in args.config['columns_with_spaces']]:
         # removes all spaces (including inside text, kinda messess up date, but fixes issues across the board.
         df[col] = df[col].str.strip().str.replace(r'\s', '', regex=True).fillna("NA") # this removes ALL spaces
-        
+
     return df
 
 
