@@ -3,13 +3,13 @@ Merges the incoming Kanta Lab data from THL into one coherent file.
 
 Note: needed ~128GB memory to run on R14 data.
 """
+
 import gzip
 from argparse import ArgumentParser
 from itertools import zip_longest
 from pathlib import Path
 
 import polars as pl
-pl.Config.set_verbose(True)  
 
 
 # TODO
@@ -59,6 +59,9 @@ EXPECTED_COLUMNS_FREETEXT = [
 ]
 
 
+SUFFIX_JOIN_COL = "_right"
+
+
 def validate_input_pairs(list_file: Path, *, separator="\t") -> list[tuple[Path, Path]]:
     pairs = []
     with open(list_file) as fp:
@@ -84,18 +87,43 @@ def merge_by_pair(pairs: list[tuple[Path, Path]], parquet_output: str | Path) ->
 
         df_resp = (
             pl.scan_csv(path_responses, infer_schema=False, separator="\t")
-            .with_row_index(name="_rn", offset=1)
+            .with_row_index(name="_rowid", offset=1)
+            .with_columns(pl.col("_rowid").cast(pl.String) + "|" + path_responses.name)
         )
 
         df_freetext = (
             pl.scan_csv(path_freetext, infer_schema=False, separator="\t")
-            .with_row_index(name="_rn", offset=1)
+            .with_row_index(name="_rowid", offset=1)
+            .with_columns(pl.col("_rowid").cast(pl.String) + "|" + path_freetext.name)
         )
 
-        df_merged = df_resp.join(df_freetext, on="_rn", how="full")
+        df_merged = df_resp.join(
+            df_freetext, on="_rowid", how="full", suffix=SUFFIX_JOIN_COL
+        )
         to_concat.append(df_merged)
 
     pl.concat(to_concat).sink_parquet(parquet_output)
+
+
+def check_merge_consistency(data_path: str | Path):
+    shared_cols = set(EXPECTED_COLUMNS_RESPONSES).intersection(
+        EXPECTED_COLUMNS_FREETEXT
+    )
+
+    all_check = (
+        pl.scan_parquet(data_path)
+        .select(
+            pl.all_horizontal(
+                pl.col(cc) == pl.col(cc + SUFFIX_JOIN_COL) for cc in shared_cols
+            ).all()
+        )
+        .collect()
+        .item()
+    )
+
+    assert all_check
+
+    return all_check
 
 
 def validate_tsv_gz(filename: str, in_dir: Path) -> Path:
@@ -163,9 +191,19 @@ if __name__ == "__main__":
         type=Path,
         help="File containing pair of paths to responses & freetext data, one pair per line (TSV without header).",
     )
+    parser.add_argument(
+        "--post-merge-file",
+        required=True,
+        type=Path,
+        help="Path to intermediary output file from the merge stage",
+    )
 
     args = parser.parse_args()
 
     pairs = validate_input_pairs(args.list_file)
 
-    merge_by_pair(pairs, "/tmp/out.parquet")
+    print(">> merge_by_pair")
+    merge_by_pair(pairs, args.post_merge_file)
+
+    print(">> check_merge_consistency")
+    print(check_merge_consistency(args.post_merge_file))
