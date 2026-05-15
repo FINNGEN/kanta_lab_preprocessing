@@ -1,7 +1,5 @@
 """
 Merges the incoming Kanta Lab data from THL into one coherent file.
-
-Note: needed ~128GB memory to run on R14 data.
 """
 
 import gzip
@@ -13,10 +11,9 @@ import polars as pl
 
 
 # TODO
-# 4. Validate that shared column match
 # 5. Post WDL sort-dup: subset columns, join SEX, sort, output unique/duplicates/error rows
 
-EXPECTED_COLUMNS_RESPONSES = [
+EXPECTED_COLUMNS_MAIN = [
     "FINNGENID",
     "EVENT_AGE",
     "APPROX_EVENT_DAY",
@@ -58,8 +55,8 @@ EXPECTED_COLUMNS_FREETEXT = [
     "tutkimustulosteksti",
 ]
 
-
-SUFFIX_JOIN_COL = "_right"
+COL_PREFIX_MAIN = "main."
+COL_PREFIX_FREETEXT = "freetext."
 
 
 def validate_input_pairs(list_file: Path, *, separator="\t") -> list[tuple[Path, Path]]:
@@ -68,13 +65,13 @@ def validate_input_pairs(list_file: Path, *, separator="\t") -> list[tuple[Path,
         for line in fp:
             values = line.split(separator, maxsplit=2)
 
-            responses = validate_tsv_gz(values[0], list_file.parent)
+            main = validate_tsv_gz(values[0], list_file.parent)
             freetext = validate_tsv_gz(values[1], list_file.parent)
 
-            pairs.append((responses, freetext))
+            pairs.append((main, freetext))
 
-    for responses, freetext in pairs:
-        check_columns(responses, EXPECTED_COLUMNS_RESPONSES, "responses")
+    for main, freetext in pairs:
+        check_columns(main, EXPECTED_COLUMNS_MAIN, "main")
         check_columns(freetext, EXPECTED_COLUMNS_FREETEXT, "freetext")
 
     return pairs
@@ -82,48 +79,71 @@ def validate_input_pairs(list_file: Path, *, separator="\t") -> list[tuple[Path,
 
 def merge_by_pair(pairs: list[tuple[Path, Path]], parquet_output: str | Path) -> None:
     to_concat = []
-    for path_responses, path_freetext in pairs:
-        print(f"Processing {path_responses} & {path_freetext}")
+    for path_main, path_freetext in pairs:
+        print(f"Processing {path_main} & {path_freetext}")
 
-        df_resp = (
-            pl.scan_csv(path_responses, infer_schema=False, separator="\t")
-            .with_row_index(name="_rowid", offset=1)
-            .with_columns(pl.col("_rowid").cast(pl.String) + "|" + path_responses.name)
+        df_main = (
+            pl.scan_csv(
+                path_main,
+                infer_schema=False,
+                separator="\t",
+                row_index_name="_rowid",
+                row_index_offset=1,
+            )
+            .with_columns(pl.lit(path_main.name).alias("_filename"))
+            .select(pl.all().name.prefix(COL_PREFIX_MAIN))
         )
 
         df_freetext = (
-            pl.scan_csv(path_freetext, infer_schema=False, separator="\t")
-            .with_row_index(name="_rowid", offset=1)
-            .with_columns(pl.col("_rowid").cast(pl.String) + "|" + path_freetext.name)
+            pl.scan_csv(
+                path_freetext,
+                infer_schema=False,
+                separator="\t",
+                row_index_name="_rowid",
+                row_index_offset=1,
+            )
+            .with_columns(pl.lit(path_freetext.name).alias("_filename"))
+            .select(pl.all().name.prefix(COL_PREFIX_FREETEXT))
         )
 
-        df_merged = df_resp.join(
-            df_freetext, on="_rowid", how="full", suffix=SUFFIX_JOIN_COL
-        )
+        df_merged = pl.concat([df_main, df_freetext], how="horizontal")
+
         to_concat.append(df_merged)
 
     pl.concat(to_concat).sink_parquet(parquet_output)
 
 
-def check_merge_consistency(data_path: str | Path):
-    shared_cols = set(EXPECTED_COLUMNS_RESPONSES).intersection(
-        EXPECTED_COLUMNS_FREETEXT
-    )
+def check_merge_consistency(data_path: str | Path) -> bool:
+    # First check: all shared columns have the same values
+    shared_cols = set(EXPECTED_COLUMNS_MAIN).intersection(EXPECTED_COLUMNS_FREETEXT)
 
-    all_check = (
+    check_shared_columns_same_values = (
         pl.scan_parquet(data_path)
         .select(
             pl.all_horizontal(
-                pl.col(cc) == pl.col(cc + SUFFIX_JOIN_COL) for cc in shared_cols
+                pl.col(COL_PREFIX_MAIN + cc) == pl.col(COL_PREFIX_FREETEXT + cc)
+                for cc in shared_cols
             ).all()
         )
-        .collect()
+        .collect(engine="streaming")
         .item()
     )
 
-    assert all_check
+    assert check_shared_columns_same_values
 
-    return all_check
+    # Second check: main and freetext have same height.
+    # This is done by checking the absence of null in _rowid, which happens iif
+    # the main and freetext data are of different height.
+    check_same_height = (
+        pl.scan_parquet(data_path)
+        .select(pl.all_horizontal(pl.selectors.ends_with("._rowid").is_not_null().all()))
+        .collect(engine="streaming")
+        .item()
+    )
+
+    assert check_same_height
+
+    return check_shared_columns_same_values and check_same_height
 
 
 def validate_tsv_gz(filename: str, in_dir: Path) -> Path:
@@ -189,7 +209,7 @@ if __name__ == "__main__":
         "--list-file",
         required=True,
         type=Path,
-        help="File containing pair of paths to responses & freetext data, one pair per line (TSV without header).",
+        help="File containing pair of paths to main & freetext data, one pair per line (TSV without header).",
     )
     parser.add_argument(
         "--post-merge-file",
