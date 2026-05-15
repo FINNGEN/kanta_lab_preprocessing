@@ -1,0 +1,361 @@
+MEASUREMENT_FREE_TEXT	extracted::IS_POS	COUNT	ratio_COUNT	Npeople	ratio_Npeople	NOTES																			
+NEGAT	0	2917110	1	272065	1	NA																			
+negat	0	2446386	1	202896	1	NA																			
+neg	0	952660	1	129120	1	NA																			
+NEG	0	896553	1	162345	1	NA																			
+Negat	0	835661	1	192609	1	NA																			
+Negat.	0	571755	1	123388	1	NA																			
+Neg	0	316151	1	77194	1	NA																			
+A RhD pos	NA	162256	1	63744	1	NA																			
+O RhD pos	NA	119649	1	46419	1	NA																			
+Posit.	1	106263	1	50905	1	NA																			
+-(neg)	0	105855	1	32730	1	NA																			
+NEGAT.	0	105509	1	9210	1	NA																			
+Negatiivinen	0	104993	1	42920	1	NA																			
+POSIT	1	89597	1	60179	1	NA																			
+Posit	1	69473	1	56468	1	NA																			
+posit	1	65802	1	36240	1	NA																			
+B RhD pos	NA	63539	1	25078	1	NA																			
+negat.	0	55268	1	31524	1	NA																			
+POS	1	48959	1	31174	1	NA																			
+SEULPOS	1	36372	1	14616	1	NA																			
+negative	0	35175	1	2783	1	NA																			
+Tutkimuksen tulos: NEGAT	0	34600	1	8577	1	NA																			
+seulneg	0	30464	1	9764	1	check testID --> OK																			
+AB RhD pos	NA	30192	1	11980	1	NA																			
+A RhD neg	NA	28090	1	9275	1	NA																			
+NEGATIVE	0	26857	1	2581	1	NA																			
+negatiivinen	0	25023	1	18401	1	NA																			
+NEG Arvio	0	23604	1	10610	1	NA																			
+POSIT*	1	22689	1	16654	1	NA																			
+pos	1	22436	1	11216	1	NA																			
+O RhD neg	NA	20908	1	7073	1	NA																			
+Pos	1	19284	1	10556	1	NA																			
+Positiivinen	1	15510	1	13944	1	NA																			
+Tutkimuksen tulos: NEG	0	14129	1	4773	1	NA																			
++(pos)	1	12333	1	5898	1	NA																			
+B RhD neg	NA	11056	1	3637	1	NA																			
+Tutkimuksen tulos: Negat.	0	10466	1	3096	1	NA																			
+Tutkimuksen tulos: negat	0	10227	1	4083	1	NA																			
+Resultat: NEGAT	0	9058	1	687	1	NA																			
+A Rh(D)pos	NA	8106	1	5148	1	NA																			
+A Rh POS	NA	7592	1.081	6571	1.082	NA																			
+Tutkimuksen tulos: Negatiivinen	0	7467	1	3328	1	NA																			
+Negative	0	7196	1	1117	1	NA																			
+Tutkimuksen tulos: neg	0	7183	1	1578	1	NA																			
+2 vrk neg.	0	7062	1	3672	1	check testID --> OK																			
+POSIT.	1	6488	1	1776	1	NA																			
+O Rh(D)pos	NA	6457	1	3999	1	NA																			
+NEGAT pmy/ml	0	6426	1	4068	1	NA																			
+neg.	0	6252	1	1914	1	NA																			
+NEGATIIVINEN	0	6079	1	2895	1	NA																			
+Provresultat: Negat	0	5706	1	735	1	NA																			
+O Rh POS	NA	5630	1.085	4733	1.086	NA																			
+AB RhD neg	NA	5619	1	1834	1	NA																			
+Tutkimuksen tulos: Neg	0	5457	1	3144	1	NA																			
+Neg.	0	5195	1	669	1	NA																			
+posit*	1	4989	1	2278	1	NA																			
+positiivinen	1	4981	1	4796	1	NA																			
+Negatiiv	0	4698	1	1754	1	NA																			
+Tehty NEGAT	0	4120	1	3709	1	NA																			
+Posit.*	1	3974	1	2973	1	NA																			
+NEGAT Vastaus perustuu bakteeri- ja leukosyyttilaskentaan.	0	3842	1	3458	1	NA																			
+Resultat: neg	0	3662	1	1029	1	NA																			
+B Rh(D)pos	NA	3101	1	2054	1	NA																			
+Negat. Vastaus annettu solulaskenta-analysaattorin tuloksen perusteella.	NA	3095	1	2766	1	NA																			
+<0.35 Negatiivinen. Herkistyminen onepätodennäköinen, mutta ei poissuljettu.	0	3017	1	577	1	NA																			
+Seul negat	0	2971	1	1451	1	NA																			
+Tutkimuksen tulos: Negat	0	2940	1	1387	1	NA																			
+B Rh POS	NA	2932	1.084	2510	1.084	NA																			
+POSITIVE	1	2644	1	1568	1	NA																			
+Tehty 1. LÖYDÖS: Negatiivinen	0	2516	1	2323	1	NA																			
+Posit*	1	2456	1	1594	1	NA																			
+Provresultat: neg	0	2427	1	520	1	NA																			
+Tehty; NEGATIIVINEN	0	2306	1.003	1643	1.001	NA																			
+-(negat)	0	1954	1	1887	1	NA																			
+POSITIVE*	1	1906	1	799	1	NA																			
+POSIT.*	1	1732	1	377	1	NA																			
+Neisseria gonorrhoeae negatiivinenChlamydia trachomatis negatiivinen	0	1710	1	1202	1	how did we map these package tests (ANSWER: we did NOT!)																			
+Resultat: Neg.	0	1663	1	319	1	NA																			
+ABRh(D)pos	NA	1565	1	933	1	NA																			
+pos*	1	1561	1	667	1	NA																			
+negat U/ml	0	1547	1	1399	1	NA																			
+Seul posit	1	1535	1	1122	1	check testID --> OK																			
+Viljely Seulontatulos positiivinen solulaskennan perusteella. Jatkoviljelyn tulos vastataan myöhemmin tutkimukselle U -BaktSJVi.	NA	1474	1	1252	1	NA																			
+AB Rh POS	NA	1427	1.087	1232	1.09	NA																			
+Resultat: pos	1	1238	1	549	1	NA																			
+posit.	1	1191	1	874	1	NA																			
+Tutkimuksen tulos: NEGATNäytelaatu:Nenänieluerite	0	1149	1	1004	1	NA																			
+A Rh(D)neg	NA	1122	1	684	1	NA																			
+A Rh NEG	NA	1100	1.096	914	1.089	NA																			
+NEGATNäytteen laatu:nenänielu	0	1094	1	768	1	NA																			
+Negatiivinen tulos ei poissulje primaarivaiheen syfilistä	0	1083	1	887	1	NA																			
+positive	1	1077	1	559	1	NA																			
+Tutkimuksen tulos: negatiivinen	0	1073	1	815	1	NA																			
+Vastaus: neg	0	1061	1	280	1	NA																			
+NEGAT U/ml	0	1039	1	948	1	NA																			
+GRAM-VÄRJ:: ; AER.VILJ:: NEGATIIVINEN; ANAER.VI:: NEGATIIVINEN; SIENI-VI:: ; HERKKYYS:: ; NhO::	NA	1034	1	570	1	Package, so information needs to be unpacked																			
+posit pmy/ml	1	1020	1	626	1	NA																			
+1. LÖYDÖS: (Viljely) NEGATIIVINEN	0	1015	1	732	1	NA																			
+NEGAT HPV 16 - NegatiivinenHPV 18 - NegatiivinenMuut korkean riskin HPV-tyypit(31,33,35,39,45,51,52,56,58,59,66,68) -Negatiivinen	NA	1007	1	1003	1	Package, so information needs to be unpacked																			
+Provresultat: NEG	0	981	1	472	1	NA																			
+Resultat: NEGAT Lomake	0	957	1	479	1	NA																			
+NEG E6/L	0	955	1	782	1	NA																			
+SARS-CoV-2-nukleiinihappo-osoitus negatiivinen.	0	941	1	695	1	NA																			
+Nukleiinihaponosoitukset negatiiviset.	0	940	1	637	1	NA																			
+NEG IU/ml	0	922	1	514	1	NA																			
+Provresultat: NEGAT	0	917	1	405	1	NA																			
+NEGAT Titteri	0	915	1	649	1	NA																			
+Neg E6/L	0	912	1	752	1	NA																			
+Tutkimuksen tulos: negatNäytelaatu:Nenänieluerite	0	905	1	808	1	NA																			
+seulpos	1	871	1	300	1	check testID --> OK																			
+O Rh(D)neg	NA	826	1	551	1	NA																			
+1. LÖYDÖS: Negatiivinen	0	814	1	606	1	NA																			
+O Rh NEG	NA	810	1.114	695	1.117	NA																			
+Bakteeri- ja leukosyyttilaskentaan perustuva seulontanegatiivinen, jatkoviljelyä ei tehdä.	NA	793	1	638	1	NA																			
+Resultat: NEG Lomake	0	766	1	564	1	NA																			
+Näytteenottotapa: KeskisuihkuRakkoaika: Alle 4hBakteeri- ja leukosyyttilaskentaan perustuva seulontanegatiivinen, jatkoviljelyä ei tehdä.	0	723	1	573	1	NA																			
+Resultat: neg Lomake	0	720	1	403	1	NA																			
+Negat. Serokonversio HCV-infektiossa tapahtuu useimmiten vasta 3 - 4 kuukautta tartunnasta. Vasta-aineiden tutkiminen on näin ollen akuutin C-hepatiitin diagnostiikassa vain rajallisesti sovelias.	NA	701	1	555	1	NA																			
+POSIT U/ml	1	687	1	483	1	NA																			
+Resultat: Neg	0	660	1	173	1	NA																			
+Tutkimuksen tulos: NEGATNäytelaatu:NENÄNIELUERITE	0	647	1	597	1	NA																			
+Tehty Negatiivinen	0	640	1	575	1	NA																			
+Tutkimuksen tulos: POSIT	1	635	1	550	1	NA																			
+POS Arvio	1	632	1	438	1	NA																			
+Tutkimuksen tulos: negat.	0	632	1	491	1	NA																			
+POS/NEG	NA	631	1	530	1	WTF																			
+POSITIIVINEN	1	627	1	605	1	NA																			
+Negat. U/l	0	622	1	562	1	NA																			
+Tutkimuksen tulos: Negatiivinen streptokokkiviljely.	0	588	1	500	1	NA																			
+neg Arvio	0	587	1	332	1	NA																			
+Vastaus: NEGAT	0	578	1	88	1	NA																			
+Tutkimuksen tulos: Lausunto1. LÖYDÖS: (Viljely) NEGATIIVINEN	0	577	1	173	1	NA																			
++(pos eiA)	1	576	1	476	1	NA																			
+Tutkimuksen tulos: Pos	1	557	1	441	1	NA																			
+? RhD pos	NA	548	1	107	1	NA																			
+Provresultat: neg Lomake	0	545	1	170	1	NA																			
+Tutkimuksen tulos: NEGAT Titteri	0	539	1	505	1	NA																			
+Tutkimuksen tulos: NEG Arvio	0	535	1	432	1	NA																			
+Provresultat: Negat l	0	511	1	283	1	NA																			
+B Rh(D)neg	NA	505	1	296	1	NA																			
+Resultat: NEG	0	499	1	425	1	NA																			
+<0.10 Negatiivinen. Herkistyminen onepätodennäköinen, mutta ei poissuljettu.	0	495	1	254	1	NA																			
+Näytteenottotapa: KeskisuihkuBakteeri- ja leukosyyttilaskentaan perustuva seulontanegatiivinen, jatkoviljelyä ei tehdä.	0	491	1	427	1	NA																			
+Ei tehty, koska seulonta negatiivinen	NA	484	1	213	1	NA																			
+Näytteenottotapa: KeskisuihkuRakkoaika: Yli 4hBakteeri- ja leukosyyttilaskentaan perustuva seulontanegatiivinen, jatkoviljelyä ei tehdä.	0	477	1	411	1	NA																			
+Tutkimuksen tulos: Negat. Serokonversio HCV-infektiossa tapahtuu useimmiten vasta 3 - 4 kuukautta sairastumisesta. Vasta-aineiden tutkiminen on näin ollen akuutin C-hepatiitin diagnostiikassa vain rajallisesti sovelias.	0	477	1	221	1	NA																			
+Bakteeri- ja leukosyyttilaskentaan perustuva seulontanegatiivinen, jatkoviljelyä ei tehdä.Virtsanäytetyyppi: PLV (Keskivirtsa)Rakkoaika: Ei tietoa	NA	458	1	418	1	Package, so information needs to be unpacked																			
+Tehty; 2 VRK:N VILJELY NEGATIIVINEN Mikäli kasvua ilmenee rikastusviljelyssä,  ilmoitamme siitä noin 6 vrk:n kuluessa.	NA	453	1	296	1	Package, so information needs to be unpacked																			
+Bakteeri- ja leukosyyttilaskentaan perustuva seulontanegatiivinen, näytettäei viljellä.Virtsanäytetyyppi: PLV:aamu/&gt;4hMIKSI NÄYTE ON OTETTU?: kontr.	NA	437	1	137	1	Package, so information needs to be unpacked																			
+Tutkimuksen tulos: posit	1	430	1	306	1	NA																			
+NEGAT Lopullinen vastaus	0	422	1	290	1	NA																			
+Tulos negatiivinen. Ei aktiiviin tai latenttiin tuberkuloosiin viittaavaa.	0	420	1	202	1	NA																			
+Tutkimuksen tulos: -(neg)	0	420	1	202	1	NA																			
+Tutkimuksen tulos: F -SalmVi Negatiivinen	0	420	1	209	1	NA																			
+Bakteeri- ja leukosyyttilaskentaan perustuva seulontanegatiivinen, jatkoviljelyä ei tehdä.Virtsanäytetyyppi: PLV (Keskivirtsa)Rakkoaika: Yli 4 tuntia	0	405	1	375	1	NA																			
+pos.	1	401	1	347	1	NA																			
+NEGATNäytteen laatu:Nenänielu	0	400	1	340	1	NA																			
+B Rh NEG	0	397	1	352	1	NA																			
+tehty; NEGATIIVINEN	0	397	1.003	339	1.003	NA																			
+Provresultat: NEG Lomake	0	394	1	209	1	NA																			
+Tehty Kliiniset tiedot: Huomautukset:_Kliiniset tiedot: Huomautukset:_Kliiniset tiedot: Lisätietoja:_1. LÖYDÖS: Negatiivinen	0	391	1	373	1	NA																			
+Provresultat: pos	1	391	1	234	1	NA																			
+Tutkimuksen tulos: Neg.	0	390	1	102	1	NA																			
+EI TEHTYS-HCVAb-O negatiivinen.P-HCVNhJt-tutkimusta ei tehdä.	NA	385	1	311	1	NA																			
+Tehty NEGATAkkreditoitu tutkimus.	0	379	1	372	1	NA																			
+Tehty 1. LÖYDÖS: (Viljely) Negatiivinen	0	362	1	354	1	NA																			
+Näytteenottotapa: KeskisuihkuRakkoaika: 4hBakteeri- ja leukosyyttilaskentaan perustuva seulontanegatiivinen, jatkoviljelyä ei tehdä.	0	361	1	328	1	NA																			
+Tutkimuksen tulos: NEGATNäytelaatu:ERITE, NENÄNIELU-	0	358	1	336	1	NA																			
+negat Titteri	0	357	1	213	1	NA																			
+Tehty Näytteen laatu:VirtsaNEGAT	0	353	1	337	1	NA																			
+Tutkimuksen tulos: neg Arvio	0	349	1	200	1	NA																			
+Tutkimuksen tulos: POS	1	348	1	306	1	NA																			
+Provresultat: Neg.	0	341	1	73	1	NA																			
+<3 Viitearvot S -hCG: Fertiili-ikäiset                 alle  5 IU/l Postmenopaussi                   alle 14 IU/l Raskaus tai raskauden jälkitila  yli  24 IU/l Referensvärdena S -hCG: Fertil ålder mindre än 5 IU/l Postmenopaus mindre än 14 IU/l Under graviditeten mer än 24 IU/l	NA	332	1	214	1	False "positive" (pun intended) from Post string																			
+Provresultat: Posit	1	328	1	211	1	NA																			
+NEGAT Vastaus perustuu bakteeri- ja leukosyyttilaskentaan.Akkreditoitu tutkimus.	0	325	1	312	1	NA																			
+Resultat: POSITIVE	1	323	1	123	1	NA																			
+Tehty F -BaktVi1 NEGATTutkimus sisältääosatutkimuksetF -CampVi, F -SalmVi,F -ShigVi ja F -YersViF-BaktVi1 innehåller följandedelundersökningar:F-CampVi, F-SalmVi, F-Shig-Vi, F-YersVi	0	322	1	318	1	Package result																			
+Negat Akkreditoitu tutkimus.	0	316	1	148	1	NA																			
+Negat. Arvio	0	314	1	36	1	NA																			
+Raja-arvot:Negatiivinen &lt;50Raja-arvoinen 50-120Positiivinen &gt;120	NA	308	1	171	1	WTF - possibly REF ranges																			
+Bakteeri- ja leukosyyttilaskentaan perustuva seulontanegatiivinen, näytettäei viljellä.Virtsanäytetyyppi: PLV:aamu/&gt;4hMIKSI NÄYTE ON OTETTU?: kontrolli	0	307	1	152	1	NA																			
+Resultat: neg.	0	305	1	233	1	NA																			
+Tutkimuksen tulos: Negat. titteri	0	304	1	299	1	NA																			
+<0.1 Erittelytutkimuksia (timotei (g6), hevonen (e3), koivu (t3), pujo (w6), kotipölypunkki D.pteronyssinus (d1), kissa (e1), koira (e5), home Cladosporium herbarum (m2)) ei ole tehty, koska seulonta on negatiivinen.	NA	301	1	300	1	NA																			
+-neg	0	292	1	114	1	NA																			
+<20 Menetelmä ja viitearvot ovat  muuttuneet 10.3.2025.Reumafaktorin ollessa 30-50 IU/ml katsotaan tuloksen olevan heikosti positiivinen.	NA	291	1	289	1	NA																			
+-(Neg)	0	291	1	270	1	NA																			
+Bakteeri- ja leukosyyttilaskentaan perustuva seulontanegatiivinen, näytettäei viljellä.Virtsanäytetyyppi: PLV	NA	288	1	271	1	NA																			
+Tehty1. LÖYDÖS: (Viljely) NEGATIIVINEN	0	286	1	144	1	NA																			
+Tehty.NEGAT	0	286	1	157	1	NA																			
+POSIT EIU	1	285	1	270	1	NA																			
+Neisseria gonorrhoeae negatiivinenChlamydia trachomatis negatiivinennäytteenlaatu Limakalvoanatomia Nieluottotapa Pumpulitikku	0	281	1	187	1	package test result																			
+Tutkimuksen tulos: Positiivinen	1	281	1	260	1	NA																			
+Ottotapa: KS^KeskisuihkuRakkoaika: 4Bakteeri- ja leukosyyttilaskentaan perustuva seulontanegatiivinen, jatkoviljelyä ei tehdä.	0	277	1	252	1	NA																			
+Provresultat: NEGAT Lomake	0	276	1	143	1	NA																			
+SEULONTA:: ; VÄRJÄYS:: ; NHO:: ; AER.PULLO:: NEGATIIVINEN; ANAER.PULLO:: NEGATIIVINEN	NA	275	1	173	1	package test result																			
+Näytteestä ei ole osoitettavissa Cl. difficile -bakteerin B-toksiinigeeniä.Nukleiinihaponosoitukset negatiiviset.	0	270	1	215	1	NA																			
+Tutkimuksen tulos: Ps-StrVi Negatiivinen	1	268	1	250	1	NA																			
+negat g/l	0	264	1	257	1	NA																			
+Tutkimuksen tulos: Ei tehty, koska S -ENA negat. U ml	NA	264	1	84	1	NA																			
+Tutkimuksen tulos: NEGAT AU/ml	0	261	1	134	1	NA																			
+Vastaus: NEGAT Lomake	0	255	1	141	1	NA																			
+Resultat: negat Lomake	0	255	1	99	1	NA																			
+NEG<25	0	250	1	191	1	NA																			
++(pos A)	1	249	1	226	1	!! WARNING: NEW ENTRY !!																			
+Provresultat: Neg	0	249	1	139	1	NA																			
+1. LÖYDÖS: (Viljely) 2 VRK NEG   Mikäli kasvua ilmenee rikastusviljelyssä,   ilmoitamme siitä noin 6 vrk:n kuluessa.Ottokohta2: veri	NA	248	1	177	1	NA																			
+Tehty; NEGATIIVINEN; NEGATIIVINEN	0	248	1	128	1	NA																			
+-/neg	0	246	1	148	1	NA																			
+Tutkimuksen tulos: Posit.	1	245	1	212	1	NA																			
+<0.1 Erittelytutkimuksia (munanvalkuainen (f1), maito (f2), turska (f3), vehnä (f4), maapähkinä (f13), soijapapu (f14)) ei ole tehty, koska seulonta on negatiivinen.	NA	242	1	241	1	NA																			
+Negat. Ei vasta-aineita. Ei viitettä H. pylori-infektiosta.	0	240	1	240	1	NA																			
+Vastaus: neg Lomake	0	238	1	147	1	NA																			
+Pos*	1	237	1	161	1	NA																			
+Tutkimuksen tulos: neg.	0	237	1	140	1	NA																			
+Tutkimuksen tulos: SEULPOS	1	235	1	175	1	NA																			
+AB Rh NEG	NA	234	1.054	193	1.049	NA																			
+Negat HPV 16 - NegatHPV 18/45 - NegatMuut korkean riskin HPV-tyypit (31,33,35,39,45,51,52,56,58,59,66,68) - Negat	NA	230	1	230	1	package																			
+Tehty Kliiniset tiedot: Antimikrobihoito? Vaikuttava aine ja ajankohta:1. LÖYDÖS: Negatiivinen	0	229	1	225	1	NA																			
+Tutkimuksen tulos: Negat. Viitearvot: Negat.	0	219	1	187	1	NA																			
+Tutkimuksen tulos: pos	1	219	1	178	1	NA																			
+Resultat: Pos.	1	217	1	146	1	NA																			
+Vastaus: pos	1	212	1	106	1	NA																			
+Tutkimuksen tulos: Negat. Ei kasvua	0	210	1	188	1	NA																			
+Neisseria gonorrhoeae negatiivinenChlamydia trachomatis negatiivinenNäytteen laatu:VAGINAN ERITE	0	208	1	206	1	NA																			
+Positive	1	200	1	157	1	NA																			
+ABRh(D)neg	NA	199	1	135	1	NA																			
+Tehty Viljely: NEGAT	0	199	1	195	1	NA																			
+Resultat: negat	0	197	1	86	1	NA																			
+Tutkimuksen tulos: Lausunto1. LÖYDÖS: NEGATIIVINEN	0	196	1	64	1	NA																			
+NEGAT bakt/ml	0	195	1	94	1	NA																			
+Bakteeri- ja leukosyyttilaskentaan perustuva seulontanegatiivinen, jatkoviljelyä ei tehdä.Virtsanäytetyyppi: PLV (Keskivirtsa)Rakkoaika: Alle 4 tuntia	0	195	1	186	1	NA																			
+Tehty; SIENINATIIVI NEGATIIVINEN; EI SIENIKASVUA	0	193	1	178	1	NA																			
+Tutkimuksen tulos: gluk neg keto neg suht.tiheys 1.020 veri neg ph 5 prot neg nitr neg leuk neg	0	193	1	183	1	NA																			
+ChtrNhO:: NEGATIIVINEN; GcNhO:: NEGATIIVINEN	0	192	1	150	1	NA																			
+negat Indeksi	0	191	1	186	1	check testID --> OK																			
+VILJELY: NEGATIIVINEN; HERKKYYS::	0	180	1	161	1	!! WARNING: NEW ENTRY !!																			
+Resultat: NEGAT Titteri	0	177	1	114	1	NA																			
+Vastaus: NEG Lomake	0	175	1	120	1	NA																			
+Resultat: pos Lomake	1	174	1	116	1	NA																			
+NEGAT AU/ml	0	173	1	120	1	NA																			
+Negat. Näytteessä ei todeta M.pneumoniae -bakteerin DNA:ta. Ei viitettä infektiosta.	0	172	1	171	1	!! WARNING: NEW ENTRY !!																			
+POS*	1	172	1	126	1	NA																			
+Tehty NEGAT NhO tulosNäytteestä ei ole tehty viljelyä. Tutkimukseen sisältyvät Campylobacter spp,Salmonella spp., Shigella spp., Yersinia enterocolitica, EHEC, Aeromonas spp.,Vibrio spp., Clostridium difficile toxin B, hypervirulentti Clostridium difficile ja vain NhO-tutkimuksella todettavissa olevat ripulia aiheuttavat E.colit (ETEC, EPEC, EIEC, EAEC).Provet är inte odlat. I analysen ingår Campylobacter spp,Salmonella spp, Shigella spp, Yersinia entercolitica, EHEC, Aeromonas spp,Vibrio spp, Clostridium difficile toxin B, hypervirulenta Clostridium difficileoch endast med NhO-tekniken fastställbara E.colin vilka orsakar diarre (ETEC, EPEC, EIEC, EAEC).	0	172	1	172	1	!! WARNING: NEW ENTRY !!																			
+negativ	0	165	1	131	1	NA																			
+Resultat: Negat	0	165	1	37	1	NA																			
+Tutkimuksen tulos: F -SalmVi Negatiivinen  F -ShigVi Negatiivinen  F -YersVi Negatiivinen  F -CampVi Negatiivinen	0	164	1	161	1	NA																			
+posit***	1	163	1	94	1	NA																			
+Ottotapa: KS^KeskisuihkuRakkoaika: 3Bakteeri- ja leukosyyttilaskentaan perustuva seulontanegatiivinen, jatkoviljelyä ei tehdä.	0	162	1	139	1	!! WARNING: NEW ENTRY !!																			
+Bakteeri- ja leukosyyttilaskentaan perustuva seulontanegatiivinen, näytettäei viljellä.Virtsanäytetyyppi: PLV: alle 4 h	0	161	1	146	1	NA																			
+Bakteeri- ja leukosyyttilaskentaan perustuva seulontanegatiivinen, näytettäei viljellä.Virtsanäytetyyppi: PLV:aamu/&gt;4hMIKSI NÄYTE ON OTETTU?: kontr	0	160	1	45	1	!! WARNING: NEW ENTRY !!																			
+Resultat: negativ	0	159	1	97	1	NA																			
+NEG.	0	159	1	71	1	NA																			
+POS IU/ml	0	158	1	66	1	NA																			
+neg Lopullinen vastaus	0	157	1	25	1	NA																			
+POSIT:	1	156	1	122	1	NA																			
+Bakteeri- ja leukosyyttilaskentaan perustuva seulontanegatiivinen, näytettäei viljellä.	NA	155	1	139	1	NA																			
+NEGAT kopiota/ml	0	153	1	29	1	NA																			
+Tutkimuksen tulos: Negat l	0	153	1	85	1	NA																			
+nega	0	151	1	67	1	NA																			
+posit EIU	1	148	1	146	1	NA																			
+-negatiivinen	0	146	1	132	1	NA																			
+Negat.Tulkinta/viitearvot,Negat.	0	144	1	24	1	NA																			
+- negatiivinen	0	144	1	122	1	NA																			
+Tutkimuksen tulos: Negat. U ml	0	144	1	95	1	NA																			
+Tehty NegatiivinenTutkimus sisältää osatutkimukset F -CampVi, F -SalmVi, F -ShigVi ja F -YersVi.Analysen innehåller delanalyserna F -CampVi, F -SalmVi, F -ShigVi ja F -YersVi.	0	142	1	142	1	NA																			
+Vasta-aineet natiivia DNA:ta kohtaan negatiiviset.	0	142	1	122	1	NA																			
+Neisseria gonorrhoeae negatiivinenChlamydia trachomatis negatiivinenNäytteen laatu:NIELUERITE	0	141	1	123	1	NA																			
+Resultat: positiv	1	138	1	77	1	NA																			
+Ottotapa: KeskisuihkuRakkoaika: 4Bakteeri- ja leukosyyttilaskentaan perustuva seulontanegatiivinen, jatkoviljelyä ei tehdä.	0	135	1	126	1	NA																			
+Ottotapa: KS^KeskisuihkuBakteeri- ja leukosyyttilaskentaan perustuva seulontanegatiivinen, jatkoviljelyä ei tehdä.	0	135	1	132	1	NA																			
+Vastaus: Neg.	0	134	1	21	1	NA																			
+Tutkimuksen tulos: Negat. Titteri	0	132	1	131	1	NA																			
+Tutkimuksen tulos: NEG Lomake	NA	131	1	57	1	NA																			
+Tehty; NEGATIIVINEN; EI AEROBISTA KASVUA; EI ANAEROBIKASVUA	0	131	1.065	100	1.053	NA																			
+VILJELY:: NEGATIIVINEN; HERKKYYS::	0	130	1	109	1	NA																			
+Tutkimuksen tulos: Posit	1	130	1	100	1	NA																			
+negat kopiota/ml	0	128	1	26	1	NA																			
+Ottotapa: KS^KeskisuihkuRakkoaika: 2Bakteeri- ja leukosyyttilaskentaan perustuva seulontanegatiivinen, jatkoviljelyä ei tehdä.	0	124	1	115	1	NA																			
+Tutkimuksen tulos: Negatiivinen.	0	123	1	113	1	NA																			
+HPV 16 - NegatiivinenHPV 18 - NegatiivinenMuut korkean riskin HPV-tyypit(31,33,35,39,45,51,52,56,58,59,66,68) -NegatiivinenOttokohta: cervixOttokohta:cervix	NA	122	1	116	1	NA																			
+Provresultat: negat	0	121	1	27	1	NA																			
+Tehty----- LOPULLINEN VASTAUS -----1. LÖYDÖS: (Viljely) NEGATIIVINEN----- LOPULLINEN VASTAUS -----	0	121	1	112	1	NA																			
+Tutkimuksen tulos: F -Madonmunat Toukat: Negat.Alkuel.kystat: Negat.	0	120	1	49	1	package test result																			
+Värjäys: VÄRJÄYSTULOS NEGATNEGATIIVINEN	NA	119	1	60	1	NA																			
+ENA vasta-aineseulonta (RNP,Sm,SSA,SSB,Jo1,Scl70,Cent) negatiivinenSpesifisiä vasta-aineita ei määritetä.	NA	118	1	99	1	NA																			
+Negativ	0	117	1	65	1	NA																			
+-negat	0	117	1	109	1	NA																			
+NhO:: NEGATIIVINEN	0	116	1	94	1	NA																			
+Provresultat: Neg Lomake	NA	111	1	97	1	NA																			
+NEG Lopullinen vastaus SARS-CoV-2-nukleiinihappo-osoitus negatiivinen.	0	110	1	101	1	NA																			
+Tutkimuksen tulos: gluk neg keto neg suht.tiheys 1.025 veri neg ph 5 prot neg nitr neg leuk neg	0	110	1	104	1	NA																			
+LÖYDÖS: (Värjäys) Värjäystulos negat1. LÖYDÖS: Negatiivinen	0	110	1	68	1	NA																			
+VÄRJÄYS:: NEGATIIVINEN; VILJELY:: NEGATIIVINEN	0	110	1	57	1	NA																			
+Tehty NEGAT NhO tulosNäytteestä ei ole tehty viljelyä.Tutkimukseen sisältyvät Campylobacter spp,Salmonella spp., Shigella spp., Yersiniaenterocolitica, EHEC, Aeromonas spp.,Vibrio spp., Clostridium difficile toxin B,hypervirulentti Clostridium difficile ja vain NhO-tutkimuksella todettavissa olevat ripuliaaiheuttavat E.colit (ETEC, EPEC, EIEC, EAEC).	0	109	1	109	1	NA																			
++(pos)*	1	109	1	104	1	NA																			
+S-HCVAb-O negatiivinen. P-HCVNhJt-tutkimusta ei tehdä.	0	109	1	97	1	NA																			
+lopull.neg	0	108	1	98	1	NA																			
++++(pos)	1	107	1	104	1	NA																			
+pos Arvio	1	107	1	90	1	NA																			
+- (Neg)	0	106	1	100	1	NA																			
+1. LÖYDÖS: (Viljely) Negatiivinen	NA	106	1	79	1	NA																			
+Resultat: POSIT Lomake	1	106	1	65	1	NA																			
+posit**	1	105	1	82	1	NA																			
+Tutkimuksen tulos: Negat. indeksi	0	104	1	103	1	check testID																			
+Nukleiinihappo-osoitukset negatiiviset.	NA	104	1	87	1	NA																			
+Tulos positiivinen, näytteestä osoitettu CMV-DNA:ta.	NA	103	1	25	1	NA																			
+POSIT kopiota/ml	1	103	1	22	1	NA																			
+negat Lomake	NA	103	1	23	1	NA																			
+Provresultat: NEGATIV Lomake	0	102	1	16	1	NA																			
+Tehty LÖYDÖS: (Värjäys) Negatiivinen	0	102	1	77	1	NA																			
+U-Stixit kaikki Negat.	0	99	1	79	1	NA																			
+Bakteeri- ja leukosyyttilaskentaan perustuva seulontanegatiivinen, näytettä ei viljellä.Näytteenoton syy: kirvely/tihent.tarveNäytteen ottotapa: keskivirtsa	NA	97	1	85	1	NA																			
+Provresultat: negat Lomake	0	97	1	36	1	NA																			
+Tutkimuksen tulos: negat Lomake	0	97	1	44	1	NA																			
+Tutkimuksen tulos: NEGAT.	0	96	1	35	1	NA																			
+Tutkimuksen tulos: positiivinen	1	96	1	95	1	NA																			
+Bakteeri- ja leukosyyttilaskentaan perustuva seulontanegatiivinen, näytettäei viljellä.Virtsanäytetyyppi: PLV: alle 4 hMIKSI NÄYTE ON OTETTU?: kontrolli	NA	95	1	91	1	NA																			
+Provresultat: neg g/l	NA	95	1	59	1	NA																			
+PCR:: NEGATIIVINEN	0	93	1	68	1	NA																			
+Tutkimuksen tulos: neg Lomake	0	93	1	44	1	NA																			
+Tutkimuksen tulos: Lopullinen vastaus1. LÖYDÖS: (Viljely) NEGATIIVINEN	0	90	1	69	1	NA																			
+negatiivin	0	88	1	79	1	NA																			
+Vastaus: negat Lomake	0	87	1	31	1	NA																			
+NEGAT EIU	0	86	1	71	1	NA																			
+StrB-Viljely: NEGATIIVINEN	0	86	1	86	1	NA																			
+Tutkimuksen tulos: NEGAT bakt/ml	0	85	1	54	1	NA																			
+<2 S-hCG viitearvot:fert.ikäiset alle 5 IU/lraskaus/raskauden jälkitila yli 25 IU/lpostmenopaussi alle 14 IU/lS-hCG viitearvot:fert.ikäiset alle 5 IU/lraskaus/raskauden jälkitila yli 25 IU/lpostmenopaussi alle 14 IU/l	NA	85	1	73	1	false "positive" (pun intended) from Post string																			
+VÄRJ: Leuk:: ; VÄRJ: Bakt:: ; HERKKYYS:: ; .: ; AER.VILJ:: NEGATIIVINEN; ANAER.VI:: NEGATIIVINEN	NA	85	1	45	1	NA																			
+Tehty NegatiivinenAkkreditoitu tutkimus.	0	84	1	84	1	NA																			
+Resultat: negativ Lomake	0	82	1	59	1	NA																			
+Tutkimuksen tulos: NEGAT U/ml	0	82	1	74	1	NA																			
+NEGAT Lopullinen vastaus Näytteen laatu5:PUUTTUU	0	82	1	79	1	NA																			
+NEGATNäytteen laatu:NENÄNIELU	0	82	1	78	1	NA																			
+negatNäytteenoton syy: VTI epäilyOttotapa: keskisuihkuRakkoaika: > 4 h	0	81	1	72	1	NA																			
+Bakteeri- ja leukosyyttilaskentaan perustuva seulontanegatiivinen, näytettä ei viljellä.Näytteenoton syy: raskausNäytteen ottotapa: keskivirtsa	0	81	1	73	1	NA																			
+POS>25	1	79	1	66	1	NA																			
+ULTRAMAXTUTKIMUS VASTAANOTOLLA  Negatiivinen.	0	78	1	68	1	NA																			
+Resultat: O Rh(D)pos	NA	78	1	18	1	Blood type																			
+Provresultat: neg.	0	78	1	62	1	NA																			
+Tutkimuksen tulos: Ei tehty, koska S-ENA negat. U ml	NA	77	1	63	1	False negative																			
+PAKETTI| NEGAT	0	77	1	70	1	Package																			
+Tehty----- LOPULLINEN VASTAUS -----1. LÖYDÖS: (Viljely) NEGATIIVINENPyyntötarrat puuttuivat.----- LOPULLINEN VASTAUS -----	0	76	NA	68	NA	!! WARNING: NEW ENTRY !!																			
+Ottotapa: KeskisuihkuRakkoaika: 3Bakteeri- ja leukosyyttilaskentaan perustuva seulontanegatiivinen, jatkoviljelyä ei tehdä.	0	76	NA	70	NA	!! WARNING: NEW ENTRY !!																			
+Bakteeri- ja leukosyyttilaskentaan perustuva seulontanegatiivinen, näytettäei viljellä.Virtsanäytetyyppi: PLVMIKSI NÄYTE ON OTETTU?: inf?	0	76	1	76	1	NA																			
+tehty S -MypnAb: IgG-luokan vasta-aineet negatiiviset,matala (eidiagnostinen) IgM-titteri. Tuoretta infektiotaepäiltäessä suositellaan bakteerin osoittamistanenänielunäytteestä nukleiinihappomonistusmenetelmällä (NhO) ja/tai IgG-serokonversion tutkimistakontrollinäyttellä 2 viikon kuluttua.	NA	75	NA	75	NA	!! WARNING: NEW ENTRY !!																			
+<25 (neg)	0	74	NA	62	NA	!! WARNING: NEW ENTRY !!																			
+POSIT Potilaalla on yhden tai useammanpapilloomaviruksen aiheuttama infektio.Näytteessä ei havaita genotyyppejä 16, 18 tai 45,joten virus tai virukset ovat genotyypiltään 31,33, 35, 39, 51, 52, 56, 58, 59, 66 tai 68.	1	73	NA	69	NA	!! WARNING: NEW ENTRY !!																			
+Heikko pos	NA	73	NA	56	NA	!! WARNING: NEW ENTRY !!																			
+Neisseria gonorrhoeae negatiivinenChlamydia trachomatis negatiivinennäytteenlaatu Eriteanatomia Nieluottotapa Pumpulitikku	0	73	NA	66	NA	!! WARNING: NEW ENTRY !!																			
+Näytteestä ei ole osoitettavissa Cl. difficile -bakteerinB-toksiinigeeniä.Nukleiinihaponosoitukset negatiiviset.	0	73	NA	68	NA	!! WARNING: NEW ENTRY !!																			
+Provresultat: negativ	0	73	NA	43	NA	!! WARNING: NEW ENTRY !!																			
+Bakteeri- ja leukosyyttilaskentaan perustuva seulontanegatiivinen, näytettäei viljellä.Virtsanäytetyyppi: PLV:aamu/&gt;4h	0	73	NA	70	NA	!! WARNING: NEW ENTRY !!																			
+Y1000.00S-HBsAb positiivinen.Tulos voi liittyä aikaisemmin sairastettuuninfektioon tai potilas on rokotettu.	1	72	NA	68	NA	!! WARNING: NEW ENTRY !!																			
+negat.-	0	72	NA	69	NA	!! WARNING: NEW ENTRY !!																			
+Tutkimuksen tulos: Ei tehty,koska S-ENA negat. U ml	NA	71	NA	69	NA	!! WARNING: NEW ENTRY !!																			
+Vastaus: NEG	0	70	NA	62	NA	!! WARNING: NEW ENTRY !!																			
+Ottotapa: KeskisuihkuBakteeri- ja leukosyyttilaskentaan perustuva seulontanegatiivinen, jatkoviljelyä ei tehdä.	NA	70	NA	66	NA	!! WARNING: NEW ENTRY !!																			
+Tutkimuksen tulos: pos Arvio	1	70	NA	39	NA	!! WARNING: NEW ENTRY !!																			

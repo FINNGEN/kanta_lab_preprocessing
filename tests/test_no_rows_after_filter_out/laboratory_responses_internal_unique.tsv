@@ -1,0 +1,2 @@
+ROW_ID	FINNGENID	EVENT_AGE	APPROX_EVENT_DAY	TIME	laboratoriotutkimusnimike	paikallinentutkimusnimike_koodi	paikallinentutkimusnimike_selite	tutkimuskoodistonjarjestelma	tutkimusvastauksentila	tutkimustulosarvo	tutkimustulosyksikko	tuloksenpoikkeavuus	viitearvoryhma	viitevalialkuarvo	viitevalialkuyksikko	viitevaliloppuarvo	viitevaliloppuyksikko	tutkimustulosteksti	SEX
+1	FAKE1	12.34	2000-01-23	01:23	0000	NA	NA	NA	X	1.2345	g/l	NA	NA	NA	NA	NA	NA	0.123 E12/l	female

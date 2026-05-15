@@ -1,0 +1,603 @@
+ROW_ID	FINNGENID	EVENT_AGE	APPROX_EVENT_DATETIME	TEST_ID	TEST_ID_IS_NATIONAL	CODING_SYSTEM	CODING_SYSTEM_MAP	TEST_OUTCOME	MEASUREMENT_STATUS	REFERENCE_RANGE_GROUP	REFERENCE_RANGE_LOWER_VALUE	REFERENCE_RANGE_LOWER_UNIT	REFERENCE_RANGE_UPPER_VALUE	REFERENCE_RANGE_UPPER_UNIT	cleaned::TEST_NAME_ABBREVIATION	cleaned::MEASUREMENT_VALUE	cleaned::MEASUREMENT_UNIT	cleaned-pre-fix::MEASUREMENT_UNIT	harmonization_omop::MEASUREMENT_VALUE	harmonization_omop::MEASUREMENT_UNIT	harmonization_omop::CONVERSION_FACTOR	harmonization_omop::IS_UNIT_VALID	harmonization_omop::mappingStatus	harmonization_omop::OMOP_ID	harmonization_omop::omopQuantity	source::MEASUREMENT_VALUE	source::MEASUREMENT_UNIT	source::TEST_NAME_ABBREVIATION	MEASUREMENT_FREE_TEXT	SEX
+1	FAKE1	75.80	2006-04-09T00:51	L-123	0	NA	NA	NA	F	NA	NA	NA	NA	NA	na	228.01	titre	titre	NA	NA	NA	1	NA	-1	NA	228.01	<320titter	NA	174.739 g/l	male
+2	FAKE102	63.11	2011-09-29T17:19	2030	1	NA	NA	L	F	NA	NA	NA	NA	NA	pt-kar-ref	285.62	ml/min/173m2	ml/min/173m2	NA	NA	NA	1	NA	-1	NA	285.62	ml/min/1	p-gt	886.834 E12/l	NA
+3	FAKE9	51.93	1999-12-21T10:53	NA	0	NA	NA	NA	F	REF4	NA	NA	NA	NA	b-trom	475.3	mm/h	mm/h	NA	NA	NA	1	NA	-1	NA	475.30	mm/h	b-trom	816.109 E12/l	female
+4	FAKE100	74.44	2019-08-19T15:05	NA	0	1.2.246.10.5678901.10.12345	NA	L	F	NA	NA	NA	NA	NA	erytrosyytit,tilavuusosuus	387.01	fmiau/ml	fmiau/ml	NA	NA	NA	0	NA	-1	NA	387.01	fmiayks/ml	erytrosyytit,tilavuusosuus	436.810 µmol/l	NA
+5	FAKE51	7.75	1994-03-23T00:42	2032	1	NA	NA	NA	F	NA	NA	NA	NA	NA	u-karni-o	373.3	A	A	NA	NA	NA	0	NA	-1	NA	373.30	+	p-alb	762.296 E9/l	male
+7	FAKE4	81.15	2014-07-19T15:33	2022	1	NA	NA	L	F	NA	NA	NA	NA	NA	2022	219.81	promille	promille	NA	NA	NA	1	NA	-1	NA	219.81	promill	b-la	Näyte ei sovellu	female
+8	FAKE11	47.62	2030-06-15T00:00	2022	1	Eura_23	NA	N	F	NA	NA	NA	NA	NA	2022	NA	u/100leuk	u/100leuk	NA	NA	NA	0	NA	-1	NA	NA	kpl/100leuk	b-la	Tehty	NA
+9	FAKE122	70.23	2010-12-15T11:33	NA	0	NA	NA	NA	F	REF3	20.6	kpl/100le	147.8	kpl/100le	p-krea	350.75	u/100le	u/100le	NA	NA	NA	0	NA	-1	NA	350.75	kpl/100le	p-krea	NA	NA
+10	FAKE78	4.99	2017-12-19T18:35	NA	0	Eura_24	NA	L	F	NA	NA	NA	NA	NA	kol/hdl	NA	e12/l	e12/l	NA	NA	NA	1	NA	-1	NA	<0.1	e12/l	kol/hdl	NA	male
+12	FAKE34	79.14	2000-08-04T16:09	NA	0	Eura_23	NA	LL	F	NA	NA	NA	NA	NA	p-afos	NA	aste	aste	NA	NA	NA	0	NA	-1	NA	<0.1	astec	p-afos	Tehty	female
+16	FAKE93	119.48	2023-06-30T15:17	NA	0	NA	NA	H	F	NA	NA	NA	NA	NA	p-na	52.2	ml/min/173m2	ml/min/173m2	NA	NA	NA	1	NA	-1	NA	52.20	ml/min/173m2	p-na	329.314 g/l	male
+18	FAKE37	93.14	1991-02-20T19:00	1040	1	NA	NA	A	F	NA	NA	NA	NA	NA	s-afp	112.52	g/l	g/l	NA	NA	NA	1	NA	-1	NA	112.52	g/l	s-afp	367.079 10e9/l	male
+19	FAKE64	52.39	2016-04-16T12:59	L-123	0	NA	NA	NA	F	NA	NA	NA	NA	NA	b-la	405.93	u/ml	u/ml	NA	NA	NA	1	NA	-1	NA	405.93	kopiota/ml	b-la	NA	NA
+20	FAKE84	69.56	1998-10-19T03:12	2027	1	NA	NA	H	F	REF1	NA	NA	NA	solua/nk	s-karba	123.456789	u/field	u/field	NA	NA	NA	1	NA	-1	NA	123.456789	solua/nk	p-cl	582.806 10e9/l	male
+22	FAKE1	77.56	2002-10-24T08:03	1078	1	NA	NA	N	F	REF3	NA	NA	NA	NA	s-amyl	123.456789	u	u	NA	NA	NA	1	NA	-1	NA	123.456789	pisteet	s-amyl	Test result pending	NA
+24	FAKE94	119.67	1999-11-19T01:01	NA	0	NA	NA	NA	F	REF1	NA	NA	NA	NA	s-alat	12.71	u/field	u/field	NA	NA	NA	1	NA	-1	NA	12.71	solu/nk	s-alat	NA	NA
+25	FAKE71	119.22	2021-05-07T12:00	1020	1	NA	NA	N	F	REF7	39.7	mg/mmolkrea	75.1	mg/mmolkrea	p-acth	146.28	mg/mmol	mg/mmol	NA	NA	NA	1	NA	-1	NA	146.28	mg/mmolkrea	p-acth	< 0.5	male
+26	FAKE24	65.19	2007-03-14T09:32	1029	1	NA	NA	NA	F	REF7	8.5	lomake	170.2	lomake	u-alb	425.05	form	form	NA	NA	NA	0	NA	-1	NA	425.05	lomake	u-alb	NA	NA
+28	FAKE97	28.00	2011-07-10T14:06	2020	1	NA	NA	NA	F	REF1	21.8	fl	166.2	fl	du-ca-ion	210.87	fl	fl	NA	NA	NA	1	NA	-1	NA	210.87	fl	fp-trigly	Negat	NA
+30	FAKE33	57.07	2008-05-31T04:07	2006	1	Eura_23	NA	NA	NA	REF9	45.6	/synfält	72.7	/synfält	du-ct	396.86	/sunfält	/sunfält	NA	NA	NA	0	NA	-1	NA	396.86	/synfält	b-leuk	64.495 E12/l	NA
+31	FAKE79	21.97	2001-08-16T15:31	NA	0	NA	NA	NA	F	NA	NA	NA	NA	NA	p-tsh	459.13	osuus	osuus	NA	NA	NA	1	NA	-1	NA	459.13	tilos	p-tsh	Negat	NA
+32	FAKE59	84.76	2011-11-13T04:56	LOCAL_ABC	0	1.2.246.10.5678901.10.12345	NA	NA	F	REF7	13.3	kpl/näköke	161.0	kpl/näköke	fp-kol	478.93	u/nke	u/nke	NA	NA	NA	0	NA	-1	NA	478.93	kpl/näköke	fp-kol	< 0.5	NA
+34	FAKE78	113.47	2018-03-05T23:39	2023	1	Eura_24	NA	N	F	NA	NA	NA	NA	NA	pt-a-etco2	NA	N	N	NA	NA	NA	0	NA	-1	NA	NA	negat	e-rdw	NA	female
+35	FAKE16	97.66	2030-06-15T21:07	1028	1	1.2.246.10.5678901.10.12345	NA	N	F	REF3	32.8	ug/gkrea	178.1	ug/gkrea	s-alb	389.97	ug/g	ug/g	NA	NA	NA	1	NA	-1	NA	389.97	ug/gkrea	NA	Positiivinen	male
+36	FAKE107	104.14	1996-07-26T15:54	2008	1	NA	NA	NA	F	REF2	NA	NA	NA	NA	fs-ct	293.66	pg/u	pg/u	NA	NA	NA	0	NA	-1	NA	293.66	pg/solu	e-mch	816.111 E9/l	NA
+37	FAKE95	60.54	1993-08-17T23:13	NA	0	NA	NA	NA	F	NA	NA	NA	NA	NA	erytrosyytit,tilavuusosuus	NA	e12/l	e12/l	NA	NA	NA	1	NA	-1	NA	NA	10e12/l	erytrosyytit,tilavuusosuus	Test result pending	female
+39	FAKE102	76.22	2007-08-06T10:20	2014	1	1.2.246.537.10.1234567	NA	H	F	REF5	41.6	ml/min/m2	178.7	ml/min/m2	li-ca	288.09	ml/min/173m2	ml/min/173m2	NA	NA	NA	1	NA	-1	NA	288.09	ml/min/m2	fp-gluk	61.414 E9/l	female
+40	FAKE119	63.51	2005-10-29T05:38	NA	0	NA	NA	LL	F	NA	NA	NA	NA	NA	na	27.74	nmol/mmol	nmol/mmol	NA	NA	NA	0	NA	-1	NA	27.74	nmol/mmolkrea	NA	Value below detection limit	NA
+44	FAKE21	10.67	2008-08-16T08:14	2030	1	NA	NA	A	F	REF9	34.0	ml/min	140.5	ml/min	pt-kar-ref	229.74	ml/min/173m2	ml/min/173m2	NA	NA	NA	1	NA	-1	NA	229.74	ml/min	NA	374.451 E9/l	male
+45	FAKE44	112.59	2000-12-07T13:18	NA	0	1.2.246.10.5678901.10.12345	NA	L	F	REF8	37.5	ml/min/m2	183.4	ml/min/m2	s-afos	2.91	ml/min/173m2	ml/min/173m2	NA	NA	NA	1	NA	-1	NA	2.91	ml/min/m2	s-afos	962.423 NA	NA
+47	FAKE57	10.72	2017-01-03T15:29	L-123	0	NA	NA	NA	F	REF7	5.1	/näkök	171.2	/näkök	erytrosyytit,tilavuusosuus	385.94	u/field	u/field	NA	NA	NA	1	NA	-1	NA	385.94	/näkök	erytrosyytit,tilavuusosuus	592.077 µmol/l	NA
+48	FAKE12	21.65	1994-11-18T02:35	LOCAL001	0	NA	NA	AA	F	REF6	33.0	ymol/l	179.0	ymol/l	kol/hdl	428.83	umol/l	umol/l	NA	NA	NA	1	NA	-1	NA	428.83	ymol/l	kol/hdl	800.979 E12/l	female
+51	FAKE34	15.19	2017-03-29T23:59	LOCAL001	0	Eura_23	NA	AA	F	NA	NA	NA	NA	NA	b-leuk	496.51	u/24h	u/24h	NA	NA	NA	1	NA	-1	NA	496.51	kpl/vrk	b-leuk	Test result pending	male
+55	FAKE38	20.06	1998-07-17T12:41	NA	0	1.2.246.10.5678901.10.12345	NA	A	F	REF3	39.9	c	195.2	c	p-krea	41.3	°c	°c	NA	NA	NA	1	NA	-1	NA	41.3	c	p-krea	733.720 µmol/l	NA
+58	FAKE65	8.29	1993-03-18T16:51	NA	0	1.2.246.537.10.1234567	NA	N	F	NA	NA	NA	NA	NA	p-tsh	1.99	inr	inr	NA	NA	NA	1	NA	-1	NA	1.99	inrarvo	p-tsh	360.095 g/l	male
+59	FAKE93	57.87	2002-07-19T17:04	NA	0	NA	NA	NA	F	NA	NA	NA	NA	NA	fp-gluk	308.12	ug/mg	ug/mg	NA	NA	NA	0	NA	-1	NA	308.12	ug/mgkrea	fp-gluk	Negat	male
+60	FAKE8	33.55	2004-04-22T20:44	99999	0	Eura_24	NA	A	F	NA	NA	NA	NA	NA	p-tsh	172.65	/sunfält	/sunfält	NA	NA	NA	0	NA	-1	NA	172.65	/synfält	p-tsh	515.262 g/l	female
+62	FAKE35	56.82	1970-01-01T00:03	1046	1	NA	NA	N	F	REF4	10.6	ml/min/173m2	185.4	ml/min/173m2	s-afos	NA	ml/min/173m2	ml/min/173m2	NA	NA	NA	1	NA	-1	NA	NA	ml/min/173m2	s-afos	NA	NA
+63	FAKE47	117.17	2013-05-17T13:55	2010	1	NA	NA	NA	F	NA	NA	NA	NA	NA	pt-trca	244.36	mm/h	mm/h	NA	NA	NA	1	NA	-1	NA	244.36	mm/h	p-krea	NA	NA
+64	FAKE82	98.40	1995-06-13T01:22	2004	1	NA	NA	HH	F	NA	NA	NA	NA	NA	u-k	86.3	%	%	NA	NA	NA	1	NA	-1	NA	86.3	%	b-eryt	584.381 mmol/l	NA
+66	FAKE78	111.09	2008-06-19T23:20	NA	0	1.2.246.21	NA	N	F	NA	NA	NA	NA	NA	b-hb	139.86	fl	fl	NA	NA	NA	1	NA	-1	NA	139.86	fl	b-hb	650.239 E9/l	NA
+67	FAKE117	57.44	2023-09-17T03:20	NA	0	1.2.246.21	NA	NA	F	REF6	42.2	mmol/l/ph74	96.2	mmol/l/ph74	b-hba1c	178.33	mmol/l	mmol/l	NA	NA	NA	1	NA	-1	NA	178.33	mmol/l/ph74	b-hba1c	< 0.5	NA
+68	FAKE110	109.15	2000-02-26T20:59	NA	0	NA	NA	H	F	REF3	33.4	x10e9/l	191.7	x10e9/l	b-trom	5.16	e9/l	e9/l	5.16	e9/l	1	1	APPROVED	3007461	Number Concentration	5.16	x10e9/l	b-trom	446.203 10e9/l	female
+69	FAKE49	84.04	2007-11-03T02:37	2033	1	Eura_24	NA	H	F	NA	NA	NA	NA	NA	fs-karot	426.58	e6/l	e6/l	NA	NA	NA	1	NA	-1	NA	426.58	10e6/l	b-leuk	240.378 µmol/l	NA
+70	FAKE14	33.53	1990-11-28T23:59	L-123	0	1.2.246.10.5678901.10.12345	NA	HH	F	REF6	18.1	e12/l	57.1	e12/l	b-hkr	19.52	e12/l	e12/l	NA	NA	NA	1	NA	-1	NA	19.52	e12/l	b-hkr	43.106 µmol/l	female
+71	FAKE42	118.73	2021-10-27T16:31	NA	0	1.2.246.537.10.1234567	NA	NA	F	NA	NA	NA	NA	NA	s-alat	39.3	aste	aste	NA	NA	NA	0	NA	-1	NA	39.3	astec	s-alat	Test result pending	NA
+72	FAKE89	57.87	2099-12-31T11:25	1020	1	NA	NA	NA	F	REF5	NA	NA	NA	ku/l	p-acth	414.63	u/ml	u/ml	NA	NA	NA	1	NA	-1	NA	414.63	ku/l	p-acth	865.995 NA	NA
+74	FAKE34	94.16	2015-07-17T18:32	1040	1	NA	NA	NA	F	REF5	35.1	x10e12/l	144.9	x10e12/l	s-afp	1.28	e12/l	e12/l	NA	NA	NA	1	NA	-1	NA	1.28	x10e12/l	s-afp	924.518 E12/l	NA
+75	FAKE81	80.88	2016-02-06T15:23	1080	1	NA	NA	A	F	REF3	0	NA	NA	NA	u-amyl	390.72	ug/gtiniini	ug/gtiniini	NA	NA	NA	0	NA	-1	NA	390.72	µg/gkreatiniini	b-hba1c	501.432 µmol/l	NA
+76	FAKE55	76.79	1990-12-17T19:33	1003	1	NA	NA	NA	F	NA	NA	NA	NA	NA	pt-acth-r3	222.76	eliau/ml	eliau/ml	NA	NA	NA	1	NA	-1	NA	222.76	eliau/m	p-crp	617.487 E9/l	female
+77	FAKE69	97.65	2008-07-19T22:47	na	0	Eura_24	NA	L	F	REF5	NA	NA	999	NA	erytrosyytit,tilavuusosuus	NA	u/field	u/field	NA	NA	NA	1	NA	-1	NA	NA	kpl/näkökenttä	erytrosyytit,tilavuusosuus	864.454 10e9/l	NA
+78	FAKE41	101.13	1998-10-09T02:58	NA	0	NA	NA	N	F	REF3	46.5	suhde	65.7	suhde	na	312.67	ratio	ratio	NA	NA	NA	1	NA	-1	NA	312.67	suhde	NA	291.809 NA	NA
+79	FAKE57	92.46	2011-01-26T10:11	2016	1	Eura_23	NA	NA	F	REF2	0	promill	999	NA	u-ca	327.38	promille	promille	NA	NA	NA	1	NA	-1	NA	327.38	promill	p-tsh	Negat	NA
+80	FAKE28	93.63	2016-06-10T04:40	NA	0	Eura_24	NA	N	F	REF7	38.7	titteri	64.6	titteri	na	142.51	titre	titre	NA	NA	NA	1	NA	-1	NA	142.51	titteri	NA	Test result pending	male
+81	FAKE94	26.46	1993-08-06T19:26	LOCAL001	0	1.2.246.537.10.1234567	NA	H	F	REF7	23.5	s/coyks	150.2	s/coyks	p-na	17.62	s/cou	s/cou	NA	NA	NA	0	NA	-1	NA	17.62	s/coyks	p-na	731.648 µmol/l	NA
+82	FAKE16	104.17	1970-01-01T01:27	NA	0	1.2.246.21	NA	HH	F	REF5	29.8	u/l	55.1	u/l	s-alat	214.16	u/l	u/l	214.16	u/l	1	1	APPROVED	3006923	Catalytic Concentration	214.16	u/l	s-alat	124.713 10e9/l	male
+83	FAKE103	68.73	1996-01-03T01:53	1024	1	NA	NA	NA	F	REF8	8.0	kpl/500ly	169.0	kpl/500ly	p-alat	130.95	u/500lu	u/500lu	NA	NA	NA	0	NA	-1	NA	130.95	kpl/500ly	b-hkr	921.529 mmol/l	male
+85	FAKE76	109.21	2003-09-26T04:39	1045	1	Eura_23	NA	AA	F	NA	NA	NA	NA	NA	li-afos	130.56	umol/l	umol/l	NA	NA	NA	1	NA	-1	NA	130.56	µmol/l	li-afos	496.619 10e9/l	male
+86	FAKE74	76.16	2008-07-02T12:54	1029	1	NA	NA	NA	F	REF2	0	mg/lfeu	999	mg/lfeu	u-alb	205.23	mg/l	mg/l	205.23	mg/l	1	1	APPROVED	3012516	Mass Concentration	205.23	mg/lfeu	fp-gluk	Lausunto	NA
+87	FAKE109	108.84	2005-05-02T23:59	NA	0	NA	NA	A	F	REF5	NA	NA	NA	NA	fp-gluk	413.95	/sunf	/sunf	NA	NA	NA	0	NA	-1	NA	413.95	/synf	fp-gluk	670.604 NA	NA
+89	FAKE9	59.14	2023-10-10T07:05	LOCAL001	0	Eura_24	NA	LL	F	REF4	NA	solua/nk	NA	NA	b-eryt	189.58	u/field	u/field	NA	NA	NA	1	NA	-1	NA	189.58	solua/nk	b-eryt	402.924 NA	female
+90	FAKE30	6.90	1991-02-07T05:40	2006	1	NA	NA	NA	F	NA	NA	NA	NA	NA	du-ct	300.85	titre	titre	NA	NA	NA	1	NA	-1	NA	300.85	titter	b-leuk	972.383 g/l	female
+91	FAKE73	34.29	1996-02-16T10:17	LOCAL_ABC	0	Eura_24	NA	H	F	NA	NA	NA	NA	NA	p-afos	71.5	ug/mg	ug/mg	NA	NA	NA	0	NA	-1	NA	71.50	ug/mgkrea	p-afos	573.549 µmol/l	NA
+92	FAKE38	115.66	1900-01-01T03:52	2003	1	1.2.246.537.10.1234567	NA	A	F	REF1	15.2	kpl/100le	169.1	kpl/100le	sw-k	389.25	u/100le	u/100le	NA	NA	NA	0	NA	-1	NA	389.25	kpl/100le	b-hb	682.947 E12/l	NA
+94	FAKE65	49.14	2015-05-28T17:17	LOCAL001	0	Eura_24	NA	H	F	REF5	49.2	kopiota/ml	86.4	kopiota/ml	p-krea	123.456789	u/ml	u/ml	NA	NA	NA	1	NA	-1	NA	123.456789	kopiota/ml	p-krea	399.121 E12/l	NA
+95	FAKE38	94.35	1994-06-12T21:53	NA	0	1.2.246.21	NA	AA	F	NA	NA	NA	NA	NA	p-tt-inr	80.62	responseequivalent	responseequivalent	NA	NA	NA	0	NA	-1	NA	80.62	ve	p-tt-inr	412.407 E12/l	NA
+96	FAKE68	95.92	1997-08-02T02:03	LOCAL_ABC	0	NA	NA	AA	F	NA	NA	NA	NA	NA	fp-gluk	417.29	s	s	NA	NA	NA	1	NA	-1	NA	417.29	sek	fp-gluk	522.055 mmol/l	NA
+97	FAKE85	109.64	2012-11-30T19:56	NA	0	1.2.246.21	NA	N	F	REF6	26.8	indeksi	138.0	indeksi	kol/hdl	83.0	index	index	NA	NA	NA	1	NA	-1	NA	83.00	indeksi	kol/hdl	673.061 NA	NA
+98	FAKE122	37.87	2010-12-13T08:45	1029	1	NA	NA	AA	F	NA	NA	NA	NA	NA	u-alb	NA	°°c	°°c	NA	NA	NA	0	NA	-1	NA	NA	°c	p-crp	108.359 NA	female
+102	FAKE71	115.12	2024-05-17T18:05	1073	1	Eura_24	NA	N	F	NA	NA	NA	NA	NA	af-amyl	249.7	g/24h	g/24h	NA	NA	NA	1	NA	-1	NA	249.70	g/vrk	af-amyl	NA	male
+103	FAKE30	32.31	2010-06-24T00:00	NA	0	NA	NA	HH	F	NA	NA	NA	NA	NA	b-pvk+tkd	326.78	s	s	NA	NA	NA	1	NA	-1	NA	326.78	sek	b-pvk+tkd	< 0.5	NA
+105	FAKE28	19.32	1995-05-08T14:07	na	0	NA	NA	N	F	REF9	31.1	mmol/molkrea	117.3	mmol/molkrea	p-tt-inr	NA	mmol/mol	mmol/mol	NA	NA	NA	1	NA	-1	NA	<0.1	mmol/molkrea	p-tt-inr	187.169 E12/l	female
+107	FAKE88	119.39	1991-01-31T18:50	NA	0	Eura_23	NA	NA	F	REF7	2.8	10e9/l	84.4	10e9/l	na	19.61	e9/l	e9/l	NA	NA	NA	1	NA	-1	NA	19.61	10e9/l	NA	470.873 g/l	NA
+108	FAKE93	87.18	1990-02-06T02:36	TEST	0	NA	NA	A	F	NA	NA	NA	NA	NA	p-gluk	0.0001	fl	fl	NA	NA	NA	1	NA	-1	NA	0.0001	fl	p-gluk	Lausunto	female
+110	FAKE118	82.56	2014-12-25T14:57	NA	0	NA	NA	HH	F	REF2	45.7	10e6/l	127.7	10e6/l	p-k	999999.0	e6/l	e6/l	NA	NA	NA	1	NA	-1	NA	999999	10e6/l	p-k	636.005 NA	female
+111	FAKE57	104.34	2004-11-28T12:00	2011	1	Eura_23	NA	A	F	NA	NA	NA	NA	NA	du-ca	476.76	ml/min/173m2	ml/min/173m2	NA	NA	NA	1	NA	-1	NA	476.76	ml/min/1	p-k	Näyte ei sovellu	NA
+112	FAKE101	64.26	2007-05-22T06:10	2035	1	1.2.246.21	NA	HH	F	REF6	7.2	xe9/l	190.9	xe9/l	fs-gh	14.88	e9/l	e9/l	NA	NA	NA	1	NA	-1	NA	14.88	xe9/l	p-uraat	498.982 NA	male
+116	FAKE112	115.67	2006-10-14T13:44	1037	1	1.2.246.21	NA	HH	F	REF7	3.8	nmolbce/mmolkrea	177.4	nmolbce/mmolkrea	s-aldos-p	265.3	nmol/mmol	nmol/mmol	NA	NA	NA	0	NA	-1	NA	265.30	nmolbce/mmolkrea	fp-gluk	256.735 g/l	female
+117	FAKE31	21.23	2012-02-02T05:57	NA	0	NA	NA	H	F	NA	NA	NA	NA	NA	b-leuk	24.98	umol	umol	NA	NA	NA	1	NA	-1	NA	24.98	µmol	b-leuk	950.717 10e9/l	male
+119	FAKE111	16.06	2010-12-29T00:43	LOCAL001	0	NA	NA	N	F	REF1	37.2	ymol/l	84.2	ymol/l	p-na	95.47	umol/l	umol/l	NA	NA	NA	1	NA	-1	NA	95.47	ymol/l	p-na	Näyte ei sovellu	female
+120	FAKE9	79.88	1991-04-10T11:22	LOCAL001	0	NA	NA	A	F	REF7	NA	NA	NA	NA	b-leuk	291.44	umol/l	umol/l	NA	NA	NA	1	NA	-1	NA	291.44	umol/l	b-leuk	45.811 10e9/l	male
+121	FAKE18	39.27	1991-12-21T20:32	1030	1	Eura_23	NA	H	F	NA	NA	NA	NA	NA	u-alb-o	440.8	terveusl	terveusl	NA	NA	NA	0	NA	-1	NA	440.80	terveysl	u-alb-o	> 100	male
+122	FAKE105	60.58	2015-09-12T19:53	2023	1	NA	NA	L	F	NA	NA	NA	NA	NA	pt-a-etco2	499.34	ratioluku	ratioluku	NA	NA	NA	0	NA	-1	NA	499.34	suhdeluku	e-rdw	Lausunto	male
+126	FAKE33	31.79	2003-06-14T11:53	2037	1	NA	NA	NA	F	REF4	44.0	mu/l	96.5	mu/l	ts-ghrh	362.43	mu/l	mu/l	NA	NA	NA	1	NA	-1	NA	362.43	mu/l	p-p	NA	female
+127	FAKE63	108.34	2016-06-11T15:36	99999	0	1.2.246.537.10.1234567	NA	NA	F	REF3	0	NA	NA	promill	s-afos	353.19	promille	promille	NA	NA	NA	1	NA	-1	NA	353.19	promill	s-afos	188.181 NA	male
+128	FAKE98	117.80	2000-10-10T02:20	LOCAL001	0	NA	NA	N	F	REF2	37.9	kpl/100l	96.4	kpl/100l	p-afos	-1.0	u/100l	u/100l	NA	NA	NA	0	NA	-1	NA	NA	kpl/100l	p-afos	Lausunto	NA
+130	FAKE67	106.72	2009-09-04T10:34	NA	0	NA	NA	NA	F	REF4	9.3	kpl/100l	109.3	kpl/100l	b-hkr	363.87	u/100l	u/100l	NA	NA	NA	0	NA	-1	NA	363.87	kpl/100l	b-hkr	NA	NA
+132	FAKE15	87.47	2008-04-24T21:39	2019	1	Eura_23	NA	NA	F	REF4	8.0	ratio	105.1	ratio	s-ca-ion	10.4	ratio	ratio	NA	NA	NA	1	NA	-1	NA	10.4	ratio	fp-kol-hdl	Ei mitattavissa	female
+133	FAKE89	58.66	2018-12-04T01:42	NA	0	1.2.246.21	NA	L	F	REF1	NA	u/l37c	NA	u/l37c	p-k	0.0	u/l	u/l	NA	NA	NA	1	NA	-1	NA	0	u/l37c	p-k	658.077 NA	NA
+134	FAKE121	0.39	1993-05-03T11:12	2003	1	1.2.246.537.10.1234567	NA	N	F	REF4	25.0	aru	65.4	aru	sw-k	493.0	au	au	NA	NA	NA	0	NA	-1	NA	493.00	aru	p-tt-inr	404.103 10e9/l	male
+136	FAKE115	79.61	2011-04-17T14:26	NA	0	1.2.246.537.10.1234567	NA	NA	F	NA	NA	NA	NA	NA	e-rdw	73.59	umol/24h	umol/24h	NA	NA	NA	1	NA	-1	NA	73.59	µmol/vrk	e-rdw	468.828 µmol/l	NA
+137	FAKE111	11.49	2015-11-14T00:01	1002	1	NA	NA	NA	F	REF8	NA	negat	NA	negat	pt-acth-r2	144.62	N	N	NA	NA	NA	0	NA	-1	NA	144.62	negat	b-hba1c	176.437 10e9/l	NA
+139	FAKE32	3.43	2013-06-27T08:03	NA	0	NA	NA	A	F	REF3	20.8	nmol/mmolkrea	82.4	nmol/mmolkrea	kol/hdl	213.38	nmol/mmol	nmol/mmol	NA	NA	NA	0	NA	-1	NA	213.38	nmol/mmolkrea	kol/hdl	140.678 NA	NA
+140	FAKE120	64.15	2017-04-19T17:36	NA	0	Eura_24	NA	L	F	REF5	34.4	kpl/100leuk	93.0	kpl/100leuk	b-eryt	282.57	u/100leuk	u/100leuk	NA	NA	NA	0	NA	-1	NA	282.57	kpl/100leuk	b-eryt	< 0.5	female
+141	FAKE55	107.36	1993-12-09T14:46	NA	0	NA	NA	NA	F	NA	NA	NA	NA	NA	b-hkr	0.0001	e12/l	e12/l	NA	NA	NA	1	NA	-1	NA	0.0001	x10e12/l	b-hkr	NA	female
+144	FAKE83	31.09	1900-01-01T11:17	NA	0	NA	NA	HH	F	REF7	37.8	kpl/näkökenttä	84.9	kpl/näkökenttä	p-gluk	442.58	u/field	u/field	NA	NA	NA	1	NA	-1	NA	442.58	kpl/näkökenttä	p-gluk	320.289 g/l	NA
+148	FAKE110	41.79	2099-12-31T16:33	2008	1	1.2.246.10.5678901.10.12345	NA	H	F	REF5	46.8	ratio	76.8	ratio	fs-ct	39.4	ratio	ratio	NA	NA	NA	1	NA	-1	NA	39.4	ratio	e-mch	782.665 E9/l	NA
+149	FAKE31	36.83	2021-05-06T09:18	L-123	0	1.2.246.537.10.1234567	NA	HH	F	NA	NA	NA	NA	NA	p-k	429.97	umol/24h	umol/24h	NA	NA	NA	1	NA	-1	NA	429.97	umol/vrk	p-k	702.911 E12/l	female
+150	FAKE99	45.78	2099-12-31T18:05	NA	0	NA	NA	NA	F	REF8	13.0	ku/l	78.6	ku/l	erytrosyytit,tilavuusosuus	390.69	u/ml	u/ml	NA	NA	NA	1	NA	-1	NA	390.69	ku/l	erytrosyytit,tilavuusosuus	NA	female
+152	FAKE53	105.12	1998-02-24T03:12	1022	1	1.2.246.537.10.1234567	NA	N	F	NA	NA	NA	NA	NA	af-alat	263.46	sp/e6lum	sp/e6lum	NA	NA	NA	0	NA	-1	NA	263.46	sp/e6lym	af-alat	528.222 µmol/l	NA
+153	FAKE49	33.95	2023-01-14T16:00	LOCAL_ABC	0	NA	NA	A	F	REF8	10.2	x10e9/l	68.4	x10e9/l	fp-kol	5.05	e9/l	e9/l	NA	NA	NA	1	NA	-1	NA	5.05	x10e9/l	fp-kol	275.681 NA	male
+156	FAKE78	61.03	2003-08-06T18:38	2022	1	NA	NA	NA	F	REF5	41.6	tilosuus	121.5	tilosuus	2022	0.0	osuus	osuus	NA	NA	NA	1	NA	-1	NA	0	tilosuus	b-la	971.355 mmol/l	male
+158	FAKE81	112.28	2006-12-14T03:24	2005	1	NA	NA	NA	F	REF5	NA	NA	NA	NA	pt-k-vaih	372.35	form	form	NA	NA	NA	0	NA	-1	NA	372.35	lomake	b-trom	430.170 E9/l	NA
+159	FAKE17	79.65	2004-03-16T17:21	NA	0	1.2.246.21	NA	N	NA	REF8	8.9	terveysl	63.4	terveysl	kol/hdl	465.31	terveusl	terveusl	NA	NA	NA	0	NA	-1	NA	465.31	terveysl	kol/hdl	435.828 E12/l	NA
+160	FAKE32	6.11	1990-03-23T03:59	NA	0	1.2.246.21	NA	L	F	NA	NA	NA	NA	NA	p-crp	65.84	titre	titre	NA	NA	NA	1	NA	-1	NA	65.84	titteri	p-crp	64.517 mmol/l	NA
+161	FAKE26	74.20	2010-05-10T03:45	2010	1	NA	NA	H	F	NA	NA	NA	NA	NA	pt-trca	27.69	umol/l	umol/l	NA	NA	NA	1	NA	-1	NA	27.69	ymol/l	p-krea	NA	NA
+162	FAKE89	40.93	2007-08-09T14:29	NA	0	1.2.246.21	NA	H	F	REF1	NA	NA	NA	NA	b-hkr	421.7	ml/min/173m2	ml/min/173m2	NA	NA	NA	1	NA	-1	NA	421.70	ml/min	b-hkr	Ei mitattavissa	NA
+163	FAKE104	5.07	2006-03-07T12:00	NA	0	NA	NA	H	F	REF4	7.2	µg/min	178.4	µg/min	b-trom	NA	ug/min	ug/min	NA	NA	NA	1	NA	-1	NA	NA	µg/min	b-trom	< 0.5	NA
+164	FAKE64	36.11	2018-04-27T09:59	2008	1	Eura_23	NA	A	F	NA	NA	NA	NA	NA	fs-ct	NA	ratio	ratio	NA	NA	NA	1	NA	-1	NA	NA	ratio	e-mch	331.882 NA	female
+166	FAKE18	24.53	1996-04-04T00:00	NA	0	NA	NA	NA	F	REF5	45.0	näköken	100.0	näköken	p-alat	319.37	nken	nken	NA	NA	NA	0	NA	-1	NA	319.37	näköken	p-alat	Ei mitattavissa	female
+167	FAKE43	45.21	2019-07-12T05:41	NA	0	NA	NA	A	F	REF2	0	NA	NA	NA	p-afos	NA	mg/l	mg/l	NA	NA	NA	1	NA	-1	NA	NA	mg/lfeu	p-afos	573.326 E9/l	NA
+168	FAKE116	102.75	2099-12-31T12:48	NA	0	1.2.246.537.10.1234567	NA	N	F	NA	NA	NA	NA	NA	p-alat	272.7	u/ml	u/ml	NA	NA	NA	1	NA	-1	NA	272.70	kopiot/ml	p-alat	900.077 E12/l	NA
+169	FAKE53	103.03	1999-06-10T13:50	99999	0	NA	NA	NA	F	REF7	26.7	ug/gulostetta	184.1	ug/gulostetta	na	7.03	ug/g	ug/g	NA	NA	NA	1	NA	-1	NA	7.03	ug/gulostetta	NA	186.338 mmol/l	NA
+170	FAKE39	2.45	1993-09-15T16:28	NA	0	Eura_23	NA	N	F	REF7	NA	nmol/vrk	NA	NA	b-pvk+tkd	228.88	nmol/24h	nmol/24h	NA	NA	NA	1	NA	-1	NA	228.88	nmol/vrk	b-pvk+tkd	621.042 NA	NA
+172	FAKE82	82.82	1992-04-14T18:18	2006	1	1.2.246.10.5678901.10.12345	NA	NA	F	NA	NA	NA	NA	NA	du-ct	NA	umol/l	umol/l	NA	NA	NA	1	NA	-1	NA	NA	µmol/l	b-leuk	771.445 E9/l	female
+173	FAKE25	52.38	2016-12-22T00:07	1100	1	1.2.246.537.10.1234567	NA	H	F	REF3	43.0	10e12/l	103.3	10e12/l	s-asta	13.36	e12/l	e12/l	NA	NA	NA	1	NA	-1	NA	13.36	10e12/l	s-asta	802.903 E12/l	female
+174	FAKE51	33.81	2022-12-22T19:41	1073	1	1.2.246.537.10.1234567	NA	H	F	REF7	3.0	g/vrk	80.3	g/vrk	af-amyl	450.36	g/24h	g/24h	NA	NA	NA	1	NA	-1	NA	450.36	g/vrk	af-amyl	NA	NA
+176	FAKE102	53.67	2012-04-07T23:43	na	0	Eura_24	NA	N	F	REF5	41.0	x10e12/l	78.5	x10e12/l	na	8.56	e12/l	e12/l	NA	NA	NA	1	NA	-1	NA	8.56	x10e12/l	NA	> 100	female
+181	FAKE39	81.36	2008-04-10T11:46	NA	0	NA	NA	NA	NA	NA	NA	NA	NA	NA	b-la	69.86	mm/h	mm/h	69.86	mm/h	1	1	APPROVED	3013707	Velocity (distance/time)	69.86	mm//h	b-la	NA	male
+182	FAKE79	30.77	2003-08-29T20:38	NA	0	NA	NA	H	F	REF7	NA	µmol	NA	µmol	fp-gluk	442.81	umol	umol	NA	NA	NA	1	NA	-1	NA	442.81	µmol	fp-gluk	149.336 NA	male
+183	FAKE5	111.80	2099-12-31T20:33	2007	1	Eura_23	NA	L	F	NA	NA	NA	NA	NA	fp-ct	158.94	u/field	u/field	NA	NA	NA	1	NA	-1	NA	158.94	/näkök	e-mcv	NA	NA
+184	FAKE68	41.30	2022-03-28T23:39	1034	1	NA	NA	A	F	REF7	37.8	kpl/500ly	62.8	kpl/500ly	s-aldos	NA	u/500lu	u/500lu	NA	NA	NA	0	NA	-1	NA	>1000	kpl/500ly	s-aldos	< 0.5	female
+185	FAKE123	53.90	1999-04-11T11:44	NA	0	Eura_23	NA	A	F	REF5	11.8	mmol/vrk	176.2	mmol/vrk	na	85.66	mmol/24h	mmol/24h	NA	NA	NA	1	NA	-1	NA	85.66	mmol/vrk	NA	14.662 g/l	male
+187	FAKE109	30.05	2011-08-02T19:05	2038	1	NA	NA	A	F	NA	NA	NA	NA	NA	s-gh-24h	108.97	mg/l	mg/l	NA	NA	NA	1	NA	-1	NA	108.97	µg/ml	s-fe	Lausunto	female
+188	FAKE9	42.56	2000-03-05T00:51	NA	0	NA	NA	HH	F	REF4	NA	NA	NA	NA	p-tt-inr	120.99	inr	NA	120.99	inr	1	unit_fixed	APPROVED	3032080	Relative time	120.99	NA	p-tt-inr	559.663 E12/l	NA
+192	FAKE10	78.86	2006-04-08T09:16	NA	0	1.2.246.21	NA	NA	F	REF5	NA	NA	NA	NA	b-leuk	473.26	g/mol	g/mol	NA	NA	NA	1	NA	-1	NA	473.26	g/molkrea	b-leuk	505.833 g/l	NA
+193	FAKE9	110.45	2009-04-27T15:41	NA	0	NA	NA	A	F	NA	NA	NA	NA	NA	p-na	NA	sp/e6lum	sp/e6lum	NA	NA	NA	0	NA	-1	NA	NA	sp/e6lym	p-na	Näyte ei sovellu	male
+194	FAKE56	88.71	1996-02-01T07:04	NA	0	NA	NA	NA	F	REF6	17.1	ml/min/1	88.6	ml/min/1	b-pvk+tkd	212.88	ml/min/173m2	ml/min/173m2	NA	NA	NA	1	NA	-1	NA	212.88	ml/min/1	b-pvk+tkd	NA	NA
+195	FAKE9	84.30	2017-01-17T11:17	L-123	0	1.2.246.10.5678901.10.12345	NA	NA	F	NA	NA	NA	NA	NA	u-ph	413.03	u	u	NA	NA	NA	1	NA	-1	NA	413.03	kpl	u-ph	195.408 µmol/l	NA
+196	FAKE36	23.57	2030-06-15T09:37	LOCAL001	0	Eura_24	NA	N	F	REF5	NA	NA	NA	NA	b-hba1c	198.45	u/nke	u/nke	NA	NA	NA	0	NA	-1	NA	198.45	kpl/näköke	b-hba1c	297.901 mmol/l	male
+199	FAKE98	52.22	1993-10-11T02:07	L-123	0	1.2.246.21	NA	A	F	REF4	NA	NA	NA	NA	b-hba1c	338.21	u/100le	u/100le	NA	NA	NA	0	NA	-1	NA	338.21	kpl/100le	b-hba1c	885.175 E9/l	female
+200	FAKE42	51.09	2015-10-19T19:56	2020	1	NA	NA	L	F	NA	NA	NA	NA	NA	du-ca-ion	34.57	mmol/l	mmol/l	NA	NA	NA	1	NA	-1	NA	34.57	mmol/l/ph74	fp-gluk	NA	NA
+203	FAKE49	47.99	1970-01-01T13:16	NA	0	1.2.246.21	NA	N	F	NA	NA	NA	NA	NA	e-rdw	408.27	e12/l	e12/l	NA	NA	NA	1	NA	-1	NA	408.27	10*12/l	e-rdw	536.105 mmol/l	NA
+204	FAKE84	51.30	1900-01-01T05:29	2040	1	Eura_23	NA	LL	F	NA	NA	NA	NA	NA	fs-kendkol	381.85	promille	promille	NA	NA	NA	1	NA	-1	NA	381.85	o/oo	s-transf	1.690 E9/l	male
+208	FAKE110	69.34	2023-11-19T06:31	2031	1	NA	NA	AA	F	REF1	6.9	mg/lfeu	164.7	mg/lfeu	s-kardab	79.82	mg/l	mg/l	NA	NA	NA	1	NA	-1	NA	79.82	mg/lfeu	erytrosyytit,tilavuusosuus	559.232 10e9/l	NA
+214	FAKE106	47.60	1990-05-06T18:40	NA	0	NA	NA	L	F	NA	NA	NA	NA	NA	p-tt-inr	220.62	e9/l	e9/l	NA	NA	NA	1	NA	-1	NA	220.62	x10^9/l	p-tt-inr	599.246 mmol/l	female
+215	FAKE12	88.10	2007-07-09T16:01	LOCAL001	0	1.2.246.537.10.1234567	NA	H	F	NA	NA	NA	NA	NA	erytrosyytit,tilavuusosuus	384.81	u/ml	u/ml	NA	NA	NA	1	NA	-1	NA	384.81	kopiota/ml	erytrosyytit,tilavuusosuus	NA	NA
+217	FAKE119	105.30	2006-01-26T04:35	TEST	0	1.2.246.537.10.1234567	NA	N	F	NA	NA	NA	NA	NA	fp-kol	205.52	mm/h	mm/h	NA	NA	NA	1	NA	-1	NA	205.52	mm/h	fp-kol	> 100	NA
+218	FAKE59	95.04	2005-07-10T12:39	NA	0	NA	NA	N	F	REF3	22.2	x10e12/l	143.8	x10e12/l	b-hkr	7.02	e12/l	e12/l	NA	NA	NA	1	NA	-1	NA	7.02	x10e12/l	b-hkr	733.566 mmol/l	NA
+219	FAKE79	54.49	2005-12-23T00:02	1101	1	1.2.246.537.10.1234567	NA	N	F	REF7	16.7	pg	88.7	pg	s-ast	7.62	pg	pg	NA	NA	NA	1	NA	-1	NA	7.62	pg	NA	163.852 E9/l	male
+220	FAKE58	69.03	2010-11-14T11:19	NA	0	NA	NA	AA	F	NA	NA	NA	NA	NA	b-trom	358.32	ug/l	ug/l	NA	NA	NA	1	NA	-1	NA	358.32	µg/l	b-trom	569.688 NA	female
+225	FAKE68	83.20	2015-11-16T10:41	2034	1	NA	NA	N	F	REF4	NA	NA	NA	NA	s-cea	242.33	mg/l	mg/l	NA	NA	NA	1	NA	-1	NA	242.33	µg/ml	p-urea	421.953 NA	NA
+226	FAKE30	30.66	1990-07-08T12:23	2029	1	NA	NA	AA	F	REF7	43.6	näköken	101.7	näköken	pt-eso-ph	27.53	nken	nken	NA	NA	NA	0	NA	-1	NA	27.53	näköken	s-bil	NA	female
+227	FAKE36	12.23	1996-02-13T14:49	L-123	0	1.2.246.21	NA	NA	F	NA	NA	NA	NA	NA	b-hkr	NA	°°c	°°c	NA	NA	NA	0	NA	-1	NA	>1000	°c	b-hkr	954.322 g/l	NA
+229	FAKE10	20.87	2007-01-20T08:55	2033	1	Eura_23	NA	L	F	REF6	27.5	kpl/500ly	142.2	kpl/500ly	fs-karot	217.51	u/500lu	u/500lu	NA	NA	NA	0	NA	-1	NA	217.51	kpl/500ly	s-krea	NA	male
+231	FAKE55	87.08	1995-08-31T04:43	1001	1	NA	NA	AA	F	NA	NA	NA	NA	NA	pt-acth-r1	425.77	estimate	estimate	NA	NA	NA	1	NA	-1	NA	425.77	arvio	b-leuk	> 100	NA
+232	FAKE88	52.90	1995-01-04T06:36	LOCAL001	0	Eura_24	NA	L	F	REF5	36.3	nmol/vrk	128.8	nmol/vrk	p-alat	0.0	nmol/24h	nmol/24h	NA	NA	NA	1	NA	-1	NA	0	nmol/vrk	p-alat	214.845 g/l	female
+234	FAKE70	64.20	2008-08-02T04:13	1100	1	NA	NA	L	F	REF5	39.0	g/l	151.5	g/l	s-asta	470.84	g/l	g/l	NA	NA	NA	1	NA	-1	NA	470.84	g/l	p-tsh	Ei mitattavissa	NA
+239	FAKE41	114.30	1999-03-20T23:59	2030	1	NA	NA	L	F	NA	NA	NA	NA	NA	pt-kar-ref	61.5	ratio	ratio	NA	NA	NA	1	NA	-1	NA	61.5	ratio	p-gt	Lausunto	NA
+240	FAKE28	93.52	1993-03-24T00:59	1030	1	NA	NA	H	F	NA	NA	NA	NA	NA	u-alb-o	99.95	N	N	NA	NA	NA	0	NA	-1	NA	99.95	negat	u-alb-o	728.065 E12/l	NA
+245	FAKE18	52.59	2018-02-21T23:59	2030	1	1.2.246.10.5678901.10.12345	NA	L	F	REF4	NA	NA	NA	spot/e6lymfos	pt-kar-ref	165.85	spot/e6lumfos	spot/e6lumfos	NA	NA	NA	0	NA	-1	NA	165.85	spot/e6lymfos	p-gt	584.679 E12/l	male
+247	FAKE20	42.34	1900-01-01T20:08	NA	0	NA	NA	LL	F	REF1	NA	mg/mmolkrea	NA	mg/mmolkrea	s-afos	360.49	mg/mmol	mg/mmol	NA	NA	NA	1	NA	-1	NA	360.49	mg/mmolkrea	s-afos	Negat	NA
+249	FAKE81	65.13	2030-06-15T16:06	1029	1	NA	NA	N	F	REF9	15.5	inrarvo	198.6	inrarvo	u-alb	999999.0	inr	inr	NA	NA	NA	1	NA	-1	NA	999999	inrarvo	u-alb	958.264 µmol/l	NA
+250	FAKE53	59.67	1991-11-28T12:00	NA	0	1.2.246.10.5678901.10.12345	NA	NA	F	REF8	31.3	x10e9/l	198.3	x10e9/l	b-pvk+tkd	3.04	e9/l	e9/l	NA	NA	NA	1	NA	-1	NA	3.04	x10e9/l	b-pvk+tkd	NA	NA
+252	FAKE117	34.35	1995-03-19T05:56	1027	1	Eura_24	NA	A	F	NA	NA	NA	NA	NA	li-alb	39.6	aste	aste	NA	NA	NA	0	NA	-1	NA	39.6	caste	li-alb	392.624 µmol/l	NA
+253	FAKE85	57.22	2019-03-02T23:08	2019	1	1.2.246.10.5678901.10.12345	NA	NA	F	REF1	17.8	lausunto	76.8	lausunto	s-ca-ion	260.92	form	form	NA	NA	NA	0	NA	-1	NA	260.92	lausunto	b-trom	< 0.5	NA
+254	FAKE94	58.80	1998-08-07T13:42	2020	1	Eura_24	NA	HH	F	REF1	NA	NA	NA	NA	du-ca-ion	288.03	fl	fl	NA	NA	NA	1	NA	-1	NA	288.03	f/l	fp-trigly	See attached report	female
+256	FAKE13	118.14	2011-10-13T18:12	2032	1	NA	NA	L	F	NA	NA	NA	NA	NA	u-karni-o	13.79	e6/l	e6/l	NA	NA	NA	1	NA	-1	NA	13.79	e06/l	p-alb	Näyte ei sovellu	male
+257	FAKE38	74.62	2015-12-23T15:27	L-123	0	NA	NA	L	F	NA	NA	NA	NA	NA	fp-kol	347.32	ug/min	ug/min	NA	NA	NA	1	NA	-1	NA	347.32	µg/min	fp-kol	708.710 g/l	NA
+258	FAKE2	69.99	1970-01-01T04:50	99999	0	Eura_24	NA	NA	F	REF1	21.6	10e9/l	65.4	10e9/l	e-mcv	0.99	e9/l	e9/l	NA	NA	NA	1	NA	-1	NA	0.99	10e9/l	e-mcv	520.447 NA	female
+259	FAKE15	92.49	2016-02-06T21:03	L-123	0	Eura_23	NA	NA	F	NA	NA	NA	NA	NA	b-eryt	36.84	umol/24h	umol/24h	NA	NA	NA	1	NA	-1	NA	36.84	µmol/d	b-eryt	151.149 NA	NA
+261	FAKE108	18.31	1994-07-01T12:00	2005	1	1.2.246.21	NA	L	F	NA	NA	NA	NA	NA	pt-k-vaih	305.6	index	index	NA	NA	NA	1	NA	-1	NA	305.60	indeksi	b-trom	Negat	NA
+263	FAKE53	119.80	1990-12-24T11:58	NA	0	NA	NA	NA	F	REF8	0	µg/min	NA	NA	e-rdw	337.36	ug/min	ug/min	NA	NA	NA	1	NA	-1	NA	337.36	µg/min	e-rdw	324.051 mmol/l	NA
+264	FAKE5	68.49	2017-03-07T00:30	1080	1	NA	NA	H	F	REF7	13.4	näköken	199.4	näköken	u-amyl	281.86	nken	nken	NA	NA	NA	0	NA	-1	NA	281.86	näköken	u-amyl	NA	male
+266	FAKE10	107.53	2024-01-29T03:34	NA	0	NA	NA	L	F	NA	NA	NA	NA	NA	na	118.19	e9/l	e9/l	NA	NA	NA	1	NA	-1	NA	118.19	x10^9/l	NA	14.619 mmol/l	female
+268	FAKE75	35.98	2012-09-08T18:11	NA	0	Eura_23	NA	AA	F	NA	NA	NA	NA	NA	p-alat	186.51	form	form	NA	NA	NA	0	NA	-1	NA	186.51	lausunto	p-alat	361.904 E9/l	NA
+273	FAKE12	34.19	2017-07-26T16:53	1024	1	NA	NA	H	F	NA	NA	NA	NA	NA	p-alat	412.98	responseequivalent/ml	responseequivalent/ml	NA	NA	NA	0	NA	-1	NA	412.98	ve/ml	p-alat	< 0.5	NA
+275	FAKE35	79.43	1970-01-01T04:40	LOCAL001	0	NA	NA	NA	F	REF8	1.2	x10e12/l	77.1	x10e12/l	b-eryt	2.84	e12/l	e12/l	2.84	e12/l	1	1	APPROVED	3026361	Number Concentration	2.84	x10e12/l	b-eryt	NA	NA
+276	FAKE38	17.79	2030-06-15T20:56	LOCAL_ABC	0	NA	NA	N	F	REF5	11.7	%lymfosyyteist	190.2	%lymfosyyteist	fp-kol	62.9	%lumfosuuteist	%lumfosuuteist	NA	NA	NA	0	NA	-1	NA	62.9	%lymfosyyteist	fp-kol	228.337 NA	female
+282	FAKE48	58.28	2018-04-08T10:31	1001	1	1.2.246.21	NA	AA	F	NA	NA	NA	NA	NA	pt-acth-r1	NA	umol/24h	umol/24h	NA	NA	NA	1	NA	-1	NA	NA	µmol/d	pt-acth-r1	NA	NA
+286	FAKE61	114.07	1999-04-21T12:07	99999	0	Eura_24	NA	LL	F	NA	NA	NA	NA	NA	b-hb	66.38	u/field	u/field	NA	NA	NA	1	NA	-1	NA	66.38	/näkök	b-hb	575.502 E12/l	female
+287	FAKE17	0.34	2006-02-17T00:42	NA	0	1.2.246.537.10.1234567	NA	N	F	NA	NA	NA	NA	NA	b-hkr	1.37	e9/l	e9/l	NA	NA	NA	1	NA	-1	NA	1.37	xe9/l	b-hkr	718.831 E9/l	male
+288	FAKE99	32.03	2021-09-13T15:44	2014	1	1.2.246.537.10.1234567	NA	HH	F	NA	NA	NA	NA	NA	li-ca	311.28	u/ml	u/ml	NA	NA	NA	1	NA	-1	NA	311.28	yks/ml	fp-gluk	Positiivinen	NA
+290	FAKE106	21.39	2019-04-13T13:27	2025	1	1.2.246.21	NA	HH	F	NA	NA	NA	NA	NA	2025	390.34	umol	umol	NA	NA	NA	1	NA	-1	NA	390.34	µmol	b-neut	NA	NA
+292	FAKE11	69.00	1995-11-15T12:22	NA	0	NA	NA	H	F	REF7	NA	NA	NA	NA	p-gluk	305.02	ug/g	ug/g	NA	NA	NA	1	NA	-1	NA	305.02	ug/gkrea	p-gluk	Lausunto	NA
+296	FAKE50	69.11	2023-09-03T05:50	LOCAL_ABC	0	NA	NA	A	F	NA	NA	NA	NA	NA	na	NA	iu	iu	NA	NA	NA	1	NA	-1	NA	NA	iy	NA	929.994 NA	NA
+298	FAKE38	70.31	1995-02-03T15:01	2007	1	NA	NA	NA	F	REF1	8.2	10e9/l	193.4	10e9/l	fp-ct	0.57	e9/l	e9/l	NA	NA	NA	1	NA	-1	NA	0.57	10e9/l	e-mcv	Negat	NA
+303	FAKE82	32.42	1995-07-25T01:23	2023	1	NA	NA	A	F	REF7	21.3	mmol/l/ph7	150.6	mmol/l/ph7	pt-a-etco2	256.81	mmol/l	mmol/l	NA	NA	NA	1	NA	-1	NA	256.81	mmol/l/ph7	e-rdw	293.797 E12/l	NA
+307	FAKE21	37.25	1994-10-30T14:31	NA	0	1.2.246.537.10.1234567	NA	N	F	REF3	0	kopiota/ml	999	NA	na	490.83	u/ml	u/ml	NA	NA	NA	1	NA	-1	NA	490.83	kopiota/ml	NA	466.694 mmol/l	male
+309	FAKE49	117.21	2005-10-06T10:52	NA	0	NA	NA	AA	F	REF1	27.8	tilosuus	151.5	tilosuus	s-alat	85.6	osuus	osuus	NA	NA	NA	1	NA	-1	NA	85.6	tilosuus	s-alat	Test result pending	female
+310	FAKE69	56.09	2002-12-08T23:59	2025	1	Eura_24	NA	NA	F	NA	NA	NA	NA	NA	2025	NA	e6/l	e6/l	NA	NA	NA	1	NA	-1	NA	NA	10e6/l	p-alat	Lausunto	NA
+312	FAKE62	45.32	2013-11-13T19:44	2008	1	1.2.246.10.5678901.10.12345	NA	A	F	NA	NA	NA	NA	NA	fs-ct	190.11	spot/e6lumfos	spot/e6lumfos	NA	NA	NA	0	NA	-1	NA	190.11	spot/e6lymfos	e-mch	NA	NA
+313	FAKE16	12.71	2017-01-01T04:19	L-123	0	NA	NA	N	F	REF8	36.0	kpl/100leuk	72.5	kpl/100leuk	b-pvk+tkd	85.98	u/100leuk	u/100leuk	NA	NA	NA	0	NA	-1	NA	85.98	kpl/100leuk	b-pvk+tkd	NA	female
+317	FAKE18	72.19	1990-08-28T20:34	NA	0	NA	NA	NA	F	REF2	31.7	kpl/100leuk	68.1	kpl/100leuk	p-crp	428.97	u/100leuk	u/100leuk	NA	NA	NA	0	NA	-1	NA	428.97	kpl/100leuk	p-crp	93.612 g/l	female
+319	FAKE116	98.40	1900-01-01T00:38	TEST	0	Eura_23	NA	HH	F	REF2	0	NA	NA	ug/ml	kolesterolinjahdl-kolest.suhde	365.99	mg/l	mg/l	NA	NA	NA	1	NA	-1	NA	365.99	ug/ml	kolesterolinjahdl-kolest.suhde	556.184 µmol/l	male
+320	FAKE2	21.83	1992-02-26T03:45	NA	0	1.2.246.10.5678901.10.12345	NA	L	F	REF3	NA	näköken	NA	NA	e-mcv	229.81	nken	nken	NA	NA	NA	0	NA	-1	NA	229.81	näköken	e-mcv	589.687 E12/l	NA
+321	FAKE73	13.91	2016-05-29T00:07	2038	1	NA	NA	NA	F	REF7	30.5	lomake	76.2	lomake	s-gh-24h	354.91	form	form	NA	NA	NA	0	NA	-1	NA	354.91	lomake	s-fe	807.739 10e9/l	NA
+325	FAKE91	39.41	2007-02-04T08:25	1040	1	NA	NA	N	F	REF2	25.7	näköken	91.8	näköken	s-afp	419.18	nken	nken	NA	NA	NA	0	NA	-1	NA	419.18	näköken	p-tt-inr	867.480 10e9/l	NA
+327	FAKE122	7.13	2000-05-24T13:38	na	0	NA	NA	AA	F	REF9	29.8	synf	63.6	synf	p-k	270.36	sunf	sunf	NA	NA	NA	0	NA	-1	NA	270.36	synf	p-k	124.355 NA	male
+328	FAKE64	67.51	1990-09-26T12:25	NA	0	NA	NA	NA	F	REF9	16.1	nmol/vrk	52.3	nmol/vrk	u-ph	222.18	nmol/24h	nmol/24h	NA	NA	NA	1	NA	-1	NA	222.18	nmol/vrk	u-ph	123.456 E9/l (kalibroitu)	female
+329	FAKE92	51.31	1991-09-15T18:51	1027	1	NA	NA	NA	F	NA	NA	NA	NA	NA	li-alb	319.49	u/100le	u/100le	NA	NA	NA	0	NA	-1	NA	319.49	kpl/100le	li-alb	644.346 10e9/l	female
+330	FAKE46	75.75	2099-12-31T21:13	1040	1	NA	NA	LL	F	REF1	22.5	µg/g	122.2	µg/g	s-afp	122.34	ug/g	ug/g	NA	NA	NA	1	NA	-1	NA	122.34	µg/g	s-afp	NA	female
+332	FAKE45	25.43	2001-12-05T08:09	na	0	1.2.246.537.10.1234567	NA	NA	F	NA	NA	NA	NA	NA	fp-kol	437.9	u/field	u/field	NA	NA	NA	1	NA	-1	NA	437.90	solu/nk	fp-kol	191.874 10e9/l	female
+334	FAKE82	65.26	2009-09-10T04:57	2033	1	1.2.246.537.10.1234567	NA	HH	F	NA	NA	NA	NA	NA	fs-karot	25.75	s	s	NA	NA	NA	1	NA	-1	NA	25.75	sek	erytrosyytit,tilavuusosuus	123.456 E9/l (kalibroitu)	male
+336	FAKE52	117.98	2015-01-31T08:58	NA	0	NA	NA	NA	F	REF5	16.9	ku/l	110.6	ku/l	b-hba1c	163.15	u/ml	u/ml	NA	NA	NA	1	NA	-1	NA	163.15	ku/l	b-hba1c	See attached report	male
+337	FAKE94	52.49	2010-06-08T17:10	2024	1	NA	NA	NA	F	REF5	0	NA	999	NA	pt-kapnogr	3.44	u/ml	u/ml	NA	NA	NA	1	NA	-1	NA	3.44	kopio/ml	b-hkr	347.712 NA	male
+338	FAKE45	88.75	1998-03-18T05:02	NA	0	Eura_23	NA	N	F	REF6	NA	NA	NA	NA	b-leuk	420.97	A	A	NA	NA	NA	0	NA	-1	NA	420.97	+	b-leuk	595.827 mmol/l	female
+340	FAKE99	89.75	2004-05-14T06:03	2023	1	1.2.246.21	NA	HH	F	REF9	17.0	NA	187.5	NA	pt-a-etco2	0.0001	NA	NA	NA	NA	NA	0	NA	-1	NA	0.0001	NA	e-rdw	714.461 mmol/l	NA
+342	FAKE56	79.55	2004-03-13T20:30	1026	1	1.2.246.10.5678901.10.12345	NA	NA	F	REF8	49.2	ve	157.3	ve	s-alat	233.67	responseequivalent	responseequivalent	NA	NA	NA	0	NA	-1	NA	233.67	ve	s-alat	486.998 mmol/l	male
+344	FAKE61	114.80	1994-02-19T20:32	1022	1	NA	NA	N	F	NA	NA	NA	NA	NA	af-alat	197.72	nmol/mmol	nmol/mmol	NA	NA	NA	0	NA	-1	NA	197.72	nmolbce/mmolkrea	af-alat	899.253 g/l	NA
+345	FAKE20	93.77	1999-01-09T08:35	NA	0	1.2.246.537.10.1234567	NA	L	F	REF9	32.2	spot/e6lymfos	188.4	spot/e6lymfos	b-hb	313.62	spot/e6lumfos	spot/e6lumfos	NA	NA	NA	0	NA	-1	NA	313.62	spot/e6lymfos	b-hb	NA	male
+346	FAKE3	101.16	2030-06-15T05:49	2035	1	NA	NA	L	F	REF7	NA	NA	NA	NA	fs-gh	182.52	u/field	u/field	NA	NA	NA	1	NA	-1	NA	182.52	kpl/näkökenttä	p-uraat	708.121 µmol/l	NA
+347	FAKE89	69.63	1993-06-11T19:35	2020	1	NA	NA	H	F	NA	NA	NA	NA	NA	du-ca-ion	270.68	promille	promille	NA	NA	NA	1	NA	-1	NA	270.68	o/oo	fp-gluk	53.128 mmol/l	male
+348	FAKE21	13.96	1992-10-16T16:41	L-123	0	NA	NA	H	F	NA	NA	NA	NA	NA	p-krea	19.76	e9/l	e9/l	NA	NA	NA	1	NA	-1	NA	19.76	àe9/l	p-krea	434.220 E12/l	male
+350	FAKE49	33.32	1991-06-15T17:07	2037	1	NA	NA	L	F	NA	NA	NA	NA	NA	ts-ghrh	381.55	mmol/l	mmol/l	NA	NA	NA	1	NA	-1	NA	381.55	mmo/l	p-p	Positiivinen	NA
+351	FAKE123	106.68	1991-04-20T00:00	TEST	0	NA	NA	H	F	REF8	29.1	g/l	115.8	g/l	b-hba1c	111.91	g/l	g/l	NA	NA	NA	1	NA	-1	NA	111.91	g/l	b-hba1c	203.794 E12/l	NA
+353	FAKE74	24.68	2022-07-02T19:45	TEST	0	NA	NA	HH	F	REF9	7.4	kpl	166.7	kpl	kolesterolinjahdl-kolest.suhde	447.05	u	u	NA	NA	NA	1	NA	-1	NA	447.05	kpl	kolesterolinjahdl-kolest.suhde	538.141 mmol/l	female
+354	FAKE57	96.13	2006-04-25T20:00	NA	0	NA	NA	L	F	REF4	34.6	arvio	177.3	arvio	p-krea	327.42	estimate	estimate	NA	NA	NA	1	NA	-1	NA	327.42	arvio	p-krea	Positiivinen	NA
+355	FAKE43	50.38	1992-05-08T00:00	2037	1	NA	NA	LL	F	REF3	0	NA	NA	NA	ts-ghrh	70.6	ml/min/173m2	ml/min/173m2	NA	NA	NA	1	NA	-1	NA	70.60	ml/min/	p-p	879.407 NA	female
+356	FAKE49	109.81	2004-11-11T04:00	LOCAL001	0	NA	NA	NA	F	NA	NA	NA	NA	NA	na	NA	mmol/mol	mmol/mol	NA	NA	NA	1	NA	-1	NA	NA	mmmol/mol	NA	528.185 µmol/l	NA
+357	FAKE33	33.66	2019-12-20T23:23	NA	0	Eura_24	NA	HH	F	NA	NA	NA	NA	NA	na	NA	%/lumf	%/lumf	NA	NA	NA	0	NA	-1	NA	NA	%/lymf	NA	761.079 E9/l	NA
+360	FAKE25	20.58	1994-08-20T23:59	TEST	0	1.2.246.537.10.1234567	NA	LL	F	REF8	NA	NA	NA	NA	b-hb	316.0	u/ml	u/ml	NA	NA	NA	1	NA	-1	NA	316.00	kopio/ml	b-hb	Positiivinen	NA
+362	FAKE67	24.30	1970-01-01T05:18	2017	1	NA	NA	H	F	REF5	NA	NA	NA	NA	2017	430.8	ng/l	ng/l	NA	NA	NA	1	NA	-1	NA	430.80	pg/ml	fp-kol	Tehty	male
+366	FAKE62	66.57	2006-08-21T09:28	LOCAL_ABC	0	1.2.246.10.5678901.10.12345	NA	LL	F	REF8	27.8	ug/gulostetta	98.0	ug/gulostetta	b-la	370.0	ug/g	ug/g	NA	NA	NA	1	NA	-1	NA	370.00	ug/gulostetta	b-la	273.360 E9/l	NA
+367	FAKE44	20.88	1994-08-03T20:53	2028	1	1.2.246.21	NA	NA	F	REF1	21.1	mg/lfeu	129.8	mg/lfeu	pt-eso-pai	418.29	mg/l	mg/l	NA	NA	NA	1	NA	-1	NA	418.29	mg/lfeu	p-ca	560.896 10e9/l	female
+368	FAKE36	82.94	2030-06-15T13:15	1002	1	NA	NA	NA	F	NA	NA	NA	NA	NA	pt-acth-r2	NA	e9/l	e9/l	NA	NA	NA	1	NA	-1	NA	NA	x10e9/l	pt-acth-r2	745.563 g/l	female
+372	FAKE48	31.81	2006-12-26T02:34	NA	0	NA	NA	A	F	REF4	NA	NA	NA	NA	b-hb	222.0	eliau/ml	eliau/ml	NA	NA	NA	1	NA	-1	NA	222.00	eliau/m	b-hb	Positiivinen	NA
+373	FAKE19	107.88	1993-04-13T02:14	NA	0	Eura_24	NA	L	F	REF2	24.8	umol/l	140.9	umol/l	na	999999.0	umol/l	umol/l	NA	NA	NA	1	NA	-1	NA	999999	umol/l	NA	866.340 E9/l	NA
+376	FAKE102	87.74	2019-11-06T20:10	TEST	0	1.2.246.537.10.1234567	NA	N	F	NA	NA	NA	NA	NA	b-leuk	469.43	mg/l	mg/l	NA	NA	NA	1	NA	-1	NA	469.43	µg/ml	b-leuk	Positiivinen	NA
+377	FAKE42	31.58	2023-04-25T12:09	NA	0	NA	NA	H	F	REF8	33.4	f/l	73.7	f/l	erytrosyytit,tilavuusosuus	3.48	fl	fl	NA	NA	NA	1	NA	-1	NA	3.48	f/l	erytrosyytit,tilavuusosuus	762.932 µmol/l	NA
+378	FAKE81	29.56	2002-10-16T13:57	NA	0	NA	NA	NA	F	NA	NA	NA	NA	NA	kolesterolinjahdl-kolest.suhde	71.37	promille	promille	NA	NA	NA	1	NA	-1	NA	71.37	o/oo	kolesterolinjahdl-kolest.suhde	729.573 NA	NA
+379	FAKE62	99.21	1994-03-02T15:53	1047	1	Eura_24	NA	A	F	REF9	NA	NA	999	NA	s-afosinh	493.04	NA	NA	NA	NA	NA	0	NA	-1	NA	493.04	NA	s-afosinh	20.356 E12/l	female
+380	FAKE66	15.16	2006-02-20T02:36	LOCAL_ABC	0	1.2.246.21	NA	N	F	REF6	23.9	ymol/l	66.8	ymol/l	kolesterolinjahdl-kolest.suhde	64.88	umol/l	umol/l	NA	NA	NA	1	NA	-1	NA	64.88	ymol/l	kolesterolinjahdl-kolest.suhde	591.991 NA	male
+382	FAKE80	31.60	2021-05-31T09:40	NA	0	NA	NA	N	F	NA	NA	NA	NA	NA	b-hkr	307.7	s/cou	s/cou	NA	NA	NA	0	NA	-1	NA	307.70	s/coyks	b-hkr	NA	female
+388	FAKE52	88.22	2000-05-21T01:34	1003	1	NA	NA	N	F	NA	NA	NA	NA	NA	pt-acth-r3	228.99	nmol/mmol	nmol/mmol	NA	NA	NA	0	NA	-1	NA	228.99	nmolbce/mmolkrea	pt-acth-r3	194.242 E9/l	female
+389	FAKE27	95.18	1990-06-11T00:54	2007	1	1.2.246.21	NA	HH	F	REF4	NA	NA	NA	NA	fp-ct	131.73	e12/l	e12/l	NA	NA	NA	1	NA	-1	NA	131.73	^12/l	kol/hdl	747.378 µmol/l	female
+390	FAKE108	63.67	1991-04-15T12:00	L-123	0	Eura_24	NA	NA	F	REF3	23.2	lomake	88.3	lomake	b-pvk+tkd	19.69	form	form	NA	NA	NA	0	NA	-1	NA	19.69	lomake	b-pvk+tkd	Test result pending	NA
+391	FAKE34	101.60	2021-10-21T08:31	LOCAL_ABC	0	NA	NA	A	F	REF2	25.4	kpl/ul	109.7	kpl/ul	p-alat	403.83	u/ul	u/ul	NA	NA	NA	0	NA	-1	NA	403.83	kpl/ul	p-alat	Negat	female
+393	FAKE60	85.93	2005-11-14T08:12	2034	1	1.2.246.537.10.1234567	NA	AA	F	REF3	38.4	astec	110.2	astec	s-cea	40.8	aste	aste	NA	NA	NA	0	NA	-1	NA	40.8	astec	p-urea	292.192 g/l	male
+396	FAKE15	113.60	1991-02-11T02:50	TEST	0	NA	NA	H	F	NA	NA	NA	NA	NA	p-afos	361.35	umol/l	umol/l	NA	NA	NA	1	NA	-1	NA	361.35	ymol/l	p-afos	621.820 E12/l	NA
+399	FAKE1	12.92	1996-12-07T22:05	NA	0	Eura_23	NA	N	F	REF6	34.9	/synfält	114.6	/synfält	p-crp	246.72	/sunfält	/sunfält	NA	NA	NA	0	NA	-1	NA	246.72	/synfält	p-crp	783.030 g/l	female
+400	FAKE120	62.63	2021-04-14T14:57	2005	1	1.2.246.10.5678901.10.12345	NA	HH	F	NA	NA	NA	NA	NA	pt-k-vaih	95.28	titre	titre	NA	NA	NA	1	NA	-1	NA	95.28	<320titter	b-trom	> 100	NA
+401	FAKE48	81.76	2015-05-26T21:18	NA	0	NA	NA	A	F	NA	NA	NA	NA	NA	p-afos	12.12	u/ul	u/ul	NA	NA	NA	0	NA	-1	NA	12.12	kpl/ul	p-afos	681.706 E12/l	female
+402	FAKE7	13.52	2010-10-24T15:42	na	0	NA	NA	A	F	NA	NA	NA	NA	NA	p-tt-inr	232.94	ratio	ratio	NA	NA	NA	1	NA	-1	NA	232.94	suhde	p-tt-inr	473.867 µmol/l	NA
+403	FAKE99	18.44	2006-10-16T20:40	2018	1	NA	NA	L	F	REF9	7.5	mg/lfeu	103.7	mg/lfeu	2018	429.04	mg/l	mg/l	NA	NA	NA	1	NA	-1	NA	429.04	mg/lfeu	p-krea	See attached report	NA
+406	FAKE74	52.81	2023-08-25T12:00	na	0	Eura_24	NA	A	F	REF7	27.7	°c	92.4	°c	na	35.9	°°c	°°c	NA	NA	NA	0	NA	-1	NA	35.9	°c	NA	657.768 µmol/l	female
+412	FAKE36	44.46	2017-05-23T20:35	1002	1	NA	NA	NA	F	REF2	NA	mg/mmolkrea	NA	NA	pt-acth-r2	17.41	mg/mmol	mg/mmol	NA	NA	NA	1	NA	-1	NA	17.41	mg/mmolkrea	p-tsh	137.661 g/l	NA
+413	FAKE110	84.36	2015-01-05T07:20	2004	1	1.2.246.21	NA	N	F	REF8	1.6	tilosuus	54.8	tilosuus	u-k	33.1	osuus	osuus	NA	NA	NA	1	NA	-1	NA	33.1	tilosuus	b-eryt	Negat	NA
+414	FAKE89	17.72	2030-06-15T01:27	NA	0	NA	NA	N	F	NA	NA	NA	NA	NA	u-ph	480.47	u/l	u/l	NA	NA	NA	1	NA	-1	NA	480.47	u/l37c	u-ph	591.518 E9/l	NA
+415	FAKE38	49.44	2007-05-25T18:16	2039	1	NA	NA	L	F	NA	NA	NA	NA	NA	f-katal-o	155.44	ml/min/173m2	ml/min/173m2	NA	NA	NA	1	NA	-1	NA	155.44	ml/min/	s-ferrit	98.307 E9/l	NA
+417	FAKE11	116.78	2012-07-18T05:42	NA	0	NA	NA	NA	F	NA	NA	NA	NA	NA	e-rdw	3.23	inr	inr	NA	NA	NA	1	NA	-1	NA	3.23	inrarvo	e-rdw	252.421 E9/l	NA
+422	FAKE79	58.75	2006-08-14T22:57	2013	1	Eura_23	NA	NA	F	NA	NA	NA	NA	NA	s-ca	NA	titre	titre	NA	NA	NA	1	NA	-1	NA	NA	tiitteri	p-afos	985.619 E12/l	NA
+424	FAKE14	103.92	2008-07-12T17:29	2038	1	Eura_23	NA	HH	F	NA	NA	NA	NA	NA	s-gh-24h	164.85	mg/mmol	mg/mmol	NA	NA	NA	1	NA	-1	NA	164.85	mg/mmolkrea	s-fe	NA	female
+428	FAKE79	75.94	1996-11-30T04:45	1037	1	NA	NA	L	F	NA	NA	NA	NA	NA	s-aldos-p	204.58	u/ml	u/ml	NA	NA	NA	1	NA	-1	NA	204.58	yks/ml	s-aldos-p	194.561 E9/l	male
+429	FAKE44	12.15	1998-03-24T11:45	NA	0	NA	NA	N	F	REF2	NA	µg/ml	NA	µg/ml	na	333.49	mg/l	mg/l	NA	NA	NA	1	NA	-1	NA	333.49	µg/ml	NA	Näyte ei sovellu	male
+430	FAKE8	28.44	2012-12-04T15:23	1040	1	Eura_24	NA	L	F	NA	NA	NA	NA	NA	s-afp	165.93	mg/24h	mg/24h	NA	NA	NA	1	NA	-1	NA	165.93	mg/vrk	fp-gluk	Negat	female
+431	FAKE47	35.37	2006-01-29T22:50	1023	1	NA	NA	HH	F	REF7	NA	NA	NA	kpl/näköke	li-alat	174.51	u/nke	u/nke	NA	NA	NA	0	NA	-1	NA	174.51	kpl/näköke	p-afos	Positiivinen	male
+432	FAKE1	36.85	1991-02-16T08:51	2003	1	1.2.246.21	NA	NA	F	REF8	NA	µmol/l	999	µmol/l	sw-k	NA	umol/l	umol/l	NA	NA	NA	1	NA	-1	NA	NA	µmol/l	b-hb	< 0.5	NA
+434	FAKE72	91.59	2006-01-25T07:28	LOCAL001	0	1.2.246.21	NA	L	F	NA	NA	NA	NA	NA	s-afos	97.2	%lumfosuuteist	%lumfosuuteist	NA	NA	NA	0	NA	-1	NA	97.2	%lymfosyyteist	s-afos	208.264 E12/l	NA
+435	FAKE93	21.29	1998-11-30T18:43	2040	1	NA	NA	NA	F	NA	NA	NA	NA	NA	fs-kendkol	219.47	g/24h	g/24h	NA	NA	NA	1	NA	-1	NA	219.47	g/vrk	s-transf	Ei mitattavissa	female
+437	FAKE98	96.81	2022-03-30T18:18	1046	1	1.2.246.21	NA	H	F	NA	NA	NA	NA	NA	s-afos	35.94	index	index	NA	NA	NA	1	NA	-1	NA	35.94	indeksi	s-afos	Ei mitattavissa	NA
+438	FAKE70	45.67	2006-07-03T02:31	L-123	0	1.2.246.10.5678901.10.12345	NA	NA	F	NA	NA	NA	NA	NA	na	427.21	form	form	NA	NA	NA	0	NA	-1	NA	427.21	lomake	NA	427.625 NA	NA
+441	FAKE121	39.16	2003-07-21T14:59	NA	0	NA	NA	NA	F	NA	NA	NA	NA	NA	p-krea	134.54	g/24h	g/24h	NA	NA	NA	1	NA	-1	NA	134.54	g/d	p-krea	967.673 g/l	NA
+442	FAKE64	79.27	2014-07-24T17:35	1003	1	NA	NA	NA	F	REF9	19.7	kopiot/ml	118.3	kopiot/ml	pt-acth-r3	135.62	u/ml	u/ml	NA	NA	NA	1	NA	-1	NA	135.62	kopiot/ml	pt-acth-r3	Negat	NA
+444	FAKE46	41.40	2001-05-17T01:51	LOCAL_ABC	0	1.2.246.10.5678901.10.12345	NA	H	F	NA	NA	NA	NA	NA	p-gluk	NA	mmol/l	mmol/l	NA	mmol/l	1	1	APPROVED	3013826	Substance Concentration	NA	mmol/l	p-gluk	NA	NA
+445	FAKE31	34.20	1992-06-17T18:02	2020	1	NA	NA	A	F	REF5	22.8	synf	106.8	synf	du-ca-ion	406.82	sunf	sunf	NA	NA	NA	0	NA	-1	NA	406.82	synf	fp-trigly	169.718 mmol/l	male
+446	FAKE62	35.35	1992-08-13T17:11	LOCAL_ABC	0	1.2.246.10.5678901.10.12345	NA	L	F	NA	NA	NA	NA	NA	e-rdw	133.65	mmol/l	mmol/l	NA	NA	NA	1	NA	-1	NA	133.65	mmo/l	e-rdw	184.478 NA	male
+447	FAKE47	94.55	2017-03-04T12:00	LOCAL001	0	NA	NA	LL	F	REF7	48.8	promil	141.1	promil	b-la	413.28	promille	promille	NA	NA	NA	1	NA	-1	NA	413.28	promil	b-la	NA	NA
+448	FAKE25	92.99	2018-07-02T12:27	NA	0	1.2.246.21	NA	A	F	NA	NA	NA	NA	NA	p-afos	95.2	u/l	u/l	95.2	u/l	1	1	APPROVED	3035995	Catalytic Concentration	95.20	u/l37c	p-afos	535.748 E9/l	male
+449	FAKE87	110.22	2015-06-29T01:26	NA	0	Eura_24	NA	NA	F	NA	NA	NA	NA	NA	na	21.11	terveusl	terveusl	NA	NA	NA	0	NA	-1	NA	21.11	terveysl	NA	NA	male
+450	FAKE75	115.38	2004-02-18T00:00	1034	1	Eura_23	NA	NA	F	REF4	11.3	umol/l	59.4	umol/l	s-aldos	273.91	umol/l	umol/l	NA	NA	NA	1	NA	-1	NA	273.91	umol/l	s-aldos	308.122 g/l	female
+453	FAKE24	22.71	1998-03-31T15:05	NA	0	NA	NA	AA	F	NA	NA	NA	NA	NA	u-ph	290.56	mg/l	mg/l	NA	NA	NA	1	NA	-1	NA	290.56	mg/lfeu	u-ph	748.787 10e9/l	male
+454	FAKE85	96.72	2017-03-19T16:29	NA	0	NA	NA	N	F	REF2	NA	NA	NA	kpl/näköke	e-mcv	999999.0	u/nke	u/nke	NA	NA	NA	0	NA	-1	NA	999999	kpl/näköke	e-mcv	See attached report	NA
+460	FAKE121	49.58	2016-08-05T02:21	NA	0	NA	NA	HH	F	REF2	NA	NA	NA	NA	b-eryt	95.22	u/l	u/l	NA	NA	NA	1	NA	-1	NA	95.22	u/l37c	b-eryt	969.361 µmol/l	female
+461	FAKE49	12.58	2009-11-15T00:00	NA	0	1.2.246.10.5678901.10.12345	NA	NA	F	REF9	NA	NA	NA	NA	u-ph	NA	u/field	u/field	NA	NA	NA	1	NA	-1	NA	NA	/nk	u-ph	361.687 E12/l	female
+462	FAKE70	6.61	2010-01-01T12:51	NA	0	NA	NA	N	F	REF8	42.1	mmmol/mol	172.5	mmmol/mol	kolesterolinjahdl-kolest.suhde	343.98	mmol/mol	mmol/mol	NA	NA	NA	1	NA	-1	NA	343.98	mmmol/mol	kolesterolinjahdl-kolest.suhde	996.186 NA	male
+463	FAKE3	32.69	2020-02-29T20:46	LOCAL001	0	Eura_24	NA	L	F	NA	NA	NA	NA	NA	fp-kol	5.54	umol/24h	umol/24h	NA	NA	NA	1	NA	-1	NA	5.54	µmol/d	fp-kol	Tehty	NA
+464	FAKE30	32.75	2024-04-29T17:21	2017	1	Eura_24	NA	HH	F	REF7	33.0	g/vrk	121.6	g/vrk	2017	NA	g/24h	g/24h	NA	NA	NA	1	NA	-1	NA	<0.1	g/vrk	NA	569.752 E9/l	NA
+465	FAKE80	78.42	2019-02-21T05:28	LOCAL_ABC	0	1.2.246.21	NA	A	F	REF1	41.7	kopiota/ml	105.8	kopiota/ml	b-pvk+tkd	0.0	u/ml	u/ml	NA	NA	NA	1	NA	-1	NA	0	kopiota/ml	b-pvk+tkd	NA	female
+467	FAKE1	20.85	2007-12-01T12:00	2028	1	NA	NA	NA	F	REF3	21.7	solu/nk	146.6	solu/nk	pt-eso-pai	40.59	u/field	u/field	NA	NA	NA	1	NA	-1	NA	40.59	solu/nk	e-rdw	NA	female
+469	FAKE88	18.06	1994-05-26T20:43	2026	1	NA	NA	NA	F	REF9	NA	NA	NA	tilosuus	li-karba	95.8	osuus	osuus	NA	NA	NA	1	NA	-1	NA	95.8	tilosuus	p-na	223.905 10e9/l	NA
+470	FAKE6	58.69	2018-05-03T17:39	1047	1	1.2.246.10.5678901.10.12345	NA	H	F	NA	NA	NA	NA	NA	s-afosinh	300.68	ug/gtiniini	ug/gtiniini	NA	NA	NA	0	NA	-1	NA	300.68	µg/gkreatiniini	s-afosinh	748.916 mmol/l	female
+472	FAKE56	88.61	2014-08-27T00:51	TEST	0	Eura_23	NA	N	F	NA	NA	NA	NA	NA	p-tsh	296.62	u/100leuk	u/100leuk	NA	NA	NA	0	NA	-1	NA	296.62	kpl/100leuk	p-tsh	664.460 E12/l	NA
+474	FAKE72	77.70	1990-08-09T12:37	99999	0	NA	NA	NA	F	REF9	33.1	ml/min	189.4	ml/min	na	327.64	ml/min/173m2	ml/min/173m2	NA	NA	NA	1	NA	-1	NA	327.64	ml/min	NA	NA	NA
+477	FAKE12	118.86	1997-06-04T06:24	TEST	0	NA	NA	A	F	NA	NA	NA	NA	NA	p-gluk	395.81	terveusl	terveusl	NA	NA	NA	0	NA	-1	NA	395.81	terveysl	p-gluk	152.433 E12/l	male
+478	FAKE9	49.43	2005-08-17T12:03	NA	0	NA	NA	L	F	NA	NA	NA	NA	NA	na	326.9	u/field	u/field	NA	NA	NA	1	NA	-1	NA	326.90	kpl/näkökenttä	NA	114.988 10e9/l	male
+479	FAKE27	39.61	1993-09-18T21:32	2033	1	1.2.246.10.5678901.10.12345	NA	HH	F	NA	NA	NA	NA	NA	fs-karot	123.456789	mg/l	mg/l	NA	NA	NA	1	NA	-1	NA	123.456789	ug/ml	s-krea	850.564 mmol/l	NA
+481	FAKE46	31.88	1994-08-23T03:19	2004	1	1.2.246.537.10.1234567	NA	NA	F	NA	NA	NA	NA	NA	u-k	296.78	mm/h	mm/h	NA	NA	NA	1	NA	-1	NA	296.78	mm//h	b-eryt	> 100	NA
+484	FAKE18	84.84	2020-10-17T13:44	NA	0	NA	NA	L	F	REF4	6.9	%lymfosyyteist	107.1	%lymfosyyteist	p-gluk	22.6	%lumfosuuteist	%lumfosuuteist	NA	NA	NA	0	NA	-1	NA	22.6	%lymfosyyteist	p-gluk	NA	NA
+485	FAKE52	37.45	2012-10-15T09:49	2029	1	1.2.246.537.10.1234567	NA	HH	F	NA	NA	NA	NA	NA	pt-eso-ph	375.85	mm/h	mm/h	NA	NA	NA	1	NA	-1	NA	375.85	mm/h	NA	123.456 E9/l (kalibroitu)	male
+488	FAKE51	34.94	2013-12-06T12:17	NA	0	NA	NA	N	F	NA	NA	NA	NA	NA	na	263.45	l	l	NA	NA	NA	1	NA	-1	NA	263.45	liter	NA	NA	NA
+489	FAKE40	3.98	2019-03-18T04:45	2014	1	Eura_23	NA	NA	F	NA	NA	NA	NA	NA	li-ca	0.0	u/ul	u/ul	NA	NA	NA	0	NA	-1	NA	0	kpl/ul	fp-gluk	199.679 10e9/l	male
+493	FAKE28	29.03	1990-01-09T16:12	na	0	1.2.246.537.10.1234567	NA	NA	F	NA	NA	NA	NA	NA	na	63.9	osuus	osuus	NA	NA	NA	1	NA	-1	NA	63.9	tilosuus	NA	535.237 E12/l	NA
+494	FAKE7	20.45	2012-01-06T07:01	na	0	NA	NA	HH	F	NA	NA	NA	NA	NA	b-hkr	140.03	mg/mmol	mg/mmol	NA	NA	NA	1	NA	-1	NA	140.03	mg/mmo	b-hkr	538.231 10e9/l	NA
+495	FAKE41	89.75	2003-11-29T12:44	na	0	Eura_24	NA	H	F	REF9	23.7	sek	169.4	sek	b-trom	311.58	s	s	NA	NA	NA	1	NA	-1	NA	311.58	sek	b-trom	Negat	female
+496	FAKE66	49.52	2018-07-25T08:27	NA	0	Eura_24	NA	LL	F	NA	NA	NA	NA	NA	b-hkr	35.4	%/lumf	%/lumf	NA	NA	NA	0	NA	-1	NA	35.4	%/lymf	b-hkr	3.299 mmol/l	male
+497	FAKE42	89.30	2019-12-09T09:32	NA	0	1.2.246.10.5678901.10.12345	NA	L	F	NA	NA	NA	NA	NA	na	106.2	NA	NA	NA	NA	NA	0	NA	-1	NA	106.20	NA	NA	32.713 NA	male
+499	FAKE97	12.00	1990-10-12T09:02	2021	1	1.2.246.10.5678901.10.12345	NA	H	F	NA	NA	NA	NA	NA	f-campvi	402.87	g/24h	g/24h	NA	NA	NA	1	NA	-1	NA	402.87	g/d	p-tsh	408.874 10e9/l	female
+500	FAKE60	57.77	2022-03-27T03:10	NA	0	NA	NA	N	F	NA	NA	NA	NA	NA	p-alat	180.47	form	form	NA	NA	NA	0	NA	-1	NA	180.47	lausunto	p-alat	Test result pending	NA
+501	FAKE12	29.77	2005-07-25T10:11	2040	1	Eura_24	NA	L	F	REF7	NA	NA	999	NA	fs-kendkol	216.2	ml/min/173m2	ml/min/173m2	NA	NA	NA	1	NA	-1	NA	216.20	ml/min	s-transf	357.628 µmol/l	female
+503	FAKE96	34.42	2014-09-16T12:17	LOCAL_ABC	0	NA	NA	N	F	REF5	10.8	titteri	118.0	titteri	na	NA	titre	titre	NA	NA	NA	1	NA	-1	NA	NA	titteri	NA	680.378 mmol/l	male
+504	FAKE85	59.06	2009-05-19T16:20	LOCAL_ABC	0	1.2.246.10.5678901.10.12345	NA	AA	F	NA	NA	NA	NA	NA	na	463.06	ug/g	ug/g	NA	NA	NA	1	NA	-1	NA	463.06	ug/gulost	NA	171.660 NA	NA
+505	FAKE99	97.21	2000-11-24T18:52	2025	1	NA	NA	L	F	REF1	20.5	sp/e6lym	121.3	sp/e6lym	2025	354.77	sp/e6lum	sp/e6lum	NA	NA	NA	0	NA	-1	NA	354.77	sp/e6lym	b-eryt	> 100	NA
+507	FAKE61	112.34	1997-12-02T19:57	2029	1	NA	NA	L	F	NA	NA	NA	NA	NA	pt-eso-ph	257.21	e12/l	e12/l	NA	NA	NA	1	NA	-1	NA	257.21	10*12/l	p-tsh	Negat	NA
+508	FAKE10	100.21	2007-07-10T18:57	2008	1	1.2.246.10.5678901.10.12345	NA	NA	F	REF2	NA	NA	NA	NA	fs-ct	77.1	%	%	NA	NA	NA	1	NA	-1	NA	77.1	%	e-mch	711.697 mmol/l	NA
+509	FAKE96	42.75	2014-04-20T11:56	1070	1	1.2.246.537.10.1234567	NA	HH	F	NA	NA	NA	NA	NA	fb-nh4-ion	411.74	mg/mmol	mg/mmol	NA	NA	NA	1	NA	-1	NA	411.74	mg/mmolkrea	fb-nh4-ion	Positiivinen	NA
+514	FAKE19	78.53	1992-03-10T05:22	NA	0	NA	NA	NA	F	NA	NA	NA	NA	NA	p-crp	NA	u/ml	u/ml	NA	NA	NA	1	NA	-1	NA	NA	ku/l	p-crp	Test result pending	NA
+516	FAKE29	47.70	1997-02-22T06:29	2027	1	1.2.246.21	NA	L	F	REF4	NA	NA	NA	NA	s-karba	55.84	promille	promille	NA	NA	NA	1	NA	-1	NA	55.84	promil	p-cl	NA	NA
+518	FAKE19	76.73	2007-11-12T16:35	NA	0	NA	NA	HH	F	REF8	NA	kpl/100le	NA	NA	s-alat	374.33	u/100le	u/100le	NA	NA	NA	0	NA	-1	NA	374.33	kpl/100le	s-alat	521.678 E9/l	NA
+519	FAKE85	25.15	2001-08-01T18:46	99999	0	NA	NA	A	F	NA	NA	NA	NA	NA	b-hkr	6.3	%/lumf	%/lumf	NA	NA	NA	0	NA	-1	NA	6.3	%/lymf	b-hkr	804.181 mmol/l	NA
+520	FAKE26	89.91	2020-03-12T16:25	NA	0	NA	NA	LL	F	NA	NA	NA	NA	NA	p-tsh	254.77	mg/24h	mg/24h	NA	NA	NA	1	NA	-1	NA	254.77	mg/vrk	p-tsh	673.141 µmol/l	male
+523	FAKE54	65.72	1996-04-25T15:26	na	0	NA	NA	LL	F	REF8	0	NA	NA	NA	na	184.65	titre	titre	NA	NA	NA	1	NA	-1	NA	184.65	titteri	NA	119.560 g/l	NA
+524	FAKE108	21.76	2018-03-10T13:15	1101	1	1.2.246.21	NA	AA	F	NA	NA	NA	NA	NA	s-ast	381.66	ml/min/173m2	ml/min/173m2	NA	NA	NA	1	NA	-1	NA	381.66	ml/min/m2	b-leuk	Test result pending	female
+527	FAKE5	83.73	2015-05-29T22:27	LOCAL001	0	Eura_24	NA	A	F	REF3	8.4	suhde	117.8	suhde	p-gluk	405.53	ratio	ratio	NA	NA	NA	1	NA	-1	NA	405.53	suhde	p-gluk	288.722 µmol/l	male
+528	FAKE12	16.34	2022-05-31T08:30	2025	1	NA	NA	LL	F	REF4	1.6	astec	88.8	astec	2025	37.5	aste	aste	NA	NA	NA	0	NA	-1	NA	37.5	astec	p-gluk	205.461 µmol/l	NA
+529	FAKE75	112.32	1994-03-14T05:18	1047	1	Eura_23	NA	LL	F	NA	NA	NA	NA	NA	s-afosinh	NA	ug/gtiniini	ug/gtiniini	NA	NA	NA	0	NA	-1	NA	NA	µg/gkreatiniini	NA	345.246 10e9/l	female
+530	FAKE110	67.45	1991-10-11T18:15	2012	1	1.2.246.537.10.1234567	NA	L	F	REF9	NA	NA	999	kpl/100le	f-ca	173.56	u/100le	u/100le	NA	NA	NA	0	NA	-1	NA	173.56	kpl/100le	p-crp	592.816 µmol/l	NA
+531	FAKE29	51.32	2019-08-17T17:17	NA	0	NA	NA	NA	F	REF1	0	sek	NA	NA	p-afos	306.48	s	s	NA	NA	NA	1	NA	-1	NA	306.48	sek	p-afos	165.094 E9/l	male
+532	FAKE42	70.01	2024-06-02T20:43	NA	0	1.2.246.21	NA	AA	F	NA	NA	NA	NA	NA	p-tsh	277.61	ug/gtiniini	ug/gtiniini	NA	NA	NA	0	NA	-1	NA	277.61	µg/gkreatiniini	p-tsh	540.422 µmol/l	female
+533	FAKE91	80.22	2002-05-28T16:18	2021	1	NA	NA	N	F	NA	NA	NA	NA	NA	f-campvi	0.03	e9/l	e9/l	NA	NA	NA	1	NA	-1	NA	0.03	x10e9/l	p-tsh	Ei mitattavissa	female
+534	FAKE120	21.13	1995-09-16T19:33	L-123	0	NA	NA	LL	F	REF1	NA	NA	NA	suhde	kolesterolinjahdl-kolest.suhde	283.47	ratio	ratio	283.47	ratio	1	1	APPROVED	3002109	Mass Ratio	283.47	suhde	kolesterolinjahdl-kolest.suhde	390.594 NA	female
+536	FAKE3	97.70	2013-05-28T23:44	NA	0	NA	NA	AA	F	NA	NA	NA	NA	NA	b-hkr	123.456789	umol	umol	NA	NA	NA	1	NA	-1	NA	123.456789	µmol	b-hkr	207.430 µmol/l	male
+537	FAKE70	27.54	1995-06-04T15:24	NA	0	NA	NA	L	F	NA	NA	NA	NA	NA	p-afos	187.88	u/100l	u/100l	NA	NA	NA	0	NA	-1	NA	187.88	kpl/100l	p-afos	522.224 E9/l	female
+538	FAKE88	42.01	2023-07-29T18:29	2037	1	1.2.246.21	NA	NA	F	NA	NA	NA	NA	NA	ts-ghrh	48.07	umol/24h	umol/24h	NA	NA	NA	1	NA	-1	NA	48.07	umol/vrk	p-p	225.569 E9/l	NA
+541	FAKE42	62.86	2009-07-12T12:52	NA	0	Eura_23	NA	LL	F	REF4	44.1	pisteet	106.1	pisteet	p-afos	281.39	u	u	NA	NA	NA	1	NA	-1	NA	281.39	pisteet	p-afos	206.230 NA	male
+542	FAKE7	86.50	2006-12-14T18:03	NA	0	NA	NA	H	F	REF8	28.0	mmol/molkrea	93.0	mmol/molkrea	u-ph	16.25	mmol/mol	mmol/mol	NA	NA	NA	1	NA	-1	NA	16.25	mmol/molkrea	u-ph	105.351 g/l	NA
+543	FAKE42	29.30	2009-02-07T22:18	1023	1	NA	NA	HH	F	REF8	30.2	^9/l	75.2	^9/l	li-alat	30.86	e9/l	e9/l	NA	NA	NA	1	NA	-1	NA	30.86	^9/l	li-alat	> 100	NA
+544	FAKE109	84.66	1992-08-29T02:03	1027	1	1.2.246.21	NA	NA	F	NA	NA	NA	NA	NA	li-alb	66.55	mg/24h	mg/24h	NA	NA	NA	1	NA	-1	NA	66.55	mg/vrk	li-alb	201.218 g/l	NA
+545	FAKE34	24.45	2005-11-25T00:00	2019	1	NA	NA	H	F	REF7	NA	NA	NA	µg/ml	s-ca-ion	477.27	mg/l	mg/l	NA	NA	NA	1	NA	-1	NA	477.27	µg/ml	fp-kol-hdl	> 100	female
+546	FAKE40	86.18	2007-03-23T00:00	TEST	0	Eura_24	NA	AA	F	NA	NA	NA	NA	NA	p-gluk	0.0001	umol/24h	umol/24h	NA	NA	NA	1	NA	-1	NA	0.0001	µmol/vrk	p-gluk	72.779 E12/l	NA
+548	FAKE22	74.74	1998-09-28T02:53	NA	0	Eura_23	NA	NA	F	REF5	NA	NA	NA	NA	na	416.91	tehtu	tehtu	NA	NA	NA	0	NA	-1	NA	416.91	tehty	NA	Test result pending	female
+549	FAKE50	84.50	1995-07-09T04:56	2029	1	NA	NA	NA	F	REF6	23.1	mmo/l	109.2	mmo/l	pt-eso-ph	446.36	mmol/l	mmol/l	NA	NA	NA	1	NA	-1	NA	446.36	mmo/l	s-bil	NA	female
+554	FAKE70	39.71	2001-04-04T15:13	2008	1	NA	NA	NA	NA	REF9	NA	NA	NA	NA	fs-ct	166.02	times/min	times/min	NA	NA	NA	0	NA	-1	NA	166.02	krt/min	p-gluk	199.843 mmol/l	NA
+555	FAKE104	75.41	2007-11-30T12:00	NA	0	NA	NA	H	F	REF9	9.6	f/l	122.5	f/l	b-pvk+tkd	NA	fl	fl	NA	NA	NA	1	NA	-1	NA	NA	f/l	b-pvk+tkd	352.211 E9/l	female
+556	FAKE62	73.81	2023-04-06T23:34	NA	0	1.2.246.537.10.1234567	NA	L	F	REF3	NA	NA	NA	NA	p-alat	397.34	e6/l	e6/l	NA	NA	NA	1	NA	-1	NA	397.34	10e6/l	p-alat	652.302 g/l	female
+557	FAKE22	107.10	2003-10-12T18:51	L-123	0	1.2.246.537.10.1234567	NA	NA	F	NA	NA	NA	NA	NA	kol/hdl	88.8	A	A	NA	NA	NA	0	NA	-1	NA	88.80	+	kol/hdl	710.351 E9/l	NA
+558	FAKE10	114.68	2000-02-07T12:00	1070	1	NA	NA	L	F	REF1	46.3	arvio	160.6	arvio	fb-nh4-ion	109.96	estimate	estimate	NA	NA	NA	1	NA	-1	NA	109.96	arvio	fb-nh4-ion	35.171 E9/l	NA
+560	FAKE19	48.08	2015-01-05T13:49	NA	0	NA	NA	HH	F	NA	NA	NA	NA	NA	p-k	123.456789	mg/l	mg/l	NA	NA	NA	1	NA	-1	NA	123.456789	mg/l	p-k	502.820 10e9/l	male
+561	FAKE58	12.95	1998-10-20T02:30	2013	1	NA	NA	AA	F	NA	NA	NA	NA	NA	s-ca	216.63	nmol/mmol	nmol/mmol	NA	NA	NA	0	NA	-1	NA	216.63	nmol/mmolkrea	p-tt-inr	841.764 µmol/l	female
+563	FAKE9	17.41	2019-04-08T23:34	L-123	0	NA	NA	NA	F	REF8	23.2	lausunto	119.7	lausunto	b-hba1c	221.89	form	form	NA	NA	NA	0	NA	-1	NA	221.89	lausunto	b-hba1c	Positiivinen	male
+567	FAKE40	33.95	1996-04-23T16:04	L-123	0	NA	NA	NA	F	NA	NA	NA	NA	NA	u-ph	109.63	u/ul	u/ul	NA	NA	NA	0	NA	-1	NA	109.63	kpl/ul	u-ph	NA	female
+568	FAKE121	90.58	2014-05-05T13:57	NA	0	1.2.246.537.10.1234567	NA	N	F	REF6	16.7	pisteet	88.2	pisteet	p-alat	63.74	u	u	NA	NA	NA	1	NA	-1	NA	63.74	pisteet	p-alat	428.541 µmol/l	NA
+569	FAKE95	54.72	2010-11-21T20:36	2015	1	NA	NA	L	F	REF1	19.5	fmiayks/ml	91.9	fmiayks/ml	sa-ca	318.48	fmiau/ml	fmiau/ml	NA	NA	NA	0	NA	-1	NA	318.48	fmiayks/ml	p-gluk	NA	female
+570	FAKE110	53.73	2008-11-24T05:58	1024	1	1.2.246.537.10.1234567	NA	H	F	NA	NA	NA	NA	NA	p-alat	366.22	mg/l	mg/l	NA	NA	NA	1	NA	-1	NA	366.22	mg/l	p-alat	217.547 E9/l	male
+572	FAKE63	73.15	1991-08-01T10:23	na	0	1.2.246.21	NA	N	F	REF5	NA	NA	NA	NA	erytrosyytit,tilavuusosuus	NA	mg/l	mg/l	NA	NA	NA	1	NA	-1	NA	NA	ug/ml	erytrosyytit,tilavuusosuus	400.228 NA	male
+574	FAKE5	48.37	1994-02-16T08:13	NA	0	NA	NA	AA	F	REF8	48.9	/synf	54.4	/synf	b-hkr	355.56	/sunf	/sunf	NA	NA	NA	0	NA	-1	NA	355.56	/synf	b-hkr	264.501 E9/l	female
+575	FAKE80	33.25	2023-07-08T15:42	2004	1	NA	NA	H	F	NA	NA	NA	NA	NA	u-k	NA	u/field	u/field	NA	NA	NA	1	NA	-1	NA	NA	solu/nk	b-pvk+tkd	487.677 mmol/l	NA
+576	FAKE33	53.41	2000-01-24T16:19	NA	0	NA	NA	A	F	REF5	47.3	xe9/l	50.2	xe9/l	na	17.03	e9/l	e9/l	NA	NA	NA	1	NA	-1	NA	17.03	xe9/l	NA	NA	NA
+578	FAKE108	69.39	2015-04-04T19:51	1024	1	NA	NA	NA	F	NA	NA	NA	NA	NA	p-alat	129.75	titre	titre	NA	NA	NA	1	NA	-1	NA	129.75	titter	p-alat	555.343 µmol/l	male
+579	FAKE45	43.27	2009-09-15T10:31	2010	1	NA	NA	H	F	NA	NA	NA	NA	NA	pt-trca	55.8	osuus	osuus	NA	NA	NA	1	NA	-1	NA	55.8	tilosuus	p-krea	NA	NA
+580	FAKE84	118.55	2015-03-23T03:36	NA	0	Eura_24	NA	NA	F	NA	NA	NA	NA	NA	erytrosyytit,tilavuusosuus	180.7	mg/l	mg/l	NA	NA	NA	1	NA	-1	NA	180.70	ug/ml	erytrosyytit,tilavuusosuus	839.850 mmol/l	male
+581	FAKE85	106.18	1996-05-25T05:19	99999	0	NA	NA	NA	F	NA	NA	NA	NA	NA	na	8.34	e12/l	e12/l	NA	NA	NA	1	NA	-1	NA	8.34	10e12/l	NA	34.428 NA	NA
+582	FAKE46	94.39	2013-11-25T01:02	L-123	0	Eura_23	NA	N	F	REF1	25.7	x10e9/l	123.1	x10e9/l	b-hkr	15.31	e9/l	e9/l	NA	NA	NA	1	NA	-1	NA	15.31	x10e9/l	b-hkr	798.508 10e9/l	NA
+583	FAKE52	85.80	1994-01-07T00:08	2012	1	Eura_24	NA	N	F	REF4	9.7	indeksi	110.6	indeksi	f-ca	225.34	index	index	NA	NA	NA	1	NA	-1	NA	225.34	indeksi	p-crp	711.469 10e9/l	NA
+584	FAKE95	105.88	2004-05-26T16:04	L-123	0	NA	NA	NA	F	NA	NA	NA	NA	NA	b-trom	255.69	titre	titre	NA	NA	NA	1	NA	-1	NA	255.69	titter	b-trom	Tehty	female
+586	FAKE118	46.15	2012-12-02T04:02	1101	1	1.2.246.10.5678901.10.12345	NA	LL	F	REF9	34.5	p/g	176.7	p/g	s-ast	108.09	pg	pg	NA	NA	NA	1	NA	-1	NA	108.09	p/g	kolesterolinjahdl-kolest.suhde	303.485 mmol/l	male
+588	FAKE12	101.73	1998-07-04T09:57	NA	0	NA	NA	L	F	REF5	4.9	ug/ml	96.6	ug/ml	p-na	250.84	mg/l	mg/l	NA	NA	NA	1	NA	-1	NA	250.84	ug/ml	p-na	Negat	NA
+589	FAKE67	87.57	2011-09-23T04:45	NA	0	Eura_23	NA	L	F	NA	NA	NA	NA	NA	p-na	36.6	°c	°c	NA	NA	NA	1	NA	-1	NA	36.6	c	p-na	> 100	NA
+590	FAKE123	0.16	2009-10-25T13:36	L-123	0	NA	NA	NA	F	NA	NA	NA	NA	NA	e-mcv	NA	s	s	NA	NA	NA	1	NA	-1	NA	NA	sek	e-mcv	See attached report	male
+593	FAKE38	16.43	2018-11-15T13:50	NA	0	NA	NA	NA	F	REF8	30.7	tilosuus	139.8	tilosuus	na	94.4	osuus	osuus	NA	NA	NA	1	NA	-1	NA	94.4	tilosuus	NA	691.942 10e9/l	NA
+596	FAKE27	1.26	1993-12-29T21:31	NA	0	NA	NA	NA	F	NA	NA	NA	NA	NA	b-hba1c	39.8	°c	°c	NA	NA	NA	1	NA	-1	NA	39.8	c	b-hba1c	Lausunto	male
+597	FAKE87	48.75	2019-04-26T15:35	L-123	0	NA	NA	AA	F	REF5	NA	ymol/l	NA	NA	kolesterolinjahdl-kolest.suhde	374.97	umol/l	umol/l	NA	NA	NA	1	NA	-1	NA	374.97	ymol/l	kolesterolinjahdl-kolest.suhde	521.777 E9/l	male
+598	FAKE68	87.33	2015-12-11T23:02	1100	1	NA	NA	A	F	REF5	17.9	g/molkrea	129.8	g/molkrea	s-asta	20.08	g/mol	g/mol	NA	NA	NA	1	NA	-1	NA	20.08	g/molkrea	kolesterolinjahdl-kolest.suhde	58.566 NA	NA
+599	FAKE79	74.52	2019-09-21T16:26	NA	0	NA	NA	N	NA	REF8	43.3	ug/gulostetta	73.9	ug/gulostetta	s-afos	131.35	ug/g	ug/g	NA	NA	NA	1	NA	-1	NA	131.35	ug/gulostetta	s-afos	519.594 E9/l	NA
+602	FAKE74	105.79	2000-09-13T14:08	NA	0	NA	NA	NA	F	NA	NA	NA	NA	NA	fp-gluk	349.39	u/ml	u/ml	NA	NA	NA	1	NA	-1	NA	349.39	yks/ml	fp-gluk	203.047 E9/l	male
+603	FAKE83	67.90	1992-12-11T11:25	NA	0	1.2.246.10.5678901.10.12345	NA	LL	F	REF6	20.3	synf	61.7	synf	p-tt-inr	476.67	sunf	sunf	NA	NA	NA	0	NA	-1	NA	476.67	synf	p-tt-inr	603.736 E12/l	female
+604	FAKE84	113.32	1990-02-28T21:31	TEST	0	NA	NA	NA	F	NA	NA	NA	NA	NA	b-hb	332.35	s	s	NA	NA	NA	1	NA	-1	NA	332.35	sek	b-hb	343.249 µmol/l	female
+605	FAKE72	85.81	1997-06-21T08:05	NA	0	NA	NA	LL	F	NA	NA	NA	NA	NA	kolesterolinjahdl-kolest.suhde	10.07	mmol/l	mmol/l	NA	NA	NA	1	NA	-1	NA	10.07	mmmol/l	kolesterolinjahdl-kolest.suhde	950.107 NA	NA
+608	FAKE48	86.31	1992-04-26T13:16	2011	1	1.2.246.537.10.1234567	NA	LL	F	NA	NA	NA	NA	NA	du-ca	192.59	ml/min/173m2	ml/min/173m2	NA	NA	NA	1	NA	-1	NA	192.59	ml/min/	p-k	22.938 mmol/l	male
+609	FAKE122	37.78	2008-05-13T00:13	NA	0	1.2.246.10.5678901.10.12345	NA	NA	F	NA	NA	NA	NA	NA	p-krea	10.72	e12/l	e12/l	NA	NA	NA	1	NA	-1	NA	10.72	10e12/l	p-krea	258.073 µmol/l	NA
+611	FAKE105	17.48	1995-12-12T13:35	L-123	0	NA	NA	NA	F	REF1	15.8	lausunto	59.5	lausunto	s-afos	105.45	form	form	NA	NA	NA	0	NA	-1	NA	105.45	lausunto	s-afos	508.955 E9/l	NA
+612	FAKE1	45.51	1999-03-26T20:29	NA	0	Eura_23	NA	H	F	NA	NA	NA	NA	NA	p-na	113.19	e9/l	e9/l	NA	NA	NA	1	NA	-1	NA	113.19	x10^9/l	p-na	NA	female
+613	FAKE60	34.53	2022-08-08T12:13	1101	1	NA	NA	NA	F	REF3	45.2	<320titter	54.3	<320titter	s-ast	31.9	titre	titre	31.9	titre	1	1	APPROVED	3028050	Titer	31.90	<320titter	s-ast	694.128 mmol/l	NA
+614	FAKE74	17.64	2014-10-29T08:01	2011	1	NA	NA	AA	F	REF2	16.9	kpl/vrk	181.4	kpl/vrk	du-ca	245.69	u/24h	u/24h	NA	NA	NA	1	NA	-1	NA	245.69	kpl/vrk	p-tsh	Positiivinen	NA
+615	FAKE73	106.49	2019-07-23T14:53	TEST	0	1.2.246.21	NA	A	F	REF7	46.5	mg/mmolkrea	69.8	mg/mmolkrea	na	434.97	mg/mmol	mg/mmol	NA	NA	NA	1	NA	-1	NA	434.97	mg/mmolkrea	NA	> 100	male
+618	FAKE10	39.82	1991-06-14T04:24	na	0	NA	NA	NA	F	REF6	24.5	nmol/mmolkrea	119.4	nmol/mmolkrea	b-hkr	364.0	nmol/mmol	nmol/mmol	NA	NA	NA	0	NA	-1	NA	364.00	nmol/mmolkrea	b-hkr	NA	female
+619	FAKE84	63.62	2003-03-14T00:42	L-123	0	NA	NA	N	F	NA	NA	NA	NA	NA	kol/hdl	167.95	mmol/l	mmol/l	NA	NA	NA	1	NA	-1	NA	167.95	mmol/l/ph7	kol/hdl	Negat	female
+620	FAKE62	6.52	2011-02-24T03:28	LOCAL001	0	NA	NA	NA	F	REF4	10.0	10e6/l	189.2	10e6/l	p-gluk	280.68	e6/l	e6/l	NA	NA	NA	1	NA	-1	NA	280.68	10e6/l	p-gluk	Tehty	NA
+621	FAKE66	23.59	2017-12-17T12:00	1047	1	NA	NA	NA	F	REF1	NA	NA	999	NA	s-afosinh	486.18	ug/min	ug/min	NA	NA	NA	1	NA	-1	NA	486.18	µg/min	kolesterolinjahdl-kolest.suhde	Positiivinen	male
+622	FAKE14	118.41	2015-07-23T03:21	NA	0	1.2.246.537.10.1234567	NA	NA	F	REF9	12.1	caste	93.0	caste	b-hb	37.7	aste	aste	NA	NA	NA	0	NA	-1	NA	37.7	caste	b-hb	822.983 E9/l	male
+623	FAKE58	104.49	2002-10-11T21:54	LOCAL_ABC	0	NA	NA	NA	F	NA	NA	NA	NA	NA	e-rdw	364.28	mg/l	mg/l	NA	NA	NA	1	NA	-1	NA	364.28	ug/ml	e-rdw	339.634 µmol/l	male
+624	FAKE55	36.26	1999-01-25T19:05	2039	1	1.2.246.537.10.1234567	NA	NA	F	NA	NA	NA	NA	NA	f-katal-o	495.7	titre	titre	NA	NA	NA	1	NA	-1	NA	495.70	tiitteri	s-ferrit	123.456 E9/l (kalibroitu)	female
+626	FAKE81	102.23	1992-11-06T10:49	2011	1	1.2.246.21	NA	AA	F	NA	NA	NA	NA	NA	du-ca	41.2	aste	aste	NA	NA	NA	0	NA	-1	NA	41.2	astec	p-k	62.921 µmol/l	NA
+627	FAKE114	107.24	2099-12-31T06:51	1003	1	1.2.246.10.5678901.10.12345	NA	H	F	NA	NA	NA	NA	NA	pt-acth-r3	211.48	ng/l	ng/l	NA	NA	NA	1	NA	-1	NA	211.48	pg/ml	pt-acth-r3	Tehty	female
+628	FAKE81	48.37	2008-12-23T23:11	1001	1	1.2.246.21	NA	NA	F	NA	NA	NA	NA	NA	pt-acth-r1	458.44	promille	promille	NA	NA	NA	1	NA	-1	NA	458.44	o/oo	NA	NA	NA
+629	FAKE73	87.31	2021-08-01T02:22	TEST	0	NA	NA	N	F	REF4	31.9	kpl/500ly	91.2	kpl/500ly	p-k	83.46	u/500lu	u/500lu	NA	NA	NA	0	NA	-1	NA	83.46	kpl/500ly	p-k	366.384 µmol/l	NA
+631	FAKE12	43.86	2005-10-01T14:41	2036	1	NA	NA	H	F	NA	NA	NA	NA	NA	s-ghrh	260.84	u/ml	u/ml	NA	NA	NA	1	NA	-1	NA	260.84	kopiot/ml	p-mg	NA	female
+635	FAKE61	13.88	1992-07-10T19:54	NA	0	NA	NA	NA	F	REF6	16.5	10e12/l	139.7	10e12/l	b-hba1c	13.51	e12/l	e12/l	NA	NA	NA	1	NA	-1	NA	13.51	10e12/l	b-hba1c	336.668 E9/l	female
+636	FAKE75	90.80	2002-06-24T20:12	1020	1	NA	NA	NA	F	REF5	NA	NA	NA	NA	p-acth	88.46	umol/24h	umol/24h	NA	NA	NA	1	NA	-1	NA	88.46	umol/vrk	s-alat	948.568 mmol/l	female
+637	FAKE56	33.27	2021-09-04T04:05	1034	1	Eura_24	NA	A	F	NA	NA	NA	NA	NA	s-aldos	218.91	ug/g	ug/g	NA	NA	NA	1	NA	-1	NA	218.91	ug/gulostetta	s-aldos	NA	NA
+639	FAKE40	93.17	2006-05-12T21:17	NA	0	1.2.246.21	NA	NA	F	NA	NA	NA	NA	NA	b-pvk+tkd	432.83	iu	iu	NA	NA	NA	1	NA	-1	NA	432.83	iy	b-pvk+tkd	Tehty	male
+640	FAKE120	46.28	1995-12-31T21:02	TEST	0	NA	NA	A	F	NA	NA	NA	NA	NA	p-k	35.3	aste	aste	NA	NA	NA	0	NA	-1	NA	35.3	caste	p-k	Lausunto	male
+641	FAKE64	106.18	1994-05-07T20:57	L-123	0	NA	NA	L	F	NA	NA	NA	NA	NA	p-gluk	5.97	e9/l	e9/l	NA	NA	NA	1	NA	-1	NA	5.97	x10e9/l	p-gluk	< 0.5	NA
+642	FAKE61	40.04	2023-09-22T09:45	2029	1	NA	NA	A	F	REF8	34.5	ve	159.1	ve	pt-eso-ph	479.68	responseequivalent	responseequivalent	NA	NA	NA	0	NA	-1	NA	479.68	ve	u-ph	226.125 NA	NA
+644	FAKE13	114.69	1993-07-03T00:00	2024	1	NA	NA	A	F	REF1	NA	NA	NA	NA	pt-kapnogr	8.8	%/lumf	%/lumf	NA	NA	NA	0	NA	-1	NA	8.8	%/lymf	b-hkr	Positiivinen	NA
+646	FAKE41	79.87	1995-06-05T22:42	TEST	0	NA	NA	N	F	NA	NA	NA	NA	NA	p-tsh	-1.0	terveusl	terveusl	NA	NA	NA	0	NA	-1	NA	NA	terveysl	p-tsh	NA	NA
+647	FAKE90	101.27	1991-01-26T22:56	na	0	1.2.246.21	NA	N	F	REF2	NA	NA	NA	ug/gkrea	b-la	388.07	ug/g	ug/g	NA	NA	NA	1	NA	-1	NA	388.07	ug/gkrea	b-la	123.456 E9/l (kalibroitu)	male
+649	FAKE77	30.84	2008-12-24T07:11	NA	0	1.2.246.21	NA	L	F	NA	NA	NA	NA	NA	b-hkr	59.55	umol/24h	umol/24h	NA	NA	NA	1	NA	-1	NA	59.55	µmol/d	b-hkr	672.662 E12/l	male
+650	FAKE82	88.88	2018-11-06T12:25	na	0	NA	NA	H	F	NA	NA	NA	NA	NA	p-gluk	999999.0	spot/e6lu	spot/e6lu	NA	NA	NA	0	NA	-1	NA	999999	spot/e6ly	p-gluk	> 100	NA
+654	FAKE89	12.23	2004-08-02T17:26	NA	0	1.2.246.10.5678901.10.12345	NA	NA	F	REF5	NA	NA	NA	NA	b-leuk	56.0	pg	pg	NA	NA	NA	1	NA	-1	NA	56.00	p/g	b-leuk	905.876 mmol/l	male
+656	FAKE83	15.38	2009-10-29T05:54	NA	0	1.2.246.537.10.1234567	NA	A	F	NA	NA	NA	NA	NA	b-hkr	0.55	e9/l	e9/l	NA	NA	NA	1	NA	-1	NA	0.55	10e9/l	b-hkr	82.103 E9/l	NA
+657	FAKE102	53.35	2011-11-17T06:37	2007	1	Eura_24	NA	NA	F	REF8	43.9	ug/ml	52.1	ug/ml	fp-ct	NA	mg/l	mg/l	NA	NA	NA	1	NA	-1	NA	NA	ug/ml	kolesterolinjahdl-kolest.suhde	358.525 E12/l	NA
+658	FAKE88	62.14	2014-05-08T06:31	2032	1	NA	NA	N	F	REF1	NA	NA	NA	mg/mmolkrea	u-karni-o	12.05	mg/mmol	mg/mmol	NA	NA	NA	1	NA	-1	NA	12.05	mg/mmolkrea	p-alb	351.766 NA	female
+663	FAKE111	104.46	2022-10-19T12:00	2011	1	Eura_23	NA	N	F	REF4	32.2	liter	60.3	liter	du-ca	40.64	l	l	NA	NA	NA	1	NA	-1	NA	40.64	liter	s-afos	495.577 10e9/l	NA
+665	FAKE40	34.87	2003-03-23T11:00	1028	1	Eura_23	NA	H	F	REF3	NA	NA	NA	NA	s-alb	357.42	u/field	u/field	NA	NA	NA	1	NA	-1	NA	357.42	/nk	kol/hdl	Tehty	female
+666	FAKE84	35.53	1996-09-14T00:43	2003	1	NA	NA	A	F	NA	NA	NA	NA	NA	sw-k	464.68	u	u	NA	NA	NA	1	NA	-1	NA	464.68	pisteet	b-hb	877.601 mmol/l	NA
+667	FAKE11	17.72	2004-06-07T11:43	1020	1	Eura_24	NA	H	F	REF4	46.6	°c	130.7	°c	p-acth	-1.0	°°c	°°c	NA	NA	NA	0	NA	-1	NA	NA	°c	p-afos	Test result pending	female
+668	FAKE45	25.86	2012-12-07T06:01	NA	0	1.2.246.21	NA	A	F	REF4	22.7	lausunto	114.7	lausunto	b-la	291.72	form	form	NA	NA	NA	0	NA	-1	NA	291.72	lausunto	b-la	806.386 mmol/l	female
+671	FAKE88	35.66	2000-08-21T00:00	NA	0	1.2.246.537.10.1234567	NA	H	F	NA	NA	NA	NA	NA	p-afos	NA	pg	pg	NA	NA	NA	1	NA	-1	NA	NA	pg	p-afos	616.822 E12/l	NA
+673	FAKE77	0.90	2006-09-30T19:34	1047	1	Eura_24	NA	LL	F	NA	NA	NA	NA	NA	s-afosinh	37.0	aste	aste	NA	NA	NA	0	NA	-1	NA	37.0	astec	s-afosinh	164.936 mmol/l	female
+674	FAKE83	97.70	2018-04-14T14:21	1070	1	NA	NA	L	F	REF6	34.3	ratio	197.8	ratio	fb-nh4-ion	87.3	ratio	ratio	NA	NA	NA	1	NA	-1	NA	87.3	ratio	b-pvk+tkd	NA	male
+675	FAKE117	83.96	2099-12-31T07:53	2018	1	NA	NA	NA	F	REF3	1.7	/synf	145.4	/synf	2018	416.69	/sunf	/sunf	NA	NA	NA	0	NA	-1	NA	416.69	/synf	kolesterolinjahdl-kolest.suhde	512.960 E9/l	female
+679	FAKE92	111.66	2004-09-25T05:12	1003	1	NA	NA	HH	F	NA	NA	NA	NA	NA	pt-acth-r3	277.1	iu	iu	NA	NA	NA	1	NA	-1	NA	277.10	iy	pt-acth-r3	NA	NA
+680	FAKE14	116.04	2017-12-06T23:59	2038	1	1.2.246.10.5678901.10.12345	NA	H	F	NA	NA	NA	NA	NA	s-gh-24h	95.67	u/l	u/l	NA	NA	NA	1	NA	-1	NA	95.67	u/l37c	s-fe	50.164 µmol/l	NA
+682	FAKE29	56.76	2021-01-24T07:17	TEST	0	Eura_24	NA	NA	F	REF6	42.1	kopiot/ml	139.5	kopiot/ml	b-pvk+tkd	281.04	u/ml	u/ml	NA	NA	NA	1	NA	-1	NA	281.04	kopiot/ml	b-pvk+tkd	345.467 g/l	male
+683	FAKE23	116.05	2005-09-06T11:54	LOCAL001	0	NA	NA	NA	F	REF2	NA	mmol/molkrea	NA	NA	p-gluk	NA	mmol/mol	mmol/mol	NA	NA	NA	1	NA	-1	NA	NA	mmol/molkrea	p-gluk	NA	female
+684	FAKE80	44.36	1992-10-25T11:42	99999	0	1.2.246.10.5678901.10.12345	NA	NA	F	REF3	9.5	kopio/ml	179.5	kopio/ml	p-gluk	319.6	u/ml	u/ml	NA	NA	NA	1	NA	-1	NA	319.60	kopio/ml	p-gluk	633.994 E9/l	male
+686	FAKE51	53.20	2010-04-10T02:58	1101	1	NA	NA	N	F	REF1	NA	kpl/ul	NA	NA	s-ast	387.27	u/ul	u/ul	NA	NA	NA	0	NA	-1	NA	387.27	kpl/ul	p-tsh	826.548 NA	NA
+687	FAKE55	22.57	1996-10-04T16:16	2015	1	NA	NA	A	F	NA	NA	NA	NA	NA	sa-ca	12.58	e12/l	e12/l	NA	NA	NA	1	NA	-1	NA	12.58	x10e12/l	NA	NA	NA
+691	FAKE48	29.84	2005-11-04T19:24	2018	1	NA	NA	N	F	REF5	27.5	ug/ml	59.0	ug/ml	2018	225.72	mg/l	mg/l	NA	NA	NA	1	NA	-1	NA	225.72	ug/ml	fp-kol-ldl	306.897 g/l	NA
+692	FAKE54	58.63	2020-05-10T13:33	NA	0	1.2.246.10.5678901.10.12345	NA	A	F	NA	NA	NA	NA	NA	e-mcv	183.9	u/nke	u/nke	NA	NA	NA	0	NA	-1	NA	183.90	kpl/näköke	e-mcv	NA	NA
+693	FAKE88	46.54	2016-01-06T14:27	NA	0	NA	NA	A	F	NA	NA	NA	NA	NA	erytrosyytit,tilavuusosuus	337.13	mu/l	mu/l	NA	NA	NA	1	NA	-1	NA	337.13	mu/l	erytrosyytit,tilavuusosuus	NA	NA
+695	FAKE12	7.99	1994-04-16T01:54	2012	1	1.2.246.537.10.1234567	NA	NA	F	NA	NA	NA	NA	NA	f-ca	362.09	mg/l	mg/l	NA	NA	NA	1	NA	-1	NA	362.09	mg/l	p-crp	698.641 mmol/l	male
+697	FAKE62	38.79	1999-12-25T04:18	1024	1	NA	NA	NA	F	NA	NA	NA	NA	NA	p-alat	-1.0	g/24h	g/24h	NA	NA	NA	1	NA	-1	NA	NA	g/d	b-hkr	909.129 mmol/l	male
+698	FAKE84	93.23	1993-10-24T12:00	2012	1	Eura_24	NA	A	F	REF6	NA	NA	NA	NA	f-ca	413.9	u/100leuk	u/100leuk	NA	NA	NA	0	NA	-1	NA	413.90	kpl/100leuk	p-crp	559.857 g/l	NA
+700	FAKE7	16.47	2022-09-19T10:11	1046	1	1.2.246.21	NA	A	F	NA	NA	NA	NA	NA	s-afos	164.75	A	A	NA	NA	NA	0	NA	-1	NA	164.75	+	b-hba1c	Tehty	female
+703	FAKE14	105.29	1900-01-01T01:44	NA	0	1.2.246.21	NA	NA	F	REF9	43.5	ml/min/m2	198.4	ml/min/m2	b-la	44.84	ml/min/173m2	ml/min/173m2	NA	NA	NA	1	NA	-1	NA	44.84	ml/min/m2	b-la	Value below detection limit	NA
+704	FAKE107	86.70	2016-05-06T15:53	2003	1	NA	NA	L	F	REF1	NA	NA	NA	NA	sw-k	382.31	nmol/mmol	nmol/mmol	NA	NA	NA	0	NA	-1	NA	382.31	nmol/mmolkrea	b-hb	977.667 E9/l	female
+705	FAKE18	110.29	2011-12-23T20:43	1101	1	NA	NA	L	F	NA	NA	NA	NA	NA	s-ast	136.87	ng/l	ng/l	NA	NA	NA	1	NA	-1	NA	136.87	pg/ml	s-afos	Ei mitattavissa	male
+707	FAKE13	89.51	1994-02-26T05:02	2038	1	NA	NA	HH	F	NA	NA	NA	NA	NA	s-gh-24h	NA	osuus	osuus	NA	NA	NA	1	NA	-1	NA	NA	tilos	s-fe	NA	female
+709	FAKE77	79.29	2099-12-31T00:32	99999	0	NA	NA	H	F	NA	NA	NA	NA	NA	p-afos	212.62	u/field	u/field	NA	NA	NA	1	NA	-1	NA	212.62	/näkök	p-afos	765.838 10e9/l	NA
+710	FAKE116	63.62	1998-09-08T13:35	NA	0	NA	NA	HH	F	REF4	NA	/nk	NA	NA	na	NA	u/field	u/field	NA	NA	NA	1	NA	-1	NA	NA	/nk	NA	Negat	NA
+711	FAKE25	57.42	2000-02-23T10:59	2032	1	1.2.246.10.5678901.10.12345	NA	NA	F	REF3	11.8	kopiota/ml	183.4	kopiota/ml	u-karni-o	331.14	u/ml	u/ml	NA	NA	NA	1	NA	-1	NA	331.14	kopiota/ml	p-alb	NA	NA
+712	FAKE51	33.00	2023-11-25T20:25	1024	1	NA	NA	N	F	NA	NA	NA	NA	NA	p-alat	123.456789	/sunf	/sunf	NA	NA	NA	0	NA	-1	NA	123.456789	/synf	p-alat	77.310 µmol/l	male
+713	FAKE8	10.54	2005-05-06T00:00	2039	1	NA	NA	N	F	REF3	NA	NA	NA	NA	f-katal-o	-1.0	ug/g	ug/g	NA	NA	NA	1	NA	-1	NA	NA	ug/gulost	s-ferrit	739.004 µmol/l	NA
+714	FAKE12	104.97	2020-10-14T05:13	NA	0	NA	NA	N	F	REF1	9.0	/nk	53.8	/nk	p-afos	46.46	u/field	u/field	NA	NA	NA	1	NA	-1	NA	46.46	/nk	p-afos	192.165 mmol/l	male
+715	FAKE51	92.18	2014-07-19T11:00	1073	1	Eura_23	NA	NA	F	REF1	0	NA	NA	NA	af-amyl	329.06	ug/min	ug/min	NA	NA	NA	1	NA	-1	NA	329.06	µg/min	p-alat	815.856 10e9/l	male
+716	FAKE110	96.11	2003-06-17T06:55	NA	0	NA	NA	N	F	REF2	35.8	x10e9/l	113.0	x10e9/l	b-eryt	8.57	e12/l	e9/l	8.57	e12/l	1	unit_fixed	APPROVED	3026361	Number Concentration	8.57	x10e9/l	b-eryt	NA	male
+719	FAKE91	81.57	2013-07-11T18:35	2012	1	1.2.246.21	NA	L	F	REF1	NA	NA	999	nmol/vrk	f-ca	136.64	nmol/24h	nmol/24h	NA	NA	NA	1	NA	-1	NA	136.64	nmol/vrk	p-crp	456.371 µmol/l	NA
+722	FAKE26	77.65	2019-01-12T00:02	2016	1	NA	NA	HH	F	REF6	NA	NA	NA	NA	u-ca	55.7	mmol/mol	mmol/mol	NA	NA	NA	1	NA	-1	NA	55.70	mmol/mo	b-hba1c	492.413 mmol/l	NA
+723	FAKE67	100.45	2014-12-15T10:17	2019	1	NA	NA	H	F	REF4	38.9	kpl/nk	100.6	kpl/nk	s-ca-ion	374.74	u/field	u/field	NA	NA	NA	1	NA	-1	NA	374.74	kpl/nk	b-la	NA	NA
+725	FAKE113	68.35	2004-08-16T20:28	2035	1	Eura_23	NA	NA	F	REF6	34.5	^9/l	51.8	^9/l	fs-gh	176.59	e9/l	e9/l	NA	NA	NA	1	NA	-1	NA	176.59	^9/l	p-uraat	Näyte ei sovellu	NA
+726	FAKE14	15.07	1997-12-16T12:57	LOCAL001	0	NA	NA	NA	F	REF5	22.9	o/oo	149.5	o/oo	na	306.29	promille	promille	NA	NA	NA	1	NA	-1	NA	306.29	o/oo	NA	Näyte ei sovellu	NA
+727	FAKE31	26.60	2024-03-05T16:36	NA	0	NA	NA	NA	F	REF5	NA	NA	999	NA	fp-gluk	431.56	g/l	g/l	NA	NA	NA	1	NA	-1	NA	431.56	g/l	fp-gluk	Positiivinen	male
+728	FAKE91	4.77	1998-08-12T03:15	2011	1	1.2.246.537.10.1234567	NA	H	F	REF2	19.6	kpl/100le	109.7	kpl/100le	du-ca	363.3	u/100le	u/100le	NA	NA	NA	0	NA	-1	NA	363.30	kpl/100le	p-k	559.234 µmol/l	female
+729	FAKE118	2.45	2017-08-04T10:28	2033	1	Eura_24	NA	N	F	REF4	30.8	u/l	67.9	u/l	fs-karot	324.62	u/l	u/l	NA	NA	NA	1	NA	-1	NA	324.62	u/l	s-krea	Tehty	female
+730	FAKE19	66.66	1998-11-12T23:39	NA	0	1.2.246.10.5678901.10.12345	NA	NA	F	REF4	0	eliau/m	NA	eliau/m	p-krea	475.09	eliau/ml	eliau/ml	NA	NA	NA	1	NA	-1	NA	475.09	eliau/m	p-krea	85.901 mmol/l	female
+731	FAKE86	108.07	2020-10-16T01:22	1073	1	Eura_23	NA	N	F	NA	NA	NA	NA	NA	af-amyl	396.79	responseequivalent/ml	responseequivalent/ml	NA	NA	NA	0	NA	-1	NA	396.79	ve/ml	af-amyl	408.895 µmol/l	NA
+732	FAKE56	115.67	2015-10-27T04:44	TEST	0	Eura_23	NA	NA	F	REF2	NA	NA	NA	NA	b-hb	191.39	mg/mmol	mg/mmol	NA	NA	NA	1	NA	-1	NA	191.39	mg/mmolkrea	b-hb	529.191 10e9/l	NA
+734	FAKE105	116.39	2016-12-09T08:19	2015	1	1.2.246.21	NA	H	F	NA	NA	NA	NA	NA	sa-ca	472.96	mmol/l	mmol/l	NA	NA	NA	1	NA	-1	NA	472.96	mmo/l	p-gluk	228.332 NA	NA
+735	FAKE119	100.24	2013-11-15T07:29	1078	1	Eura_24	NA	H	F	NA	NA	NA	NA	NA	s-amyl	483.57	ug/g	ug/g	NA	NA	NA	1	NA	-1	NA	483.57	ug/gulostetta	s-amyl	254.302 10e9/l	female
+737	FAKE15	15.28	2002-08-08T17:45	LOCAL_ABC	0	NA	NA	A	F	REF9	NA	mg/mmo	NA	NA	s-afos	168.17	mg/mmol	mg/mmol	NA	NA	NA	1	NA	-1	NA	168.17	mg/mmo	s-afos	774.388 mmol/l	male
+739	FAKE115	99.10	1995-07-22T14:49	TEST	0	NA	NA	NA	F	NA	NA	NA	NA	NA	b-pvk+tkd	173.08	g/l	g/l	NA	NA	NA	1	NA	-1	NA	173.08	g/l	b-pvk+tkd	609.404 10e9/l	NA
+740	FAKE14	49.64	2011-10-10T06:55	LOCAL_ABC	0	NA	NA	AA	F	REF2	NA	NA	NA	pg/solu	na	54.8	pg/u	pg/u	NA	NA	NA	0	NA	-1	NA	54.80	pg/solu	NA	739.147 10e9/l	NA
+741	FAKE58	84.92	1970-01-01T00:00	1030	1	NA	NA	L	F	NA	NA	NA	NA	NA	u-alb-o	290.21	nmol/mmol	nmol/mmol	NA	NA	NA	0	NA	-1	NA	290.21	nmol/mmolkrea	u-alb-o	NA	male
+742	FAKE120	107.20	2022-06-27T11:41	NA	0	NA	NA	HH	F	REF9	13.0	mg/l	114.0	mg/l	u-ph	62.88	mg/l	mg/l	NA	NA	NA	1	NA	-1	NA	62.88	mg/l	u-ph	638.147 g/l	NA
+743	FAKE107	36.60	2004-05-27T18:01	NA	0	NA	NA	L	F	REF4	25.6	ug/mgkrea	179.9	ug/mgkrea	fp-kol	320.31	ug/mg	ug/mg	NA	NA	NA	0	NA	-1	NA	320.31	ug/mgkrea	fp-kol	Value below detection limit	NA
+745	FAKE43	2.64	2005-07-06T20:25	na	0	NA	NA	N	F	REF6	0	fl	999	NA	b-trom	294.66	fl	fl	NA	NA	NA	1	NA	-1	NA	294.66	fl	b-trom	67.093 mmol/l	male
+749	FAKE75	75.46	1996-09-05T05:15	NA	0	1.2.246.21	NA	LL	F	REF5	18.4	p/g	163.4	p/g	fp-gluk	356.32	pg	pg	NA	NA	NA	1	NA	-1	NA	356.32	p/g	fp-gluk	623.301 µmol/l	female
+751	FAKE14	1.92	2013-05-08T04:03	NA	0	NA	NA	LL	F	REF6	NA	ml/min/1	NA	NA	fp-kol	256.12	ml/min/173m2	ml/min/173m2	NA	NA	NA	1	NA	-1	NA	256.12	ml/min/1	fp-kol	991.566 µmol/l	male
+752	FAKE49	66.20	2020-11-03T20:39	LOCAL_ABC	0	NA	NA	A	F	REF8	35.6	g/molkrea	148.5	g/molkrea	p-krea	45.26	g/mol	g/mol	NA	NA	NA	1	NA	-1	NA	45.26	g/molkrea	p-krea	53.539 E12/l	female
+753	FAKE57	107.83	1994-06-04T22:48	NA	0	1.2.246.537.10.1234567	NA	L	F	NA	NA	NA	NA	NA	b-pvk+tkd	138.25	ml/min/173m2	ml/min/173m2	NA	NA	NA	1	NA	-1	NA	138.25	ml/min/	b-pvk+tkd	964.708 g/l	NA
+754	FAKE57	88.39	2022-09-29T16:21	2039	1	NA	NA	HH	F	REF8	18.8	pg/solu	191.8	pg/solu	f-katal-o	NA	pg/u	pg/u	NA	NA	NA	0	NA	-1	NA	NA	pg/solu	s-ferrit	263.232 mmol/l	NA
+756	FAKE58	44.16	2013-06-28T07:47	NA	0	NA	NA	H	F	REF4	30.1	u/l	171.6	u/l	u-ph	289.79	u/l	u/l	NA	NA	NA	1	NA	-1	NA	289.79	u/l	u-ph	227.392 µmol/l	NA
+757	FAKE122	44.51	1991-08-14T14:25	NA	0	NA	NA	HH	F	REF4	NA	NA	NA	NA	b-hb	119.3	mg/l	mg/l	NA	NA	NA	1	NA	-1	NA	119.30	mg/l	b-hb	790.720 E9/l	NA
+761	FAKE18	64.69	2014-10-16T08:44	1020	1	NA	NA	H	F	REF4	1.1	negat	68.6	negat	p-acth	462.02	N	N	NA	NA	NA	0	NA	-1	NA	462.02	negat	p-acth	< 0.5	female
+762	FAKE78	102.51	2008-04-09T05:50	1001	1	1.2.246.21	NA	A	F	NA	NA	NA	NA	NA	pt-acth-r1	374.67	u/nke	u/nke	NA	NA	NA	0	NA	-1	NA	374.67	kpl/näköke	pt-acth-r1	860.789 E9/l	female
+763	FAKE17	89.89	2099-12-31T18:48	LOCAL_ABC	0	NA	NA	L	F	REF1	24.8	tiitteri	162.3	tiitteri	p-afos	181.19	titre	titre	NA	NA	NA	1	NA	-1	NA	181.19	tiitteri	p-afos	Positiivinen	male
+764	FAKE84	82.34	2023-03-16T10:22	2035	1	1.2.246.10.5678901.10.12345	NA	AA	F	REF5	28.4	ve	62.9	ve	fs-gh	177.44	responseequivalent	responseequivalent	NA	NA	NA	0	NA	-1	NA	177.44	ve	p-uraat	780.496 g/l	NA
+765	FAKE52	76.05	1992-10-26T19:48	99999	0	1.2.246.21	NA	L	F	REF7	9.0	f/l	84.5	f/l	p-alat	144.17	fl	fl	NA	NA	NA	1	NA	-1	NA	144.17	f/l	p-alat	696.302 E9/l	male
+766	FAKE58	91.88	1997-12-06T13:19	1030	1	Eura_23	NA	L	F	REF4	36.0	kpl/500ly	93.4	kpl/500ly	u-alb-o	294.77	u/500lu	u/500lu	NA	NA	NA	0	NA	-1	NA	294.77	kpl/500ly	u-alb-o	NA	female
+767	FAKE100	29.69	2020-05-03T05:38	2025	1	Eura_24	NA	H	F	NA	NA	NA	NA	NA	2025	335.33	mg/mmol	mg/mmol	NA	NA	NA	1	NA	-1	NA	335.33	mg/mmolkrea	b-neut	Lausunto	NA
+771	FAKE36	47.98	2022-10-20T14:11	na	0	Eura_24	NA	NA	F	REF1	17.4	ml/min/1	185.4	ml/min/1	p-krea	96.88	ml/min/173m2	ml/min/173m2	96.88	ml/min/173m2	1	1	APPROVED	40764999	Volume Rate/Area	96.88	ml/min/1	p-krea	95.327 g/l	male
+773	FAKE45	9.95	2024-09-14T06:51	LOCAL001	0	NA	NA	NA	F	NA	NA	NA	NA	NA	p-alat	130.87	umol/24h	umol/24h	NA	NA	NA	1	NA	-1	NA	130.87	µmol/vrk	p-alat	428.135 NA	NA
+774	FAKE16	58.94	2003-03-10T10:03	2038	1	NA	NA	NA	F	NA	NA	NA	NA	NA	s-gh-24h	199.97	g/mol	g/mol	NA	NA	NA	1	NA	-1	NA	199.97	g/molkrea	s-fe	NA	NA
+775	FAKE27	54.87	1999-03-14T20:32	NA	0	1.2.246.537.10.1234567	NA	A	F	NA	NA	NA	NA	NA	na	225.33	e12/l	e12/l	NA	NA	NA	1	NA	-1	NA	225.33	10*12/l	NA	NA	NA
+776	FAKE48	76.22	2014-12-22T00:33	NA	0	1.2.246.10.5678901.10.12345	NA	NA	F	NA	NA	NA	NA	NA	b-trom	-1.0	u/500lu	u/500lu	NA	NA	NA	0	NA	-1	NA	NA	kpl/500ly	b-trom	382.996 NA	female
+777	FAKE94	105.93	2017-03-12T02:54	NA	0	1.2.246.21	NA	NA	F	NA	NA	NA	NA	NA	p-tt-inr	240.12	inr	form	240.12	inr	1	unit_fixed	APPROVED	3032080	Relative time	240.12	lausunto	p-tt-inr	351.926 mmol/l	NA
+782	FAKE8	108.81	2003-05-23T02:29	NA	0	NA	NA	L	F	NA	NA	NA	NA	NA	b-eryt	NA	s/cou	s/cou	NA	NA	NA	0	NA	-1	NA	>1000	s/coyks	b-eryt	NA	NA
+783	FAKE57	14.01	1997-01-08T03:38	NA	0	NA	NA	NA	F	REF5	42.7	kpl/näkökenttä	58.6	kpl/näkökenttä	e-mcv	490.38	u/field	u/field	NA	NA	NA	1	NA	-1	NA	490.38	kpl/näkökenttä	e-mcv	518.182 g/l	male
+785	FAKE54	1.93	2011-11-14T17:24	NA	0	1.2.246.10.5678901.10.12345	NA	H	F	NA	NA	NA	NA	NA	kolesterolinjahdl-kolest.suhde	450.33	umol/l	umol/l	NA	NA	NA	1	NA	-1	NA	450.33	µmol/l	kolesterolinjahdl-kolest.suhde	NA	NA
+786	FAKE106	13.34	2006-01-29T15:04	2006	1	NA	NA	N	F	REF2	NA	NA	999	NA	du-ct	160.42	u/field	u/field	NA	NA	NA	1	NA	-1	NA	160.42	solu/nk	b-leuk	987.563 E9/l	NA
+787	FAKE45	21.24	2024-07-26T07:33	2010	1	NA	NA	L	F	NA	NA	NA	NA	NA	pt-trca	236.95	promille	promille	NA	NA	NA	1	NA	-1	NA	236.95	o/oo	p-krea	NA	female
+789	FAKE6	38.62	1992-01-26T05:26	LOCAL_ABC	0	Eura_24	NA	HH	F	NA	NA	NA	NA	NA	p-k	350.29	estimate	estimate	NA	NA	NA	1	NA	-1	NA	350.29	arvio	p-k	997.629 g/l	female
+791	FAKE115	73.09	1992-01-04T12:29	2004	1	NA	NA	A	F	REF4	NA	kopiota/ml	999	kopiota/ml	u-k	NA	u/ml	u/ml	NA	NA	NA	1	NA	-1	NA	>1000	kopiota/ml	e-rdw	Ei mitattavissa	male
+792	FAKE8	45.80	2024-10-31T05:25	NA	0	NA	NA	HH	F	NA	NA	NA	NA	NA	na	206.01	ml/min/173m2	ml/min/173m2	NA	NA	NA	1	NA	-1	NA	206.01	ml/min/m2	NA	909.628 mmol/l	male
+795	FAKE69	51.56	1994-02-17T07:39	NA	0	1.2.246.21	NA	LL	F	REF7	8.4	%/lymf	126.3	%/lymf	p-krea	86.9	%/lumf	%/lumf	NA	NA	NA	0	NA	-1	NA	86.9	%/lymf	p-krea	962.719 NA	NA
+796	FAKE2	19.71	2007-01-23T20:57	2025	1	1.2.246.21	NA	L	F	REF7	10.0	mmol/molkrea	181.8	mmol/molkrea	2025	488.18	mmol/mol	mmol/mol	NA	NA	NA	1	NA	-1	NA	488.18	mmol/molkrea	b-neut	NA	NA
+798	FAKE105	82.01	2022-04-30T10:49	1001	1	1.2.246.537.10.1234567	NA	H	F	REF2	NA	kpl/100le	NA	NA	pt-acth-r1	382.77	u/100le	u/100le	NA	NA	NA	0	NA	-1	NA	382.77	kpl/100le	e-mcv	645.926 µmol/l	female
+799	FAKE56	69.44	2014-06-26T10:26	2031	1	Eura_24	NA	NA	F	REF8	18.3	umol/l	126.6	umol/l	s-kardab	299.4	umol/l	umol/l	NA	NA	NA	1	NA	-1	NA	299.40	umol/l	s-prot	NA	NA
+801	FAKE33	33.06	2023-04-24T16:33	1028	1	NA	NA	AA	F	REF1	0	NA	NA	pg	s-alb	294.82	pg	pg	NA	NA	NA	1	NA	-1	NA	294.82	pg	kol/hdl	NA	male
+805	FAKE43	21.95	2014-12-09T01:49	1022	1	Eura_24	NA	H	F	NA	NA	NA	NA	NA	af-alat	78.77	u/field	u/field	NA	NA	NA	1	NA	-1	NA	78.77	solua/nk	af-alat	447.021 g/l	NA
+806	FAKE46	44.45	1993-05-17T14:18	1023	1	1.2.246.537.10.1234567	NA	A	F	REF4	NA	caste	NA	NA	li-alat	0.0	aste	aste	NA	NA	NA	0	NA	-1	NA	0	caste	li-alat	NA	NA
+807	FAKE38	65.10	1995-08-23T20:05	2022	1	NA	NA	NA	F	REF1	47.8	mmol/l/ph74	113.1	mmol/l/ph74	2022	457.52	mmol/l	mmol/l	NA	NA	NA	1	NA	-1	NA	457.52	mmol/l/ph74	b-la	See attached report	NA
+808	FAKE117	51.38	1995-08-30T23:08	2025	1	NA	NA	NA	F	NA	NA	NA	NA	NA	2025	366.52	e6/l	e6/l	NA	NA	NA	1	NA	-1	NA	366.52	10e6/l	p-gluk	852.877 NA	male
+810	FAKE91	21.54	2019-09-09T01:01	na	0	1.2.246.21	NA	NA	F	NA	NA	NA	NA	NA	b-leuk	999999.0	e9/l	NA	999999.0	e9/l	1	unit_fixed	APPROVED	3010813	Number Concentration	999999	NA	b-leuk	487.533 mmol/l	NA
+811	FAKE84	11.83	2006-08-17T09:56	2017	1	NA	NA	NA	NA	REF7	26.7	tiitteri	65.1	tiitteri	2017	0.0	titre	titre	NA	NA	NA	1	NA	-1	NA	0	tiitteri	fp-kol	Positiivinen	male
+813	FAKE42	29.85	1991-01-11T17:55	LOCAL001	0	1.2.246.21	NA	H	F	REF6	NA	NA	NA	NA	erytrosyytit,tilavuusosuus	10.37	mm/h	mm/h	NA	NA	NA	1	NA	-1	NA	10.37	mm/h	erytrosyytit,tilavuusosuus	582.798 E9/l	female
+814	FAKE113	27.81	2006-10-05T20:38	1080	1	NA	NA	NA	F	REF5	NA	NA	NA	NA	u-amyl	280.69	nken	nken	NA	NA	NA	0	NA	-1	NA	280.69	näköken	u-amyl	57.403 E9/l	male
+816	FAKE8	49.47	2017-09-23T23:59	NA	0	NA	NA	LL	F	REF5	32.6	pg/ml	198.3	pg/ml	fp-gluk	60.31	ng/l	ng/l	NA	NA	NA	1	NA	-1	NA	60.31	pg/ml	fp-gluk	NA	male
+818	FAKE79	47.61	2008-12-23T08:45	2034	1	1.2.246.537.10.1234567	NA	LL	F	REF3	NA	liter	NA	liter	s-cea	186.39	l	l	NA	NA	NA	1	NA	-1	NA	186.39	liter	p-urea	Negat	NA
+819	FAKE1	38.11	1998-02-23T03:18	L-123	0	Eura_23	NA	NA	F	REF5	NA	xe9/l	NA	NA	p-krea	17.72	e9/l	e9/l	NA	NA	NA	1	NA	-1	NA	17.72	xe9/l	p-krea	841.765 mmol/l	NA
+822	FAKE86	69.08	1991-10-10T07:29	TEST	0	1.2.246.537.10.1234567	NA	H	F	NA	NA	NA	NA	NA	b-hkr	169.17	u/100leuk	u/100leuk	NA	NA	NA	0	NA	-1	NA	169.17	kpl/100leuk	b-hkr	458.356 µmol/l	male
+823	FAKE49	68.31	2007-03-11T11:32	NA	0	NA	NA	NA	F	NA	NA	NA	NA	NA	b-trom	35.67	e12/l	e12/l	NA	NA	NA	1	NA	-1	NA	35.67	10*12/l	b-trom	339.086 NA	NA
+826	FAKE51	22.71	1990-09-08T10:32	na	0	Eura_23	NA	AA	F	NA	NA	NA	NA	NA	b-hkr	328.12	terveusl	terveusl	NA	NA	NA	0	NA	-1	NA	328.12	terveysl	b-hkr	NA	NA
+828	FAKE63	98.92	1999-09-17T10:13	NA	0	1.2.246.537.10.1234567	NA	NA	F	REF1	38.5	o/oo	85.7	o/oo	kolesterolinjahdl-kolest.suhde	196.11	promille	promille	NA	NA	NA	1	NA	-1	NA	196.11	o/oo	kolesterolinjahdl-kolest.suhde	233.834 g/l	NA
+829	FAKE30	46.56	2018-06-26T07:35	2026	1	NA	NA	L	F	NA	NA	NA	NA	NA	li-karba	436.66	titre	titre	NA	NA	NA	1	NA	-1	NA	436.66	tiitteri	p-na	818.542 mmol/l	NA
+830	FAKE119	75.76	2003-07-01T02:49	NA	0	NA	NA	N	F	NA	NA	NA	NA	NA	p-afos	3.22	inr	inr	NA	NA	NA	1	NA	-1	NA	3.22	inrarvo	p-afos	NA	NA
+831	FAKE12	79.21	2013-11-20T01:18	NA	0	NA	NA	L	F	NA	NA	NA	NA	NA	p-tt-inr	52.12	u/ml	u/ml	NA	NA	NA	1	NA	-1	NA	52.12	kopiota/ml	p-tt-inr	39.839 µmol/l	NA
+835	FAKE27	38.72	2099-12-31T02:17	1046	1	1.2.246.537.10.1234567	NA	NA	F	NA	NA	NA	NA	NA	s-afos	38.9	°°c	°°c	NA	NA	NA	0	NA	-1	NA	38.9	°c	s-afos	709.131 E12/l	NA
+836	FAKE79	92.00	2020-08-07T11:07	2018	1	NA	NA	AA	F	REF9	45.5	ug/gkrea	92.4	ug/gkrea	2018	36.54	ug/g	ug/g	NA	NA	NA	1	NA	-1	NA	36.54	ug/gkrea	fp-kol-ldl	NA	female
+837	FAKE84	75.90	2024-09-21T16:02	NA	0	1.2.246.10.5678901.10.12345	NA	NA	F	NA	NA	NA	NA	NA	p-tsh	36.6	e9/l	e9/l	NA	NA	NA	1	NA	-1	NA	36.60	10*9/l	p-tsh	958.009 µmol/l	NA
+838	FAKE63	88.09	1993-01-31T01:25	NA	0	1.2.246.537.10.1234567	NA	NA	F	NA	NA	NA	NA	NA	fp-kol	0.0	u/ml	u/ml	NA	NA	NA	1	NA	-1	NA	0	ku/l	fp-kol	Test result pending	female
+839	FAKE78	25.73	2005-03-16T09:14	na	0	1.2.246.537.10.1234567	NA	H	F	REF1	NA	NA	NA	NA	s-alat	20.79	ug/min	ug/min	NA	NA	NA	1	NA	-1	NA	20.79	µg/min	s-alat	550.573 mmol/l	female
+840	FAKE96	16.67	2099-12-31T12:32	LOCAL001	0	NA	NA	A	F	NA	NA	NA	NA	NA	b-trom	113.05	e9/l	NA	113.05	e9/l	1	unit_fixed	APPROVED	3007461	Number Concentration	113.05	NA	b-trom	NA	female
+842	FAKE118	95.08	2004-12-22T00:35	1070	1	1.2.246.537.10.1234567	NA	NA	F	REF6	13.2	kpl/vrk	98.5	kpl/vrk	fb-nh4-ion	NA	u/24h	u/24h	NA	NA	NA	1	NA	-1	NA	NA	kpl/vrk	fb-nh4-ion	Tehty	male
+843	FAKE10	26.91	1998-02-12T05:21	na	0	NA	NA	NA	F	NA	NA	NA	NA	NA	b-trom	77.8	%/lumf	%/lumf	NA	NA	NA	0	NA	-1	NA	77.8	%/lymf	b-trom	713.787 µmol/l	male
+845	FAKE123	105.04	2018-07-11T05:26	2021	1	NA	NA	H	F	NA	NA	NA	NA	NA	f-campvi	118.27	umol	umol	NA	NA	NA	1	NA	-1	NA	118.27	µmol	p-tsh	539.888 E12/l	female
+847	FAKE12	70.89	2001-08-25T22:09	2022	1	NA	NA	NA	F	REF4	43.1	u/l37c	110.2	u/l37c	2022	NA	u/l	u/l	NA	NA	NA	1	NA	-1	NA	NA	u/l37c	b-la	452.159 mmol/l	male
+849	FAKE4	46.01	2017-06-05T23:59	2028	1	NA	NA	H	NA	REF2	3.2	tiitteri	195.9	tiitteri	pt-eso-pai	443.15	titre	titre	NA	NA	NA	1	NA	-1	NA	443.15	tiitteri	p-ca	37.367 E9/l	NA
+850	FAKE37	81.00	2030-06-15T14:33	2031	1	NA	NA	LL	F	NA	NA	NA	NA	NA	s-kardab	351.53	mg/mmol	mg/mmol	NA	NA	NA	1	NA	-1	NA	351.53	mg/mmo	s-prot	289.597 mmol/l	female
+852	FAKE83	63.51	2015-02-08T04:06	1027	1	1.2.246.21	NA	NA	F	REF5	16.9	lausunto	194.1	lausunto	li-alb	149.8	form	form	NA	NA	NA	0	NA	-1	NA	149.80	lausunto	li-alb	862.503 E9/l	male
+854	FAKE88	45.46	2004-05-06T13:35	LOCAL_ABC	0	Eura_24	NA	NA	F	REF6	39.0	sek	181.3	sek	b-la	8.4	s	s	NA	NA	NA	1	NA	-1	NA	8.40	sek	b-la	564.606 µmol/l	female
+858	FAKE64	18.51	2017-07-30T22:43	2031	1	1.2.246.537.10.1234567	NA	LL	F	NA	NA	NA	NA	NA	s-kardab	0.0001	/sunfält	/sunfält	NA	NA	NA	0	NA	-1	NA	0.0001	/synfält	e-mcv	NA	NA
+859	FAKE11	7.99	2019-06-15T03:58	NA	0	NA	NA	H	F	REF9	12.9	<320titter	105.3	<320titter	e-mcv	469.35	titre	titre	NA	NA	NA	1	NA	-1	NA	469.35	<320titter	e-mcv	203.996 mmol/l	NA
+860	FAKE25	79.95	2004-12-30T12:00	2010	1	NA	NA	N	F	NA	NA	NA	NA	NA	pt-trca	168.27	ug/min	ug/min	NA	NA	NA	1	NA	-1	NA	168.27	µg/min	p-krea	769.299 g/l	NA
+862	FAKE28	87.48	1992-04-11T11:52	2036	1	1.2.246.537.10.1234567	NA	A	F	REF8	NA	eliau/m	NA	NA	s-ghrh	467.88	eliau/ml	eliau/ml	NA	NA	NA	1	NA	-1	NA	467.88	eliau/m	b-hkr	NA	female
+865	FAKE17	35.05	2023-11-19T00:46	1020	1	Eura_24	NA	NA	F	REF7	21.9	ml/min	72.6	ml/min	p-acth	350.19	ml/min/173m2	ml/min/173m2	NA	NA	NA	1	NA	-1	NA	350.19	ml/min	b-hkr	595.694 g/l	NA
+866	FAKE62	14.53	2001-05-29T08:53	2029	1	NA	NA	NA	F	NA	NA	NA	NA	NA	pt-eso-ph	76.75	responseequivalent	responseequivalent	NA	NA	NA	0	NA	-1	NA	76.75	ve	s-bil	676.712 NA	NA
+869	FAKE115	82.24	2009-03-05T23:14	99999	0	NA	NA	A	F	NA	NA	NA	NA	NA	erytrosyytit,tilavuusosuus	405.16	ml/min/173m2	ml/min/173m2	NA	NA	NA	1	NA	-1	NA	405.16	ml/min/	erytrosyytit,tilavuusosuus	205.858 µmol/l	male
+870	FAKE63	79.55	1970-01-01T18:44	NA	0	Eura_23	NA	HH	F	REF2	NA	ug/gkrea	999	NA	b-eryt	202.1	ug/g	ug/g	NA	NA	NA	1	NA	-1	NA	202.10	ug/gkrea	b-eryt	Näyte ei sovellu	female
+871	FAKE66	116.58	1999-02-24T06:24	NA	0	NA	NA	L	F	NA	NA	NA	NA	NA	p-krea	5.97	e6/l	e6/l	NA	NA	NA	1	NA	-1	NA	5.97	e06/l	p-krea	849.556 10e9/l	NA
+873	FAKE98	107.60	2009-02-07T17:06	na	0	NA	NA	NA	F	REF9	46.4	e9/l	166.3	e9/l	b-trom	6.75	e9/l	e9/l	6.75	e9/l	1	1	APPROVED	3007461	Number Concentration	6.75	e9/l	b-trom	NA	female
+874	FAKE112	68.90	2009-10-19T00:00	LOCAL001	0	1.2.246.21	NA	NA	F	NA	NA	NA	NA	NA	p-na	316.24	nmol/mmol	nmol/mmol	NA	NA	NA	0	NA	-1	NA	316.24	nmolbce/mmolkrea	p-na	> 100	male
+876	FAKE21	117.64	2018-09-19T23:53	NA	0	Eura_23	NA	L	F	NA	NA	NA	NA	NA	fp-kol	194.99	u/field	u/field	NA	NA	NA	1	NA	-1	NA	194.99	solua/nk	fp-kol	757.434 g/l	NA
+879	FAKE113	79.31	2014-06-07T03:59	NA	0	1.2.246.537.10.1234567	NA	N	F	REF6	25.2	mmol/molkrea	159.6	mmol/molkrea	na	22.1	mmol/mol	mmol/mol	NA	NA	NA	1	NA	-1	NA	22.10	mmol/molkrea	NA	> 100	male
+881	FAKE61	94.68	1996-04-10T16:32	2035	1	NA	NA	NA	F	NA	NA	NA	NA	NA	fs-gh	167.96	mmol/mol	mmol/mol	NA	NA	NA	1	NA	-1	NA	167.96	mmmol/mol	b-leuk	661.165 NA	male
+883	FAKE109	13.99	1992-05-05T15:12	TEST	0	NA	NA	H	F	REF9	NA	NA	NA	/nk	p-krea	320.36	u/field	u/field	NA	NA	NA	1	NA	-1	NA	320.36	/nk	p-krea	957.450 E9/l	male
+884	FAKE34	1.64	2022-04-27T09:17	NA	0	1.2.246.21	NA	LL	F	REF7	NA	NA	NA	NA	b-hkr	167.48	g/mol	g/mol	NA	NA	NA	1	NA	-1	NA	167.48	g/molkrea	b-hkr	701.312 mmol/l	NA
+886	FAKE121	11.37	2012-04-02T09:58	LOCAL001	0	NA	NA	NA	F	NA	NA	NA	NA	NA	b-hkr	2.5	%	%	2.5	%	1	1	APPROVED	3009542	Volume Fraction	2.5	%	b-hkr	Test result pending	female
+892	FAKE101	97.29	1994-12-27T09:58	na	0	1.2.246.21	NA	NA	F	REF3	10.0	fmiayks/ml	113.1	fmiayks/ml	p-krea	74.47	fmiau/ml	fmiau/ml	NA	NA	NA	0	NA	-1	NA	74.47	fmiayks/ml	p-krea	NA	NA
+893	FAKE87	92.90	2012-12-19T19:36	NA	0	NA	NA	N	F	NA	NA	NA	NA	NA	b-eryt	NA	umol/l	umol/l	NA	NA	NA	1	NA	-1	NA	NA	ymol/l	b-eryt	818.160 E12/l	male
+894	FAKE105	7.10	2021-07-25T23:59	NA	0	NA	NA	H	F	NA	NA	NA	NA	NA	b-hkr	9.64	index	index	NA	NA	NA	1	NA	-1	NA	9.64	indeksi	b-hkr	Value below detection limit	NA
+895	FAKE112	107.66	2003-07-11T17:55	1080	1	Eura_24	NA	L	F	NA	NA	NA	NA	NA	u-amyl	12.07	e9/l	e9/l	NA	NA	NA	1	NA	-1	NA	12.07	e9/l	u-amyl	443.043 E9/l	female
+896	FAKE5	11.19	2015-07-04T04:45	LOCAL_ABC	0	NA	NA	L	F	REF9	1.6	ug/ml	148.7	ug/ml	fp-gluk	48.45	mg/l	mg/l	NA	NA	NA	1	NA	-1	NA	48.45	ug/ml	fp-gluk	NA	NA
+897	FAKE97	54.92	2011-04-30T00:18	2031	1	NA	NA	HH	NA	NA	NA	NA	NA	NA	s-kardab	272.56	titre	titre	272.56	titre	1	1	APPROVED	3029634	Titer	272.56	tiitteri	b-hb	489.541 E12/l	female
+899	FAKE115	75.91	2020-12-16T13:20	NA	0	1.2.246.537.10.1234567	NA	L	F	REF8	NA	NA	NA	/synf	s-afos	312.66	/sunf	/sunf	NA	NA	NA	0	NA	-1	NA	312.66	/synf	s-afos	217.944 NA	male
+900	FAKE89	107.06	2017-03-01T08:19	1026	1	NA	NA	N	F	REF9	49.5	arvio	166.3	arvio	s-alat	73.39	estimate	estimate	NA	NA	NA	1	NA	-1	NA	73.39	arvio	s-alat	NA	male
+902	FAKE87	0.14	1997-08-12T02:10	LOCAL001	0	NA	NA	H	F	REF3	29.3	mg/vrk	60.6	mg/vrk	na	349.14	mg/24h	mg/24h	NA	NA	NA	1	NA	-1	NA	349.14	mg/vrk	NA	NA	NA
+903	FAKE24	99.23	1994-01-23T09:30	2024	1	Eura_24	NA	L	F	NA	NA	NA	NA	NA	pt-kapnogr	273.16	estimate	estimate	NA	NA	NA	1	NA	-1	NA	273.16	arvio	erytrosyytit,tilavuusosuus	733.146 mmol/l	male
+904	FAKE48	48.24	1999-06-20T04:19	LOCAL001	0	Eura_23	NA	NA	NA	NA	NA	NA	NA	NA	p-gluk	2.86	u/ml	u/ml	NA	NA	NA	1	NA	-1	NA	2.86	kopio/ml	p-gluk	NA	NA
+906	FAKE121	22.41	2008-10-07T05:27	NA	0	Eura_24	NA	H	F	REF5	40.9	x10^9/l	160.3	x10^9/l	kol/hdl	419.53	e9/l	e9/l	NA	NA	NA	1	NA	-1	NA	419.53	x10^9/l	kol/hdl	185.826 mmol/l	NA
+908	FAKE85	16.95	2004-05-23T11:46	na	0	NA	NA	NA	F	NA	NA	NA	NA	NA	s-alat	34.81	ug/gtiniini	ug/gtiniini	NA	NA	NA	0	NA	-1	NA	34.81	µg/gkreatiniini	s-alat	Lausunto	female
+909	FAKE50	51.43	2014-02-19T18:45	1003	1	1.2.246.21	NA	H	F	NA	NA	NA	NA	NA	pt-acth-r3	166.16	mmol/l	mmol/l	NA	NA	NA	1	NA	-1	NA	166.16	mmol/l/ph74	pt-acth-r3	123.456 E9/l (kalibroitu)	female
+910	FAKE40	81.97	2015-03-18T22:26	NA	0	NA	NA	HH	NA	REF2	15.0	iy	150.6	iy	fp-kol	308.28	iu	iu	NA	NA	NA	1	NA	-1	NA	308.28	iy	fp-kol	123.456 E9/l (kalibroitu)	NA
+912	FAKE40	63.99	2024-09-17T23:22	1029	1	1.2.246.10.5678901.10.12345	NA	NA	NA	REF7	24.4	fmiayks/ml	169.0	fmiayks/ml	u-alb	NA	fmiau/ml	fmiau/ml	NA	NA	NA	0	NA	-1	NA	<0.1	fmiayks/ml	p-tt-inr	990.248 E9/l	female
+913	FAKE12	32.65	2019-11-27T03:32	2035	1	NA	NA	H	F	REF1	24.4	spot/e6ly	197.3	spot/e6ly	fs-gh	3.14	spot/e6lu	spot/e6lu	NA	NA	NA	0	NA	-1	NA	3.14	spot/e6ly	s-alat	62.672 10e9/l	NA
+915	FAKE57	15.42	1994-01-26T20:45	1100	1	NA	NA	L	F	REF9	0	NA	NA	ml/min	s-asta	200.06	ml/min/173m2	ml/min/173m2	NA	NA	NA	1	NA	-1	NA	200.06	ml/min	s-asta	< 0.5	male
+919	FAKE47	60.77	2021-07-30T21:09	NA	0	1.2.246.537.10.1234567	NA	A	F	REF8	NA	NA	NA	näköken	na	445.99	nken	nken	NA	NA	NA	0	NA	-1	NA	445.99	näköken	NA	Ei mitattavissa	NA
+920	FAKE123	101.09	1999-10-16T05:22	2030	1	NA	NA	NA	F	REF1	4.1	µg/ml	159.9	µg/ml	pt-kar-ref	291.92	mg/l	mg/l	NA	NA	NA	1	NA	-1	NA	291.92	µg/ml	NA	191.158 10e9/l	female
+922	FAKE45	102.60	1994-11-17T21:39	1037	1	NA	NA	A	F	NA	NA	NA	NA	NA	s-aldos-p	NA	mg/l	mg/l	NA	NA	NA	1	NA	-1	NA	NA	ug/ml	fp-gluk	42.310 mmol/l	female
+923	FAKE21	34.49	2016-02-12T18:36	LOCAL001	0	NA	NA	H	F	REF5	NA	mosm/kg	NA	NA	p-gluk	252.55	mosm/kgh2o	mosm/kgh2o	NA	NA	NA	1	NA	-1	NA	252.55	mosm/kg	p-gluk	Positiivinen	female
+924	FAKE97	1.53	2017-07-22T02:00	NA	0	NA	NA	AA	F	REF2	NA	NA	NA	NA	p-tt-inr	321.3	sunf	sunf	NA	NA	NA	0	NA	-1	NA	321.30	synf	p-tt-inr	131.211 g/l	female
+925	FAKE75	55.86	2004-03-19T19:46	1073	1	1.2.246.10.5678901.10.12345	NA	A	F	REF4	0	u/l37c	NA	NA	af-amyl	468.48	u/l	u/l	NA	NA	NA	1	NA	-1	NA	468.48	u/l37c	kolesterolinjahdl-kolest.suhde	780.625 NA	NA
+927	FAKE19	40.62	2010-04-19T16:10	NA	0	1.2.246.21	NA	LL	F	NA	NA	NA	NA	NA	e-rdw	378.87	g/l	g/l	NA	NA	NA	1	NA	-1	NA	378.87	g/l	e-rdw	462.773 µmol/l	female
+928	FAKE1	107.96	2021-06-19T04:59	NA	0	NA	NA	AA	F	REF7	NA	NA	NA	umol/l	kol/hdl	443.63	umol/l	umol/l	NA	NA	NA	1	NA	-1	NA	443.63	umol/l	kol/hdl	Negat	NA
+929	FAKE45	20.61	2004-10-16T17:15	LOCAL_ABC	0	NA	NA	H	F	REF8	30.3	s/coyks	149.6	s/coyks	u-ph	398.9	s/cou	s/cou	NA	NA	NA	0	NA	-1	NA	398.90	s/coyks	u-ph	918.454 g/l	NA
+930	FAKE27	3.42	2011-10-18T00:00	1003	1	NA	NA	NA	F	NA	NA	NA	NA	NA	pt-acth-r3	444.9	u/100leuk	u/100leuk	NA	NA	NA	0	NA	-1	NA	444.90	kpl/100leuk	NA	638.075 E9/l	female
+932	FAKE87	84.78	2013-01-01T11:11	2015	1	1.2.246.21	NA	H	F	NA	NA	NA	NA	NA	sa-ca	223.43	e9/l	e9/l	NA	NA	NA	1	NA	-1	NA	223.43	x10^9/l	p-gluk	635.709 g/l	female
+933	FAKE108	9.00	2009-01-29T08:56	99999	0	NA	NA	L	F	REF1	0	xe9/l	NA	NA	b-pvk+tkd	NA	e9/l	e9/l	NA	NA	NA	1	NA	-1	NA	NA	xe9/l	b-pvk+tkd	563.404 10e9/l	female
+934	FAKE85	52.50	2024-09-21T21:47	99999	0	Eura_23	NA	NA	F	REF7	33.4	mm/h	110.9	mm/h	b-leuk	169.46	mm/h	mm/h	NA	NA	NA	1	NA	-1	NA	169.46	mm/h	b-leuk	422.647 g/l	NA
+935	FAKE9	119.21	2014-05-15T09:34	TEST	0	1.2.246.537.10.1234567	NA	L	F	REF1	15.9	liter	159.0	liter	p-afos	100.77	l	l	NA	NA	NA	1	NA	-1	NA	100.77	liter	p-afos	683.047 10e9/l	NA
+936	FAKE43	94.07	2020-10-03T02:55	NA	0	1.2.246.10.5678901.10.12345	NA	NA	F	REF1	31.1	c	158.1	c	b-hba1c	35.8	°c	°c	NA	NA	NA	1	NA	-1	NA	35.8	c	b-hba1c	251.235 µmol/l	NA
+937	FAKE56	87.23	2023-08-01T11:37	NA	0	1.2.246.537.10.1234567	NA	A	F	NA	NA	NA	NA	NA	na	373.92	u/ml	u/ml	NA	NA	NA	1	NA	-1	NA	373.92	kopio/ml	NA	773.141 NA	male
+940	FAKE37	99.09	1990-01-06T16:56	2029	1	Eura_23	NA	HH	F	NA	NA	NA	NA	NA	pt-eso-ph	52.0	mmol/l	mmol/l	NA	NA	NA	1	NA	-1	NA	52.00	mmol/l/ph74	s-bil	Lausunto	female
+942	FAKE56	82.08	2016-08-17T22:20	NA	0	1.2.246.21	NA	A	F	REF7	30.5	g/molkrea	158.0	g/molkrea	p-gluk	330.54	g/mol	g/mol	NA	NA	NA	1	NA	-1	NA	330.54	g/molkrea	p-gluk	332.261 mmol/l	male
+944	FAKE117	80.86	2006-12-12T08:54	2007	1	1.2.246.21	NA	NA	F	NA	NA	NA	NA	NA	fp-ct	NA	fmiau/ml	fmiau/ml	NA	NA	NA	0	NA	-1	NA	NA	fmiayks/ml	NA	See attached report	NA
+945	FAKE70	27.31	1992-09-27T18:47	1101	1	1.2.246.537.10.1234567	NA	NA	F	REF6	NA	inrarvo	NA	NA	s-ast	3.37	inr	inr	NA	NA	NA	1	NA	-1	NA	3.37	inrarvo	s-ast	123.456 E9/l (kalibroitu)	NA
+947	FAKE88	118.13	2001-08-12T11:00	NA	0	Eura_23	NA	L	F	REF2	1.3	mg/l	75.5	mg/l	b-eryt	153.37	mg/l	mg/l	NA	NA	NA	1	NA	-1	NA	153.37	mg/l	b-eryt	> 100	female
+948	FAKE99	118.11	1992-12-02T19:04	1024	1	NA	NA	N	F	NA	NA	NA	NA	NA	p-alat	16.12	ml/min/173m2	ml/min/173m2	NA	NA	NA	1	NA	-1	NA	16.12	ml/min/	b-leuk	152.220 g/l	male
+949	FAKE91	24.30	2006-08-27T11:15	1030	1	Eura_23	NA	NA	F	REF2	NA	terveysl	NA	terveysl	u-alb-o	63.48	terveusl	terveusl	NA	NA	NA	0	NA	-1	NA	63.48	terveysl	p-na	64.869 mmol/l	male
+950	FAKE113	79.84	2009-11-26T14:58	1023	1	1.2.246.537.10.1234567	NA	L	NA	REF5	43.2	synf	150.8	synf	li-alat	305.12	sunf	sunf	NA	NA	NA	0	NA	-1	NA	305.12	synf	li-alat	658.453 mmol/l	male
+951	FAKE100	14.94	2008-11-27T17:35	na	0	NA	NA	N	F	REF3	NA	NA	NA	pg/ml	na	NA	ng/l	ng/l	NA	NA	NA	1	NA	-1	NA	NA	pg/ml	NA	47.944 NA	NA
+953	FAKE102	101.90	2019-03-21T11:46	L-123	0	Eura_23	NA	A	F	REF4	8.6	o/oo	85.4	o/oo	p-gluk	401.58	promille	promille	NA	NA	NA	1	NA	-1	NA	401.58	o/oo	p-gluk	NA	male
+955	FAKE74	71.69	1995-10-31T02:36	2031	1	1.2.246.10.5678901.10.12345	NA	NA	F	REF3	5.0	ug/gulost	117.2	ug/gulost	s-kardab	21.55	ug/g	ug/g	NA	NA	NA	1	NA	-1	NA	21.55	ug/gulost	s-prot	NA	female
+956	FAKE49	112.50	2015-01-19T06:18	2007	1	NA	NA	NA	F	REF5	NA	NA	NA	NA	fp-ct	NA	mg/mmol	mg/mmol	NA	NA	NA	1	NA	-1	NA	NA	mg/mmo	e-mcv	914.745 E12/l	male
+959	FAKE49	21.52	2010-05-27T13:07	NA	0	1.2.246.21	NA	NA	F	REF2	33.0	fmiayks/ml	161.9	fmiayks/ml	p-crp	301.15	fmiau/ml	fmiau/ml	NA	NA	NA	0	NA	-1	NA	301.15	fmiayks/ml	p-crp	NA	female
+962	FAKE19	34.22	2002-08-28T00:23	1027	1	NA	NA	HH	F	NA	NA	NA	NA	NA	li-alb	270.02	promille	promille	NA	NA	NA	1	NA	-1	NA	270.02	promill	li-alb	419.747 g/l	male
+964	FAKE63	87.84	2016-01-10T22:01	2039	1	Eura_24	NA	N	F	REF6	29.5	/synfält	91.1	/synfält	f-katal-o	NA	/sunfält	/sunfält	NA	NA	NA	0	NA	-1	NA	NA	/synfält	b-trom	947.270 µmol/l	male
+965	FAKE74	98.50	2010-11-06T01:57	NA	0	NA	NA	A	F	NA	NA	NA	NA	NA	b-hba1c	92.51	ml/min/173m2	ml/min/173m2	NA	NA	NA	1	NA	-1	NA	92.51	ml/min/	b-hba1c	276.650 E9/l	NA
+968	FAKE64	117.24	1995-12-20T17:18	NA	0	1.2.246.21	NA	N	F	NA	NA	NA	NA	NA	b-pvk+tkd	35.04	form	form	NA	NA	NA	0	NA	-1	NA	35.04	lausunto	b-pvk+tkd	NA	female
+969	FAKE73	105.46	2009-02-17T17:50	L-123	0	NA	NA	NA	F	REF7	0	NA	NA	%	b-leuk	67.8	%	%	NA	NA	NA	1	NA	-1	NA	67.8	%	b-leuk	Ei mitattavissa	NA
+970	FAKE52	77.79	2009-01-31T05:08	TEST	0	NA	NA	LL	F	NA	NA	NA	NA	NA	p-k	40.5	°c	°c	NA	NA	NA	1	NA	-1	NA	40.5	c	p-k	23.522 NA	male
+971	FAKE57	37.67	2018-01-29T09:05	2037	1	1.2.246.21	NA	L	F	NA	NA	NA	NA	NA	ts-ghrh	389.42	u/field	u/field	NA	NA	NA	1	NA	-1	NA	389.42	/näkök	p-p	762.197 NA	NA
+974	FAKE86	82.27	2017-08-05T04:54	1078	1	1.2.246.21	NA	N	F	REF3	9.9	fmiayks/ml	132.8	fmiayks/ml	s-amyl	18.99	fmiau/ml	fmiau/ml	NA	NA	NA	0	NA	-1	NA	18.99	fmiayks/ml	b-trom	NA	male
+975	FAKE74	98.54	2024-09-27T09:40	2010	1	Eura_23	NA	NA	F	NA	NA	NA	NA	NA	pt-trca	1.77	e12/l	e12/l	NA	NA	NA	1	NA	-1	NA	1.77	x10e12/l	p-krea	< 0.5	male
+976	FAKE8	69.07	2017-12-14T12:58	2013	1	NA	NA	HH	F	NA	NA	NA	NA	NA	s-ca	426.88	/sunf	/sunf	NA	NA	NA	0	NA	-1	NA	426.88	/synf	p-afos	> 100	male
+978	FAKE51	42.78	1994-02-12T02:17	NA	0	NA	NA	L	F	REF8	7.6	ml/min	113.2	ml/min	s-alat	57.88	ml/min/173m2	ml/min/173m2	NA	NA	NA	1	NA	-1	NA	57.88	ml/min	s-alat	818.080 g/l	NA
+980	FAKE117	30.40	2009-02-23T23:59	2008	1	1.2.246.537.10.1234567	NA	NA	F	REF8	21.0	e06/l	153.8	e06/l	fs-ct	999999.0	e6/l	e6/l	NA	NA	NA	1	NA	-1	NA	999999	e06/l	e-mch	847.964 µmol/l	NA
+982	FAKE26	54.34	2019-04-17T22:15	L-123	0	NA	NA	NA	F	REF7	33.3	promil	136.3	promil	b-pvk+tkd	160.95	promille	promille	NA	NA	NA	1	NA	-1	NA	160.95	promil	b-pvk+tkd	Negat	NA
+984	FAKE65	28.14	2019-11-24T08:31	TEST	0	NA	NA	L	F	REF2	NA	NA	NA	NA	b-hb	109.75	osuus	osuus	NA	NA	NA	1	NA	-1	NA	109.75	tilos	b-hb	685.224 NA	male
+985	FAKE119	78.09	2017-03-01T06:32	NA	0	NA	NA	H	F	REF4	31.2	g/vrk	80.6	g/vrk	b-trom	276.16	g/24h	g/24h	NA	NA	NA	1	NA	-1	NA	276.16	g/vrk	b-trom	NA	male
+987	FAKE52	38.07	1997-02-13T02:03	TEST	0	NA	NA	A	F	NA	NA	NA	NA	NA	fp-kol	428.41	pg	pg	NA	NA	NA	1	NA	-1	NA	428.41	pg	fp-kol	286.189 mmol/l	NA
+988	FAKE45	48.41	2021-04-23T09:31	2037	1	NA	NA	H	F	REF8	NA	NA	NA	NA	ts-ghrh	464.96	mg/l	mg/l	NA	NA	NA	1	NA	-1	NA	464.96	mg/lfeu	p-p	Tehty	male
+990	FAKE109	3.29	2014-12-25T12:00	NA	0	NA	NA	LL	F	REF2	NA	mosm/kg	NA	mosm/kg	erytrosyytit,tilavuusosuus	473.53	mosm/kgh2o	mosm/kgh2o	NA	NA	NA	1	NA	-1	NA	473.53	mosm/kg	erytrosyytit,tilavuusosuus	NA	NA
+992	FAKE24	86.95	2001-10-18T20:35	2012	1	NA	NA	A	F	REF5	47.6	µg/gkreatiniini	63.5	µg/gkreatiniini	f-ca	241.03	ug/gtiniini	ug/gtiniini	NA	NA	NA	0	NA	-1	NA	241.03	µg/gkreatiniini	p-crp	Test result pending	male
+993	FAKE113	72.99	2009-06-11T10:52	1001	1	NA	NA	NA	F	REF4	48.2	tilos	172.1	tilos	pt-acth-r1	175.24	osuus	osuus	NA	NA	NA	1	NA	-1	NA	175.24	tilos	pt-acth-r1	950.935 NA	NA
+994	FAKE51	82.28	2008-07-15T23:59	NA	0	NA	NA	NA	F	NA	NA	NA	NA	NA	kolesterolinjahdl-kolest.suhde	218.2	spot/e6lu	spot/e6lu	NA	NA	NA	0	NA	-1	NA	218.20	spot/e6ly	kolesterolinjahdl-kolest.suhde	Negat	NA
+996	FAKE98	69.01	2017-11-10T07:11	1073	1	1.2.246.537.10.1234567	NA	NA	F	REF5	34.9	µmol	58.2	µmol	af-amyl	405.16	umol	umol	NA	NA	NA	1	NA	-1	NA	405.16	µmol	af-amyl	623.765 g/l	female
+997	FAKE71	51.92	2022-05-12T12:00	NA	0	1.2.246.537.10.1234567	NA	H	F	REF1	29.0	µg/gkreatiniini	175.2	µg/gkreatiniini	fp-kol	163.39	ug/gtiniini	ug/gtiniini	NA	NA	NA	0	NA	-1	NA	163.39	µg/gkreatiniini	fp-kol	Ei mitattavissa	NA
+998	FAKE8	71.98	1995-08-21T05:34	NA	0	1.2.246.21	NA	NA	F	NA	NA	NA	NA	NA	b-trom	447.12	u/ml	u/ml	NA	NA	NA	1	NA	-1	NA	447.12	kopio/ml	b-trom	987.468 E9/l	NA
+999	FAKE20	16.18	2007-08-27T16:42	LOCAL_ABC	0	NA	NA	L	F	NA	NA	NA	NA	NA	na	264.73	index	index	NA	NA	NA	1	NA	-1	NA	264.73	indeksi	NA	Positiivinen	NA

@@ -1,0 +1,26 @@
+name: Python end-to-end tests
+
+on:
+  push:
+    branches: [ "master", "gh-actions" ]
+  pull_request:
+    branches: [ "master", "gh-actions" ]
+
+permissions:
+  contents: read
+
+jobs:
+  run-tests:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v6
+    - name: Install the latest version of uv
+      uses: astral-sh/setup-uv@cec208311dfd045dd5311c1add060b2062131d57
+    - name: Set up Python
+      run: uv python install
+    - name: Install the project
+      run: uv sync --locked --all-extras --dev
+    - name: Run tests
+      run: uv run pytest tests -vv
