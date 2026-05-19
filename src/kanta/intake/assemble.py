@@ -10,9 +10,6 @@ from pathlib import Path
 import polars as pl
 
 
-# TODO
-# 5. Post WDL sort-dup: subset columns, join SEX, sort, output unique/duplicates/error rows
-
 EXPECTED_COLUMNS_MAIN = [
     "FINNGENID",
     "EVENT_AGE",
