@@ -66,3 +66,5 @@ Two scatter plots (log x-axis):
 - **Right**: one dot per `TEST_NAME` — x = total injection-target count, y = weighted top unit prevalence
 
 Points in the top-right are high-volume tests with a consistent unit in the reference population — the best candidates for automated unit injection.
+
+![Scatter plot](data/test_names_exploration_scatter.png)
