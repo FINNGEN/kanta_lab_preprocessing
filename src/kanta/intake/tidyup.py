@@ -1,4 +1,5 @@
 import tempfile
+import shutil
 from argparse import ArgumentParser
 from pathlib import Path
 
@@ -68,10 +69,11 @@ def main(args):
 
     # TODO validation
     #
-    print("<< end")
 
-    # TODO: keep or delete intermediate files in temp_dir based on CLI flag
-    # with shutil.rmtree
+    if not args.keep_intermediate_files:
+        shutil.rmtree(temp_dir)
+    
+    print("<< end")
 
 
 def consolidate_columns(assembled_file: Path, output_dir: Path) -> Path:
@@ -156,6 +158,12 @@ if __name__ == "__main__":
         type=Path,
     )
     parser.add_argument(
+        "--output-dir",
+        help="Path to write the output files",
+        required=True,
+        type=Path,
+    )
+    parser.add_argument(
         "--partition-n-buckets",
         help="How many buckets to partition the data into to spread the sort+unique computations.",
         required=False,
@@ -163,10 +171,9 @@ if __name__ == "__main__":
         default=32
     )
     parser.add_argument(
-        "--output-dir",
-        help="Path to write the output files",
-        required=True,
-        type=Path,
+        "--keep-intermediate-files",
+        help="Keep intermediate files, useful for debugging.",
+        action="store_true",
     )
     args = parser.parse_args()
 
