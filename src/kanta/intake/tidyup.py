@@ -2,6 +2,8 @@
 Differences from the WDL implementation:
 - no logging of duplicates/err lines
 - outputs to a single parquet file, no .txt.gz, as this is very slow.
+- uses CSV-aware parsing, robust to edge cases like new-line character inside
+  CSV values.
 """
 
 import tempfile
@@ -78,7 +80,9 @@ def main(args):
             how="left",
             maintain_order="left",
         )
-        .sink_parquet(output_file_stem.with_suffix(".parquet"))
+        .with_row_index(name="_rowid", offset=1)
+        .drop("_rowid_consolidate_debug")
+        .sink_parquet(output_file_stem.with_name(output_file_stem.name +  ".parquet"))
     )
 
     if not args.keep_intermediate_files:
@@ -121,9 +125,9 @@ def consolidate_columns(assembled_file: Path, output_file: Path) -> Path:
                 + pl.col("freetext._rowid").cast(pl.String)
                 + "@"
                 + pl.col("freetext._filename")
-            ).alias("_rowid")
+            ).alias("_rowid_consolidate_debug")
         )
-        .select(pl.col(list(columns.keys()) + ["_rowid"]))
+        .select(pl.col(list(columns.keys()) + ["_rowid_consolidate_debug"]))
         .rename(columns)
         .sink_parquet(output_file)
     )
