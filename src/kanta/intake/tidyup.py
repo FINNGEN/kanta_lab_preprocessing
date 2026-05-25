@@ -1,6 +1,13 @@
+"""
+Differences from the WDL implementation:
+- no logging of duplicates/err lines
+- outputs to a single parquet file, no .txt.gz, as this is very slow.
+"""
+
 import tempfile
 import shutil
 from argparse import ArgumentParser
+from datetime import date
 from pathlib import Path
 
 import polars as pl
@@ -19,8 +26,16 @@ COLUMNS_UNIQUENESS_SORT = [
 
 
 def main(args):
+    # Set up output file and temporary directory for intermediate files
+    today = date.today()
+    output_file_stem = (
+        args.output_dir / f"finngen_R14_kanta_laboratory_responses_internal_1.0_{today}"
+    )
+
     temp_dir = Path(tempfile.mkdtemp())
     print(f">> {temp_dir=}")
+
+    temp_file_consolidate = temp_dir / "consolidated.parquet"
 
     temp_dir_partition = temp_dir / "partition"
     temp_dir_partition.mkdir()
@@ -29,7 +44,7 @@ def main(args):
     temp_dir_tidyup.mkdir()
 
     print("# Consolidate")
-    consolidated_file = consolidate_columns(args.assembled_file, args.output_dir)
+    consolidated_file = consolidate_columns(args.assembled_file, temp_file_consolidate)
 
     print("# Partition")
     partition(consolidated_file, temp_dir_partition, args.partition_n_buckets)
@@ -54,7 +69,6 @@ def main(args):
         bucket_files.append(temp_dir_tidyup / f"bucket_id__{bucket_id}.parquet")
 
     (
-        # TODO: verify the file order of `bucket_files` is kept
         pl.scan_parquet(bucket_files)
         # Join SEX
         .join(
@@ -64,22 +78,17 @@ def main(args):
             how="left",
             maintain_order="left",
         )
-        .sink_parquet("/tmp/out.parquet")
+        .sink_parquet(output_file_stem.with_suffix(".parquet"))
     )
-
-    # TODO validation
-    #
 
     if not args.keep_intermediate_files:
         shutil.rmtree(temp_dir)
-    
+
     print("<< end")
 
 
-def consolidate_columns(assembled_file: Path, output_dir: Path) -> Path:
+def consolidate_columns(assembled_file: Path, output_file: Path) -> Path:
     """Remove unecessary columns form the assembled file and rename the ones we will keep."""
-    output_file = output_dir / "consolidated.parquet"
-
     columns = {
         "main.FINNGENID": "FINNGENID",
         "main.EVENT_AGE": "EVENT_AGE",
@@ -168,7 +177,7 @@ if __name__ == "__main__":
         help="How many buckets to partition the data into to spread the sort+unique computations.",
         required=False,
         type=int,
-        default=32
+        default=32,
     )
     parser.add_argument(
         "--keep-intermediate-files",
