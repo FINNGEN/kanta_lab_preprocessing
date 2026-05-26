@@ -57,8 +57,8 @@ def main(args):
     temp_dir_partition = temp_dir / "partition"
     temp_dir_partition.mkdir()
 
-    temp_dir_tidyup = temp_dir / "tidyup"
-    temp_dir_tidyup.mkdir()
+    temp_dir_sort_dedup = temp_dir / "sort_dedup"
+    temp_dir_sort_dedup.mkdir()
 
     print("# Consolidate")
     consolidated_file = consolidate_columns(args.assembled_file, temp_file_consolidate)
@@ -66,12 +66,12 @@ def main(args):
     print("# Partition")
     partition(consolidated_file, temp_dir_partition, args.partition_n_buckets)
 
-    print("# Tidy-up")
+    print("# Sort + Dedup")
     for bucket_file in temp_dir_partition.glob("bucket_id__*.parquet"):
         (
             pl.scan_parquet(bucket_file)
-            .pipe(tidy_up)
-            .sink_parquet(temp_dir_tidyup / bucket_file.name)
+            .pipe(sort_dedup)
+            .sink_parquet(temp_dir_sort_dedup / bucket_file.name)
         )
 
     df_pheno = pl.scan_csv(
@@ -83,7 +83,7 @@ def main(args):
     print("# Concatenate + Unique + SEX join")
     bucket_files = []
     for bucket_id in range(args.partition_n_buckets):
-        bucket_files.append(temp_dir_tidyup / f"bucket_id__{bucket_id}.parquet")
+        bucket_files.append(temp_dir_sort_dedup / f"bucket_id__{bucket_id}.parquet")
 
     (
         pl.scan_parquet(bucket_files)
@@ -159,7 +159,7 @@ def partition(assembled_file: Path, temp_dir: Path, n_buckets):
         )
 
 
-def tidy_up(frame: pl.LazyFrame | pl.DataFrame):
+def sort_dedup(frame: pl.LazyFrame | pl.DataFrame):
     return (
         frame.sort(by=COLUMNS_UNIQUENESS_SORT)
         # Dedup rows
