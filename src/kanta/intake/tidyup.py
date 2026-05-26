@@ -1,9 +1,24 @@
 """
-Differences from the WDL implementation:
-- no logging of duplicates/err lines
-- outputs to a single parquet file, no .txt.gz, as this is very slow.
-- uses CSV-aware parsing, robust to edge cases like new-line character inside
+Differences from the WDL implementation
+=======================================
+- No logging of duplicates/err lines.
+- Outputs to a single parquet file, no .txt.gz, as this is very slow.
+- Uses CSV-aware parsing, robust to edge cases like new-line character inside
   CSV values.
+  
+
+VM choice and performance
+=========================
+Best config: 32 CPUs / 32 GB RAM and use 24 buckets. Runs in 2-3 min.
+
+For lower specs, run with 16 or 8 CPUs and allocate 2 GB RAM per CPU, use 24
+buckets. Runs in 5-8 min.
+
+Lowest tested working spec: 8 CPUs / 8 GB RAM, 32 buckets. Runs in 6-12 min.
+
+If failing due to OOM in the sort+dedup stage, try increasing the bucket count.
+
+The GCP VM type appears to matter. N2D is about 2x faster than E2.
 """
 
 import tempfile
@@ -178,10 +193,10 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--partition-n-buckets",
-        help="How many buckets to partition the data into to spread the sort+unique computations.",
+        help="How many buckets to partition the data into to spread the sort+dedup computations.",
         required=False,
         type=int,
-        default=32,
+        default=24,
     )
     parser.add_argument(
         "--keep-intermediate-files",
