@@ -4,7 +4,7 @@ The goal is to identify lab measurements that have a numeric value but are missi
 
 ## Summary
 
-![scatter](test_names_exploration_scatter.png)
+![scatter](/mnt/disks/data/kanta/inject/test_names_exploration_scatter.png)
 
 *Active threshold: 98% — min count: 500 — 715 TEST_NAMEs, 31,962,504 measurements*
 
