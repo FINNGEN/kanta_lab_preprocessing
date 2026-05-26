@@ -1,5 +1,11 @@
 """
 Merges the incoming Kanta Lab data from THL into one coherent file.
+
+
+Differences from the WDL implementation
+=======================================
+- Uses CSV-aware parsing, robust to edge cases like new-line character inside
+  CSV values.
 """
 
 import gzip

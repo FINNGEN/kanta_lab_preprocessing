@@ -1,10 +1,12 @@
 """
+Tidy-up the raw data into a subset of necessary column, and apply sorting
+and deduplication.
+
+
 Differences from the WDL implementation
 =======================================
 - No logging of duplicates/err lines.
 - Outputs to a single parquet file, no .txt.gz, as this is very slow.
-- Uses CSV-aware parsing, robust to edge cases like new-line character inside
-  CSV values.
 
 
 VM choice and performance
