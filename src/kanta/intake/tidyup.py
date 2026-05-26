@@ -5,7 +5,7 @@ Differences from the WDL implementation
 - Outputs to a single parquet file, no .txt.gz, as this is very slow.
 - Uses CSV-aware parsing, robust to edge cases like new-line character inside
   CSV values.
-  
+
 
 VM choice and performance
 =========================
@@ -45,12 +45,18 @@ COLUMNS_UNIQUENESS_SORT = [
 def main(args):
     # Set up output file and temporary directory for intermediate files
     today = date.today()
-    output_file_stem = (
-        args.output_dir / f"finngen_R14_kanta_laboratory_responses_internal_1.0_{today}"
+    output_file = (
+        args.output_dir
+        / f"finngen_R14_kanta_laboratory_responses_internal_1.0_{today}.parquet"
     )
 
     temp_dir = Path(tempfile.mkdtemp())
-    print(f">> {temp_dir=}")
+
+    print("# Run info")
+    print(f"- Partition into N buckets: {args.partition_n_buckets}")
+    print(f"- Directory for intermediate files: {temp_dir}")
+    print(f"- Output directory: {args.output_dir}")
+    print()
 
     temp_file_consolidate = temp_dir / "consolidated.parquet"
 
@@ -97,13 +103,48 @@ def main(args):
         )
         .with_row_index(name="_rowid", offset=1)
         .drop("_rowid_consolidate_debug")
-        .sink_parquet(output_file_stem.with_name(output_file_stem.name +  ".parquet"))
+        .sink_parquet(output_file)
     )
 
     if not args.keep_intermediate_files:
         shutil.rmtree(temp_dir)
 
-    print("<< end")
+
+def init_cli():
+    parser = ArgumentParser()
+    parser.add_argument(
+        "--assembled-file",
+        help="Path to assembled file from the intake.assemble step (Parquet)",
+        required=True,
+        type=Path,
+    )
+    parser.add_argument(
+        "--phenotype-file",
+        help="Path to phenotype file with SEX column (.txt.gz)",
+        required=True,
+        type=Path,
+    )
+    parser.add_argument(
+        "--output-dir",
+        help="Path to write the output files",
+        required=True,
+        type=Path,
+    )
+    parser.add_argument(
+        "--partition-n-buckets",
+        help="How many buckets to partition the data into to spread the sort+dedup computations.",
+        required=False,
+        type=int,
+        default=24,
+    )
+    parser.add_argument(
+        "--keep-intermediate-files",
+        help="Keep intermediate files, useful for debugging.",
+        action="store_true",
+    )
+    args = parser.parse_args()
+
+    return args
 
 
 def consolidate_columns(assembled_file: Path, output_file: Path) -> Path:
@@ -172,37 +213,5 @@ def sort_dedup(frame: pl.LazyFrame | pl.DataFrame):
 
 
 if __name__ == "__main__":
-    parser = ArgumentParser()
-    parser.add_argument(
-        "--assembled-file",
-        help="Path to assembled file from the intake.assemble step (Parquet)",
-        required=True,
-        type=Path,
-    )
-    parser.add_argument(
-        "--phenotype-file",
-        help="Path to phenotype file with SEX column (.txt.gz)",
-        required=True,
-        type=Path,
-    )
-    parser.add_argument(
-        "--output-dir",
-        help="Path to write the output files",
-        required=True,
-        type=Path,
-    )
-    parser.add_argument(
-        "--partition-n-buckets",
-        help="How many buckets to partition the data into to spread the sort+dedup computations.",
-        required=False,
-        type=int,
-        default=24,
-    )
-    parser.add_argument(
-        "--keep-intermediate-files",
-        help="Keep intermediate files, useful for debugging.",
-        action="store_true",
-    )
-    args = parser.parse_args()
-
+    args = init_cli()
     main(args)
