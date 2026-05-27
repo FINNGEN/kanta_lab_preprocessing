@@ -1,7 +1,6 @@
 if __name__ == "__main__":
-    import tempfile
-    import os
     from argparse import ArgumentParser
+    from datetime import date
     from pathlib import Path
 
     from kanta.intake import assemble
@@ -44,19 +43,23 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # Assemble stage
-    _fd, absolute_pathname = tempfile.mkstemp()
-    tmp_file_assemble = Path(absolute_pathname)
-    post_assemble_file = assemble.main(args.source_list_file, tmp_file_assemble)
+    output_file_assemble_stage = (
+        args.output_dir
+        / f"finngen_R14_kanta_laboratory_responses.assemble-stage.{date.today()}.parquet"
+    )
+    post_assemble_file = assemble.main(
+        args.source_list_file, output_file_assemble_stage
+    )
 
     # Tidy-up stage
+    output_file_tidyup_stage = (
+        args.output_dir
+        / f"finngen_R14_kanta_laboratory_responses_internal_1.0_{date.today()}.parquet"
+    )
     tidyup.main(
-        tmp_file_assemble,
+        output_file_assemble_stage,
         args.phenotype_file,
-        args.output_dir,
+        output_file_tidyup_stage,
         partition_n_buckets=args.partition_n_buckets,
         keep_intermediate_files=args.debug,
     )
-
-    # Cleaning up
-    if not args.debug:
-        os.remove(tmp_file_assemble)

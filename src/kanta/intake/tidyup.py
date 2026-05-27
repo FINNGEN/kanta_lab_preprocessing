@@ -26,7 +26,6 @@ The GCP VM type appears to matter. N2D is about 2x faster than E2.
 import tempfile
 import shutil
 from argparse import ArgumentParser
-from datetime import date
 from pathlib import Path
 
 import polars as pl
@@ -47,25 +46,20 @@ COLUMNS_UNIQUENESS_SORT = [
 def main(
     assembled_file: Path,
     phenotype_file: Path,
-    output_dir: Path,
+    output_file: Path,
     *,
     partition_n_buckets: int,
     keep_intermediate_files: bool,
 ):
     # Set up output file and temporary directory for intermediate files
-    today = date.today()
-    output_file = (
-        output_dir
-        / f"finngen_R14_kanta_laboratory_responses_internal_1.0_{today}.parquet"
-    )
-
     tmp_dir = Path(tempfile.mkdtemp())
 
+    print()
+    print("=== TIDY-UP STAGE ===")
     print("# Run info")
     print(f"- Partition into N buckets: {partition_n_buckets}")
     print(f"- Directory for intermediate files: {tmp_dir}")
-    print(f"- Output directory: {output_dir}")
-    print()
+    print(f"- Output file: {output_file}")
 
     tmp_file_consolidate = tmp_dir / "consolidated.parquet"
 
@@ -111,7 +105,6 @@ def main(
             maintain_order="left",
         )
         .with_row_index(name="_rowid", offset=1)
-        .drop("_rowid_consolidate_debug")
         .sink_parquet(output_file)
     )
 
@@ -134,8 +127,8 @@ def init_cli():
         type=Path,
     )
     parser.add_argument(
-        "--output-dir",
-        help="Path to write the output files",
+        "--output-file",
+        help="Path to write the output file",
         required=True,
         type=Path,
     )
@@ -158,7 +151,7 @@ def init_cli():
 
 def consolidate_columns(assembled_file: Path, output_file: Path) -> Path:
     """Remove unecessary columns form the assembled file and rename the ones we will keep."""
-    columns = {
+    rename_columns = {
         "main.FINNGENID": "FINNGENID",
         "main.EVENT_AGE": "EVENT_AGE",
         "main.tutkimuskoodistonjarjestelma": "tutkimuskoodistonjarjestelma",
@@ -179,21 +172,12 @@ def consolidate_columns(assembled_file: Path, output_file: Path) -> Path:
         "main.TIME": "TIME",
     }
 
+    out_columns = list(rename_columns.keys()) + ["_rowid_source"]
+
     (
         pl.scan_parquet(assembled_file)
-        .with_columns(
-            (
-                pl.col("main._rowid").cast(pl.String)
-                + "@"
-                + pl.col("main._filename")
-                + "|"
-                + pl.col("freetext._rowid").cast(pl.String)
-                + "@"
-                + pl.col("freetext._filename")
-            ).alias("_rowid_consolidate_debug")
-        )
-        .select(pl.col(list(columns.keys()) + ["_rowid_consolidate_debug"]))
-        .rename(columns)
+        .select(pl.col(out_columns))
+        .rename(rename_columns)
         .sink_parquet(output_file)
     )
 
@@ -223,4 +207,10 @@ def sort_dedup(frame: pl.LazyFrame | pl.DataFrame):
 
 if __name__ == "__main__":
     args = init_cli()
-    main(args)
+    main(
+        args.assembled_file,
+        args.phenotype_file,
+        args.output_file,
+        partition_n_buckets=args.partition_n_buckets,
+        keep_intermediate_files=args.keep_intermediate_files
+    )

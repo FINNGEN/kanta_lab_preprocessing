@@ -63,17 +63,21 @@ COL_PREFIX_FREETEXT = "freetext."
 
 
 def main(source_list_file: Path, output_file: Path) -> Path:
+    print()
+    print("=== ASSEMBLE STAGE ===")
     pairs = validate_input_pairs(source_list_file)
 
-    print(">> merge_by_pair")
+    print("# Merge by pair")
     merge_by_pair(pairs, output_file)
 
-    print(">> check_merge_consistency")
-    print(check_merge_consistency(output_file))
+    print("# Checking merge consistency")
+    is_consistent = check_merge_consistency(output_file)
+    print("All good." if is_consistent else "!!! Inconsitent merge !!!")
 
 
-
-def validate_input_pairs(source_list_file: Path, *, separator="\t") -> list[tuple[Path, Path]]:
+def validate_input_pairs(
+    source_list_file: Path, *, separator="\t"
+) -> list[tuple[Path, Path]]:
     pairs = []
     with open(source_list_file) as fp:
         for line in fp:
@@ -124,7 +128,11 @@ def merge_by_pair(pairs: list[tuple[Path, Path]], parquet_output: str | Path) ->
 
         to_concat.append(df_merged)
 
-    pl.concat(to_concat).sink_parquet(parquet_output)
+    (
+        pl.concat(to_concat)
+        .with_row_index(name="_rowid_source", offset=1)
+        .sink_parquet(parquet_output)
+    )
 
 
 def check_merge_consistency(data_path: str | Path) -> bool:
@@ -150,7 +158,9 @@ def check_merge_consistency(data_path: str | Path) -> bool:
     # the main and freetext data are of different height.
     check_same_height = (
         pl.scan_parquet(data_path)
-        .select(pl.all_horizontal(pl.selectors.ends_with("._rowid").is_not_null().all()))
+        .select(
+            pl.all_horizontal(pl.selectors.ends_with("._rowid").is_not_null().all())
+        )
         .collect(engine="streaming")
         .item()
     )
