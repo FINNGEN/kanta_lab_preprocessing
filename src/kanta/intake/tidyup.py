@@ -44,54 +44,61 @@ COLUMNS_UNIQUENESS_SORT = [
 ]
 
 
-def main(args):
+def main(
+    assembled_file: Path,
+    phenotype_file: Path,
+    output_dir: Path,
+    *,
+    partition_n_buckets: int,
+    keep_intermediate_files: bool,
+):
     # Set up output file and temporary directory for intermediate files
     today = date.today()
     output_file = (
-        args.output_dir
+        output_dir
         / f"finngen_R14_kanta_laboratory_responses_internal_1.0_{today}.parquet"
     )
 
-    temp_dir = Path(tempfile.mkdtemp())
+    tmp_dir = Path(tempfile.mkdtemp())
 
     print("# Run info")
-    print(f"- Partition into N buckets: {args.partition_n_buckets}")
-    print(f"- Directory for intermediate files: {temp_dir}")
-    print(f"- Output directory: {args.output_dir}")
+    print(f"- Partition into N buckets: {partition_n_buckets}")
+    print(f"- Directory for intermediate files: {tmp_dir}")
+    print(f"- Output directory: {output_dir}")
     print()
 
-    temp_file_consolidate = temp_dir / "consolidated.parquet"
+    tmp_file_consolidate = tmp_dir / "consolidated.parquet"
 
-    temp_dir_partition = temp_dir / "partition"
-    temp_dir_partition.mkdir()
+    tmp_dir_partition = tmp_dir / "partition"
+    tmp_dir_partition.mkdir()
 
-    temp_dir_sort_dedup = temp_dir / "sort_dedup"
-    temp_dir_sort_dedup.mkdir()
+    tmp_dir_sort_dedup = tmp_dir / "sort_dedup"
+    tmp_dir_sort_dedup.mkdir()
 
     print("# Consolidate")
-    consolidated_file = consolidate_columns(args.assembled_file, temp_file_consolidate)
+    consolidated_file = consolidate_columns(assembled_file, tmp_file_consolidate)
 
     print("# Partition")
-    partition(consolidated_file, temp_dir_partition, args.partition_n_buckets)
+    partition(consolidated_file, tmp_dir_partition, partition_n_buckets)
 
     print("# Sort + Dedup")
-    for bucket_file in temp_dir_partition.glob("bucket_id__*.parquet"):
+    for bucket_file in tmp_dir_partition.glob("bucket_id__*.parquet"):
         (
             pl.scan_parquet(bucket_file)
             .pipe(sort_dedup)
-            .sink_parquet(temp_dir_sort_dedup / bucket_file.name)
+            .sink_parquet(tmp_dir_sort_dedup / bucket_file.name)
         )
 
     df_pheno = pl.scan_csv(
-        args.phenotype_file,
+        phenotype_file,
         infer_schema=False,
         separator="\t",
     ).select("FINNGENID", "SEX")
 
     print("# Concatenate + Unique + SEX join")
     bucket_files = []
-    for bucket_id in range(args.partition_n_buckets):
-        bucket_files.append(temp_dir_sort_dedup / f"bucket_id__{bucket_id}.parquet")
+    for bucket_id in range(partition_n_buckets):
+        bucket_files.append(tmp_dir_sort_dedup / f"bucket_id__{bucket_id}.parquet")
 
     (
         pl.scan_parquet(bucket_files)
@@ -108,8 +115,8 @@ def main(args):
         .sink_parquet(output_file)
     )
 
-    if not args.keep_intermediate_files:
-        shutil.rmtree(temp_dir)
+    if not keep_intermediate_files:
+        shutil.rmtree(tmp_dir)
 
 
 def init_cli():
@@ -122,7 +129,7 @@ def init_cli():
     )
     parser.add_argument(
         "--phenotype-file",
-        help="Path to phenotype file with SEX column (.txt.gz)",
+        help="Path to phenotype file with FINNGENID and SEX columns (.txt.gz)",
         required=True,
         type=Path,
     )
@@ -193,12 +200,12 @@ def consolidate_columns(assembled_file: Path, output_file: Path) -> Path:
     return output_file
 
 
-def partition(assembled_file: Path, temp_dir: Path, n_buckets):
+def partition(assembled_file: Path, tmp_dir: Path, n_buckets):
     for bucket_id in range(n_buckets):
         (
             pl.scan_parquet(assembled_file)
             .filter(pl.col("FINNGENID").hash() % n_buckets == bucket_id)
-            .sink_parquet(temp_dir / f"bucket_id__{bucket_id}.parquet")
+            .sink_parquet(tmp_dir / f"bucket_id__{bucket_id}.parquet")
         )
 
 

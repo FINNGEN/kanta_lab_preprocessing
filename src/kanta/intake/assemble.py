@@ -62,14 +62,25 @@ COL_PREFIX_MAIN = "main."
 COL_PREFIX_FREETEXT = "freetext."
 
 
-def validate_input_pairs(list_file: Path, *, separator="\t") -> list[tuple[Path, Path]]:
+def main(source_list_file: Path, output_file: Path) -> Path:
+    pairs = validate_input_pairs(source_list_file)
+
+    print(">> merge_by_pair")
+    merge_by_pair(pairs, output_file)
+
+    print(">> check_merge_consistency")
+    print(check_merge_consistency(output_file))
+
+
+
+def validate_input_pairs(source_list_file: Path, *, separator="\t") -> list[tuple[Path, Path]]:
     pairs = []
-    with open(list_file) as fp:
+    with open(source_list_file) as fp:
         for line in fp:
             values = line.split(separator, maxsplit=2)
 
-            main = validate_tsv_gz(values[0], list_file.parent)
-            freetext = validate_tsv_gz(values[1], list_file.parent)
+            main = validate_tsv_gz(values[0], source_list_file.parent)
+            freetext = validate_tsv_gz(values[1], source_list_file.parent)
 
             pairs.append((main, freetext))
 
@@ -209,24 +220,18 @@ def get_columns(input_path: Path) -> list[str]:
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument(
-        "--list-file",
+        "--source-list-file",
         required=True,
         type=Path,
         help="File containing pair of paths to main & freetext data, one pair per line (TSV without header).",
     )
     parser.add_argument(
-        "--post-merge-file",
+        "--output-file",
         required=True,
         type=Path,
-        help="Path to intermediary output file from the merge stage",
+        help="Path to output the intermediary file from this stage.",
     )
 
     args = parser.parse_args()
 
-    pairs = validate_input_pairs(args.list_file)
-
-    print(">> merge_by_pair")
-    merge_by_pair(pairs, args.post_merge_file)
-
-    print(">> check_merge_consistency")
-    print(check_merge_consistency(args.post_merge_file))
+    main(args.source_list_file, args.output_file)
