@@ -7,6 +7,7 @@ on:
       - scripts/injection/data/**
       - scripts/injection/build_site.py
       - scripts/injection/README.md
+      - .github/workflows/deploy_site.yml
 
 permissions:
   contents: read
