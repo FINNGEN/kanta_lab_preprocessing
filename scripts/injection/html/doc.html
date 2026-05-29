@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Documentation — unit injection</title>
+  <link rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+  <style>
+    body    { padding: 2rem; max-width: 960px; }
+    nav a   { margin-right: 1.5rem; font-weight: 500; }
+    img     { max-width: 100%; }
+    table   { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+    th, td  { border: 1px solid #dee2e6; padding: 0.4rem 0.75rem; vertical-align: top; }
+    th      { background: #f8f9fa; font-weight: 600; }
+    pre     { background: #f8f9fa; padding: 1rem; border-radius: 4px; overflow-x: auto; }
+    code    { background: #f0f0f0; padding: 0.1rem 0.3rem; border-radius: 3px;
+              font-size: 0.85em; }
+    pre code { background: none; padding: 0; }
+  </style>
+</head>
+<body>
+  <nav class="mb-3">
+    <a href="index.html">Results</a>
+    <a href="doc.html"><b>Documentation</b></a>
+  </nav>
+  <hr>
+  <h1>Unit injection exploration</h1>
+<p>The goal is to identify lab measurements that have a numeric value but are missing a unit, and to characterise the unit distribution of the matching records that do have a unit — so that a unit can be confidently assigned to the missing ones.</p>
+<h2>Summary</h2>
+<p><img alt="scatter" src="data/test_names_exploration_scatter.png" /></p>
+<p><em>Active threshold: 98% — min count: 500 — 715 TEST_NAMEs, 31,962,504 measurements</em></p>
+<table>
+<thead>
+<tr>
+<th>Threshold</th>
+<th style="text-align: right;">UNAMBIGUOUS test names</th>
+<th style="text-align: right;">UNAMBIGUOUS measurements</th>
+<th style="text-align: right;">AMBIGUOUS test names</th>
+<th style="text-align: right;">AMBIGUOUS measurements</th>
+<th style="text-align: right;">NO_DATA test names</th>
+<th style="text-align: right;">NO_DATA measurements</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>95%</td>
+<td style="text-align: right;">434 (60.7%)</td>
+<td style="text-align: right;">26,508,342 (82.9%)</td>
+<td style="text-align: right;">79 (11.0%)</td>
+<td style="text-align: right;">4,345,264 (13.6%)</td>
+<td style="text-align: right;">202 (28.3%)</td>
+<td style="text-align: right;">1,108,898 (3.5%)</td>
+</tr>
+<tr>
+<td>98% *</td>
+<td style="text-align: right;">413 (57.8%)</td>
+<td style="text-align: right;">24,979,594 (78.2%)</td>
+<td style="text-align: right;">100 (14.0%)</td>
+<td style="text-align: right;">5,874,012 (18.4%)</td>
+<td style="text-align: right;">202 (28.3%)</td>
+<td style="text-align: right;">1,108,898 (3.5%)</td>
+</tr>
+<tr>
+<td>99%</td>
+<td style="text-align: right;">392 (54.8%)</td>
+<td style="text-align: right;">22,954,996 (71.8%)</td>
+<td style="text-align: right;">121 (16.9%)</td>
+<td style="text-align: right;">7,898,610 (24.7%)</td>
+<td style="text-align: right;">202 (28.3%)</td>
+<td style="text-align: right;">1,108,898 (3.5%)</td>
+</tr>
+<tr>
+<td>100%</td>
+<td style="text-align: right;">275 (38.5%)</td>
+<td style="text-align: right;">12,745,902 (39.9%)</td>
+<td style="text-align: right;">238 (33.3%)</td>
+<td style="text-align: right;">18,107,704 (56.7%)</td>
+<td style="text-align: right;">202 (28.3%)</td>
+<td style="text-align: right;">1,108,898 (3.5%)</td>
+</tr>
+<tr>
+<td><strong>TOTAL</strong></td>
+<td style="text-align: right;"><strong>715</strong></td>
+<td style="text-align: right;"></td>
+<td style="text-align: right;"></td>
+<td style="text-align: right;"></td>
+<td style="text-align: right;"></td>
+<td style="text-align: right;"></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>Usage</h2>
+<pre><code class="language-bash">python3 explore_test_name.py &lt;parquet_file&gt; [options]
+</code></pre>
+<ul>
+<li><code>&lt;parquet_file&gt;</code>: path to the input parquet file (INJECT.parquet)</li>
+<li><code>--min-count INT</code>: minimum no-unit records a TEST_NAME must have to be included in plots and injection (default: 1000)</li>
+<li><code>--prevalence-threshold FLOAT</code>: min dominant-unit prevalence (%) to classify a TEST_NAME as UNAMBIGUOUS (default: 98)</li>
+<li><code>--min-target-n INT</code>: minimum reference records a unit must have; tests below this are classified NO_DATA (default: 30)</li>
+<li><code>--dump-dir PATH</code>: cache directory for per-test <code>.npy</code> arrays (default: <code>/mnt/disks/data/kanta/inject/tmp/</code>)</li>
+<li><code>--omop-unit-table PATH</code>: cache path for the OMOP unit table; built automatically on first run (default: <code>omop_unit_table.tsv</code>)</li>
+<li><code>--inject</code>: run the injection engine (unambiguous + ambiguous + no_data passes)</li>
+<li><code>--dip-threshold FLOAT</code>: Hartigan dip test p-value threshold for bimodality (default: 0.05)</li>
+<li><code>--split-threshold FLOAT</code>: minimum relative KS improvement required to prefer a score-based split over the global fit (default: 0.15)</li>
+<li><code>--test</code>: small-sample mode — one test per COUNT decile (unambiguous) and top 10 by volume (ambiguous)</li>
+</ul>
+<h3>Caching behaviour</h3>
+<p><code>test_name_counts.tsv</code> and <code>test_name_details.tsv</code> are cached after the first ClickHouse query and reused on subsequent runs — delete them to force a re-query. They are always queried with a fixed baseline of <code>COUNT &gt; 50</code>; <code>--min-count</code> is applied as a post-load filter in Python, so changing it never requires a re-query.</p>
+<p><code>plot_name_level.tsv</code>, <code>test_names_exploration_scatter.png</code>, and <code>summary_table.md</code> are always recomputed from the filtered data.</p>
+<p>Per-test <code>.npy</code> arrays are always cached in <code>--dump-dir</code> and reused across runs.</p>
+<hr />
+<h2>Step 1 — Injection targets (<code>test_name_counts.tsv</code>)</h2>
+<p>Counts records where at least one value is present (<code>MEASUREMENT_VALUE_EXTRACTED IS NOT NULL OR MEASUREMENT_VALUE_SOURCE IS NOT NULL</code>) but the unit prefix is absent (<code>MEASUREMENT_UNIT_PRE_FIX IS NULL</code>), grouped by <code>TEST_NAME</code>. Cached with <code>COUNT &gt; 50</code>; further filtered to <code>--min-count</code> at runtime.</p>
+<p>Columns: <code>TEST_NAME</code>, <code>COUNT</code></p>
+<hr />
+<h2>Step 2 — Reference population (<code>test_name_details.tsv</code>)</h2>
+<p>For every TEST_NAME in Step 1, describes the unit distribution of the records that already have both a value and a unit (<code>MEASUREMENT_VALUE_SOURCE IS NOT NULL AND MEASUREMENT_UNIT_PRE_FIX IS NOT NULL</code>).</p>
+<p>Columns: <code>TEST_NAME</code>, <code>COUNT</code>, <code>UNIT</code>, <code>PREVALENCE_DICT</code></p>
+<ul>
+<li><code>COUNT</code>: total reference records for this TEST_NAME (across all units)</li>
+<li><code>UNIT</code>: the most frequent unit</li>
+<li><code>PREVALENCE_DICT</code>: top-3 units and their percentage share, e.g. <code>{mmol/l:98.5,umol/l:1.5}</code></li>
+</ul>
+<hr />
+<h2>Step 3 — Plotting table, scatter plot, and classification</h2>
+<p>Steps 1 and 2 are merged in Python to produce <code>plot_name_level.tsv</code>, a scatter plot, and a summary table. Each TEST_NAME is assigned a <code>CATEGORY</code> that drives which injection pass it enters.</p>
+<h3><code>plot_name_level.tsv</code></h3>
+<p>One row per TEST_NAME. Columns include <code>COUNT</code>, <code>N_WITH_UNIT</code>, <code>top_prevalence</code>, <code>CATEGORY</code>, and exploratory <code>CATEGORY_{95,98,99,100}</code> columns.</p>
+<ul>
+<li><code>COUNT</code>: no-unit record count</li>
+<li><code>N_WITH_UNIT</code>: total reference records with any unit</li>
+<li><code>top_prevalence</code>: prevalence (%) of the dominant unit; 0 if no reference records exist</li>
+</ul>
+<h3>Classification (<code>CATEGORY</code>)</h3>
+<table>
+<thead>
+<tr>
+<th>Category</th>
+<th>Condition</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>NO_DATA</code></td>
+<td><code>N_WITH_UNIT &lt; --min-target-n</code> OR <code>top_prevalence == 0</code></td>
+</tr>
+<tr>
+<td><code>UNAMBIGUOUS</code></td>
+<td><code>top_prevalence &gt;= --prevalence-threshold</code></td>
+</tr>
+<tr>
+<td><code>AMBIGUOUS</code></td>
+<td><code>0 &lt; top_prevalence &lt; --prevalence-threshold</code></td>
+</tr>
+</tbody>
+</table>
+<p>The injection engine only runs tests classified as UNAMBIGUOUS or AMBIGUOUS. NO_DATA tests are written directly to <code>no_data_results.tsv</code>.</p>
+<h3>OMOP unit table (<code>omop_unit_table.tsv</code>)</h3>
+<p>Built once from the OMOP LAB mapping files and enriched with per-concept record counts queried from the parquet file. Cached at <code>--omop-unit-table</code>. Each OMOP concept is assigned a <code>CATEGORY</code>:</p>
+<ul>
+<li><code>SINGLE</code> — only one unit observed in the OMOP data</li>
+<li><code>EQUIVALENT</code> — multiple units present but all mutually convertible; a <code>CANONICAL_UNIT</code> is available</li>
+<li><code>MULTIPLE</code> — multiple non-equivalent units; no single canonical unit can be assigned</li>
+</ul>
+<p>This table is used to enrich <code>no_data_results.tsv</code> with canonical units.</p>
+<p>Two summary tables are written:
+- <code>summary_table.md</code> — all TEST_NAMEs
+- <code>omop_summary_table.md</code> — OMOP-mapped subset only</p>
+<hr />
+<h2>Step 4 — Injection engine (<code>--inject</code>)</h2>
+<p>With <code>--inject</code>, three passes are run and a coverage check validates that every TEST_NAME in <code>plot_name_level.tsv</code> appears in exactly one output file.</p>
+<h3>Unambiguous pass → <code>unambiguous_results.tsv</code></h3>
+<p>TEST_NAMEs with <code>CATEGORY == UNAMBIGUOUS</code>. The candidate distribution (no-unit records) is compared against the reference distribution for the dominant unit.</p>
+<p>One row per TEST_NAME. Columns: <code>TEST_NAME</code>, <code>UNIT</code>, <code>PREVALENCE_DICT</code>, <code>N_CANDIDATE</code>, <code>N_TARGET</code>, <code>CAND_DECILES</code>, <code>TARG_DECILES</code>, <code>KS_STAT</code>, <code>KS_MLOGP</code>, <code>KS_PASS</code>, <code>T_STAT</code>, <code>T_MLOGP</code>, <code>T_PASS</code>, <code>MAD_DIST</code>, <code>MAD_THRESHOLD</code>, <code>MAD_PASS</code>, <code>OUTCOME</code>, <code>NOTES</code>.</p>
+<h3>Ambiguous pass → <code>ambiguous_results.tsv</code></h3>
+<p>TEST_NAMEs with <code>CATEGORY == AMBIGUOUS</code>. Only units with prevalence &gt; 1% and at least <code>--min-target-n</code> reference records are considered.</p>
+<p>Pipeline per TEST_NAME:</p>
+<ol>
+<li><strong>Pre-check</strong>: run the full (unsplit) candidate distribution against each qualifying unit.</li>
+<li><strong>Bimodality check</strong> (always runs, even if pre-check passed): test the candidate distribution for bimodality and compute <code>split_improvement</code> — the relative KS gain when the candidate is split at the GMM separator vs. treated globally.</li>
+<li><strong>Split decision</strong>: a split is preferred if <code>split_improvement &gt; --split-threshold</code> AND the two halves favour different best units (<code>same_best_unit == False</code>). If splitting is not preferred and any pre-check passed, the global result is kept.</li>
+<li><strong>Sub-distribution engine</strong> (only if splitting is preferred): the candidate is split into low/high halves at the GMM separator and the engine is re-run on each half × unit.</li>
+</ol>
+<p>One row per <code>(TEST_NAME, SUB_DIST)</code> — the best unit only. Best unit selection: PASS &gt; FAIL &gt; SKIP, then highest <code>UNIT_PREVALENCE</code> as tiebreaker — we prefer the dominant clinical unit when two units both pass.</p>
+<p>A <code>split_eval_{tag}.png</code> decision-tree figure is saved to <code>--dump-dir</code> for every TEST_NAME.</p>
+<p>Columns: <code>TEST_NAME</code>, <code>BIMODAL_STATUS</code>, <code>BIMODAL_SEP</code>, <code>BIMODAL_BC</code>, <code>BIMODAL_DIP_P</code>, <code>SCORE_GLOBAL</code>, <code>SCORE_SPLIT</code>, <code>SCORE_IMPROVEMENT</code>, <code>SUB_DIST</code>, <code>UNIT</code>, <code>UNIT_PREVALENCE</code>, <code>PREVALENCE_DICT</code>, <code>BEST_UNIT</code>, <code>N_CANDIDATE</code>, <code>N_TARGET</code>, <code>CAND_DECILES</code>, <code>TARG_DECILES</code>, <code>KS_STAT</code>, <code>KS_MLOGP</code>, <code>KS_PASS</code>, <code>T_STAT</code>, <code>T_MLOGP</code>, <code>T_PASS</code>, <code>MAD_DIST</code>, <code>MAD_THRESHOLD</code>, <code>MAD_PASS</code>, <code>OUTCOME</code>, <code>NOTES</code>.</p>
+<ul>
+<li><code>SCORE_GLOBAL</code>: best KS statistic achieved across all units on the full candidate distribution (lower = better fit)</li>
+<li><code>SCORE_SPLIT</code>: mean of the best KS statistics for the low and high sub-distributions</li>
+<li><code>SCORE_IMPROVEMENT</code>: <code>(SCORE_GLOBAL − SCORE_SPLIT) / SCORE_GLOBAL</code> — relative improvement from splitting</li>
+</ul>
+<h3>No-data pass → <code>no_data_results.tsv</code></h3>
+<p>TEST_NAMEs with <code>CATEGORY == NO_DATA</code>. No engine is run. The result is enriched with OMOP unit table information; a canonical unit is injected where the OMOP concept has category SINGLE or EQUIVALENT.</p>
+<p>Columns: <code>TEST_NAME</code>, <code>COUNT</code>, <code>OMOP_CONCEPT_ID</code>, <code>OMOP_QUANTITY</code>, <code>CATEGORY</code>, <code>N_UNITS</code>, <code>UNITS</code>, <code>CONVERSIONS</code>, <code>OMOP_TOTAL_N</code>, <code>UNIT</code>, <code>PREVALENCE</code>.</p>
+<ul>
+<li><code>CATEGORY</code>: OMOP unit category (<code>SINGLE</code>, <code>EQUIVALENT</code>, <code>MULTIPLE</code>, or NA)</li>
+<li><code>UNIT</code>: canonical unit from the OMOP table if available, otherwise blank</li>
+<li><code>PREVALENCE</code>: fraction of OMOP concept records that are no-unit (<code>COUNT / OMOP_TOTAL_N</code>)</li>
+</ul>
+<p>After writing, a breakdown is printed:
+- no OMOP — TEST_NAMEs with no concept ID
+- OMOP, unit injected — concept has SINGLE/EQUIVALENT category
+- OMOP, no unit — concept mapped but MULTIPLE or unknown unit</p>
+<h3>Unified output → <code>injection_results.tsv</code></h3>
+<p>Merge of the unambiguous and ambiguous results with a <code>TYPE</code> column (<code>unambiguous</code> / <code>ambiguous</code>). Does not include no_data rows.</p>
+<h3>Coverage check</h3>
+<p>After all three passes, a checksum validates that the union of the three output files equals the full set of TEST_NAMEs in <code>plot_name_level.tsv</code>, with no overlaps and no missing entries. Skipped in <code>--test</code> mode.</p>
+<h3>Assignment summary</h3>
+<p>Printed at the end of <code>--inject</code>. Shows, for each category (UNAMBIGUOUS, AMBIGUOUS, NO_DATA) and in total, how many TEST_NAMEs and measurements received a unit (PASS rows), broken out for all TEST_NAMEs and the OMOP-mapped subset.</p>
+<hr />
+<h2>Injection engine pipeline</h2>
+<p>Each comparison runs three tests in order. All three always run; the first to decide the outcome wins.</p>
+<ol>
+<li><strong>KS test</strong> — two-sample Kolmogorov–Smirnov. PASS = stat &lt; 0.3 AND p &lt; 0.05. Uses a fast binned approximation (100k bins, Hodges-corrected asymptotic p) above 500k samples; exact scipy otherwise.</li>
+<li><strong>Welch t-test</strong> — fallback if KS fails. PASS = p ≥ 0.05 (means not significantly different).</li>
+<li><strong>MAD test</strong> — last resort. PASS = |median(candidate) − median(target)| ≤ 3 × MAD(target).</li>
+</ol>
+<p>Decision rule: KS PASS → PASS. KS FAIL, T PASS → PASS. Both fail → MAD decides. <code>NOTES</code> records the deciding test and how many of the three passed, e.g. <code>PASS_at_T_(2/3)</code>.</p>
+<p>P-values are stored as −log10(p) throughout (<code>KS_MLOGP</code>, <code>T_MLOGP</code>).</p>
+<p>Each comparison produces a 3-panel diagnostic plot saved to <code>--dump-dir</code>:
+- <strong>Panel 1</strong>: ECDFs + KS distance marked in red + KS annotation
+- <strong>Panel 2</strong>: KDE (linear scale) + dotted mean lines + t-test annotation
+- <strong>Panel 3</strong>: KDE (log scale) + MAD band (green = PASS, salmon = FAIL) + median lines + distance arrow</p>
+<p>KDE/ECDF rendering downsamples to 50k points. All statistics use the full arrays.</p>
+<hr />
+<h2>Bimodal check</h2>
+<p>Before the ambiguous sub-distribution pass, the candidate distribution is tested for bimodality using two statistics:</p>
+<p>The candidate array is subsampled to 50,000 points before the dip test and GMM fitting (the dip test is unreliable above ~72k samples and GMM fitting is also faster at this size). All statistics and the separator are computed on this subsample.</p>
+<p><strong>Hartigan's dip test</strong> (primary gate): p-value &lt; <code>--dip-threshold</code> (default 0.05) declares non-unimodal.</p>
+<p><strong>Bimodality coefficient</strong> (BC): <code>(skew² + 1) / (excess_kurtosis + 3(n−1)²/((n−2)(n−3)))</code>. Values above ~0.555 suggest bimodality.</p>
+<p>Both are computed in the space (linear or log) where a 2-component GMM achieves lower BIC. The GMM separator is used to split the candidate distribution.</p>
+<table>
+<thead>
+<tr>
+<th>dip p</th>
+<th>BC</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>≥ threshold</td>
+<td>—</td>
+<td><code>unimodal</code></td>
+</tr>
+<tr>
+<td>&lt; threshold</td>
+<td>≥ 0.555</td>
+<td><code>bimodal</code> — split into low/high</td>
+</tr>
+<tr>
+<td>&lt; threshold</td>
+<td>&lt; 0.555</td>
+<td><code>bimodal_cautious</code> — split, modes overlap</td>
+</tr>
+<tr>
+<td>—</td>
+<td>—</td>
+<td><code>skipped</code> — pre-check passed and split not preferred</td>
+</tr>
+</tbody>
+</table>
+<p><code>split_by_score</code> is a separate label (not dip-test-derived) assigned when the split is triggered by score improvement (<code>SCORE_IMPROVEMENT &gt; --split-threshold</code> and the two halves favour different units), regardless of dip test outcome.</p>
+<p>A diagnostic plot (<code>bimodal_{tag}.png</code>) is saved to <code>--dump-dir</code>.</p>
+</body>
+</html>

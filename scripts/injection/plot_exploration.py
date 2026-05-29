@@ -44,7 +44,8 @@ def make_scatter_plot(plot_name, output=DEFAULT_OUTPUT):
         ax_scatter.scatter(sub["COUNT"], sub["top_prevalence"],
                            alpha=0.5, s=20,
                            color=_COLORS[label], label=f"{label} (n={len(sub)})")
-    ax_scatter.legend(fontsize=8, markerscale=1.5, loc="upper right")
+    handles, labels = ax_scatter.get_legend_handles_labels()
+    ax_kde.legend(handles, labels, fontsize=8, markerscale=1.5, loc="center right")
     ax_scatter.set_xlabel("Count (value, no unit)")
     ax_scatter.set_ylabel("Top unit prevalence (%)")
     ax_scatter.set_title("TEST_NAME level — injection candidates")

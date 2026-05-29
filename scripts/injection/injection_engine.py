@@ -167,7 +167,8 @@ class BimodalResult:
     bc: float
     dip_p: float
     lognormal: bool   # which space had lower BIC
-    fit: dict         # raw GMM output (empty dict if unavailable)
+    fit: dict         # raw GMM output for the winning fit (empty dict if unavailable)
+    fit_alt: dict     # raw GMM output for the losing fit (empty dict if unavailable)
 
     def __str__(self):
         return (f"[BIMODAL] {self.status}  sep={self.separator:.4g}"
@@ -256,7 +257,7 @@ def bimodal_check(arr, dip_threshold=0.05, bc_threshold=0.555):
     fits     = [f for f in (fit_norm, fit_log) if f is not None]
 
     if not fits:
-        return BimodalResult("unimodal", np.nan, np.nan, np.nan, False, {})
+        return BimodalResult("unimodal", np.nan, np.nan, np.nan, False, {}, {})
 
     best = min(fits, key=lambda f: f["bic"])
 
@@ -279,13 +280,53 @@ def bimodal_check(arr, dip_threshold=0.05, bc_threshold=0.555):
     else:
         status = "bimodal" if bc >= bc_threshold else "unimodal"
 
-    return BimodalResult(status, sep, bc, dip_p, best["lognormal"], best)
+    alt = next((f for f in fits if f is not best), {})
+    return BimodalResult(status, sep, bc, dip_p, best["lognormal"], best, alt)
+
+
+def _plot_bimodal_panel(ax, fit, is_winner, result_separator):
+    """Draw one GMM panel (linear or log space) onto ax."""
+    if not fit:
+        ax.text(0.5, 0.5, "fit unavailable", ha="center", va="center",
+                transform=ax.transAxes, color="grey")
+        return
+
+    x_fit  = fit["x_fit"]
+    x_orig = fit["x_orig"]
+    means  = fit["means_native"]
+    sigmas = fit["sigmas_native"]
+    weights = fit["weights"]
+    lognormal = fit["lognormal"]
+
+    lo, hi = np.percentile(x_fit, [0.5, 99.5])
+    ax.hist(x_fit, bins=60, density=True, alpha=0.45, color="steelblue", range=(lo, hi))
+    xf = np.linspace(lo, hi, 400)
+    for m, s, w in zip(means, sigmas, weights):
+        ax.plot(xf, w * stats.norm.pdf(xf, m, s), alpha=0.8)
+    if not np.isnan(fit["sep_native"]):
+        ax.axvline(fit["sep_native"], color="red", ls="--",
+                   label=f"sep={fit['sep_native']:.3g}")
+
+    space = "log" if lognormal else "linear"
+    ax.set_xlabel("log(value)" if lognormal else "value")
+    title = f"{space} space   BIC={fit['bic']:.1f}"
+    ax.set_title(title, fontweight="bold" if is_winner else "normal",
+                 color="black" if is_winner else "grey")
+    ax.legend(fontsize=8)
+
+    if is_winner:
+        ax.spines[["top", "right", "bottom", "left"]].set_linewidth(2.5)
+        for spine in ax.spines.values():
+            spine.set_edgecolor("#2ca02c")
+        ax.text(0.98, 0.97, "✓ winner", ha="right", va="top",
+                transform=ax.transAxes, fontsize=9, color="#2ca02c", fontweight="bold")
 
 
 def plot_bimodal_check(result, name, dump_dir):
     """
     Save bimodal diagnostic to dump_dir/bimodal_{tag}.png.
-    Uses the subsampled arrays stored in result.fit; no-op only if GMM failed.
+    Always shows both linear and log panels; winner is highlighted in green.
+    No-op if GMM failed entirely.
     """
     if not result.fit:
         return
@@ -294,49 +335,25 @@ def plot_bimodal_check(result, name, dump_dir):
     if os.path.exists(out_path):
         return
 
-    fit                          = result.fit
-    means_n, sigmas_n, weights_n = fit["means_native"], fit["sigmas_native"], fit["weights"]
-    x_orig                       = fit["x_orig"]   # positive values in original space
-    x_fit                        = fit["x_fit"]    # values in fitted space (log or linear)
+    fit_win = result.fit
+    fit_alt = result.fit_alt
+
+    # Assign panels: left=linear, right=log
+    fit_linear = fit_win if not fit_win["lognormal"] else fit_alt
+    fit_log    = fit_win if     fit_win["lognormal"] else fit_alt
 
     fig, axes = plt.subplots(1, 2, figsize=(12, 4))
     fig.suptitle(
         f"{name}  —  {result.status}  sep={result.separator:.4g}"
         f"  BC={result.bc:.3f}  dip_p={result.dip_p:.3g}"
-        f"  space={'log' if result.lognormal else 'linear'}",
+        f"  winner={'log' if result.lognormal else 'linear'}",
         fontsize=10, fontweight="bold",
     )
 
-    # Panel 1: original space
-    ax = axes[0]
-    lo, hi = np.percentile(x_orig, [0.5, 99.5])
-    ax.hist(x_orig, bins=60, density=True, alpha=0.45, color="steelblue", range=(lo, hi))
-    xlin = np.linspace(lo, hi, 400)
-    for m, s, w in zip(means_n, sigmas_n, weights_n):
-        if fit["lognormal"]:
-            safe = np.clip(xlin, 1e-10, None)
-            ax.plot(xlin, w * stats.norm.pdf(np.log(safe), m, s) / safe, alpha=0.8)
-        else:
-            ax.plot(xlin, w * stats.norm.pdf(xlin, m, s), alpha=0.8)
-    if not np.isnan(result.separator):
-        ax.axvline(result.separator, color="red", ls="--",
-                   label=f"sep={result.separator:.3g}")
-    ax.set_xlabel("value"); ax.set_title("Original space"); ax.legend(fontsize=8)
-
-    # Panel 2: fitted space (log or linear)
-    ax = axes[1]
-    lo_f, hi_f = np.percentile(x_fit, [0.5, 99.5])
-    ax.hist(x_fit, bins=60, density=True, alpha=0.45, color="steelblue", range=(lo_f, hi_f))
-    xf = np.linspace(lo_f, hi_f, 400)
-    for m, s, w in zip(means_n, sigmas_n, weights_n):
-        ax.plot(xf, w * stats.norm.pdf(xf, m, s), alpha=0.8)
-    if not np.isnan(fit["sep_native"]):
-        ax.axvline(fit["sep_native"], color="red", ls="--",
-                   label=f"sep={fit['sep_native']:.3g}")
-    space_label = "log(value)" if fit["lognormal"] else "value"
-    ax.set_xlabel(space_label)
-    ax.set_title(f"Fitted space ({'log' if fit['lognormal'] else 'linear'})")
-    ax.legend(fontsize=8)
+    _plot_bimodal_panel(axes[0], fit_linear, is_winner=not result.lognormal,
+                        result_separator=result.separator)
+    _plot_bimodal_panel(axes[1], fit_log,    is_winner=result.lognormal,
+                        result_separator=result.separator)
 
     plt.tight_layout()
     plt.savefig(out_path, dpi=120, bbox_inches="tight")

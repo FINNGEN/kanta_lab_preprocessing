@@ -261,7 +261,7 @@ def print_summary(plot_name, threshold):
     print(f"\n  * = active threshold ({threshold}%)\n")
 
 
-def print_assignment_summary(udf, adf, no_data, plot_name):
+def print_assignment_summary(udf, adf, no_data, plot_name, out_doc=None, out_tsv=None):
     """Fraction of TEST_NAMEs/measurements successfully assigned a unit."""
     count_map  = plot_name.set_index("TEST_NAME")["COUNT"].to_dict()
     omop_names = set(plot_name[plot_name["OMOP_CONCEPT_ID"].notna()]["TEST_NAME"])
@@ -311,18 +311,37 @@ def print_assignment_summary(udf, adf, no_data, plot_name):
     cw  = nw + 2 + mw
     cols = ["UNAMBIGUOUS", "AMBIGUOUS", "NO_DATA", "TOTAL"]
 
-    print("\nAssignment summary (successfully assigned)\n")
-    print(f"{'':>{lw}}" + "".join(f"  {c:^{cw}}" for c in cols))
-    print(f"{'':>{lw}}" + "".join(f"  {'names':>{nw}}  {'meas':>{mw}}" for _ in cols))
+    text_lines = [
+        "\nAssignment summary (successfully assigned)\n",
+        f"{'':>{lw}}" + "".join(f"  {c:^{cw}}" for c in cols),
+        f"{'':>{lw}}" + "".join(f"  {'names':>{nw}}  {'meas':>{mw}}" for _ in cols),
+    ]
     div = f"{'':>{lw}}" + "".join(f"  {'-'*nw}  {'-'*mw}" for _ in cols)
-    print(div)
+    text_lines.append(div)
     for label, cells in rows:
-        line = f"{label:<{lw}}" + "".join(f"  {ns:>{nw}}  {ms:>{mw}}" for ns, ms in cells)
+        text_lines.append(f"{label:<{lw}}" + "".join(f"  {ns:>{nw}}  {ms:>{mw}}" for ns, ms in cells))
+    text_lines.append(div)
+
+    for line in text_lines:
         print(line)
-    print(div)
+
+    if out_doc:
+        Path(out_doc).write_text("```\n" + "\n".join(text_lines) + "\n```\n")
+        print(f"Wrote {out_doc}")
+
+    if out_tsv:
+        tsv_rows = []
+        for label, cells in rows:
+            row = {"subset": label}
+            for col, (ns, ms) in zip(cols, cells):
+                row[f"{col}_names"] = ns
+                row[f"{col}_meas"]  = ms
+            tsv_rows.append(row)
+        pd.DataFrame(tsv_rows).to_csv(out_tsv, sep="\t", index=False)
+        print(f"Wrote {out_tsv}")
 
 
-def dump_summary_md(plot_name, threshold, min_count, out="summary_table.md"):
+def dump_summary_md(plot_name, threshold, min_count, out="summary_table.md", out_tsv=None):
     total   = len(plot_name)
     total_n = int(plot_name["COUNT"].sum())
     cats    = ["UNAMBIGUOUS", "AMBIGUOUS", "NO_DATA"]
@@ -338,20 +357,29 @@ def dump_summary_md(plot_name, threshold, min_count, out="summary_table.md"):
     lines.append(header)
     lines.append(sep)
 
+    tsv_rows = []
     for t in _SUMMARY_THRESHOLDS:
         marker = " \\*" if t == threshold else ""
         row = f"| {t}%{marker} |"
+        tsv_row = {"threshold": f"{t}%"}
         for cat in cats:
             sub = plot_name[plot_name[f"CATEGORY_{t}"] == cat]
             n   = len(sub)
             m   = int(sub["COUNT"].sum())
             row += f" {n:,} ({100*n/total:.1f}%) | {m:,} ({100*m/total_n:.1f}%) |"
+            tsv_row[f"{cat}_names"] = n
+            tsv_row[f"{cat}_meas"]  = m
         lines.append(row)
+        tsv_rows.append(tsv_row)
 
     lines.append(f"| **TOTAL** | **{total:,}** | | " + "| |" * (len(cats) - 1))
 
     Path(out).write_text("\n".join(lines) + "\n")
     print(f"Wrote {out}")
+
+    if out_tsv:
+        pd.DataFrame(tsv_rows).to_csv(out_tsv, sep="\t", index=False)
+        print(f"Wrote {out_tsv}")
 
 
 # ---------------------------------------------------------------------------
@@ -406,7 +434,7 @@ def _fmt_deciles(arr):
     return "[" + ",".join(f"{v:.4g}" for v in vals) + "]"
 
 
-def _run_engine(c_vals, t_vals, name, dump_dir, prevalence=None, tag_override=None):
+def _run_engine(c_vals, t_vals, name, dump_dir, plots_dir=None, prevalence=None, tag_override=None):
     """Run KS / T / MAD pipeline, save diagnostic plot, return (updates, ks, t, mad)."""
     ks_step  = injection_engine._ks(c_vals, t_vals, ks_threshold=0.3, sig_level=0.05)
     t_step   = injection_engine._t(c_vals, t_vals, sig_level=0.05)
@@ -425,7 +453,7 @@ def _run_engine(c_vals, t_vals, name, dump_dir, prevalence=None, tag_override=No
 
     result = injection_engine.PipelineResult(outcome, decided_by,
                                              [ks_step, t_step, mad_step])
-    injection_engine.plot_result(c_vals, t_vals, result, name, dump_dir,
+    injection_engine.plot_result(c_vals, t_vals, result, name, plots_dir or dump_dir,
                                  prevalence=prevalence, tag_override=tag_override)
 
     n_passed = sum(s.passed for s in [ks_step, t_step, mad_step])
@@ -445,7 +473,8 @@ def _run_engine(c_vals, t_vals, name, dump_dir, prevalence=None, tag_override=No
     return updates, ks_step, t_step, mad_step
 
 
-def run_unambiguous(parquet, plot_name, details, dump_dir, test_mode=False):
+def run_unambiguous(parquet, plot_name, details, dump_dir, plots_dir=None, test_mode=False,
+                    out="unambiguous_results.tsv"):
     os.makedirs(dump_dir, exist_ok=True)
 
     unambig = plot_name[plot_name["CATEGORY"] == "UNAMBIGUOUS"].sort_values("COUNT", ascending=False)
@@ -498,7 +527,7 @@ def run_unambiguous(parquet, plot_name, details, dump_dir, test_mode=False):
         if len(c_vals) >= 2 and len(t_vals) >= 2:
             print("engine...", end="  ", flush=True)
             updates, ks, t, mad = _run_engine(c_vals, t_vals, name, dump_dir,
-                                              prevalence=prev)
+                                              plots_dir=plots_dir, prevalence=prev)
             row.update(updates)
             print(
                 f"KS={'P' if ks.passed else 'F'}"
@@ -526,9 +555,8 @@ def run_unambiguous(parquet, plot_name, details, dump_dir, test_mode=False):
     results = pd.DataFrame(rows, columns=cols)
     for col in ("TEST_NAME", "UNIT", "OUTCOME", "NOTES"):
         results[col] = results[col].str.replace(" ", "_", regex=False)
-    results.to_csv("unambiguous_results.tsv", sep="\t", index=False,
-                   float_format="%.4g", na_rep="NA")
-    print(f"\nWrote unambiguous_results.tsv  ({len(results)} rows)")
+    results.to_csv(out, sep="\t", index=False, float_format="%.4g", na_rep="NA")
+    print(f"\nWrote {out}  ({len(results)} rows)")
     return results
 
 
@@ -550,9 +578,9 @@ def _unit_tag(unit):
     return unit.replace("/", "_").replace(" ", "_").replace("%", "pct")
 
 
-def run_ambiguous(parquet, plot_name, details, dump_dir,
+def run_ambiguous(parquet, plot_name, details, dump_dir, plots_dir=None,
                   dip_threshold=0.05, min_target_n=30, test_mode=False,
-                  split_threshold=0.15):
+                  split_threshold=0.15, out="ambiguous_results.tsv"):
     os.makedirs(dump_dir, exist_ok=True)
 
     ambig = plot_name[plot_name["CATEGORY"] == "AMBIGUOUS"].sort_values("COUNT", ascending=False)
@@ -617,7 +645,7 @@ def run_ambiguous(parquet, plot_name, details, dump_dir,
             t_vals_u = unit_data[unit]
             upd, ks, t, mad = _run_engine(
                 c_vals, t_vals_u,
-                f"{name} [all] [{unit}]", dump_dir,
+                f"{name} [all] [{unit}]", dump_dir, plots_dir=plots_dir,
                 prevalence=f"{upct:.1f}%",
                 tag_override=f"{tag}_all_{_unit_tag(unit)}",
             )
@@ -633,7 +661,7 @@ def run_ambiguous(parquet, plot_name, details, dump_dir,
 
         # Bimodal check always runs — needed for split score even when pre-check passed
         bim = injection_engine.bimodal_check(c_vals, dip_threshold=dip_threshold)
-        injection_engine.plot_bimodal_check(bim, name, dump_dir)
+        injection_engine.plot_bimodal_check(bim, name, plots_dir or dump_dir)
         print(f"  bimodal={bim.status}  sep={bim.separator:.4g}"
               f"  BC={bim.bc:.3f}  dip_p={bim.dip_p:.3g}")
 
@@ -666,7 +694,7 @@ def run_ambiguous(parquet, plot_name, details, dump_dir,
             g_score=global_ranks[0][2] if global_ranks else np.nan,
             s_score=si.get("split_score", np.nan),
             improvement=si.get("improvement", 0.0),
-            out_path=os.path.join(dump_dir, f"split_eval_{tag}.png"),
+            out_path=os.path.join(plots_dir or dump_dir, f"split_eval_{tag}.png"),
         )
 
         if any_precheck_pass and not prefer_split:
@@ -723,7 +751,7 @@ def run_ambiguous(parquet, plot_name, details, dump_dir,
                     t_vals_u = unit_data[unit]
                     upd, ks, t, mad = _run_engine(
                         c_sub, t_vals_u,
-                        f"{name} [{sub_name}] [{unit}]", dump_dir,
+                        f"{name} [{sub_name}] [{unit}]", dump_dir, plots_dir=plots_dir,
                         prevalence=f"{upct:.1f}%",
                         tag_override=f"{tag}_{sub_name}_{_unit_tag(unit)}",
                     )
@@ -762,16 +790,16 @@ def run_ambiguous(parquet, plot_name, details, dump_dir,
             .sort_values(["_rank", "UNIT_PREVALENCE"], ascending=[True, False])
             .groupby(["TEST_NAME", "SUB_DIST"])["UNIT"]
             .first()
-            .reset_index()
-            .rename(columns={"UNIT": "BEST_UNIT"}))
-    results = results.merge(best, on=["TEST_NAME", "SUB_DIST"], how="left")
-    results = results[results["UNIT"] == results["BEST_UNIT"]].drop(columns=["_rank"])
+            .reset_index())
+    results = results.merge(best.rename(columns={"UNIT": "_best_unit"}),
+                            on=["TEST_NAME", "SUB_DIST"], how="left")
+    results = results[results["UNIT"] == results["_best_unit"]].drop(columns=["_rank", "_best_unit"])
 
     col_order = [
         "TEST_NAME", "BIMODAL_STATUS", "BIMODAL_SEP", "BIMODAL_BC", "BIMODAL_DIP_P",
         "SCORE_GLOBAL", "SCORE_SPLIT", "SCORE_IMPROVEMENT",
         "SUB_DIST",
-        "UNIT", "UNIT_PREVALENCE", "PREVALENCE_DICT", "BEST_UNIT",
+        "UNIT", "UNIT_PREVALENCE", "PREVALENCE_DICT",
         "N_CANDIDATE", "N_TARGET",
         "CAND_DECILES", "TARG_DECILES",
         "KS_STAT", "KS_MLOGP", "KS_PASS",
@@ -780,14 +808,13 @@ def run_ambiguous(parquet, plot_name, details, dump_dir,
         "OUTCOME", "NOTES",
     ]
     results = results[col_order]
-    results.to_csv("ambiguous_results.tsv", sep="\t", index=False,
-                   float_format="%.4g", na_rep="NA")
+    results.to_csv(out, sep="\t", index=False, float_format="%.4g", na_rep="NA")
 
-    _print_ambig_summary(results)
+    _print_ambig_summary(results, out)
     return results
 
 
-def _print_ambig_summary(results):
+def _print_ambig_summary(results, out="ambiguous_results.tsv"):
     n_tot  = results["TEST_NAME"].nunique()
     tested = results[results["OUTCOME"] != "SKIP"]
 
@@ -805,13 +832,13 @@ def _print_ambig_summary(results):
     print()
 
     w = 40
-    print(f"  {'TEST_NAME':<{w}}  {'BIMODAL':<18}  {'SUB':<5}  {'BEST_UNIT':<14}  OUTCOME")
+    print(f"  {'TEST_NAME':<{w}}  {'BIMODAL':<18}  {'SUB':<5}  {'UNIT':<14}  OUTCOME")
     print(f"  {'-'*w}  {'-'*18}  {'-'*5}  {'-'*14}  -------")
     for _, r in best_rows.iterrows():
         print(f"  {r['TEST_NAME']:<{w}}  {r['BIMODAL_STATUS']:<18}  {r['SUB_DIST']:<5}"
-              f"  {r['BEST_UNIT']:<14}  {r['OUTCOME']}")
+              f"  {r['UNIT']:<14}  {r['OUTCOME']}")
 
-    print(f"\nWrote ambiguous_results.tsv  ({len(results)} rows, {n_tot} TEST_NAMEs)")
+    print(f"\nWrote {out}  ({len(results)} rows, {n_tot} TEST_NAMEs)")
 
 
 # ---------------------------------------------------------------------------
@@ -821,7 +848,7 @@ def _print_ambig_summary(results):
 _UNIFIED_COLS = [
     "TYPE",
     "TEST_NAME", "BIMODAL_STATUS", "BIMODAL_SEP", "BIMODAL_BC", "BIMODAL_DIP_P",
-    "SUB_DIST", "UNIT", "UNIT_PREVALENCE", "PREVALENCE_DICT", "BEST_UNIT",
+    "SUB_DIST", "CUTOFF", "UNIT", "UNIT_PREVALENCE", "PREVALENCE_DICT",
     "N_CANDIDATE", "N_TARGET",
     "CAND_DECILES", "TARG_DECILES",
     "KS_STAT", "KS_MLOGP", "KS_PASS",
@@ -831,14 +858,13 @@ _UNIFIED_COLS = [
 ]
 
 
-def _write_unified(udf, adf):
+def _write_unified(udf, adf, out="injection_results.tsv"):
     parts = []
 
     if udf is not None and len(udf):
         u = udf.copy()
         u["TYPE"]           = "unambiguous"
         u["SUB_DIST"]       = "all"
-        u["BEST_UNIT"]      = u["UNIT"]
         # Derive UNIT_PREVALENCE from the dominant unit in PREVALENCE_DICT
         def _top_pct(row):
             pairs = parse_top_units(row["PREVALENCE_DICT"], n=10)
@@ -857,11 +883,15 @@ def _write_unified(udf, adf):
     if not parts:
         return
 
-    combined = (pd.concat(parts, ignore_index=True)
-                  .reindex(columns=_UNIFIED_COLS))
-    combined.to_csv("injection_results.tsv", sep="\t", index=False,
-                    float_format="%.4g", na_rep="NA")
-    print(f"\nWrote injection_results.tsv  ({len(combined)} rows)")
+    combined = pd.concat(parts, ignore_index=True)
+    combined["CUTOFF"] = np.where(
+        combined["SUB_DIST"] == "low",
+        combined["BIMODAL_SEP"],
+        np.inf,
+    )
+    combined = combined.reindex(columns=_UNIFIED_COLS)
+    combined.to_csv(out, sep="\t", index=False, float_format="%.4g", na_rep="NA")
+    print(f"\nWrote {out}  ({len(combined)} rows)")
 
 
 # ---------------------------------------------------------------------------
@@ -919,50 +949,68 @@ def build_parser():
                    help="Hartigan dip test p-value threshold for bimodality detection")
     p.add_argument("--split-threshold", type=float, default=0.15, metavar="FLOAT",
                    help="Minimum relative KS improvement to prefer a split over the global fit")
-    p.add_argument("--omop-unit-table", default="omop_unit_table.tsv", metavar="PATH",
-                   help="Cache path for the OMOP unit table (built automatically if missing)")
+    p.add_argument("--omop-unit-table", default=None, metavar="PATH",
+                   help="Override path for the OMOP unit table cache (default: data/omop_unit_table.tsv under --out-dir)")
     p.add_argument("--min-target-n", type=int, default=30, metavar="INT",
                    help="Minimum reference records a unit must have to be tested (ambiguous pass)")
     p.add_argument("--test", action="store_true",
                    help="Limit to a small sample: one per COUNT decile (unambiguous) "
                         "and top 10 by volume (ambiguous)")
+    p.add_argument("--out-dir", default=".", metavar="PATH",
+                   help="Root output directory; doc/, plots/, data/ subdirs are created here")
     return p
 
 
 def main():
     args = build_parser().parse_args()
 
-    counts  = query_counts(args.parquet)
+    data_dir  = Path(args.out_dir)
+    doc_dir   = data_dir / "doc"
+    plots_dir = data_dir / "plots"
+    for d in (data_dir, doc_dir, plots_dir):
+        d.mkdir(parents=True, exist_ok=True)
+
+    counts  = query_counts(args.parquet, out=str(data_dir / "test_name_counts.tsv"))
     counts  = counts[counts["COUNT"] > args.min_count].reset_index(drop=True)
-    details = query_details(args.parquet)
+    details = query_details(args.parquet,
+                            counts_file=str(data_dir / "test_name_counts.tsv"),
+                            out=str(data_dir / "test_name_details.tsv"))
 
     plot_name = build_plot_table(counts, details)
     plot_name = _add_category(plot_name, args.prevalence_threshold, args.min_target_n)
-    plot_name.to_csv("plot_name_level.tsv", sep="\t", index=False)
-    print(f"Built plot_name_level.tsv  ({len(plot_name)} rows, "
+    plot_name.to_csv(data_dir / "plot_name_level.tsv", sep="\t", index=False)
+    print(f"Built {data_dir}/plot_name_level.tsv  ({len(plot_name)} rows, "
           f"min_count={args.min_count}, threshold={args.prevalence_threshold}%)")
 
-    omop_tbl = load_omop_unit_table(args.parquet, args.omop_unit_table)
+    omop_tbl = load_omop_unit_table(args.parquet,
+                                    out=args.omop_unit_table or str(data_dir / "omop_unit_table.tsv"))
     omop_cat = omop_tbl.set_index("OMOP_CONCEPT_ID")["CATEGORY"]
 
-    make_scatter_plot(plot_name)
+    make_scatter_plot(plot_name, output=str(plots_dir / "test_names_exploration_scatter.png"))
     print_summary(plot_name, args.prevalence_threshold)
-    dump_summary_md(plot_name, args.prevalence_threshold, args.min_count)
+    dump_summary_md(plot_name, args.prevalence_threshold, args.min_count,
+                    out=str(doc_dir / "summary_table.md"),
+                    out_tsv=str(data_dir / "summary_table.tsv"))
 
     omop_sub = plot_name[plot_name["OMOP_CONCEPT_ID"].notna()].copy()
     print(f"\n── OMOP-mapped subset ({len(omop_sub):,} TEST_NAMEs) ──")
     print_summary(omop_sub, args.prevalence_threshold)
     dump_summary_md(omop_sub, args.prevalence_threshold, args.min_count,
-                    out="omop_summary_table.md")
+                    out=str(doc_dir / "omop_summary_table.md"),
+                    out_tsv=str(data_dir / "omop_summary_table.tsv"))
 
     if args.inject:
         udf = run_unambiguous(args.parquet, plot_name, details, args.dump_dir,
-                              test_mode=args.test)
+                              plots_dir=str(plots_dir),
+                              test_mode=args.test,
+                              out=str(data_dir / "unambiguous_results.tsv"))
         adf = run_ambiguous(args.parquet, plot_name, details, args.dump_dir,
+                            plots_dir=str(plots_dir),
                             dip_threshold=args.dip_threshold,
                             min_target_n=args.min_target_n, test_mode=args.test,
-                            split_threshold=args.split_threshold)
-        _write_unified(udf, adf)
+                            split_threshold=args.split_threshold,
+                            out=str(data_dir / "ambiguous_results.tsv"))
+        _write_unified(udf, adf, out=str(data_dir / "injection_results.tsv"))
 
         no_data = plot_name[plot_name["CATEGORY"] == "NO_DATA"][["TEST_NAME", "COUNT", "OMOP_CONCEPT_ID"]].copy()
 
@@ -979,9 +1027,9 @@ def main():
         no_data["PREVALENCE"]  = (no_data["COUNT"] / no_data["OMOP_TOTAL_N"]).round(4)
         no_data = no_data.drop(columns=["CANONICAL_UNIT"])
 
-        no_data.to_csv("no_data_results.tsv", sep="\t", index=False, na_rep="NA")
+        no_data.to_csv(data_dir / "no_data_results.tsv", sep="\t", index=False, na_rep="NA")
         n_injected = no_data["UNIT"].notna().sum()
-        print(f"Wrote no_data_results.tsv  ({len(no_data)} rows, {n_injected} units injected via OMOP)")
+        print(f"Wrote {data_dir}/no_data_results.tsv  ({len(no_data)} rows, {n_injected} units injected via OMOP)")
 
         has_omop   = no_data["OMOP_CONCEPT_ID"].notna()
         has_unit   = no_data["UNIT"].notna()
@@ -1006,7 +1054,9 @@ def main():
         if not args.test:
             _check_coverage(plot_name, udf, adf, no_data)
 
-        print_assignment_summary(udf, adf, no_data, plot_name)
+        print_assignment_summary(udf, adf, no_data, plot_name,
+                                 out_doc=str(doc_dir / "assignment_summary.md"),
+                                 out_tsv=str(data_dir / "assignment_summary.tsv"))
 
 
 if __name__ == "__main__":
