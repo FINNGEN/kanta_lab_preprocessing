@@ -15,6 +15,7 @@ import argparse
 import os
 import re
 import json
+import shutil
 from pathlib import Path
 
 import markdown
@@ -465,7 +466,10 @@ _AMBIG_PAGE = """<!DOCTYPE html>
 def _find_scatter(data_dir: Path, out_dir: Path) -> str:
     p = data_dir / "test_names_exploration_scatter.png"
     if p.exists():
-        return os.path.relpath(p.resolve(), out_dir.resolve())
+        dest = out_dir / "test_names_exploration_scatter.png"
+        if not dest.exists():
+            shutil.copy2(p, dest)
+        return "test_names_exploration_scatter.png"
     return ""
 
 
