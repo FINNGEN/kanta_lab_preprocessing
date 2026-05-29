@@ -12,6 +12,7 @@ Usage
 """
 
 import argparse
+import json
 import os
 import re
 import subprocess
@@ -455,6 +456,8 @@ def _run_engine(c_vals, t_vals, name, dump_dir, plots_dir=None, prevalence=None,
                                              [ks_step, t_step, mad_step])
     injection_engine.plot_result(c_vals, t_vals, result, name, plots_dir or dump_dir,
                                  prevalence=prevalence, tag_override=tag_override)
+    plot_data = injection_engine.compute_plot_data(c_vals, t_vals, result,
+                                                   prevalence=prevalence)
 
     n_passed = sum(s.passed for s in [ks_step, t_step, mad_step])
     updates = dict(
@@ -470,11 +473,12 @@ def _run_engine(c_vals, t_vals, name, dump_dir, plots_dir=None, prevalence=None,
         CAND_DECILES=_fmt_deciles(c_vals),
         TARG_DECILES=_fmt_deciles(t_vals),
     )
-    return updates, ks_step, t_step, mad_step
+    return updates, ks_step, t_step, mad_step, plot_data
 
 
 def run_unambiguous(parquet, plot_name, details, dump_dir, plots_dir=None, test_mode=False,
                     out="unambiguous_results.tsv"):
+    plot_data = {}
     os.makedirs(dump_dir, exist_ok=True)
 
     unambig = plot_name[plot_name["CATEGORY"] == "UNAMBIGUOUS"].sort_values("COUNT", ascending=False)
@@ -526,9 +530,10 @@ def run_unambiguous(parquet, plot_name, details, dump_dir, plots_dir=None, test_
 
         if len(c_vals) >= 2 and len(t_vals) >= 2:
             print("engine...", end="  ", flush=True)
-            updates, ks, t, mad = _run_engine(c_vals, t_vals, name, dump_dir,
-                                              plots_dir=plots_dir, prevalence=prev)
+            updates, ks, t, mad, pd_ = _run_engine(c_vals, t_vals, name, dump_dir,
+                                                    plots_dir=plots_dir, prevalence=prev)
             row.update(updates)
+            plot_data[name] = pd_
             print(
                 f"KS={'P' if ks.passed else 'F'}"
                 f"(stat={ks.details['stat']:.3g},mlogp={updates['KS_MLOGP']:.1f},{ks.details['method']})"
@@ -557,7 +562,7 @@ def run_unambiguous(parquet, plot_name, details, dump_dir, plots_dir=None, test_
         results[col] = results[col].str.replace(" ", "_", regex=False)
     results.to_csv(out, sep="\t", index=False, float_format="%.4g", na_rep="NA")
     print(f"\nWrote {out}  ({len(results)} rows)")
-    return results
+    return results, plot_data
 
 
 # ---------------------------------------------------------------------------
@@ -582,6 +587,7 @@ def run_ambiguous(parquet, plot_name, details, dump_dir, plots_dir=None,
                   dip_threshold=0.05, min_target_n=30, test_mode=False,
                   split_threshold=0.15, out="ambiguous_results.tsv"):
     os.makedirs(dump_dir, exist_ok=True)
+    plot_data = {}
 
     ambig = plot_name[plot_name["CATEGORY"] == "AMBIGUOUS"].sort_values("COUNT", ascending=False)
     if test_mode:
@@ -643,12 +649,13 @@ def run_ambiguous(parquet, plot_name, details, dump_dir, plots_dir=None,
         precheck = []   # (unit, upct, t_vals, updates, ks_step, t_step, mad_step)
         for unit, upct in [(u, p) for u, p in top_units if u in unit_data]:
             t_vals_u = unit_data[unit]
-            upd, ks, t, mad = _run_engine(
+            upd, ks, t, mad, pd_ = _run_engine(
                 c_vals, t_vals_u,
                 f"{name} [all] [{unit}]", dump_dir, plots_dir=plots_dir,
                 prevalence=f"{upct:.1f}%",
                 tag_override=f"{tag}_all_{_unit_tag(unit)}",
             )
+            plot_data.setdefault(name, {}).setdefault("engine", {})[f"all_{unit}"] = pd_
             precheck.append((unit, upct, t_vals_u, upd, ks, t, mad))
             print(f"    [all][{unit}({upct:.1f}%)]"
                   f"  N={len(c_vals):,}/{len(t_vals_u):,}"
@@ -662,6 +669,7 @@ def run_ambiguous(parquet, plot_name, details, dump_dir, plots_dir=None,
         # Bimodal check always runs — needed for split score even when pre-check passed
         bim = injection_engine.bimodal_check(c_vals, dip_threshold=dip_threshold)
         injection_engine.plot_bimodal_check(bim, name, plots_dir or dump_dir)
+        plot_data.setdefault(name, {})["bimodal"] = injection_engine.compute_bimodal_plot_data(bim)
         print(f"  bimodal={bim.status}  sep={bim.separator:.4g}"
               f"  BC={bim.bc:.3f}  dip_p={bim.dip_p:.3g}")
 
@@ -749,12 +757,13 @@ def run_ambiguous(parquet, plot_name, details, dump_dir, plots_dir=None,
             for sub_name, c_sub in sub_dists:
                 for unit, upct in [(u, p) for u, p in top_units if u in unit_data]:
                     t_vals_u = unit_data[unit]
-                    upd, ks, t, mad = _run_engine(
+                    upd, ks, t, mad, pd_ = _run_engine(
                         c_sub, t_vals_u,
                         f"{name} [{sub_name}] [{unit}]", dump_dir, plots_dir=plots_dir,
                         prevalence=f"{upct:.1f}%",
                         tag_override=f"{tag}_{sub_name}_{_unit_tag(unit)}",
                     )
+                    plot_data.setdefault(name, {}).setdefault("engine", {})[f"{sub_name}_{unit}"] = pd_
                     rows.append(dict(
                         TEST_NAME=name,
                         BIMODAL_STATUS=bimodal_label,
@@ -811,7 +820,7 @@ def run_ambiguous(parquet, plot_name, details, dump_dir, plots_dir=None,
     results.to_csv(out, sep="\t", index=False, float_format="%.4g", na_rep="NA")
 
     _print_ambig_summary(results, out)
-    return results
+    return results, plot_data
 
 
 def _print_ambig_summary(results, out="ambiguous_results.tsv"):
@@ -848,6 +857,7 @@ def _print_ambig_summary(results, out="ambiguous_results.tsv"):
 _UNIFIED_COLS = [
     "TYPE",
     "TEST_NAME", "BIMODAL_STATUS", "BIMODAL_SEP", "BIMODAL_BC", "BIMODAL_DIP_P",
+    "SCORE_GLOBAL", "SCORE_SPLIT", "SCORE_IMPROVEMENT",
     "SUB_DIST", "CUTOFF", "UNIT", "UNIT_PREVALENCE", "PREVALENCE_DICT",
     "N_CANDIDATE", "N_TARGET",
     "CAND_DECILES", "TARG_DECILES",
@@ -1000,17 +1010,28 @@ def main():
                     out_tsv=str(data_dir / "omop_summary_table.tsv"))
 
     if args.inject:
-        udf = run_unambiguous(args.parquet, plot_name, details, args.dump_dir,
-                              plots_dir=str(plots_dir),
-                              test_mode=args.test,
-                              out=str(data_dir / "unambiguous_results.tsv"))
-        adf = run_ambiguous(args.parquet, plot_name, details, args.dump_dir,
-                            plots_dir=str(plots_dir),
-                            dip_threshold=args.dip_threshold,
-                            min_target_n=args.min_target_n, test_mode=args.test,
-                            split_threshold=args.split_threshold,
-                            out=str(data_dir / "ambiguous_results.tsv"))
+        udf, udf_plots = run_unambiguous(args.parquet, plot_name, details, args.dump_dir,
+                                         plots_dir=str(plots_dir),
+                                         test_mode=args.test,
+                                         out=str(data_dir / "unambiguous_results.tsv"))
+        adf, adf_plots = run_ambiguous(args.parquet, plot_name, details, args.dump_dir,
+                                       plots_dir=str(plots_dir),
+                                       dip_threshold=args.dip_threshold,
+                                       min_target_n=args.min_target_n, test_mode=args.test,
+                                       split_threshold=args.split_threshold,
+                                       out=str(data_dir / "ambiguous_results.tsv"))
         _write_unified(udf, adf, out=str(data_dir / "injection_results.tsv"))
+
+        all_plot_data = {**udf_plots, **adf_plots}
+        plot_data_path = data_dir / "plot_data.json"
+        class _Enc(json.JSONEncoder):
+            def default(self, o):
+                if isinstance(o, (np.bool_,)):   return bool(o)
+                if isinstance(o, np.integer):    return int(o)
+                if isinstance(o, np.floating):   return float(o)
+                return super().default(o)
+        plot_data_path.write_text(json.dumps(all_plot_data, cls=_Enc), encoding="utf-8")
+        print(f"Wrote {plot_data_path}  ({len(all_plot_data)} TEST_NAMEs)")
 
         no_data = plot_name[plot_name["CATEGORY"] == "NO_DATA"][["TEST_NAME", "COUNT", "OMOP_CONCEPT_ID"]].copy()
 

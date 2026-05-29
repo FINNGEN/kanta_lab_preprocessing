@@ -284,6 +284,45 @@ def bimodal_check(arr, dip_threshold=0.05, bc_threshold=0.555):
     return BimodalResult(status, sep, bc, dip_p, best["lognormal"], best, alt)
 
 
+def compute_bimodal_plot_data(result):
+    """Extract compact data for the bimodal diagnostic plot."""
+    if not result.fit:
+        return None
+
+    def _fit_data(fit):
+        if not fit:
+            return None
+        x   = fit["x_fit"]
+        lo, hi = float(np.percentile(x, 0.5)), float(np.percentile(x, 99.5))
+        xs  = np.linspace(lo, hi, _KDE_PTS)
+        curves = []
+        for m, s, w in zip(fit["means_native"], fit["sigmas_native"], fit["weights"]):
+            from scipy import stats as _stats
+            curves.append({"y": (w * _stats.norm.pdf(xs, m, s)).tolist(),
+                           "mean": float(m), "sigma": float(s), "weight": float(w)})
+        # histogram
+        counts, edges = np.histogram(x, bins=40, range=(lo, hi), density=True)
+        return {
+            "lognormal":  fit["lognormal"],
+            "bic":        float(fit["bic"]),
+            "sep_native": float(fit["sep_native"]) if not np.isnan(fit["sep_native"]) else None,
+            "x":          xs.tolist(),
+            "hist_counts": counts.tolist(),
+            "hist_edges":  edges.tolist(),
+            "curves":     curves,
+        }
+
+    return {
+        "status":    result.status,
+        "separator": float(result.separator) if not np.isnan(result.separator) else None,
+        "bc":        float(result.bc),
+        "dip_p":     float(result.dip_p) if not np.isnan(result.dip_p) else None,
+        "winner":    "log" if result.lognormal else "linear",
+        "linear":    _fit_data(result.fit     if not result.fit.get("lognormal") else result.fit_alt),
+        "log":       _fit_data(result.fit     if     result.fit.get("lognormal") else result.fit_alt),
+    }
+
+
 def _plot_bimodal_panel(ax, fit, is_winner, result_separator):
     """Draw one GMM panel (linear or log space) onto ax."""
     if not fit:
@@ -500,6 +539,102 @@ def _load_values(path):
 # ---------------------------------------------------------------------------
 # Diagnostics plot
 # ---------------------------------------------------------------------------
+
+_KDE_PTS  = 80   # points per KDE curve for HTML rendering
+_ECDF_PTS = 100  # points sampled from each ECDF for HTML rendering
+
+
+def compute_plot_data(candidate, target, result, prevalence=None):
+    """
+    Extract the minimal numeric data needed to reproduce the 3-panel diagnostic
+    plot in a browser.  Returns a plain dict suitable for JSON serialisation.
+    """
+    rng    = np.random.default_rng(42)
+    c_plot = _plot_sample(candidate, rng)
+    t_plot = _plot_sample(target,    rng)
+
+    ks_step  = next((s for s in result.steps if s.name == "KS"),  None)
+    t_step   = next((s for s in result.steps if s.name == "T"),   None)
+    mad_step = next((s for s in result.steps if s.name == "MAD"), None)
+
+    # --- Panel 1: ECDF (subsample to _ECDF_PTS evenly-spaced quantiles) ---
+    def _ecdf_compact(arr):
+        x, y = _ecdf(arr)
+        idx  = np.unique(np.linspace(0, len(x) - 1, _ECDF_PTS, dtype=int))
+        return x[idx].tolist(), y[idx].tolist()
+
+    cx, cy = _ecdf_compact(c_plot)
+    tx, ty = _ecdf_compact(t_plot)
+
+    ks_marker = None
+    if ks_step:
+        all_x   = np.sort(np.unique(np.concatenate([np.array(cx), np.array(tx)])))
+        c_full  = np.searchsorted(np.array(cx), all_x, side="right") / len(cx)
+        t_full  = np.searchsorted(np.array(tx), all_x, side="right") / len(tx)
+        i_max   = int(np.argmax(np.abs(c_full - t_full)))
+        ks_marker = {"x": float(all_x[i_max]),
+                     "y_lo": float(min(c_full[i_max], t_full[i_max])),
+                     "y_hi": float(max(c_full[i_max], t_full[i_max]))}
+
+    # --- Panel 2: KDE linear ---
+    def _kde_compact(arr, n=_KDE_PTS):
+        if len(arr) < 2 or np.std(arr) == 0:
+            return [], []
+        kde = stats.gaussian_kde(arr)
+        xs  = np.linspace(arr.min(), arr.max(), n)
+        return xs.tolist(), kde(xs).tolist()
+
+    c_kde_x, c_kde_y = _kde_compact(c_plot)
+    t_kde_x, t_kde_y = _kde_compact(t_plot)
+
+    # --- Panel 3: KDE log ---
+    c_pos = c_plot[c_plot > 0]
+    t_pos = t_plot[t_plot > 0]
+    c_log_x, c_log_y = _kde_compact(np.log(c_pos)) if len(c_pos) > 1 else ([], [])
+    t_log_x, t_log_y = _kde_compact(np.log(t_pos)) if len(t_pos) > 1 else ([], [])
+
+    mad_info = None
+    if mad_step:
+        d = mad_step.details
+        mad_info = {
+            "c_median":  float(d["cand_median"]),
+            "t_median":  float(d["target_median"]),
+            "threshold": float(d["threshold"]),
+            "distance":  float(d["distance"]),
+            "MAD":       float(d["MAD"]),
+            "n_mad":     float(d["n_mad"]),
+            "passed":    mad_step.passed,
+        }
+
+    return {
+        "outcome":    result.outcome,
+        "decided_by": result.decided_by,
+        "prevalence": str(prevalence) if prevalence else None,
+        "n_candidate": len(candidate),
+        "n_target":    len(target),
+        "ecdf": {
+            "c_x": cx, "c_y": cy,
+            "t_x": tx, "t_y": ty,
+            "ks_marker": ks_marker,
+            "ks": {"stat": float(ks_step.details["stat"]),
+                   "mlogp": float(-np.log10(np.clip(ks_step.details["pval"], 1e-300, 1.0))),
+                   "passed": ks_step.passed} if ks_step else None,
+        },
+        "kde_linear": {
+            "c_x": c_kde_x, "c_y": c_kde_y,
+            "t_x": t_kde_x, "t_y": t_kde_y,
+            "c_mean": float(np.mean(c_plot)),
+            "t_mean": float(np.mean(t_plot)),
+            "t": {"stat": float(t_step.details["stat"]),
+                  "mlogp": float(-np.log10(np.clip(t_step.details["pval"], 1e-300, 1.0))),
+                  "passed": t_step.passed} if t_step else None,
+        },
+        "kde_log": {
+            "c_x": c_log_x, "c_y": c_log_y,
+            "t_x": t_log_x, "t_y": t_log_y,
+            "mad": mad_info,
+        },
+    }
 
 def _ecdf(arr):
     x = np.sort(arr)

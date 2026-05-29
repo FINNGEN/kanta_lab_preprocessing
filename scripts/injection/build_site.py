@@ -12,6 +12,8 @@ to {out_dir}/.  Pass --out-dir to match what you used with explore_test_name.py.
 """
 
 import argparse
+import os
+import re
 import json
 from pathlib import Path
 
@@ -250,6 +252,212 @@ _DOC = """<!DOCTYPE html>
 """
 
 
+_AMBIG_PAGE = """<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>__TEST_NAME__</title>
+  <link rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+  <style>
+    body   { padding: 2rem; font-size: 0.9rem; }
+    nav a  { margin-right: 1.5rem; font-weight: 500; }
+    .badge-pass { background: #198754; }
+    .badge-fail { background: #dc3545; }
+    .badge-skip { background: #6c757d; }
+    .stat-label { color: #6c757d; font-size: 0.78rem; text-transform: uppercase; }
+    .stat-value { font-size: 1rem; font-weight: 600; }
+    .section-box { border: 1px solid #dee2e6; border-radius: 6px;
+                   padding: 1rem; margin-bottom: 1.5rem; }
+    .winner-box  { border-color: #198754; }
+    .chart       { width: 100%; height: 380px; }
+    .chart-bim   { width: 100%; height: 340px; }
+  </style>
+</head>
+<body>
+  <nav class="mb-3">
+    <a href="../index.html">← Results</a>
+    <a href="../doc.html">Documentation</a>
+  </nav>
+  <hr>
+
+  <div class="d-flex align-items-center gap-3 mb-3">
+    <h3 class="mb-0">__TEST_NAME__</h3>
+    <span class="text-muted">ambiguous</span>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-auto"><div class="stat-label">Bimodal status</div>
+      <div class="stat-value">__BIMODAL_STATUS__</div></div>
+    <div class="col-auto"><div class="stat-label">Split improvement</div>
+      <div class="stat-value">__SCORE_IMPROVEMENT__</div></div>
+  </div>
+
+  <p class="text-muted">__EXPLANATION__</p>
+
+  <!-- Bimodal section -->
+  <div class="section-box">
+    <h5>Bimodal check
+      <small class="text-muted ms-2" style="font-size:0.85rem">
+        winner: __BIM_WINNER__ &nbsp;|&nbsp; sep=__BIM_SEP__ &nbsp;|&nbsp;
+        BC=__BIM_BC__ &nbsp;|&nbsp; dip_p=__BIM_DIP_P__
+      </small>
+    </h5>
+    <div id="chart-bimodal" class="chart-bim"></div>
+  </div>
+
+  <!-- Engine sections (one per winning sub-dist) -->
+  __ENGINE_SECTIONS__
+
+  <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+  <script>
+  const PAGE = __PAGE_DATA_JSON__;
+
+  var BLUE   = 'steelblue';
+  var ORANGE = 'darkorange';
+
+  // ---- Bimodal chart ----
+  function renderBimodal(divId, bim) {
+    if (!bim) return;
+    var traces = [];
+    var shapes = [];
+
+    ['linear','log'].forEach(function(space, col) {
+      var f = bim[space];
+      var ax = col === 0 ? '' : '2';
+      if (!f) {
+        return;
+      }
+      // Histogram bars
+      var edges = f.hist_edges, counts = f.hist_counts;
+      var bw = edges[1] - edges[0];
+      traces.push({x: edges.slice(0,-1).map(function(e,i){return e+bw/2;}),
+                   y: counts, type:'bar', marker:{color:'rgba(70,130,180,0.4)'},
+                   name: space, xaxis:'x'+ax, yaxis:'y'+ax, showlegend:false,
+                   width: bw});
+      // GMM curves
+      f.curves.forEach(function(c, ci) {
+        traces.push({x: f.x, y: c.y, mode:'lines',
+                     line:{color: ci===0?'steelblue':'darkorange', width:2},
+                     xaxis:'x'+ax, yaxis:'y'+ax, showlegend:false});
+      });
+      // Separator
+      if (f.sep_native != null) {
+        shapes.push({type:'line', xref:'x'+ax, yref:'paper',
+                     x0:f.sep_native, x1:f.sep_native, y0:0, y1:1,
+                     line:{color:'red', width:2, dash:'dash'}});
+      }
+    });
+
+    var isLogWinner = bim.winner === 'log';
+    var layout = {
+      grid: {rows:1, columns:2, pattern:'independent'},
+      xaxis:  {title:'value'},
+      xaxis2: {title:'log(value)'},
+      yaxis:  {title:'density'}, yaxis2: {title:''},
+      shapes: shapes,
+      annotations: [
+        {xref:'x domain', yref:'y domain', x:0.98, y:0.97, xanchor:'right', yanchor:'top',
+         text: 'linear' + (!isLogWinner ? ' ✓ winner' : '') + '<br>BIC=' + (bim.linear ? bim.linear.bic.toFixed(1) : 'NA'),
+         showarrow:false, bgcolor: !isLogWinner ? 'rgba(200,255,200,0.85)' : 'rgba(240,240,240,0.8)',
+         bordercolor:'#ccc', borderwidth:1, font:{size:10}},
+        {xref:'x2 domain', yref:'y2 domain', x:0.98, y:0.97, xanchor:'right', yanchor:'top',
+         text: 'log' + (isLogWinner ? ' ✓ winner' : '') + '<br>BIC=' + (bim.log ? bim.log.bic.toFixed(1) : 'NA'),
+         showarrow:false, bgcolor: isLogWinner ? 'rgba(200,255,200,0.85)' : 'rgba(240,240,240,0.8)',
+         bordercolor:'#ccc', borderwidth:1, font:{size:10}},
+      ],
+      margin: {t:30, b:50, l:55, r:10},
+      bargap: 0.05,
+    };
+    Plotly.newPlot(divId, traces, layout, {responsive:true});
+  }
+
+  // ---- Engine chart (reused from unambiguous) ----
+  function renderEngine(divId, pd) {
+    if (!pd) return;
+    var ecdf = pd.ecdf, klin = pd.kde_linear, klog = pd.kde_log;
+    var traces = [
+      {x:ecdf.c_x, y:ecdf.c_y, mode:'lines', line:{shape:'hv',color:BLUE},
+       name:'candidate', xaxis:'x', yaxis:'y'},
+      {x:ecdf.t_x, y:ecdf.t_y, mode:'lines', line:{shape:'hv',color:ORANGE},
+       name:'target', xaxis:'x', yaxis:'y'},
+      {x:klin.c_x, y:klin.c_y, mode:'lines', fill:'tozeroy',
+       line:{color:BLUE}, fillcolor:'rgba(70,130,180,0.15)',
+       name:'candidate', xaxis:'x2', yaxis:'y2', showlegend:false},
+      {x:klin.t_x, y:klin.t_y, mode:'lines', fill:'tozeroy',
+       line:{color:ORANGE}, fillcolor:'rgba(255,165,0,0.15)',
+       name:'target', xaxis:'x2', yaxis:'y2', showlegend:false},
+      {x:klog.c_x, y:klog.c_y, mode:'lines', fill:'tozeroy',
+       line:{color:BLUE}, fillcolor:'rgba(70,130,180,0.15)',
+       name:'candidate', xaxis:'x3', yaxis:'y3', showlegend:false},
+      {x:klog.t_x, y:klog.t_y, mode:'lines', fill:'tozeroy',
+       line:{color:ORANGE}, fillcolor:'rgba(255,165,0,0.15)',
+       name:'target', xaxis:'x3', yaxis:'y3', showlegend:false},
+    ];
+    var shapes = [], annotations = [];
+    if (ecdf.ks_marker) {
+      var km = ecdf.ks_marker;
+      shapes.push({type:'line', xref:'x', yref:'y',
+                   x0:km.x, x1:km.x, y0:km.y_lo, y1:km.y_hi,
+                   line:{color:'red',width:2.5}});
+    }
+    if (klin.c_mean!=null) shapes.push({type:'line',xref:'x2',yref:'y2 domain',
+      x0:klin.c_mean,x1:klin.c_mean,y0:0,y1:1,line:{color:BLUE,width:1.5,dash:'dot'}});
+    if (klin.t_mean!=null) shapes.push({type:'line',xref:'x2',yref:'y2 domain',
+      x0:klin.t_mean,x1:klin.t_mean,y0:0,y1:1,line:{color:ORANGE,width:1.5,dash:'dot'}});
+    if (klog.mad) {
+      var m=klog.mad, lo=m.t_median-m.threshold, hi=m.t_median+m.threshold;
+      var lc=m.c_median>0?Math.log(m.c_median):null, lt=m.t_median>0?Math.log(m.t_median):null;
+      shapes.push({type:'rect',xref:'x3',yref:'y3 domain',
+                   x0:lo>0?Math.log(lo):(klog.t_x[0]||0), x1:Math.log(hi), y0:0, y1:1,
+                   fillcolor:m.passed?'rgba(50,205,50,0.15)':'rgba(250,128,114,0.15)',
+                   line:{width:0}, layer:'below'});
+      if(lc) shapes.push({type:'line',xref:'x3',yref:'y3 domain',x0:lc,x1:lc,y0:0,y1:1,
+                           line:{color:BLUE,width:1.5,dash:'dot'}});
+      if(lt) shapes.push({type:'line',xref:'x3',yref:'y3 domain',x0:lt,x1:lt,y0:0,y1:1,
+                           line:{color:ORANGE,width:1.5,dash:'dot'}});
+    }
+    function statBox(xr,yr,txt,x,y,xa,ya) {
+      return {xref:xr,yref:yr,x:x,y:y,xanchor:xa,yanchor:ya,
+              text:txt.replace(/\\n/g,'<br>'),showarrow:false,align:'left',
+              bgcolor:'rgba(255,255,200,0.85)',bordercolor:'#ccc',borderwidth:1,font:{size:10}};
+    }
+    var ks=ecdf.ks, t=klin.t, mad=klog.mad;
+    if(ks) annotations.push(statBox('x domain','y domain',
+      'KS='+ks.stat.toFixed(3)+'\\n-log10p='+ks.mlogp.toFixed(1)+'\\n→'+(ks.passed?'PASS':'FAIL'),
+      0.97,0.03,'right','bottom'));
+    if(t)  annotations.push(statBox('x2 domain','y2 domain',
+      't='+t.stat.toFixed(3)+'\\n-log10p='+t.mlogp.toFixed(1)+'\\n→'+(t.passed?'PASS':'FAIL'),
+      0.97,0.97,'right','top'));
+    else   annotations.push(statBox('x2 domain','y2 domain','t-test\\nnot reached',
+      0.97,0.97,'right','top'));
+    if(mad) annotations.push(statBox('x3 domain','y3 domain',
+      'MAD='+mad.MAD.toFixed(3)+'\\ndist='+mad.distance.toFixed(3)+
+      '\\nthr='+mad.threshold.toFixed(3)+'\\n→'+(mad.passed?'PASS':'FAIL'),
+      0.97,0.97,'right','top'));
+    else    annotations.push(statBox('x3 domain','y3 domain','MAD\\nnot reached',
+      0.97,0.97,'right','top'));
+
+    Plotly.newPlot(divId, traces, {
+      grid:{rows:1,columns:3,pattern:'independent'},
+      xaxis:{title:'value'}, xaxis2:{title:'value'}, xaxis3:{title:'log(value)'},
+      yaxis:{title:'CDF'}, yaxis2:{title:'density'}, yaxis3:{title:'density'},
+      annotations:annotations, shapes:shapes,
+      legend:{x:1,y:0,xanchor:'right',yanchor:'bottom'}, margin:{t:30,b:50,l:55,r:10},
+    }, {responsive:true});
+  }
+
+  renderBimodal('chart-bimodal', PAGE.bimodal);
+  PAGE.sections.forEach(function(s) {
+    renderEngine('chart-' + s.chart_id, s.plot_data);
+  });
+  </script>
+</body>
+</html>
+"""
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -257,7 +465,7 @@ _DOC = """<!DOCTYPE html>
 def _find_scatter(data_dir: Path, out_dir: Path) -> str:
     p = data_dir / "test_names_exploration_scatter.png"
     if p.exists():
-        return str(p.resolve().relative_to(out_dir.resolve()))
+        return os.path.relpath(p.resolve(), out_dir.resolve())
     return ""
 
 
@@ -323,6 +531,8 @@ def build_index(out_dir: Path, data_dir: Path,
             d["width"] = f"{COL_WIDTHS[k]}px"
         if k in wide_cols:
             d["className"] = "col-wide"
+        if k == "TEST_NAME":
+            d["render"] = "__TEST_NAME_RENDER__"
         return d
 
     headers           = "".join(f"<th>{label}</th>" for _, label in cols)
@@ -334,6 +544,11 @@ def build_index(out_dir: Path, data_dir: Path,
     outcome_idx       = next((i for i, (k, _) in enumerate(cols) if k == "OUTCOME"), 3)
     scatter_path      = scatter_override if scatter_override is not None else _find_scatter(data_dir, out_dir)
 
+    # TEST_NAME render function: link to per-test page
+    test_name_render = ("function(data,type){if(type!=='display')return data;"
+                        "var slug=data.replace(/[^a-zA-Z0-9_-]/g,'_');"
+                        "return '<a href=\"tests/'+slug+'.html\">'+data+'</a>';}")
+
     html = (_INDEX
             .replace("__SCATTER_BLOCK__",     _scatter_block(scatter_path))
             .replace("__SUMMARY_SECTION__",   _summary_section(data_dir))
@@ -342,11 +557,352 @@ def build_index(out_dir: Path, data_dir: Path,
             .replace("__DATA_JSON__",         data_json)
             .replace("__COLUMNS_JSON__",      columns_json)
             .replace("__NUMERIC_COLS_JSON__",  numeric_cols_json)
-            .replace("__OUTCOME_COL_IDX__",   str(outcome_idx)))
+            .replace("__OUTCOME_COL_IDX__",   str(outcome_idx))
+            .replace('"__TEST_NAME_RENDER__"', test_name_render))
 
     out = out_dir / "index.html"
     out.write_text(html, encoding="utf-8")
     print(f"Wrote {out}  ({len(rows)} rows)")
+
+
+def _slugify(name: str) -> str:
+    return re.sub(r"[^a-zA-Z0-9_-]", "_", name)
+
+
+_TEST_PAGE = """<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>__TEST_NAME__</title>
+  <link rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+  <style>
+    body  { padding: 2rem; font-size: 0.9rem; }
+    nav a { margin-right: 1.5rem; font-weight: 500; }
+    .badge-pass { background: #198754; }
+    .badge-fail { background: #dc3545; }
+    .stat-label { color: #6c757d; font-size: 0.78rem; text-transform: uppercase; }
+    .stat-value { font-size: 1rem; font-weight: 600; }
+    #chart      { width: 100%; height: 420px; }
+  </style>
+</head>
+<body>
+  <nav class="mb-3">
+    <a href="../index.html">← Results</a>
+    <a href="../doc.html">Documentation</a>
+  </nav>
+  <hr>
+
+  <div class="d-flex align-items-center gap-3 mb-3">
+    <h3 class="mb-0">__TEST_NAME__</h3>
+    <span class="badge __OUTCOME_CLASS__ fs-6">__OUTCOME__</span>
+    <span class="text-muted">__TYPE__</span>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-auto"><div class="stat-label">Unit</div><div class="stat-value">__UNIT__</div></div>
+    <div class="col-auto"><div class="stat-label">Unit prevalence</div><div class="stat-value">__UNIT_PREV__%</div></div>
+    <div class="col-auto"><div class="stat-label">N candidate</div><div class="stat-value">__N_CAND__</div></div>
+    <div class="col-auto"><div class="stat-label">N target</div><div class="stat-value">__N_TARGET__</div></div>
+    <div class="col-auto"><div class="stat-label">Decided by</div><div class="stat-value">__DECIDED_BY__</div></div>
+  </div>
+
+  <p class="text-muted">__EXPLANATION__</p>
+
+  <div id="chart"></div>
+
+  <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+  <script>
+  const PD = __PLOT_DATA_JSON__;
+
+  var ecdf    = PD.ecdf;
+  var klin    = PD.kde_linear;
+  var klog    = PD.kde_log;
+
+  var BLUE   = 'steelblue';
+  var ORANGE = 'darkorange';
+
+  var traces = [
+    // Panel 1 — ECDF
+    {x: ecdf.c_x, y: ecdf.c_y, mode: 'lines', line: {shape: 'hv', color: BLUE},
+     name: 'candidate', xaxis: 'x', yaxis: 'y'},
+    {x: ecdf.t_x, y: ecdf.t_y, mode: 'lines', line: {shape: 'hv', color: ORANGE},
+     name: 'target', xaxis: 'x', yaxis: 'y'},
+    // Panel 2 — KDE linear
+    {x: klin.c_x, y: klin.c_y, mode: 'lines', fill: 'tozeroy',
+     line: {color: BLUE}, fillcolor: 'rgba(70,130,180,0.15)',
+     name: 'candidate', xaxis: 'x2', yaxis: 'y2', showlegend: false},
+    {x: klin.t_x, y: klin.t_y, mode: 'lines', fill: 'tozeroy',
+     line: {color: ORANGE}, fillcolor: 'rgba(255,165,0,0.15)',
+     name: 'target', xaxis: 'x2', yaxis: 'y2', showlegend: false},
+    // Panel 3 — KDE log
+    {x: klog.c_x, y: klog.c_y, mode: 'lines', fill: 'tozeroy',
+     line: {color: BLUE}, fillcolor: 'rgba(70,130,180,0.15)',
+     name: 'candidate', xaxis: 'x3', yaxis: 'y3', showlegend: false},
+    {x: klog.t_x, y: klog.t_y, mode: 'lines', fill: 'tozeroy',
+     line: {color: ORANGE}, fillcolor: 'rgba(255,165,0,0.15)',
+     name: 'target', xaxis: 'x3', yaxis: 'y3', showlegend: false},
+  ];
+
+  var shapes = [];
+  var annotations = [];
+
+  // KS marker
+  if (ecdf.ks_marker) {
+    var km = ecdf.ks_marker;
+    shapes.push({type: 'line', xref: 'x', yref: 'y',
+                 x0: km.x, x1: km.x, y0: km.y_lo, y1: km.y_hi,
+                 line: {color: 'red', width: 2.5}});
+  }
+
+  // Mean lines panel 2
+  if (klin.c_mean != null) shapes.push({type:'line', xref:'x2', yref:'y2 domain',
+    x0:klin.c_mean, x1:klin.c_mean, y0:0, y1:1,
+    line:{color:BLUE, width:1.5, dash:'dot'}});
+  if (klin.t_mean != null) shapes.push({type:'line', xref:'x2', yref:'y2 domain',
+    x0:klin.t_mean, x1:klin.t_mean, y0:0, y1:1,
+    line:{color:ORANGE, width:1.5, dash:'dot'}});
+
+  // MAD band + median lines panel 3
+  if (klog.mad) {
+    var m = klog.mad;
+    var lc = m.c_median > 0 ? Math.log(m.c_median) : null;
+    var lt = m.t_median > 0 ? Math.log(m.t_median) : null;
+    var lo = m.t_median - m.threshold;
+    var hi = m.t_median + m.threshold;
+    var bandColor = m.passed ? 'rgba(50,205,50,0.15)' : 'rgba(250,128,114,0.15)';
+    shapes.push({type:'rect', xref:'x3', yref:'y3 domain',
+                 x0: lo > 0 ? Math.log(lo) : (klog.t_x[0] || 0),
+                 x1: Math.log(hi),
+                 y0:0, y1:1, fillcolor: bandColor, line:{width:0}, layer:'below'});
+    if (lc) shapes.push({type:'line', xref:'x3', yref:'y3 domain',
+      x0:lc, x1:lc, y0:0, y1:1, line:{color:BLUE, width:1.5, dash:'dot'}});
+    if (lt) shapes.push({type:'line', xref:'x3', yref:'y3 domain',
+      x0:lt, x1:lt, y0:0, y1:1, line:{color:ORANGE, width:1.5, dash:'dot'}});
+  }
+
+  // Stat boxes as annotations
+  function statBox(xref, yref, text, x, y, xa, ya) {
+    return {xref:xref, yref:yref, x:x, y:y, xanchor:xa, yanchor:ya,
+            text: text.replace(/\\n/g,'<br>'), showarrow:false, align:'left',
+            bgcolor:'rgba(255,255,200,0.85)', bordercolor:'#ccc', borderwidth:1,
+            font:{size:10}};
+  }
+
+  var ks = ecdf.ks;
+  if (ks) annotations.push(statBox('x domain', 'y domain',
+    'KS stat=' + ks.stat.toFixed(3) + '\\n-log10p=' + ks.mlogp.toFixed(1) +
+    '\\n→ ' + (ks.passed ? 'PASS' : 'FAIL'),
+    0.97, 0.03, 'right', 'bottom'));
+
+  var t = klin.t;
+  if (t) annotations.push(statBox('x2 domain', 'y2 domain',
+    't=' + t.stat.toFixed(3) + '\\n-log10p=' + t.mlogp.toFixed(1) +
+    '\\n→ ' + (t.passed ? 'PASS' : 'FAIL'),
+    0.97, 0.97, 'right', 'top'));
+  else annotations.push(statBox('x2 domain', 'y2 domain', 't-test\\nnot reached',
+    0.97, 0.97, 'right', 'top'));
+
+  var mad = klog.mad;
+  if (mad) annotations.push(statBox('x3 domain', 'y3 domain',
+    'MAD=' + mad.MAD.toFixed(3) + '\\ndist=' + mad.distance.toFixed(3) +
+    '\\nthr=' + mad.threshold.toFixed(3) + '\\n→ ' + (mad.passed ? 'PASS' : 'FAIL'),
+    0.97, 0.97, 'right', 'top'));
+  else annotations.push(statBox('x3 domain', 'y3 domain', 'MAD test\\nnot reached',
+    0.97, 0.97, 'right', 'top'));
+
+  var layout = {
+    grid: {rows:1, columns:3, pattern:'independent'},
+    xaxis:  {title:'value'},
+    xaxis2: {title:'value'},
+    xaxis3: {title:'log(value)'},
+    yaxis:  {title:'cumulative probability'},
+    yaxis2: {title:'density'},
+    yaxis3: {title:'density'},
+    annotations: annotations,
+    shapes: shapes,
+    legend: {x:1, y:0, xanchor:'right', yanchor:'bottom'},
+    margin: {t:40, b:50, l:55, r:10},
+    title: {text: 'ECDFs &nbsp;&nbsp;&nbsp; KDE linear &nbsp;&nbsp;&nbsp; KDE log',
+            font: {size: 13}},
+  };
+
+  Plotly.newPlot('chart', traces, layout, {responsive: true});
+  </script>
+</body>
+</html>
+"""
+
+
+def _explanation(row, pd) -> str:
+    outcome    = row.get("OUTCOME", "")
+    decided_by = pd.get("decided_by", "")
+    unit       = row.get("UNIT", "")
+    prev       = row.get("UNIT_PREVALENCE", "")
+
+    if outcome == "PASS":
+        by_map = {
+            "KS":  f"The KS test confirmed the distributions match (stat={row.get('KS_STAT',''):.3g}, −log10p={row.get('KS_MLOGP',''):.1f}).",
+            "T":   f"The KS test was inconclusive but the Welch t-test confirmed similar means (−log10p={row.get('T_MLOGP',''):.1f}).",
+            "MAD": f"KS and t-tests were inconclusive, but the MAD test confirmed medians are within the threshold (dist={row.get('MAD_DIST',''):.3g}).",
+        }
+        desc = by_map.get(decided_by, "")
+        return (f"{prev:.1f}% of reference records use unit <b>{unit}</b>. "
+                f"{desc} Unit <b>{unit}</b> assigned.")
+    else:
+        return (f"No unit could be confidently assigned. "
+                f"The candidate distribution did not match any reference unit "
+                f"(KS stat={row.get('KS_STAT',''):.3g}, MAD dist={row.get('MAD_DIST',''):.3g}).")
+
+
+def _ambig_explanation(rows, bim_data: dict) -> str:
+    status = str(rows.iloc[0].get("BIMODAL_STATUS", ""))
+    sep    = rows.iloc[0].get("BIMODAL_SEP")
+    bc     = rows.iloc[0].get("BIMODAL_BC")
+    dip_p  = rows.iloc[0].get("BIMODAL_DIP_P")
+    impr   = rows.iloc[0].get("SCORE_IMPROVEMENT")
+
+    # Bimodal sentence
+    if status == "skipped":
+        bim_sentence = "No split was performed — the pre-check passed globally without needing to split the distribution."
+    elif status == "split_by_score":
+        impr_str = f"{impr:+.1%}" if pd.notna(impr) else "?"
+        sep_str  = f"{sep:.4g}"   if pd.notna(sep)  else "?"
+        bim_sentence = (f"The distribution was split by score improvement ({impr_str}) at cutoff {sep_str}, "
+                        f"even though the dip test did not flag bimodality.")
+    elif status in ("bimodal", "bimodal_cautious"):
+        dip_str = f"{dip_p:.3g}" if pd.notna(dip_p) else "?"
+        bc_str  = f"{bc:.3f}"   if pd.notna(bc)    else "?"
+        sep_str = f"{sep:.4g}"  if pd.notna(sep)   else "?"
+        cautious = " (modes overlap)" if status == "bimodal_cautious" else ""
+        bim_sentence = (f"Hartigan's dip test detected bimodality{cautious} "
+                        f"(dip p={dip_str}, BC={bc_str}). Distribution split at {sep_str}.")
+    else:
+        bim_sentence = ""
+
+    # Per sub-dist sentences
+    sub_sentences = []
+    for _, row in rows.iterrows():
+        sub     = str(row.get("SUB_DIST", "all"))
+        unit    = str(row.get("UNIT", ""))
+        outcome = str(row.get("OUTCOME", ""))
+        decided = str(row.get("NOTES", "")).split("_at_")[1].split("_")[0] if "_at_" in str(row.get("NOTES","")) else ""
+        prev    = row.get("UNIT_PREVALENCE")
+        prev_str = f"{prev:.1f}%" if pd.notna(prev) else "?"
+        if sub == "all":
+            label = "The full candidate distribution"
+        else:
+            label = f"The <b>{sub}</b> sub-distribution"
+        if outcome == "PASS":
+            sub_sentences.append(f"{label} matched unit <b>{unit}</b> ({prev_str} prevalence, decided by {decided}).")
+        else:
+            sub_sentences.append(f"{label} did not match any unit confidently (outcome: {outcome}).")
+
+    return " ".join(filter(None, [bim_sentence] + sub_sentences))
+
+
+def build_test_pages(out_dir: Path, data_dir: Path) -> None:
+    plot_data_path = data_dir / "plot_data.json"
+    inj_path       = data_dir / "injection_results.tsv"
+
+    if not plot_data_path.exists():
+        print(f"Skipping test pages: {plot_data_path} not found")
+        return
+    if not inj_path.exists():
+        print(f"Skipping test pages: {inj_path} not found")
+        return
+
+    plot_data = json.loads(plot_data_path.read_text())
+    df        = pd.read_csv(inj_path, sep="\t", na_values=["NA"])
+
+    # Only unambiguous rows have the ecdf key directly
+    unamb = df[df["TYPE"] == "unambiguous"].copy()
+
+    tests_dir = out_dir / "tests"
+    tests_dir.mkdir(exist_ok=True)
+
+    written = 0
+    for _, row in unamb.iterrows():
+        name = row["TEST_NAME"]
+        pd_  = plot_data.get(name)
+        if pd_ is None or "ecdf" not in pd_:
+            continue
+
+        slug    = _slugify(name)
+        outcome = str(row.get("OUTCOME", ""))
+        html = (_TEST_PAGE
+                .replace("__TEST_NAME__",     name)
+                .replace("__OUTCOME_CLASS__",  "badge-pass" if outcome == "PASS" else "badge-fail")
+                .replace("__OUTCOME__",        outcome)
+                .replace("__TYPE__",           str(row.get("TYPE", "")))
+                .replace("__UNIT__",           str(row.get("UNIT", "")))
+                .replace("__UNIT_PREV__",      f"{row.get('UNIT_PREVALENCE', 0):.1f}")
+                .replace("__N_CAND__",         f"{int(row.get('N_CANDIDATE', 0)):,}")
+                .replace("__N_TARGET__",       f"{int(row.get('N_TARGET', 0)):,}")
+                .replace("__DECIDED_BY__",     str(pd_.get("decided_by", "")))
+                .replace("__EXPLANATION__",    _explanation(row, pd_))
+                .replace("__PLOT_DATA_JSON__", json.dumps(pd_)))
+        (tests_dir / f"{slug}.html").write_text(html, encoding="utf-8")
+        written += 1
+
+    # Ambiguous pages
+    ambig_names = df[df["TYPE"] == "ambiguous"]["TEST_NAME"].unique()
+    for name in ambig_names:
+        pd_   = plot_data.get(name)
+        if pd_ is None or "engine" not in pd_:
+            continue
+
+        rows  = df[df["TEST_NAME"] == name]
+        bim   = pd_.get("bimodal") or {}
+        first = rows.iloc[0]
+
+        # Build one engine section per winning row
+        engine_sections_html = ""
+        sections_data = []
+        for _, row in rows.iterrows():
+            sub   = str(row.get("SUB_DIST", "all"))
+            unit  = str(row.get("UNIT", ""))
+            key   = f"{sub}_{unit}"
+            epd   = pd_["engine"].get(key)
+            outcome = str(row.get("OUTCOME", ""))
+            badge = "badge-pass" if outcome == "PASS" else ("badge-fail" if outcome == "FAIL" else "badge-skip")
+            chart_id = _slugify(key)
+            label = f"{sub} — {unit}"
+            engine_sections_html += (
+                f'<div class="section-box{" winner-box" if outcome=="PASS" else ""}">'
+                f'<h5>{label} <span class="badge {badge} ms-2">{outcome}</span>'
+                f'<small class="text-muted ms-3" style="font-size:0.8rem">'
+                f'N cand={int(row.get("N_CANDIDATE",0)):,} &nbsp; N target={int(row.get("N_TARGET",0)):,} &nbsp;'
+                f'unit prev={row.get("UNIT_PREVALENCE",0):.1f}%</small></h5>'
+                f'<div id="chart-{chart_id}" class="chart"></div>'
+                f'</div>'
+            )
+            sections_data.append({"chart_id": chart_id, "plot_data": epd})
+
+        bim_sep = f"{bim.get('separator'):.4g}" if bim.get('separator') is not None else "NA"
+        bim_bc  = f"{bim.get('bc'):.3f}"        if bim.get('bc')        is not None else "NA"
+        bim_dip = f"{bim.get('dip_p'):.3g}"     if bim.get('dip_p')     is not None else "NA"
+        score_impr = first.get("SCORE_IMPROVEMENT")
+        score_str  = f"{score_impr:+.1%}" if pd.notna(score_impr) else "NA"
+
+        page_data = {"bimodal": bim, "sections": sections_data}
+        html = (_AMBIG_PAGE
+                .replace("__TEST_NAME__",        name)
+                .replace("__EXPLANATION__",      _ambig_explanation(rows, bim))
+                .replace("__BIMODAL_STATUS__",   str(first.get("BIMODAL_STATUS", "NA")))
+                .replace("__SCORE_IMPROVEMENT__", score_str)
+                .replace("__BIM_WINNER__",       bim.get("winner", "NA"))
+                .replace("__BIM_SEP__",          bim_sep)
+                .replace("__BIM_BC__",           bim_bc)
+                .replace("__BIM_DIP_P__",        bim_dip)
+                .replace("__ENGINE_SECTIONS__",  engine_sections_html)
+                .replace("__PAGE_DATA_JSON__",   json.dumps(page_data)))
+        slug = _slugify(name)
+        (tests_dir / f"{slug}.html").write_text(html, encoding="utf-8")
+        written += 1
+
+    print(f"Wrote {written} test pages → {tests_dir}")
 
 
 def build_doc(out_dir: Path, readme_path: Path) -> None:
@@ -388,6 +944,7 @@ def main():
 
     build_index(out_dir, data_dir, inj_path=inj, scatter_override=scatter)
     build_doc(out_dir, readme)
+    build_test_pages(out_dir, data_dir)
 
 
 if __name__ == "__main__":
