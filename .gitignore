@@ -1,6 +1,16 @@
 finngen_qc/test/
 /scripts/test/
 
+# injection site — generated HTML (rebuilt by CI)
+scripts/injection/html/
+# injection intermediate pipeline cache files (not needed for site)
+scripts/injection/data/test_name_counts.tsv
+scripts/injection/data/test_name_details.tsv
+scripts/injection/data/omop_unit_table.tsv
+scripts/injection/data/unambiguous_results.tsv
+scripts/injection/data/ambiguous_results.tsv
+scripts/injection/data/plot_name_level.tsv
+
 #EMACS FILES
 \#*\#
 .\#*
