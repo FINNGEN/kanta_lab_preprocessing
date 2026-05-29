@@ -35,6 +35,7 @@ jobs:
 
       - name: Build site
         run: |
+          mkdir -p _site
           python3 scripts/injection/build_site.py \
             --data-dir scripts/injection/data \
             --out-dir _site
