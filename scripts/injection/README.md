@@ -29,8 +29,10 @@ python3 explore_test_name.py <parquet_file> [options]
 - `--prevalence-threshold FLOAT`: min dominant-unit prevalence (%) to classify a TEST_NAME as UNAMBIGUOUS (default: 98)
 - `--min-target-n INT`: minimum reference records a unit must have; tests below this are classified NO_DATA (default: 30)
 - `--dump-dir PATH`: cache directory for per-test `.npy` arrays (default: `/mnt/disks/data/kanta/inject/tmp/`)
+- `--omop-unit-table PATH`: cache path for the OMOP unit table; built automatically on first run (default: `omop_unit_table.tsv`)
 - `--inject`: run the injection engine (unambiguous + ambiguous + no_data passes)
 - `--dip-threshold FLOAT`: Hartigan dip test p-value threshold for bimodality (default: 0.05)
+- `--split-threshold FLOAT`: minimum relative KS improvement required to prefer a score-based split over the global fit (default: 0.15)
 - `--test`: small-sample mode — one test per COUNT decile (unambiguous) and top 10 by volume (ambiguous)
 
 ### Caching behaviour
@@ -85,6 +87,20 @@ One row per TEST_NAME. Columns include `COUNT`, `N_WITH_UNIT`, `top_prevalence`,
 
 The injection engine only runs tests classified as UNAMBIGUOUS or AMBIGUOUS. NO_DATA tests are written directly to `no_data_results.tsv`.
 
+### OMOP unit table (`omop_unit_table.tsv`)
+
+Built once from the OMOP LAB mapping files and enriched with per-concept record counts queried from the parquet file. Cached at `--omop-unit-table`. Each OMOP concept is assigned a `CATEGORY`:
+
+- `SINGLE` — only one unit observed in the OMOP data
+- `EQUIVALENT` — multiple units present but all mutually convertible; a `CANONICAL_UNIT` is available
+- `MULTIPLE` — multiple non-equivalent units; no single canonical unit can be assigned
+
+This table is used to enrich `no_data_results.tsv` with canonical units.
+
+Two summary tables are written:
+- `summary_table.md` — all TEST_NAMEs
+- `omop_summary_table.md` — OMOP-mapped subset only
+
 ---
 
 ## Step 4 — Injection engine (`--inject`)
@@ -103,18 +119,35 @@ TEST_NAMEs with `CATEGORY == AMBIGUOUS`. Only units with prevalence > 1% and at 
 
 Pipeline per TEST_NAME:
 
-1. **Pre-check**: run the full (unsplit) candidate distribution against each qualifying unit. If any unit passes, record those results and skip bimodality entirely.
-2. **Bimodality check** (only if pre-check fails): test the candidate distribution for bimodality (see below). If bimodal, split into low/high sub-distributions and re-run the engine on each sub-distribution × unit.
+1. **Pre-check**: run the full (unsplit) candidate distribution against each qualifying unit.
+2. **Bimodality check** (always runs, even if pre-check passed): test the candidate distribution for bimodality and compute `split_improvement` — the relative KS gain when the candidate is split at the GMM separator vs. treated globally.
+3. **Split decision**: a split is preferred if `split_improvement > --split-threshold` AND the two halves favour different best units (`same_best_unit == False`). If splitting is not preferred and any pre-check passed, the global result is kept.
+4. **Sub-distribution engine** (only if splitting is preferred): the candidate is split into low/high halves at the GMM separator and the engine is re-run on each half × unit.
 
 One row per `(TEST_NAME, SUB_DIST)` — the best unit only. Best unit selection: PASS > FAIL > SKIP, then highest `UNIT_PREVALENCE` as tiebreaker — we prefer the dominant clinical unit when two units both pass.
 
-Columns: `TEST_NAME`, `BIMODAL_STATUS`, `BIMODAL_SEP`, `BIMODAL_BC`, `BIMODAL_DIP_P`, `SUB_DIST`, `UNIT`, `UNIT_PREVALENCE`, `PREVALENCE_DICT`, `BEST_UNIT`, `N_CANDIDATE`, `N_TARGET`, `CAND_DECILES`, `TARG_DECILES`, `KS_STAT`, `KS_MLOGP`, `KS_PASS`, `T_STAT`, `T_MLOGP`, `T_PASS`, `MAD_DIST`, `MAD_THRESHOLD`, `MAD_PASS`, `OUTCOME`, `NOTES`.
+A `split_eval_{tag}.png` decision-tree figure is saved to `--dump-dir` for every TEST_NAME.
+
+Columns: `TEST_NAME`, `BIMODAL_STATUS`, `BIMODAL_SEP`, `BIMODAL_BC`, `BIMODAL_DIP_P`, `SCORE_GLOBAL`, `SCORE_SPLIT`, `SCORE_IMPROVEMENT`, `SUB_DIST`, `UNIT`, `UNIT_PREVALENCE`, `PREVALENCE_DICT`, `BEST_UNIT`, `N_CANDIDATE`, `N_TARGET`, `CAND_DECILES`, `TARG_DECILES`, `KS_STAT`, `KS_MLOGP`, `KS_PASS`, `T_STAT`, `T_MLOGP`, `T_PASS`, `MAD_DIST`, `MAD_THRESHOLD`, `MAD_PASS`, `OUTCOME`, `NOTES`.
+
+- `SCORE_GLOBAL`: best KS statistic achieved across all units on the full candidate distribution (lower = better fit)
+- `SCORE_SPLIT`: mean of the best KS statistics for the low and high sub-distributions
+- `SCORE_IMPROVEMENT`: `(SCORE_GLOBAL − SCORE_SPLIT) / SCORE_GLOBAL` — relative improvement from splitting
 
 ### No-data pass → `no_data_results.tsv`
 
-TEST_NAMEs with `CATEGORY == NO_DATA`. No engine is run; unit is left blank.
+TEST_NAMEs with `CATEGORY == NO_DATA`. No engine is run. The result is enriched with OMOP unit table information; a canonical unit is injected where the OMOP concept has category SINGLE or EQUIVALENT.
 
-Columns: `TEST_NAME`, `UNIT`
+Columns: `TEST_NAME`, `COUNT`, `OMOP_CONCEPT_ID`, `OMOP_QUANTITY`, `CATEGORY`, `N_UNITS`, `UNITS`, `CONVERSIONS`, `OMOP_TOTAL_N`, `UNIT`, `PREVALENCE`.
+
+- `CATEGORY`: OMOP unit category (`SINGLE`, `EQUIVALENT`, `MULTIPLE`, or NA)
+- `UNIT`: canonical unit from the OMOP table if available, otherwise blank
+- `PREVALENCE`: fraction of OMOP concept records that are no-unit (`COUNT / OMOP_TOTAL_N`)
+
+After writing, a breakdown is printed:
+- no OMOP — TEST_NAMEs with no concept ID
+- OMOP, unit injected — concept has SINGLE/EQUIVALENT category
+- OMOP, no unit — concept mapped but MULTIPLE or unknown unit
 
 ### Unified output → `injection_results.tsv`
 
@@ -122,7 +155,11 @@ Merge of the unambiguous and ambiguous results with a `TYPE` column (`unambiguou
 
 ### Coverage check
 
-After all three passes, a checksum validates that the union of the three output files equals the full set of TEST_NAMEs in `plot_name_level.tsv`, with no overlaps and no missing entries.
+After all three passes, a checksum validates that the union of the three output files equals the full set of TEST_NAMEs in `plot_name_level.tsv`, with no overlaps and no missing entries. Skipped in `--test` mode.
+
+### Assignment summary
+
+Printed at the end of `--inject`. Shows, for each category (UNAMBIGUOUS, AMBIGUOUS, NO_DATA) and in total, how many TEST_NAMEs and measurements received a unit (PASS rows), broken out for all TEST_NAMEs and the OMOP-mapped subset.
 
 ---
 
@@ -164,6 +201,8 @@ Both are computed in the space (linear or log) where a 2-component GMM achieves 
 | ≥ threshold | — | `unimodal` |
 | < threshold | ≥ 0.555 | `bimodal` — split into low/high |
 | < threshold | < 0.555 | `bimodal_cautious` — split, modes overlap |
-| — | — | `skipped` — pre-check passed; bimodality not tested |
+| — | — | `skipped` — pre-check passed and split not preferred |
+
+`split_by_score` is a separate label (not dip-test-derived) assigned when the split is triggered by score improvement (`SCORE_IMPROVEMENT > --split-threshold` and the two halves favour different units), regardless of dip test outcome.
 
 A diagnostic plot (`bimodal_{tag}.png`) is saved to `--dump-dir`.

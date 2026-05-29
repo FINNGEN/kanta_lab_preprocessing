@@ -945,18 +945,6 @@ def main():
     omop_tbl = load_omop_unit_table(args.parquet, args.omop_unit_table)
     omop_cat = omop_tbl.set_index("OMOP_CONCEPT_ID")["CATEGORY"]
 
-    def _plot_category(row):
-        if row["CATEGORY"] != "NO_DATA":
-            return row["CATEGORY"]
-        oid = row.get("OMOP_CONCEPT_ID")
-        if pd.isna(oid):
-            return "NO_DATA (no OMOP)"
-        cat = omop_cat.get(oid)
-        if cat in ("SINGLE", "EQUIVALENT"):
-            return "NO_DATA (OMOP unit)"
-        return "NO_DATA (OMOP only)"
-
-    plot_name["PLOT_CATEGORY"] = plot_name.apply(_plot_category, axis=1)
     make_scatter_plot(plot_name)
     print_summary(plot_name, args.prevalence_threshold)
     dump_summary_md(plot_name, args.prevalence_threshold, args.min_count)
