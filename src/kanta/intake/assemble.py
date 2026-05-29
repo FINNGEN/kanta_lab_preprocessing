@@ -98,7 +98,7 @@ def validate_input_pairs(
 def merge_by_pair(pairs: list[tuple[Path, Path]], parquet_output: str | Path) -> None:
     to_concat = []
     for path_main, path_freetext in pairs:
-        print(f"Processing {path_main} & {path_freetext}")
+        print(f"Adding horizontal merge: {path_main} & {path_freetext}")
 
         df_main = (
             pl.scan_csv(
