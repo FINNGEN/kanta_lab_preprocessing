@@ -89,12 +89,12 @@ def main(
         separator="\t",
     ).select("FINNGENID", "SEX")
 
-    print("# Concatenate + Unique + SEX join")
+    print("# Concatenate + join SEX")
     bucket_files = []
     for bucket_id in range(partition_n_buckets):
         bucket_files.append(tmp_dir_sort_dedup / f"bucket_id__{bucket_id}.parquet")
 
-    (
+    df_concat = (
         pl.scan_parquet(bucket_files)
         # Join SEX
         .join(
@@ -105,7 +105,32 @@ def main(
             maintain_order="left",
         )
         .with_row_index(name="_rowid", offset=1)
-        .sink_parquet(output_file)
+    )
+
+    print("# Sanitize text fields")
+
+    unicode_newline = "\u2424"  # Unicode "SYMBOL FOR NEWLINE", displayed as: ␤
+    trusted_columns = [
+        "FINNGENID",
+        "EVENT_AGE",
+        "APPROX_EVENT_DAY",
+        "TIME",
+        "asiakirjaoid_pseudo",
+        "merkintaoid_pseudo",
+        "entryoid_pseudo",
+        "load_id_pseudo",
+        "file_name_pseudo",
+        "laboratoriotutkimusoid",
+        "_rowid",
+        "_rowid_source",
+        "SEX"
+    ]
+    (
+        df_concat.with_columns(
+            pl.selectors.exclude(*trusted_columns).str.replace_all(
+                pattern="\r\n|\r|\n", value=unicode_newline
+            )
+        ).sink_parquet(output_file)
     )
 
     if not keep_intermediate_files:
@@ -212,5 +237,5 @@ if __name__ == "__main__":
         args.phenotype_file,
         args.output_file,
         partition_n_buckets=args.partition_n_buckets,
-        keep_intermediate_files=args.keep_intermediate_files
+        keep_intermediate_files=args.keep_intermediate_files,
     )
