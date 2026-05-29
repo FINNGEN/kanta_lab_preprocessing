@@ -344,6 +344,65 @@ def plot_bimodal_check(result, name, dump_dir):
 
 
 # ---------------------------------------------------------------------------
+# Split improvement scoring
+# ---------------------------------------------------------------------------
+
+def _ks_stat_only(a, b):
+    """KS statistic as a float (no p-value)."""
+    if max(len(a), len(b)) > _BINNED_KS_N:
+        return _binned_ks(a, b)[0]
+    return float(stats.ks_2samp(a, b).statistic)
+
+
+def rank_units_by_ks(c, unit_vals):
+    """
+    c         : candidate array
+    unit_vals : {unit: t_vals}
+    Returns list of (unit, ks_stat) sorted ascending by ks_stat.
+    """
+    return sorted(
+        ((unit, _ks_stat_only(c, t)) for unit, t in unit_vals.items()),
+        key=lambda x: x[1],
+    )
+
+
+def split_improvement(c_vals, c_low, c_high, unit_vals):
+    """
+    Compare size-weighted split KS against the global best KS.
+
+    unit_vals : {unit: t_vals}
+
+    Returns dict:
+      global_score, global_ranks, low_ranks, high_ranks,
+      split_score, improvement  (positive = split is better),
+      same_best_unit            (True suggests intrinsic bimodality)
+    """
+    global_ranks = rank_units_by_ks(c_vals, unit_vals)
+    global_score = global_ranks[0][1] if global_ranks else np.nan
+
+    low_ranks  = rank_units_by_ks(c_low,  unit_vals) if len(c_low)  >= 2 else []
+    high_ranks = rank_units_by_ks(c_high, unit_vals) if len(c_high) >= 2 else []
+
+    if not low_ranks or not high_ranks or np.isnan(global_score):
+        return dict(
+            global_score=global_score, global_ranks=global_ranks,
+            low_ranks=low_ranks, high_ranks=high_ranks,
+            split_score=np.nan, improvement=0.0, same_best_unit=True,
+        )
+
+    n_total = len(c_low) + len(c_high)
+    s_score = (len(c_low) * low_ranks[0][1] + len(c_high) * high_ranks[0][1]) / n_total
+    impr    = (global_score - s_score) / global_score if global_score > 0 else 0.0
+
+    return dict(
+        global_score=global_score, global_ranks=global_ranks,
+        low_ranks=low_ranks, high_ranks=high_ranks,
+        split_score=s_score, improvement=impr,
+        same_best_unit=low_ranks[0][0] == high_ranks[0][0],
+    )
+
+
+# ---------------------------------------------------------------------------
 # Pipeline
 # ---------------------------------------------------------------------------
 

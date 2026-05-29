@@ -151,6 +151,8 @@ KDE/ECDF rendering downsamples to 50k points. All statistics use the full arrays
 
 Before the ambiguous sub-distribution pass, the candidate distribution is tested for bimodality using two statistics:
 
+The candidate array is subsampled to 50,000 points before the dip test and GMM fitting (the dip test is unreliable above ~72k samples and GMM fitting is also faster at this size). All statistics and the separator are computed on this subsample.
+
 **Hartigan's dip test** (primary gate): p-value < `--dip-threshold` (default 0.05) declares non-unimodal.
 
 **Bimodality coefficient** (BC): `(skew² + 1) / (excess_kurtosis + 3(n−1)²/((n−2)(n−3)))`. Values above ~0.555 suggest bimodality.
@@ -162,5 +164,6 @@ Both are computed in the space (linear or log) where a 2-component GMM achieves 
 | ≥ threshold | — | `unimodal` |
 | < threshold | ≥ 0.555 | `bimodal` — split into low/high |
 | < threshold | < 0.555 | `bimodal_cautious` — split, modes overlap |
+| — | — | `skipped` — pre-check passed; bimodality not tested |
 
 A diagnostic plot (`bimodal_{tag}.png`) is saved to `--dump-dir`.
