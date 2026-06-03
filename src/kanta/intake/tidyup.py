@@ -123,14 +123,39 @@ def main(
         "laboratoriotutkimusoid",
         "_rowid",
         "_rowid_source",
-        "SEX"
+        "SEX",
     ]
     (
         df_concat.with_columns(
             pl.selectors.exclude(*trusted_columns).str.replace_all(
                 pattern="\r\n|\r|\n", value=unicode_newline
             )
-        ).sink_parquet(output_file)
+        )
+        # Re-order column to be somewhat backward compatible with previous implementation
+        .select(
+            "_rowid",
+            "_rowid_source",
+            "FINNGENID",
+            "EVENT_AGE",
+            "APPROX_EVENT_DAY",
+            "TIME",
+            "laboratoriotutkimusnimike",
+            "paikallinentutkimusnimike_koodi",
+            "paikallinentutkimusnimike_selite",
+            "tutkimuskoodistonjarjestelma",
+            "tutkimusvastauksentila",
+            "tutkimustulosarvo",
+            "tutkimustulosyksikko",
+            "tuloksenpoikkeavuus",
+            "viitearvoryhma",
+            "viitevalialkuarvo",
+            "viitevalialkuyksikko",
+            "viitevaliloppuarvo",
+            "viitevaliloppuyksikko",
+            "tutkimustulosteksti",
+            "SEX",
+        )
+        .sink_parquet(output_file)
     )
 
     if not keep_intermediate_files:
