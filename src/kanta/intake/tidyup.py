@@ -83,16 +83,16 @@ def main(
             .sink_parquet(tmp_dir_sort_dedup / bucket_file.name)
         )
 
+    print("# Concatenate + join SEX")
+    bucket_files = []
+    for bucket_id in range(partition_n_buckets):
+        bucket_files.append(tmp_dir_sort_dedup / f"bucket_id__{bucket_id}.parquet")
+
     df_pheno = pl.scan_csv(
         phenotype_file,
         infer_schema=False,
         separator="\t",
     ).select("FINNGENID", "SEX")
-
-    print("# Concatenate + join SEX")
-    bucket_files = []
-    for bucket_id in range(partition_n_buckets):
-        bucket_files.append(tmp_dir_sort_dedup / f"bucket_id__{bucket_id}.parquet")
 
     df_concat = (
         pl.scan_parquet(bucket_files)
@@ -204,11 +204,15 @@ def consolidate_columns(assembled_file: Path, output_file: Path) -> Path:
     rename_columns = {
         "main.FINNGENID": "FINNGENID",
         "main.EVENT_AGE": "EVENT_AGE",
-        "main.tutkimuskoodistonjarjestelma": "tutkimuskoodistonjarjestelma",
+        "main.APPROX_EVENT_DAY": "APPROX_EVENT_DAY",
+        "main.TIME": "TIME",
+        "main.laboratoriotutkimusnimike": "laboratoriotutkimusnimike",
+        "main.paikallinentutkimusnimike_koodi": "paikallinentutkimusnimike_koodi",
         "main.paikallinentutkimusnimike_selite": "paikallinentutkimusnimike_selite",
+        "main.tutkimuskoodistonjarjestelma": "tutkimuskoodistonjarjestelma",
+        "main.tutkimusvastauksentila": "tutkimusvastauksentila",
         "main.tutkimustulosarvo": "tutkimustulosarvo",
         "main.tutkimustulosyksikko": "tutkimustulosyksikko",
-        "main.tutkimusvastauksentila": "tutkimusvastauksentila",
         "main.tuloksenpoikkeavuus": "tuloksenpoikkeavuus",
         "main.viitearvoryhma": "viitearvoryhma",
         "main.viitevalialkuarvo": "viitevalialkuarvo",
@@ -216,10 +220,6 @@ def consolidate_columns(assembled_file: Path, output_file: Path) -> Path:
         "main.viitevaliloppuarvo": "viitevaliloppuarvo",
         "main.viitevaliloppuyksikko": "viitevaliloppuyksikko",
         "freetext.tutkimustulosteksti": "tutkimustulosteksti",
-        "main.paikallinentutkimusnimike_koodi": "paikallinentutkimusnimike_koodi",
-        "main.laboratoriotutkimusnimike": "laboratoriotutkimusnimike",
-        "main.APPROX_EVENT_DAY": "APPROX_EVENT_DAY",
-        "main.TIME": "TIME",
     }
 
     out_columns = list(rename_columns.keys()) + ["_rowid_source"]
@@ -244,14 +244,17 @@ def partition(assembled_file: Path, tmp_dir: Path, n_buckets):
 
 
 def sort_dedup(frame: pl.LazyFrame | pl.DataFrame):
-    return (
-        frame.sort(by=COLUMNS_UNIQUENESS_SORT)
-        # Dedup rows
-        # NOTE(Vincent 2026-05-20) The previous implementation (WDL/Python) was
-        # doing the dedup on adjacent lines. Here the deduplication is not done
-        # explicitely on adjacent lines (since polars `unique` does it on the
-        # full data), though the result should be the same.
-        .unique(subset=COLUMNS_UNIQUENESS_SORT, keep="first")
+    all_columns = frame.collect_schema().names()
+    sort_subset_columns = set(COLUMNS_UNIQUENESS_SORT)
+    other_columns = []
+    for cc in all_columns:
+        if cc not in sort_subset_columns:
+            other_columns.append(cc)
+
+    sort_full_columns = COLUMNS_UNIQUENESS_SORT + other_columns
+
+    return frame.sort(by=sort_full_columns).unique(
+        subset=COLUMNS_UNIQUENESS_SORT, keep="first", maintain_order=True
     )
 
 
