@@ -1,8 +1,0 @@
-{
-    "kanta_sort_dup.test":false,
-    "kanta_sort_dup.kanta_data":"gs://fg-3/kanta_v3/finngen_R14_kanta_laboratory_responses_internal_1.0.txt.gz",
-    "kanta_sort_dup.sex_map.min_pheno": "gs://finngen-production-library-red/finngen_R13/phenotype_1.0/data/finngen_R13_minimum_1.0.txt.gz",
-    "kanta_sort_dup.kanta_docker": "eu.gcr.io/finngen-sandbox-v3-containers/kanta:dev",
-    "kanta_sort_dup.split.n_chunks": 32,
-   
-}
