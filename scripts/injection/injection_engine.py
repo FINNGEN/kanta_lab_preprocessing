@@ -169,11 +169,13 @@ class BimodalResult:
     lognormal: bool   # which space had lower BIC
     fit: dict         # raw GMM output for the winning fit (empty dict if unavailable)
     fit_alt: dict     # raw GMM output for the losing fit (empty dict if unavailable)
+    overlap_pct: float = np.nan  # GMM overlap coefficient as % (0=perfectly separated)
 
     def __str__(self):
+        ovl = f"  overlap={self.overlap_pct:.1f}%" if not np.isnan(self.overlap_pct) else ""
         return (f"[BIMODAL] {self.status}  sep={self.separator:.4g}"
                 f"  BC={self.bc:.3f}  dip_p={self.dip_p:.3g}"
-                f"  space={'log' if self.lognormal else 'linear'}")
+                f"  space={'log' if self.lognormal else 'linear'}{ovl}")
 
 
 def _bimodality_coefficient(arr):
@@ -221,12 +223,23 @@ def _gmm_fit(arr, lognormal):
         sep_native = float(x0 - d0 * (x1 - x0) / (d1 - d0))
     else:
         sep_native = float(np.mean(means))
+    # Overlap coefficient: ∫ min(w1·f1, w2·f2) dx on a fine grid covering ±4σ from each mean
+    lo_grid = min(means[0] - 4*sigmas[0], means[1] - 4*sigmas[1])
+    hi_grid = max(means[0] + 4*sigmas[0], means[1] + 4*sigmas[1])
+    g = np.linspace(lo_grid, hi_grid, 2000)
+    overlap_coef = float(np.trapz(
+        np.minimum(weights[0] * stats.norm.pdf(g, means[0], sigmas[0]),
+                   weights[1] * stats.norm.pdf(g, means[1], sigmas[1])),
+        g,
+    ))
+
     return dict(
         separator=float(np.exp(sep_native)) if lognormal else float(sep_native),
         sep_native=sep_native,
         means_native=means, sigmas_native=sigmas, weights=weights,
         bic=float(gmm.bic(x.reshape(-1, 1))),
         bc=float(_bimodality_coefficient(x)),
+        overlap_pct=float(overlap_coef * 100),
         lognormal=lognormal,
         x_fit=x, x_orig=pos,
     )
@@ -281,7 +294,8 @@ def bimodal_check(arr, dip_threshold=0.05, bc_threshold=0.555):
         status = "bimodal" if bc >= bc_threshold else "unimodal"
 
     alt = next((f for f in fits if f is not best), {})
-    return BimodalResult(status, sep, bc, dip_p, best["lognormal"], best, alt)
+    return BimodalResult(status, sep, bc, dip_p, best["lognormal"], best, alt,
+                         overlap_pct=best.get("overlap_pct", np.nan))
 
 
 def compute_bimodal_plot_data(result):

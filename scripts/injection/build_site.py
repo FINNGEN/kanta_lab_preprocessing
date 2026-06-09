@@ -12,6 +12,7 @@ to {out_dir}/.  Pass --out-dir to match what you used with explore_test_name.py.
 """
 
 import argparse
+import gzip
 import os
 import re
 import json
@@ -31,8 +32,10 @@ COL_LABELS = {
     "TEST_NAME":        "Test name",
     "TYPE":             "Type",
     "CUTOFF":           "Cutoff",
-    "OUTCOME":          "Outcome",
     "UNIT":             "Unit",
+    "OUTCOME":          "Outcome",
+    "NOTES":            "Notes",
+    "TESTS_PASSED":     "Tests passed",
     "UNIT_PREVALENCE":  "Unit prev (%)",
     "N_CANDIDATE":      "N cand",
     "N_TARGET":         "N target",
@@ -45,7 +48,7 @@ COL_LABELS = {
     "MAD_DIST":         "MAD dist",
     "MAD_THRESHOLD":    "MAD thr",
     "MAD_PASS":         "MAD pass",
-    "NOTES":            "Notes",
+    "BIMODAL_OVERLAP":  "Overlap (%)",
 }
 
 COL_ORDER = list(COL_LABELS.keys())
@@ -65,6 +68,8 @@ COL_WIDTHS = {
     "MAD_DIST":        80,
     "MAD_THRESHOLD":   80,
     "UNIT_PREVALENCE": 90,
+    "BIMODAL_OVERLAP": 85,
+    "TESTS_PASSED":    80,
     "N_CANDIDATE":     85,
     "N_TARGET":        75,
     "SUB_DIST":        70,
@@ -269,6 +274,9 @@ _AMBIG_PAGE = """<!DOCTYPE html>
     .badge-skip { background: #6c757d; }
     .stat-label { color: #6c757d; font-size: 0.78rem; text-transform: uppercase; }
     .stat-value { font-size: 1rem; font-weight: 600; }
+    .overlap-low  { color: #198754; }
+    .overlap-mid  { color: #fd7e14; }
+    .overlap-high { color: #dc3545; font-weight: 700; }
     .section-box { border: 1px solid #dee2e6; border-radius: 6px;
                    padding: 1rem; margin-bottom: 1.5rem; }
     .winner-box  { border-color: #198754; }
@@ -293,6 +301,8 @@ _AMBIG_PAGE = """<!DOCTYPE html>
       <div class="stat-value">__BIMODAL_STATUS__</div></div>
     <div class="col-auto"><div class="stat-label">Split improvement</div>
       <div class="stat-value">__SCORE_IMPROVEMENT__</div></div>
+    <div class="col-auto"><div class="stat-label">Distribution overlap</div>
+      <div class="stat-value __OVERLAP_CLASS__">__OVERLAP_PCT__%</div></div>
   </div>
 
   <p class="text-muted">__EXPLANATION__</p>
@@ -302,7 +312,8 @@ _AMBIG_PAGE = """<!DOCTYPE html>
     <h5>Bimodal check
       <small class="text-muted ms-2" style="font-size:0.85rem">
         winner: __BIM_WINNER__ &nbsp;|&nbsp; sep=__BIM_SEP__ &nbsp;|&nbsp;
-        BC=__BIM_BC__ &nbsp;|&nbsp; dip_p=__BIM_DIP_P__
+        BC=__BIM_BC__ &nbsp;|&nbsp; dip_p=__BIM_DIP_P__ &nbsp;|&nbsp;
+        overlap=__OVERLAP_PCT__%
       </small>
     </h5>
     <div id="chart-bimodal" class="chart-bim"></div>
@@ -791,7 +802,10 @@ def _ambig_explanation(rows, bim_data: dict) -> str:
         sub     = str(row.get("SUB_DIST", "all"))
         unit    = str(row.get("UNIT", ""))
         outcome = str(row.get("OUTCOME", ""))
-        decided = str(row.get("NOTES", "")).split("_at_")[1].split("_")[0] if "_at_" in str(row.get("NOTES","")) else ""
+        decided = ("KS" if row.get("KS_PASS") == "PASS"
+                   else "T" if row.get("T_PASS") == "PASS"
+                   else "MAD" if row.get("OUTCOME") not in ("SKIP", "")
+                   else "")
         prev    = row.get("UNIT_PREVALENCE")
         prev_str = f"{prev:.1f}%" if pd.notna(prev) else "?"
         if sub == "all":
@@ -806,8 +820,17 @@ def _ambig_explanation(rows, bim_data: dict) -> str:
     return " ".join(filter(None, [bim_sentence] + sub_sentences))
 
 
+def _print_progress(current: int, total: int, prefix: str = "Building test pages") -> None:
+    width = 40
+    filled = int(width * current / total) if total else width
+    bar = "█" * filled + "░" * (width - filled)
+    pct = 100 * current / total if total else 100
+    print(f"\r{prefix}  [{bar}] {current}/{total} ({pct:.0f}%)",
+          end="\n" if current == total else "", flush=True)
+
+
 def build_test_pages(out_dir: Path, data_dir: Path) -> None:
-    plot_data_path = data_dir / "plot_data.json"
+    plot_data_path = data_dir / "plot_data.json.gz"
     inj_path       = data_dir / "injection_results.tsv"
 
     if not plot_data_path.exists():
@@ -817,7 +840,8 @@ def build_test_pages(out_dir: Path, data_dir: Path) -> None:
         print(f"Skipping test pages: {inj_path} not found")
         return
 
-    plot_data = json.loads(plot_data_path.read_text())
+    with gzip.open(plot_data_path, "rb") as fh:
+        plot_data = json.loads(fh.read())
     df        = pd.read_csv(inj_path, sep="\t", na_values=["NA"])
 
     # Only unambiguous rows have the ecdf key directly
@@ -826,13 +850,19 @@ def build_test_pages(out_dir: Path, data_dir: Path) -> None:
     tests_dir = out_dir / "tests"
     tests_dir.mkdir(exist_ok=True)
 
-    written = 0
-    for _, row in unamb.iterrows():
-        name = row["TEST_NAME"]
-        pd_  = plot_data.get(name)
-        if pd_ is None or "ecdf" not in pd_:
-            continue
+    # Pre-filter so total count is accurate
+    unamb_rows   = [(row, plot_data[row["TEST_NAME"]])
+                    for _, row in unamb.iterrows()
+                    if row["TEST_NAME"] in plot_data and "ecdf" in plot_data[row["TEST_NAME"]]]
+    ambig_names  = [n for n in df[df["TYPE"] == "ambiguous"]["TEST_NAME"].unique()
+                    if n in plot_data and "engine" in plot_data[n]]
+    total        = len(unamb_rows) + len(ambig_names)
 
+    written = 0
+    for row, pd_ in unamb_rows:
+        written += 1
+        _print_progress(written, total)
+        name = row["TEST_NAME"]
         slug    = _slugify(name)
         outcome = str(row.get("OUTCOME", ""))
         html = (_TEST_PAGE
@@ -848,15 +878,12 @@ def build_test_pages(out_dir: Path, data_dir: Path) -> None:
                 .replace("__EXPLANATION__",    _explanation(row, pd_))
                 .replace("__PLOT_DATA_JSON__", json.dumps(pd_)))
         (tests_dir / f"{slug}.html").write_text(html, encoding="utf-8")
-        written += 1
 
     # Ambiguous pages
-    ambig_names = df[df["TYPE"] == "ambiguous"]["TEST_NAME"].unique()
     for name in ambig_names:
-        pd_   = plot_data.get(name)
-        if pd_ is None or "engine" not in pd_:
-            continue
-
+        written += 1
+        _print_progress(written, total)
+        pd_   = plot_data[name]
         rows  = df[df["TEST_NAME"] == name]
         bim   = pd_.get("bimodal") or {}
         first = rows.iloc[0]
@@ -889,6 +916,12 @@ def build_test_pages(out_dir: Path, data_dir: Path) -> None:
         bim_dip = f"{bim.get('dip_p'):.3g}"     if bim.get('dip_p')     is not None else "NA"
         score_impr = first.get("SCORE_IMPROVEMENT")
         score_str  = f"{score_impr:+.1%}" if pd.notna(score_impr) else "NA"
+        overlap_val = first.get("BIMODAL_OVERLAP")
+        overlap_str = f"{overlap_val:.1f}" if pd.notna(overlap_val) else "NA"
+        overlap_cls = ("overlap-low"  if pd.notna(overlap_val) and overlap_val < 5
+                  else "overlap-mid"  if pd.notna(overlap_val) and overlap_val < 15
+                  else "overlap-high" if pd.notna(overlap_val)
+                  else "")
 
         page_data = {"bimodal": bim, "sections": sections_data}
         html = (_AMBIG_PAGE
@@ -896,6 +929,8 @@ def build_test_pages(out_dir: Path, data_dir: Path) -> None:
                 .replace("__EXPLANATION__",      _ambig_explanation(rows, bim))
                 .replace("__BIMODAL_STATUS__",   str(first.get("BIMODAL_STATUS", "NA")))
                 .replace("__SCORE_IMPROVEMENT__", score_str)
+                .replace("__OVERLAP_CLASS__",    overlap_cls)
+                .replace("__OVERLAP_PCT__",      overlap_str)
                 .replace("__BIM_WINNER__",       bim.get("winner", "NA"))
                 .replace("__BIM_SEP__",          bim_sep)
                 .replace("__BIM_BC__",           bim_bc)
@@ -904,7 +939,6 @@ def build_test_pages(out_dir: Path, data_dir: Path) -> None:
                 .replace("__PAGE_DATA_JSON__",   json.dumps(page_data)))
         slug = _slugify(name)
         (tests_dir / f"{slug}.html").write_text(html, encoding="utf-8")
-        written += 1
 
     print(f"Wrote {written} test pages → {tests_dir}")
 

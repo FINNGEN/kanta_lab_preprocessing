@@ -124,15 +124,20 @@ Pipeline per TEST_NAME:
 3. **Split decision**: a split is preferred if `split_improvement > --split-threshold` AND the two halves favour different best units (`same_best_unit == False`). If splitting is not preferred and any pre-check passed, the global result is kept.
 4. **Sub-distribution engine** (only if splitting is preferred): the candidate is split into low/high halves at the GMM separator and the engine is re-run on each half × unit.
 
-One row per `(TEST_NAME, SUB_DIST)` — the best unit only. Best unit selection: PASS > FAIL > SKIP, then highest `UNIT_PREVALENCE` as tiebreaker — we prefer the dominant clinical unit when two units both pass.
+One row per `(TEST_NAME, SUB_DIST)` — the best unit only. Best unit selection per sub-distribution:
+
+1. Deciding test quality: `PASS_at_KS` > `PASS_at_T` > `PASS_at_MAD` > `FAIL`
+2. KS statistic ascending (lower = better distributional fit) as tiebreaker within the same quality tier
+3. `UNIT_PREVALENCE` descending as final tiebreaker — prefer the clinically dominant unit when two units are otherwise equivalent
 
 A `split_eval_{tag}.png` decision-tree figure is saved to `--dump-dir` for every TEST_NAME.
 
-Columns: `TEST_NAME`, `BIMODAL_STATUS`, `BIMODAL_SEP`, `BIMODAL_BC`, `BIMODAL_DIP_P`, `SCORE_GLOBAL`, `SCORE_SPLIT`, `SCORE_IMPROVEMENT`, `SUB_DIST`, `UNIT`, `UNIT_PREVALENCE`, `PREVALENCE_DICT`, `BEST_UNIT`, `N_CANDIDATE`, `N_TARGET`, `CAND_DECILES`, `TARG_DECILES`, `KS_STAT`, `KS_MLOGP`, `KS_PASS`, `T_STAT`, `T_MLOGP`, `T_PASS`, `MAD_DIST`, `MAD_THRESHOLD`, `MAD_PASS`, `OUTCOME`, `NOTES`.
+Columns: `TEST_NAME`, `BIMODAL_STATUS`, `BIMODAL_SEP`, `BIMODAL_BC`, `BIMODAL_DIP_P`, `BIMODAL_OVERLAP`, `SCORE_GLOBAL`, `SCORE_SPLIT`, `SCORE_IMPROVEMENT`, `SUB_DIST`, `UNIT`, `UNIT_PREVALENCE`, `PREVALENCE_DICT`, `N_CANDIDATE`, `N_TARGET`, `CAND_DECILES`, `TARG_DECILES`, `KS_STAT`, `KS_MLOGP`, `KS_PASS`, `T_STAT`, `T_MLOGP`, `T_PASS`, `MAD_DIST`, `MAD_THRESHOLD`, `MAD_PASS`, `OUTCOME`, `NOTES`.
 
 - `SCORE_GLOBAL`: best KS statistic achieved across all units on the full candidate distribution (lower = better fit)
-- `SCORE_SPLIT`: mean of the best KS statistics for the low and high sub-distributions
+- `SCORE_SPLIT`: size-weighted mean of the best KS statistics for the low and high sub-distributions
 - `SCORE_IMPROVEMENT`: `(SCORE_GLOBAL − SCORE_SPLIT) / SCORE_GLOBAL` — relative improvement from splitting
+- `BIMODAL_OVERLAP`: GMM overlap coefficient expressed as a percentage. Computed as ∫ min(w₁·f₁(x), w₂·f₂(x)) dx × 100 on a fine grid covering ±4σ from each component mean, where f₁, f₂ are the Gaussian component densities and w₁, w₂ their mixture weights. A value of 0 % means the two modes are perfectly separated; values above ~5–15 % indicate meaningful overlap where values near the separator cannot be confidently assigned to either unit, with direct clinical implications (e.g. a low-mg value mislabelled as g would change the clinical interpretation by orders of magnitude). NA for unambiguous tests and for ambiguous tests where no split was performed.
 
 ### No-data pass → `no_data_results.tsv`
 
@@ -200,9 +205,17 @@ Both are computed in the space (linear or log) where a 2-component GMM achieves 
 |---|---|---|
 | ≥ threshold | — | `unimodal` |
 | < threshold | ≥ 0.555 | `bimodal` — split into low/high |
-| < threshold | < 0.555 | `bimodal_cautious` — split, modes overlap |
+| < threshold | < 0.555 | `bimodal_cautious` — split, modes may overlap |
 | — | — | `skipped` — pre-check passed and split not preferred |
 
-`split_by_score` is a separate label (not dip-test-derived) assigned when the split is triggered by score improvement (`SCORE_IMPROVEMENT > --split-threshold` and the two halves favour different units), regardless of dip test outcome.
+`split_by_score` is a separate label assigned when score improvement alone drives the split (`SCORE_IMPROVEMENT > --split-threshold` and the two halves favour different best units) but the dip test did not find bimodality. When the dip test does confirm bimodality, the `bimodal` or `bimodal_cautious` label takes priority even if score improvement is also large — so `split_by_score` strictly means "split was justified by score despite a unimodal dip result."
 
-A diagnostic plot (`bimodal_{tag}.png`) is saved to `--dump-dir`.
+The `NOTES` column in the unified output records the split rationale followed by `DIP` and `OL` metrics:
+- `split_by_bimodal at Y | DIP:p,BL:x%` — dip-test-confirmed bimodal split at separator Y
+- `split_by_bimodal_cautious at Y | DIP:p,BL:x%` — as above, with overlapping modes
+- `split_by_score (+X%) at Y | DIP:p,BL:x%` — score-driven split despite unimodal dip result
+- `NO_SPLIT` — no split performed (pre-check passed, or unimodal with no score preference)
+
+`DIP` is the Hartigan dip test p-value; `BL` is the bimodal overlap percentage (see `BIMODAL_OVERLAP` above).
+
+`BIMODAL_OVERLAP` (see above) quantifies how cleanly separated the two modes are after any split. A diagnostic plot (`bimodal_{tag}.png`) is saved to `--dump-dir`.
