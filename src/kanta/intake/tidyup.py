@@ -108,8 +108,10 @@ def main(
     )
 
     print("# Sanitize text fields")
-
-    unicode_newline = "\u2424"  # Unicode "SYMBOL FOR NEWLINE", displayed as: ␤
+    # Unicode "SYMBOL FOR NEWLINE", displayed as: ␤
+    unicode_newline = "\u2424"
+    # Unicode "SYMBOL FOR HORIZONTAL TABULATION", displayed as: ␉
+    unicode_tab = "\u2409"
     trusted_columns = [
         "FINNGENID",
         "EVENT_AGE",
@@ -127,9 +129,9 @@ def main(
     ]
     (
         df_concat.with_columns(
-            pl.selectors.exclude(*trusted_columns).str.replace_all(
-                pattern="\r\n|\r|\n", value=unicode_newline
-            )
+            pl.selectors.exclude(*trusted_columns)
+            .str.replace_all(pattern="\r\n|\r|\n", value=unicode_newline)
+            .str.replace_all(pattern="\t", value=unicode_tab, literal=True)
         )
         # Re-order column to be somewhat backward compatible with previous implementation
         .select(
