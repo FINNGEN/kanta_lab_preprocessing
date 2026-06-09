@@ -131,8 +131,22 @@ def merge_by_pair(pairs: list[tuple[Path, Path]], parquet_output: str | Path) ->
     (
         pl.concat(to_concat)
         .with_row_index(name="_rowid_source", offset=1)
+        .pipe(reorder_columns)
         .sink_parquet(parquet_output)
     )
+
+
+def reorder_columns(frame: pl.LazyFame | pl.DataFrame) -> pl.LazyFrame | pl.DataFrame:
+    column_order = (
+        ["_rowid_source"]
+        # Columns for main
+        + [COL_PREFIX_MAIN + "_rowid", COL_PREFIX_MAIN + "_filename"]
+        + [COL_PREFIX_MAIN + cc for cc in EXPECTED_COLUMNS_MAIN]
+        # Columns for freetext
+        + [COL_PREFIX_FREETEXT + "_rowid", COL_PREFIX_FREETEXT + "_filename"]
+        + [COL_PREFIX_FREETEXT + cc for cc in EXPECTED_COLUMNS_FREETEXT]
+    )
+    return frame.select(column_order)
 
 
 def check_merge_consistency(data_path: str | Path) -> bool:
