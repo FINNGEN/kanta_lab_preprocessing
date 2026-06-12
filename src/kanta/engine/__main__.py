@@ -1,13 +1,18 @@
 import warnings
+from argparse import ArgumentParser
+from pathlib import Path
+
 
 import pandas as pd
 
-from kanta import config
-from kanta.engine import injection
+from kanta.engine import output, reader
 
 
 def main():
-    injection.fake_run(config.EXAMPLE_VAR)
+    args = cli_init()
+
+    for df_chunk in reader.chunk_iterator(args.intput_file):
+        (df_chunk.pipe(output.write_files, output_dir=args.output_dir))
 
     # Efficient read
     pd.read_parquet(
@@ -23,9 +28,7 @@ def main():
         # The behavior of the filtering changes based on the engine! Only when engine is "pyarrow"
         # will the resulting rows be only the one matching the filter. Otherwise this will result
         # in a superset of requested rows.
-        filters=[
-            ('COL_A', '=', 'something')
-        ],
+        filters=[("COL_A", "=", "something")],
         # Use nullable data-types backed by pyarrow.
         # - Nullable: missing values stay as NA rather than forcing integer columns up to float or
         #   string columns into the object dtype.
@@ -33,6 +36,26 @@ def main():
         #   that direction.
         dtype_backend="pyarrow",
     )
+
+
+def cli_init():
+    parser = ArgumentParser(
+        description="Kanta Lab preprocessing pipeline: raw data ⇒ clean data."
+    )
+    parser.add_argument(
+        "--input-file",
+        type=Path,
+        help="Path to the Kanta Lab data file coming from the intake stage (Parquet)",
+        required=True,
+    )
+    parser.add_argument(
+        "--output-dir",
+        type=Path,
+        help="Directory to store the output data files.",
+        required=True
+    )
+
+    return parser.parse_args()
 
 
 def configure_pandas():
