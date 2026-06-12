@@ -1,6 +1,11 @@
 # Shared config across the project.
-EXAMPLE_VAR = [
-    1,
-    2,
-    3
+
+# =============================================================================
+# ENGINE
+# =============================================================================
+ENGINE_READ_COLUMNS = [
+    "!!!__TODO__!!!"
 ]
+
+# Number of rows per chunk when streaming the input Parquet file.
+ENGINE_CHUNK_N_LINES = 1_000_000

@@ -2,7 +2,6 @@ import warnings
 from argparse import ArgumentParser
 from pathlib import Path
 
-
 import pandas as pd
 
 from kanta.engine import output, reader
@@ -11,31 +10,21 @@ from kanta.engine import output, reader
 def main():
     args = cli_init()
 
-    for df_chunk in reader.chunk_iterator(args.intput_file):
-        (df_chunk.pipe(output.write_files, output_dir=args.output_dir))
+    for df_chunk in reader.chunk_iterator(args.input_file):
 
-    # Efficient read
-    pd.read_parquet(
-        "path-to-file.parquet",
-        engine="pyarrow",
-        # Select only the given columns, this speeds up the read quite a lot for Parquet files.
-        # The resulting DataFrame contains only the selected columns.
-        columns=["COL_A", "COL_C"],
-        # Filtering of rows.
-        # Only basic filters are available (==, =, >, >=, <, <=, !=, in, not in). This speeds up
-        # the read as well.
-        # !! WARNING !!
-        # The behavior of the filtering changes based on the engine! Only when engine is "pyarrow"
-        # will the resulting rows be only the one matching the filter. Otherwise this will result
-        # in a superset of requested rows.
-        filters=[("COL_A", "=", "something")],
-        # Use nullable data-types backed by pyarrow.
-        # - Nullable: missing values stay as NA rather than forcing integer columns up to float or
-        #   string columns into the object dtype.
-        # - pyarrow: better fit for Parquet files, and future-proofing since Pandas is moving into
-        #   that direction.
-        dtype_backend="pyarrow",
-    )
+        def noop_filter(df):
+            return df
+
+        df_chunk = (
+            df_chunk.pipe(noop_filter)
+            .pipe(noop_filter)
+            .pipe(noop_filter)
+            .pipe(noop_filter)
+            .pipe(noop_filter)
+            .pipe(noop_filter)
+        )
+
+    # TODO concat chunks for outputting
 
 
 def cli_init():
@@ -52,7 +41,7 @@ def cli_init():
         "--output-dir",
         type=Path,
         help="Directory to store the output data files.",
-        required=True
+        required=True,
     )
 
     return parser.parse_args()
