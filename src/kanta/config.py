@@ -1,5 +1,8 @@
 # Shared config across the project.
 
+import os
+
+
 # ╭────────────────────────────────────────────────────────────────────────────╮
 # │ ENGINE                                                                     │
 # ╰────────────────────────────────────────────────────────────────────────────╯
@@ -32,4 +35,4 @@ ENGINE_INPUT_COLUMNS_MAPPING = {
 }
 
 # Number of rows per chunk when streaming the input Parquet file.
-ENGINE_CHUNK_N_LINES = 1_000_000
+ENGINE_CHUNK_N_LINES = (os.process_cpu_count() or 2) * 10_000
