@@ -4,18 +4,26 @@ from pathlib import Path
 
 import pandas as pd
 
-from kanta.engine import output, reader
+from kanta import output
+from kanta.engine import reader, writer
 
 
-def main():
-    args = cli_init()
+def main(
+    input_file: Path,
+    output_file: Path,
+    tmp_dir: Path,
+    *,
+    is_test_run=False,
+):
+    # Setup
+    configure_pandas()
 
-    output.run_safety_checks(args.output_dir)
+    chunks_dir = tmp_dir / "chunks"
+    chunks_dir.mkdir()
 
-    chunks_dir = output.create_chunks_dir(args.output_dir)
-
+    # Iterate over each chunk
     for chunk_index, df_chunk in enumerate(
-        reader.chunk_iterator(args.input_file, is_test_run=args.test)
+        reader.chunk_iterator(input_file, is_test_run=is_test_run)
     ):
 
         def noop_filter(df):
@@ -30,13 +38,12 @@ def main():
             .pipe(noop_filter)
         )
 
-        output.write_chunk(df_chunk, chunks_dir, chunk_index)
+        writer.write_chunk(df_chunk, chunks_dir, chunk_index)
 
-    output_file = args.output_dir / f"{args.input_file.stem}.engine-stage.parquet"
-    output.concatenate_chunks(chunks_dir, output_file)
+    writer.concatenate_chunks(chunks_dir, output_file)
 
 
-def cli_init():
+def init_cli():
     parser = ArgumentParser(
         description="Kanta Lab preprocessing pipeline: raw data ⇒ clean data."
     )
@@ -53,10 +60,15 @@ def cli_init():
         required=False,
     )
     parser.add_argument(
-        "--output-dir",
+        "--output-file",
         type=Path,
-        help="Directory to store the output data files.",
+        help="Output file path (Parquet)",
         required=True,
+    )
+    parser.add_argument(
+        "--keep-intermediate-files",
+        help="Keep intermediate files, useful for debugging.",
+        action="store_true",
     )
 
     return parser.parse_args()
@@ -85,5 +97,17 @@ def configure_pandas():
 
 
 if __name__ == "__main__":
-    configure_pandas()
-    main()
+    args = init_cli()
+
+    output.check_safe_write(args.output_file)
+    tmp_dir = output.create_tmp_dir()
+
+    main(
+        args.input_file,
+        args.output_file,
+        tmp_dir,
+        is_test_run=args.test,
+    )
+
+    if not args.keep_intermediate_files:
+        output.teardown_dir(tmp_dir)

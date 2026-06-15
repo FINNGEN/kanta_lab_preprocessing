@@ -3,6 +3,7 @@ if __name__ == "__main__":
     from datetime import date
     from pathlib import Path
 
+    from kanta import output
     from kanta.intake import assemble
     from kanta.intake import tidyup
 
@@ -34,32 +35,40 @@ if __name__ == "__main__":
         default=24,
     )
     parser.add_argument(
-        "--debug",
-        help="Increase verbosity and keep intermediate files",
-        required=False,
+        "--keep-intermediate-files",
+        help="Keep intermediate files, useful for debugging.",
         action="store_true",
     )
 
     args = parser.parse_args()
 
-    # Assemble stage
+    # Setup
     output_file_assemble_stage = (
         args.output_dir
         / f"finngen_R14_kanta_laboratory_responses.assemble-stage.{date.today()}.parquet"
     )
-    post_assemble_file = assemble.main(
-        args.source_list_file, output_file_assemble_stage
-    )
-
-    # Tidy-up stage
     output_file_tidyup_stage = (
         args.output_dir
         / f"finngen_R14_kanta_laboratory_responses_internal_1.0_{date.today()}.parquet"
     )
+    output.check_safe_write(output_file_assemble_stage)
+    output.check_safe_write(output_file_tidyup_stage)
+
+    tmp_dir = output.create_tmp_dir()
+
+    # Assemble stage
+    assemble.main(
+        args.source_list_file, output_file_assemble_stage
+    )
+
+    # Tidy-up stage
     tidyup.main(
         output_file_assemble_stage,
         args.phenotype_file,
         output_file_tidyup_stage,
+        tmp_dir=tmp_dir,
         partition_n_buckets=args.partition_n_buckets,
-        keep_intermediate_files=args.debug,
     )
+
+    if not args.keep_intermediate_files:
+        output.teardown_dir(tmp_dir)

@@ -1,34 +1,11 @@
 import shutil
-import warnings
 from pathlib import Path
 
 import pandas as pd
 import pyarrow.parquet as pq
 
-CHUNKS_DIR_NAME = "_chunks"
 CHUNKS_FILE_TEMPLATE = "chunk_{index:06d}.parquet"
 CHUNKS_FILE_GLOB = "chunk_*.parquet"
-
-
-def run_safety_checks(output_dir: Path):
-    """Checks to run before any computation to avoid situation where output cannot be written."""
-    if output_dir.exists():
-        raise FileExistsError(
-            f"The output directory already exists at {output_dir}. Aborting."
-        )
-
-    disk_usage = shutil.disk_usage(output_dir)
-    free_in_gib = disk_usage.free >> 30
-    min_gib_warning = 50
-    if free_in_gib < min_gib_warning:
-        warnings.warn(f"Only {free_in_gib} GiB of free disk space available.")
-
-
-def create_chunks_dir(output_dir: Path) -> Path:
-    """Create a temporary directory to hold Parquet files for each chunk."""
-    chunks_dir = output_dir / CHUNKS_DIR_NAME
-    chunks_dir.mkdir(parents=True)
-    return chunks_dir
 
 
 def write_chunk(dataframe: pd.DataFrame, chunks_dir: Path, chunk_index: int) -> Path:

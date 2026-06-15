@@ -15,6 +15,8 @@ from pathlib import Path
 
 import polars as pl
 
+from kanta import output
+
 
 EXPECTED_COLUMNS_MAIN = [
     "FINNGENID",
@@ -80,8 +82,18 @@ def validate_input_pairs(
 ) -> list[tuple[Path, Path]]:
     pairs = []
     with open(source_list_file) as fp:
-        for line in fp:
+        for line_number, line in enumerate(fp, start=1):
+            # Skip blank lines (e.g. a trailing newline at end of file).
+            if not line.strip():
+                continue
+
             values = line.split(separator, maxsplit=2)
+            if len(values) != 2:
+                raise ValueError(
+                    f"Malformed source-list line {line_number} in {source_list_file}: "
+                    f"expected a main and a freetext path separated by {separator!r}, "
+                    f"got: {line.strip()!r}"
+                )
 
             main = validate_tsv_gz(values[0], source_list_file.parent)
             freetext = validate_tsv_gz(values[1], source_list_file.parent)
@@ -257,5 +269,7 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
+
+    output.check_safe_write(args.output_file)
 
     main(args.source_list_file, args.output_file)
