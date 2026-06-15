@@ -5,7 +5,7 @@ from pathlib import Path
 import pandas as pd
 
 from kanta import output, config
-from kanta.engine import pipes, reader, writer
+from kanta.engine import pipes, chunking
 
 
 def main(
@@ -23,7 +23,7 @@ def main(
 
     # Iterate over each chunk
     for chunk_index, df_chunk in enumerate(
-        reader.chunk_iterator(input_file, is_test_run=is_test_run)
+        chunking.chunk_iterator(input_file, is_test_run=is_test_run)
     ):
         df_chunk = (
             df_chunk.pipe(pipes.rename_cols, col_mapping=config.ENGINE_INPUT_COLUMNS_MAPPING)
@@ -35,9 +35,9 @@ def main(
             .pipe(pipes.noop_filter)
         )
 
-        writer.write_chunk(df_chunk, chunks_dir, chunk_index)
+        chunking.write_chunk(df_chunk, chunks_dir, chunk_index)
 
-    writer.concatenate_chunks(chunks_dir, output_file)
+    chunking.concatenate_chunks(chunks_dir, output_file)
 
 
 def init_cli():

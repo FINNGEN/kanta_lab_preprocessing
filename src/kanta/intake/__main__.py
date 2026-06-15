@@ -57,9 +57,7 @@ if __name__ == "__main__":
     tmp_dir = output.create_tmp_dir()
 
     # Assemble stage
-    assemble.main(
-        args.source_list_file, output_file_assemble_stage
-    )
+    assemble.main(args.source_list_file, output_file_assemble_stage)
 
     # Tidy-up stage
     tidyup.main(
