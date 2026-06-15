@@ -62,7 +62,7 @@ COL_PREFIX_MAIN = "main."
 COL_PREFIX_FREETEXT = "freetext."
 
 
-def main(source_list_file: Path, output_file: Path) -> Path:
+def main(source_list_file: Path, output_file: Path) -> None:
     print()
     print("=== ASSEMBLE STAGE ===")
     pairs = validate_input_pairs(source_list_file)
@@ -72,7 +72,7 @@ def main(source_list_file: Path, output_file: Path) -> Path:
 
     print("# Checking merge consistency")
     is_consistent = check_merge_consistency(output_file)
-    print("All good." if is_consistent else "!!! Inconsitent merge !!!")
+    print("All good." if is_consistent else "!!! Inconsistent merge !!!")
 
 
 def validate_input_pairs(
@@ -136,7 +136,7 @@ def merge_by_pair(pairs: list[tuple[Path, Path]], parquet_output: str | Path) ->
     )
 
 
-def reorder_columns(frame: pl.LazyFame | pl.DataFrame) -> pl.LazyFrame | pl.DataFrame:
+def reorder_columns(frame: pl.LazyFrame | pl.DataFrame) -> pl.LazyFrame | pl.DataFrame:
     column_order = (
         ["_rowid_source"]
         # Columns for main
