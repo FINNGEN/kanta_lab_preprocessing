@@ -10,7 +10,13 @@ from kanta.engine import output, reader
 def main():
     args = cli_init()
 
-    for df_chunk in reader.chunk_iterator(args.input_file):
+    output.run_safety_checks(args.output_dir)
+
+    chunks_dir = output.create_chunks_dir(args.output_dir)
+
+    for chunk_index, df_chunk in enumerate(
+        reader.chunk_iterator(args.input_file)
+    ):
 
         def noop_filter(df):
             return df
@@ -24,7 +30,10 @@ def main():
             .pipe(noop_filter)
         )
 
-    # TODO concat chunks for outputting
+        output.write_chunk(df_chunk, chunks_dir, chunk_index)
+
+    output_file = args.output_dir / f"{args.input_file.stem}.engine-stage.parquet"
+    output.concatenate_chunks(chunks_dir, output_file)
 
 
 def cli_init():
