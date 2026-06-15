@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pandas as pd
 
-from kanta import output
-from kanta.engine import reader, writer
+from kanta import output, config
+from kanta.engine import pipes, reader, writer
 
 
 def main(
@@ -25,17 +25,14 @@ def main(
     for chunk_index, df_chunk in enumerate(
         reader.chunk_iterator(input_file, is_test_run=is_test_run)
     ):
-
-        def noop_filter(df):
-            return df
-
         df_chunk = (
-            df_chunk.pipe(noop_filter)
-            .pipe(noop_filter)
-            .pipe(noop_filter)
-            .pipe(noop_filter)
-            .pipe(noop_filter)
-            .pipe(noop_filter)
+            df_chunk.pipe(pipes.rename_cols, col_mapping=config.ENGINE_INPUT_COLUMNS_MAPPING)
+            .pipe(pipes.noop_filter)
+            .pipe(pipes.noop_filter)
+            .pipe(pipes.noop_filter)
+            .pipe(pipes.noop_filter)
+            .pipe(pipes.noop_filter)
+            .pipe(pipes.noop_filter)
         )
 
         writer.write_chunk(df_chunk, chunks_dir, chunk_index)
