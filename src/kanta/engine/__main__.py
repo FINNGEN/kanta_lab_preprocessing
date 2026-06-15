@@ -15,7 +15,7 @@ def main():
     chunks_dir = output.create_chunks_dir(args.output_dir)
 
     for chunk_index, df_chunk in enumerate(
-        reader.chunk_iterator(args.input_file)
+        reader.chunk_iterator(args.input_file, is_test_run=args.test)
     ):
 
         def noop_filter(df):
@@ -45,6 +45,12 @@ def cli_init():
         type=Path,
         help="Path to the Kanta Lab data file coming from the intake stage (Parquet)",
         required=True,
+    )
+    parser.add_argument(
+        "--test",
+        action="store_true",
+        help="Process only the first chunk. Use for development.",
+        required=False,
     )
     parser.add_argument(
         "--output-dir",
