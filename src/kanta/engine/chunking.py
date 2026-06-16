@@ -10,19 +10,25 @@ from kanta import config
 
 def chunk_iterator(
     input_file: Path, *, is_test_run: bool = False
-) -> Iterator[pd.DataFrame]:
+) -> Iterator[tuple[int, pd.DataFrame]]:
     # Use pyarrow to read the Parquet file in chunks.
     parquet_file = pq.ParquetFile(input_file)
 
+    chunk_index = 0
     for batch in parquet_file.iter_batches(
         batch_size=config.ENGINE_N_LINES_PER_CHUNK,
         # Select only the given columns, this speeds up the read quite a lot for Parquet files.
         columns=config.ENGINE_READ_COLUMNS,
     ):
-        yield batch.to_pandas(
-            # Use nullable data-types backed by pyarrow.
-            types_mapper=pd.ArrowDtype
+        yield (
+            chunk_index,
+            batch.to_pandas(
+                # Use nullable data-types backed by pyarrow.
+                types_mapper=pd.ArrowDtype
+            ),
         )
+
+        chunk_index += 1
 
         # Yield only the first item when test run is ON
         if is_test_run:

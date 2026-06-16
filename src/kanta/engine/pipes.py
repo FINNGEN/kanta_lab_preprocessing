@@ -9,3 +9,15 @@ def noop_filter(df):
 
 def rename_cols(df: pd.DataFrame) -> pd.DataFrame:
     return df.rename(columns=config.RENAME_COLUMNS)
+
+
+def run_all(df: pd.DataFrame) -> pd.DataFrame:
+    return (
+        df.pipe(rename_cols)
+        .pipe(noop_filter)
+        .pipe(noop_filter)
+        .pipe(noop_filter)
+        .pipe(noop_filter)
+        .pipe(noop_filter)
+        .pipe(noop_filter)
+    )

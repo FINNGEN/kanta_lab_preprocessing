@@ -1,6 +1,5 @@
 # Shared config across the project.
 
-import os
 
 # ╭────────────────────────────────────────────────────────────────────────────╮
 # │ COMMON                                                                     │
@@ -54,6 +53,10 @@ ENGINE_READ_COLUMNS = [
 ]
 
 # Number of rows per chunk when streaming the input Parquet file.
-ENGINE_N_LINES_PER_CHUNK = (os.process_cpu_count() or 2) * 10_000
+# The value is independent of the number of CPUs: the memory used by the engine
+# is already proportional to the number of workers, so scaling the number of
+# rows per chunk by the number of workers would make the memory use scale by
+# (N workers × N workers).
+ENGINE_N_LINES_PER_CHUNK = 200_000
 ENGINE_CHUNKS_FILE_TEMPLATE = "chunk_{index:06d}.parquet"
 ENGINE_CHUNKS_FILE_GLOB = "chunk_*.parquet"
