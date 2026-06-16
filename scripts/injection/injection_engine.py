@@ -194,7 +194,7 @@ def _gmm_fit(arr, lognormal):
         pos = arr[arr > 0]
         if len(pos) < 10:
             return None
-        x = np.log(pos)
+        x = np.log10(pos)
     else:
         x = arr
         pos = arr
@@ -234,7 +234,7 @@ def _gmm_fit(arr, lognormal):
     ))
 
     return dict(
-        separator=float(np.exp(sep_native)) if lognormal else float(sep_native),
+        separator=float(10**sep_native) if lognormal else float(sep_native),
         sep_native=sep_native,
         means_native=means, sigmas_native=sigmas, weights=weights,
         bic=float(gmm.bic(x.reshape(-1, 1))),
@@ -361,7 +361,7 @@ def _plot_bimodal_panel(ax, fit, is_winner, result_separator):
                    label=f"sep={fit['sep_native']:.3g}")
 
     space = "log" if lognormal else "linear"
-    ax.set_xlabel("log(value)" if lognormal else "value")
+    ax.set_xlabel("log₁₀(value)" if lognormal else "value")
     title = f"{space} space   BIC={fit['bic']:.1f}"
     ax.set_title(title, fontweight="bold" if is_winner else "normal",
                  color="black" if is_winner else "grey")
@@ -604,8 +604,8 @@ def compute_plot_data(candidate, target, result, prevalence=None):
     # --- Panel 3: KDE log ---
     c_pos = c_plot[c_plot > 0]
     t_pos = t_plot[t_plot > 0]
-    c_log_x, c_log_y = _kde_compact(np.log(c_pos)) if len(c_pos) > 1 else ([], [])
-    t_log_x, t_log_y = _kde_compact(np.log(t_pos)) if len(t_pos) > 1 else ([], [])
+    c_log_x, c_log_y = _kde_compact(np.log10(c_pos)) if len(c_pos) > 1 else ([], [])
+    t_log_x, t_log_y = _kde_compact(np.log10(t_pos)) if len(t_pos) > 1 else ([], [])
 
     mad_info = None
     if mad_step:
@@ -783,20 +783,20 @@ def plot_result(candidate, target, result, name, dump_dir, prevalence=None,
         lo = t_med - thr
         hi = t_med + thr
         all_pos = np.concatenate([c_pos, t_pos]) if len(c_pos) and len(t_pos) else np.array([1e-6])
-        lo_log  = np.log(lo) if lo > 0 else np.log(all_pos.min()) - 1
-        hi_log  = np.log(hi) if hi > 0 else np.log(all_pos.max()) + 1
+        lo_log  = np.log10(lo) if lo > 0 else np.log10(all_pos.min()) - 1
+        hi_log  = np.log10(hi) if hi > 0 else np.log10(all_pos.max()) + 1
         band_color = "limegreen" if mad_step.passed else "salmon"
         ax.axvspan(lo_log, hi_log, alpha=0.18, color=band_color,
                    label=f"±{d['n_mad']:.0f}×MAD", zorder=0)
 
     if len(c_pos) > 1:
-        _kde(ax, np.log(c_pos), "_nolegend_", "steelblue")
+        _kde(ax, np.log10(c_pos), "_nolegend_", "steelblue")
     if len(t_pos) > 1:
-        _kde(ax, np.log(t_pos), "_nolegend_", "darkorange")
+        _kde(ax, np.log10(t_pos), "_nolegend_", "darkorange")
 
     if mad_step:
-        lc = np.log(c_med) if c_med > 0 else None
-        lt = np.log(t_med) if t_med > 0 else None
+        lc = np.log10(c_med) if c_med > 0 else None
+        lt = np.log10(t_med) if t_med > 0 else None
         if lc is not None:
             ax.axvline(lc, color="steelblue",  ls=":", lw=1.5, alpha=0.9,
                        label=f"{c_med:.3g}")
@@ -818,7 +818,7 @@ def plot_result(candidate, target, result, name, dump_dir, prevalence=None,
         kw = {**_TXT_GREY, "transform": ax.transAxes}
         ax.text(0.04, 0.96, "MAD test\nnot reached", **kw)
 
-    ax.set_xlabel("log(value)")
+    ax.set_xlabel("log₁₀(value)")
     ax.set_ylabel("density")
     ax.set_title("Distributions — log scale")
     ax.legend(fontsize=8)

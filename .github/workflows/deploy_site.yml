@@ -39,7 +39,7 @@ jobs:
           mkdir -p _site
           python3 scripts/injection/build_site.py \
             --data-dir scripts/injection/data \
-            --out-dir _site
+            --out-dir _site/injection
 
       - uses: actions/configure-pages@v4
 

@@ -448,12 +448,7 @@ def run_unambiguous(parquet, plot_name, details, dump_dir, plots_dir=None, test_
     os.makedirs(dump_dir, exist_ok=True)
 
     unambig = plot_name[plot_name["CATEGORY"] == "UNAMBIGUOUS"].sort_values("COUNT", ascending=False)
-    if isinstance(test_mode, str):
-        unambig = unambig[unambig["TEST_NAME"] == test_mode]
-        if unambig.empty:
-            print(f"  '{test_mode}' not in UNAMBIGUOUS — skipping.")
-            return pd.DataFrame(), {}
-    elif test_mode:
+    if test_mode:
         unambig = _sample_deciles(unambig)
     test_names = unambig["TEST_NAME"].tolist()
     print(f"Unambiguous TEST_NAMEs: {len(test_names)}")
@@ -562,12 +557,7 @@ def run_ambiguous(parquet, plot_name, details, dump_dir, plots_dir=None,
     plot_data = {}
 
     ambig = plot_name[plot_name["CATEGORY"] == "AMBIGUOUS"].sort_values("COUNT", ascending=False)
-    if isinstance(test_mode, str):
-        ambig = ambig[ambig["TEST_NAME"] == test_mode]
-        if ambig.empty:
-            print(f"  '{test_mode}' not in AMBIGUOUS — skipping.")
-            return None, {}
-    elif test_mode:
+    if test_mode:
         ambig = ambig.head(10)
     n_names = len(ambig)
     print(f"\nAmbiguous TEST_NAMEs: {n_names}")
@@ -765,7 +755,7 @@ def run_ambiguous(parquet, plot_name, details, dump_dir, plots_dir=None,
 
     if not rows:
         print("No ambiguous results to write.")
-        return None
+        return pd.DataFrame(), {}
 
     results = pd.DataFrame(rows)
 
@@ -1030,7 +1020,8 @@ def main():
 
     # Cached: only written on first run or when missing
     counts  = query_counts(args.parquet, out=str(out_dir / "test_name_counts.tsv"))
-    counts  = counts[counts["COUNT"] > args.min_count].reset_index(drop=True)
+    effective_min = 0 if isinstance(args.test, str) else args.min_count
+    counts  = counts[counts["COUNT"] > effective_min].reset_index(drop=True)
     details = query_details(args.parquet,
                             counts_file=str(out_dir / "test_name_counts.tsv"),
                             out=str(out_dir / "test_name_details.tsv"))
@@ -1049,15 +1040,26 @@ def main():
                     out_tsv=str(work_dir / "summary_table.tsv"))
 
     if args.inject:
+        if isinstance(args.test, str):
+            plot_name = plot_name[plot_name["TEST_NAME"] == args.test].reset_index(drop=True)
+            if plot_name.empty:
+                print(f"'{args.test}' not found in any category — check name spelling")
+                return
+
         def _out(name):
             return None if isinstance(args.test, str) else str(work_dir / name)
 
+        plots_dir = None
+        sample_mode = args.test is True
+
         udf, udf_plots = run_unambiguous(args.parquet, plot_name, details, args.dump_dir,
-                                         test_mode=args.test,
+                                         plots_dir=plots_dir,
+                                         test_mode=sample_mode,
                                          out=_out("unambiguous_results.tsv"))
         adf, adf_plots = run_ambiguous(args.parquet, plot_name, details, args.dump_dir,
+                                       plots_dir=plots_dir,
                                        dip_threshold=args.dip_threshold,
-                                       min_target_n=args.min_target_n, test_mode=args.test,
+                                       min_target_n=args.min_target_n, test_mode=sample_mode,
                                        split_threshold=args.split_threshold,
                                        out=_out("ambiguous_results.tsv"))
         combined = _write_unified(udf, adf, out=_out("injection_results.tsv"))

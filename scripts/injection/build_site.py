@@ -366,7 +366,7 @@ _AMBIG_PAGE = """<!DOCTYPE html>
     var layout = {
       grid: {rows:1, columns:2, pattern:'independent'},
       xaxis:  {title:'value'},
-      xaxis2: {title:'log(value)'},
+      xaxis2: {title:'log₁₀(value)'},
       yaxis:  {title:'density'}, yaxis2: {title:''},
       shapes: shapes,
       annotations: [
@@ -420,9 +420,9 @@ _AMBIG_PAGE = """<!DOCTYPE html>
       x0:klin.t_mean,x1:klin.t_mean,y0:0,y1:1,line:{color:ORANGE,width:1.5,dash:'dot'}});
     if (klog.mad) {
       var m=klog.mad, lo=m.t_median-m.threshold, hi=m.t_median+m.threshold;
-      var lc=m.c_median>0?Math.log(m.c_median):null, lt=m.t_median>0?Math.log(m.t_median):null;
+      var lc=m.c_median>0?Math.log10(m.c_median):null, lt=m.t_median>0?Math.log10(m.t_median):null;
       shapes.push({type:'rect',xref:'x3',yref:'y3 domain',
-                   x0:lo>0?Math.log(lo):(klog.t_x[0]||0), x1:Math.log(hi), y0:0, y1:1,
+                   x0:lo>0?Math.log10(lo):(klog.t_x[0]||0), x1:Math.log10(hi), y0:0, y1:1,
                    fillcolor:m.passed?'rgba(50,205,50,0.15)':'rgba(250,128,114,0.15)',
                    line:{width:0}, layer:'below'});
       if(lc) shapes.push({type:'line',xref:'x3',yref:'y3 domain',x0:lc,x1:lc,y0:0,y1:1,
@@ -453,7 +453,7 @@ _AMBIG_PAGE = """<!DOCTYPE html>
 
     Plotly.newPlot(divId, traces, {
       grid:{rows:1,columns:3,pattern:'independent'},
-      xaxis:{title:'value'}, xaxis2:{title:'value'}, xaxis3:{title:'log(value)'},
+      xaxis:{title:'value'}, xaxis2:{title:'value'}, xaxis3:{title:'log₁₀(value)'},
       yaxis:{title:'CDF'}, yaxis2:{title:'density'}, yaxis3:{title:'density'},
       annotations:annotations, shapes:shapes,
       legend:{x:1,y:0,xanchor:'right',yanchor:'bottom'}, margin:{t:30,b:50,l:55,r:10},
@@ -480,6 +480,10 @@ def _find_scatter(data_dir: Path, out_dir: Path) -> str:
         dest = out_dir / "test_names_exploration_scatter.png"
         if not dest.exists():
             shutil.copy2(p, dest)
+        data_dest = out_dir / "data" / "test_names_exploration_scatter.png"
+        if not data_dest.exists():
+            data_dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(p, data_dest)
         return "test_names_exploration_scatter.png"
     return ""
 
@@ -682,14 +686,14 @@ _TEST_PAGE = """<!DOCTYPE html>
   // MAD band + median lines panel 3
   if (klog.mad) {
     var m = klog.mad;
-    var lc = m.c_median > 0 ? Math.log(m.c_median) : null;
-    var lt = m.t_median > 0 ? Math.log(m.t_median) : null;
+    var lc = m.c_median > 0 ? Math.log10(m.c_median) : null;
+    var lt = m.t_median > 0 ? Math.log10(m.t_median) : null;
     var lo = m.t_median - m.threshold;
     var hi = m.t_median + m.threshold;
     var bandColor = m.passed ? 'rgba(50,205,50,0.15)' : 'rgba(250,128,114,0.15)';
     shapes.push({type:'rect', xref:'x3', yref:'y3 domain',
-                 x0: lo > 0 ? Math.log(lo) : (klog.t_x[0] || 0),
-                 x1: Math.log(hi),
+                 x0: lo > 0 ? Math.log10(lo) : (klog.t_x[0] || 0),
+                 x1: Math.log10(hi),
                  y0:0, y1:1, fillcolor: bandColor, line:{width:0}, layer:'below'});
     if (lc) shapes.push({type:'line', xref:'x3', yref:'y3 domain',
       x0:lc, x1:lc, y0:0, y1:1, line:{color:BLUE, width:1.5, dash:'dot'}});
@@ -731,7 +735,7 @@ _TEST_PAGE = """<!DOCTYPE html>
     grid: {rows:1, columns:3, pattern:'independent'},
     xaxis:  {title:'value'},
     xaxis2: {title:'value'},
-    xaxis3: {title:'log(value)'},
+    xaxis3: {title:'log₁₀(value)'},
     yaxis:  {title:'cumulative probability'},
     yaxis2: {title:'density'},
     yaxis3: {title:'density'},
@@ -961,7 +965,8 @@ def main():
         description="Build HTML site from injection pipeline outputs.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    p.add_argument("--data-dir", default=".", metavar="PATH",
+    _here = Path(__file__).parent
+    p.add_argument("--data-dir", default=str(_here / "data"), metavar="PATH",
                    help="Directory containing all pipeline outputs (TSVs, PNGs, MDs)")
     p.add_argument("--out-dir", default=None, metavar="PATH",
                    help="Directory where index.html and doc.html are written "
@@ -976,7 +981,7 @@ def main():
 
     data_dir = Path(args.data_dir)
     out_dir  = Path(args.out_dir) if args.out_dir else Path(".")
-    readme   = Path(args.readme) if args.readme else Path(__file__).parent / "README.md"
+    readme   = Path(args.readme) if args.readme else _here / "README.md"
     inj      = Path(args.injection_results) if args.injection_results else None
     scatter  = args.scatter
 

@@ -251,7 +251,7 @@ def make_figure(name, c_vals, unit_data,
         if not np.isnan(fit.get("sep_native", np.nan)):
             ax.axvline(fit["sep_native"], color="red", ls="--",
                        label=f"sep={sep:.4g}")
-        ax.set_xlabel("log(value)" if bim.lognormal else "value")
+        ax.set_xlabel("log₁₀(value)" if bim.lognormal else "value")
     ax.set_title(
         f"GMM  status={bim.status}"
         f"  BC={bim.bc:.3f}  dip_p={bim.dip_p:.3g}"
