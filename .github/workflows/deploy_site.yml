@@ -2,7 +2,7 @@ name: Deploy injection site
 
 on:
   push:
-    branches: [dev]
+    branches: [injection-dev, master]
     paths:
       - scripts/injection/data/**
       - scripts/injection/build_site.py
