@@ -479,6 +479,7 @@ def _find_scatter(data_dir: Path, out_dir: Path) -> str:
     if p.exists():
         dest = out_dir / "test_names_exploration_scatter.png"
         if not dest.exists():
+            dest.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(p, dest)
         data_dest = out_dir / "data" / "test_names_exploration_scatter.png"
         if not data_dest.exists():
