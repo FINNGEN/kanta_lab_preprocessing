@@ -2,17 +2,12 @@
 
 import os
 
-
 # ╭────────────────────────────────────────────────────────────────────────────╮
-# │ ENGINE                                                                     │
+# │ COMMON                                                                     │
 # ╰────────────────────────────────────────────────────────────────────────────╯
-# Which columns to read
-# - (key) from the input file (output of intake stage)
-# - (value) to its renamed name during processing
-ENGINE_INPUT_COLUMNS_MAPPING = {
-    #
-    "FINNGENID": "FINNGENID",
-    "EVENT_AGE": "EVENT_AGE",
+# Renaming of column names (e.g. translation from Finnish) to more descriptive names used in this
+# codebase.
+RENAME_COLUMNS = {
     "tutkimuskoodistonjarjestelma": "CODING_SYSTEM",
     "paikallinentutkimusnimike_selite": "TEST_NAME_ABBREVIATION",
     "tutkimustulosarvo": "MEASUREMENT_VALUE",
@@ -25,14 +20,40 @@ ENGINE_INPUT_COLUMNS_MAPPING = {
     "viitevaliloppuarvo": "REFERENCE_RANGE_UPPER_VALUE",
     "viitevaliloppuyksikko": "REFERENCE_RANGE_UPPER_UNIT",
     "tutkimustulosteksti": "MEASUREMENT_FREE_TEXT",
-    "paikallinentutkimusnimike_koodi": "paikallinentutkimusnimike_koodi",
-    "laboratoriotutkimusnimike": "laboratoriotutkimusnimike",
-    "APPROX_EVENT_DAY": "APPROX_EVENT_DAY",
-    "TIME": "TIME",
-    "_rowid": "_rowid",
-    "_rowid_source": "_rowid_source",
-    "SEX": "SEX",
 }
 
+
+# ╭────────────────────────────────────────────────────────────────────────────╮
+# │ ENGINE                                                                     │
+# ╰────────────────────────────────────────────────────────────────────────────╯
+# Which columns to read from the input file. This is used very early in the pipeline to limit the
+# amount of data read, so the column renaming has not been done yet, hence using the original
+# column names.
+ENGINE_READ_COLUMNS = [
+    "FINNGENID",
+    "EVENT_AGE",
+    "tutkimuskoodistonjarjestelma",
+    "paikallinentutkimusnimike_selite",
+    "tutkimustulosarvo",
+    "tutkimustulosyksikko",
+    "tutkimusvastauksentila",
+    "tuloksenpoikkeavuus",
+    "viitearvoryhma",
+    "viitevalialkuarvo",
+    "viitevalialkuyksikko",
+    "viitevaliloppuarvo",
+    "viitevaliloppuyksikko",
+    "tutkimustulosteksti",
+    "paikallinentutkimusnimike_koodi",
+    "laboratoriotutkimusnimike",
+    "APPROX_EVENT_DAY",
+    "TIME",
+    "_rowid",
+    "_rowid_source",
+    "SEX",
+]
+
 # Number of rows per chunk when streaming the input Parquet file.
-ENGINE_CHUNK_N_LINES = (os.process_cpu_count() or 2) * 10_000
+ENGINE_N_LINES_PER_CHUNK = (os.process_cpu_count() or 2) * 10_000
+ENGINE_CHUNKS_FILE_TEMPLATE = "chunk_{index:06d}.parquet"
+ENGINE_CHUNKS_FILE_GLOB = "chunk_*.parquet"

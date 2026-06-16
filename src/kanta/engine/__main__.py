@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from kanta import output, config
+from kanta import output
 from kanta.engine import pipes, chunking
 
 
@@ -26,9 +26,7 @@ def main(
         chunking.chunk_iterator(input_file, is_test_run=is_test_run)
     ):
         df_chunk = (
-            df_chunk.pipe(
-                pipes.rename_cols, col_mapping=config.ENGINE_INPUT_COLUMNS_MAPPING
-            )
+            df_chunk.pipe(pipes.rename_cols)
             .pipe(pipes.noop_filter)
             .pipe(pipes.noop_filter)
             .pipe(pipes.noop_filter)
