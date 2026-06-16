@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Unit injection results</title>
+  <link rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+  <link rel="stylesheet"
+    href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css">
+  <style>
+    body     { padding: 2rem; font-size: 0.9rem; }
+    nav a    { margin-right: 1.5rem; font-weight: 500; }
+    .scatter { text-align: center; margin-bottom: 2rem; }
+    .scatter img { max-width: 100%; max-height: 480px; }
+    .pass { color: #198754; font-weight: 600; }
+    .fail { color: #dc3545; font-weight: 600; }
+    .skip { color: #6c757d; }
+    small.hint { color: #6c757d; font-size: 0.8rem; }
+    tfoot input, thead tr.search-row input {
+                  width: 100%; font-size: 0.78rem; padding: 2px 4px;
+                  border: 1px solid #ced4da; border-radius: 3px; box-sizing: border-box; }
+    #results td, #results th { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #results td.col-wide, #results th.col-wide { white-space: normal; min-width: 160px; }
+    .summary-tables { margin-bottom: 2rem; }
+    .summary-tables h4 { margin-top: 1.2rem; font-size: 1rem; font-weight: 600; }
+    .summary-tables table { border-collapse: collapse; font-size: 0.85rem; margin-bottom: 0.5rem; }
+    .summary-tables th, .summary-tables td { border: 1px solid #dee2e6; padding: 0.25rem 0.6rem; }
+    .summary-tables th { background: #f8f9fa; }
+    .summary-tables pre { background: #f8f9fa; padding: 0.75rem; border-radius: 4px;
+                           font-size: 0.78rem; overflow-x: auto; }
+  </style>
+</head>
+<body>
+  <nav class="mb-3">
+    <a href="index.html"><b>Results</b></a>
+    <a href="doc.html">Documentation</a>
+  </nav>
+  <hr>
+  <h2>Unit injection results</h2>
+
+  <div class="scatter"><img src="../data/test_names_exploration_scatter.png" alt="Scatter: TEST_NAMEs by count and prevalence"></div>
+
+  <div class="summary-tables"><h4>Category summary</h4><p><em>Active threshold: 98% — min count: 500 — 715 TEST_NAMEs, 31,962,504 measurements</em></p>
+<table>
+<thead>
+<tr>
+<th>Threshold</th>
+<th style="text-align: right;">UNAMBIGUOUS test names</th>
+<th style="text-align: right;">UNAMBIGUOUS measurements</th>
+<th style="text-align: right;">AMBIGUOUS test names</th>
+<th style="text-align: right;">AMBIGUOUS measurements</th>
+<th style="text-align: right;">NO_DATA test names</th>
+<th style="text-align: right;">NO_DATA measurements</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>95%</td>
+<td style="text-align: right;">434 (60.7%)</td>
+<td style="text-align: right;">26,508,342 (82.9%)</td>
+<td style="text-align: right;">79 (11.0%)</td>
+<td style="text-align: right;">4,345,264 (13.6%)</td>
+<td style="text-align: right;">202 (28.3%)</td>
+<td style="text-align: right;">1,108,898 (3.5%)</td>
+</tr>
+<tr>
+<td>98% *</td>
+<td style="text-align: right;">413 (57.8%)</td>
+<td style="text-align: right;">24,979,594 (78.2%)</td>
+<td style="text-align: right;">100 (14.0%)</td>
+<td style="text-align: right;">5,874,012 (18.4%)</td>
+<td style="text-align: right;">202 (28.3%)</td>
+<td style="text-align: right;">1,108,898 (3.5%)</td>
+</tr>
+<tr>
+<td>99%</td>
+<td style="text-align: right;">392 (54.8%)</td>
+<td style="text-align: right;">22,954,996 (71.8%)</td>
+<td style="text-align: right;">121 (16.9%)</td>
+<td style="text-align: right;">7,898,610 (24.7%)</td>
+<td style="text-align: right;">202 (28.3%)</td>
+<td style="text-align: right;">1,108,898 (3.5%)</td>
+</tr>
+<tr>
+<td>100%</td>
+<td style="text-align: right;">275 (38.5%)</td>
+<td style="text-align: right;">12,745,902 (39.9%)</td>
+<td style="text-align: right;">238 (33.3%)</td>
+<td style="text-align: right;">18,107,704 (56.7%)</td>
+<td style="text-align: right;">202 (28.3%)</td>
+<td style="text-align: right;">1,108,898 (3.5%)</td>
+</tr>
+<tr>
+<td><strong>TOTAL</strong></td>
+<td style="text-align: right;"><strong>715</strong></td>
+<td style="text-align: right;"></td>
+<td style="text-align: right;"></td>
+<td style="text-align: right;"></td>
+<td style="text-align: right;"></td>
+<td style="text-align: right;"></td>
+</tr>
+</tbody>
+</table><h4>Assignment summary</h4><pre><code>
+Assignment summary (successfully assigned)
+
+                      UNAMBIGUOUS                   AMBIGUOUS                     NO_DATA                       TOTAL           
+               names                 meas   names                 meas   names                 meas   names                 meas
+              ------  -------------------  ------  -------------------  ------  -------------------  ------  -------------------
+All            10/10  2,800,937/2,800,937   10/10  5,300,918/5,300,918  28/202    285,698/1,108,898  48/222  8,387,553/9,210,753
+OMOP-mapped      9/9  2,800,434/2,800,434   10/10  5,300,918/5,300,918   28/66      285,698/802,091   47/85  8,387,050/8,903,443
+              ------  -------------------  ------  -------------------  ------  -------------------  ------  -------------------
+</code></pre></div>
+
+  <p><small class="hint">Per-column search: text columns support regex (e.g. <code>^PASS$</code>,
+  <code>mmol</code>). Numeric columns support comparisons: <code>&lt;3</code>,
+  <code>&gt;=20</code>, <code>!=0</code>. The global box top-right searches all columns with regex.</small></p>
+
+  <div style="overflow-x:auto">
+  <table id="results" class="table table-sm table-striped table-bordered" style="width:100%">
+    <thead>
+      <tr class="search-row"><th><input type="text" placeholder="Test name"></th><th><input type="text" placeholder="Type"></th><th><input type="text" placeholder="Cutoff"></th><th><input type="text" placeholder="Outcome"></th><th><input type="text" placeholder="Unit"></th><th><input type="text" placeholder="Unit prev (%)"></th><th><input type="text" placeholder="N cand"></th><th><input type="text" placeholder="N target"></th><th><input type="text" placeholder="KS stat"></th><th><input type="text" placeholder="KS −log10p"></th><th><input type="text" placeholder="KS pass"></th><th><input type="text" placeholder="T stat"></th><th><input type="text" placeholder="T −log10p"></th><th><input type="text" placeholder="T pass"></th><th><input type="text" placeholder="MAD dist"></th><th><input type="text" placeholder="MAD thr"></th><th><input type="text" placeholder="MAD pass"></th><th><input type="text" placeholder="Notes"></th></tr>
+      <tr><th>Test name</th><th>Type</th><th>Cutoff</th><th>Outcome</th><th>Unit</th><th>Unit prev (%)</th><th>N cand</th><th>N target</th><th>KS stat</th><th>KS −log10p</th><th>KS pass</th><th>T stat</th><th>T −log10p</th><th>T pass</th><th>MAD dist</th><th>MAD thr</th><th>MAD pass</th><th>Notes</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+  </div>
+
+  <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap5.min.js"></script>
+  <script>
+  const DATA        = [{"TEST_NAME": "b-eryt", "TYPE": "unambiguous", "CUTOFF": "\u221e", "OUTCOME": "PASS", "UNIT": "e12/l", "UNIT_PREVALENCE": 99.99, "N_CANDIDATE": 2702234, "N_TARGET": 8026175, "KS_STAT": 0.05101, "KS_MLOGP": 300.0, "KS_PASS": "PASS", "T_STAT": -81.68, "T_MLOGP": 300.0, "T_PASS": "FAIL", "MAD_DIST": 0.07, "MAD_THRESHOLD": 1.35, "MAD_PASS": "PASS", "NOTES": "PASS_at_KS_(2/3)"}, {"TEST_NAME": "p-kol-hdl", "TYPE": "unambiguous", "CUTOFF": "\u221e", "OUTCOME": "PASS", "UNIT": "mmol/l", "UNIT_PREVALENCE": 100.0, "N_CANDIDATE": 61142, "N_TARGET": 221234, "KS_STAT": 0.006651, "KS_MLOGP": 1.542, "KS_PASS": "PASS", "T_STAT": 3.266, "T_MLOGP": 2.963, "T_PASS": "FAIL", "MAD_DIST": 0.0, "MAD_THRESHOLD": 0.84, "MAD_PASS": "PASS", "NOTES": "PASS_at_KS_(2/3)"}, {"TEST_NAME": "p-t4v", "TYPE": "unambiguous", "CUTOFF": "\u221e", "OUTCOME": "PASS", "UNIT": "pmol/l", "UNIT_PREVALENCE": 100.0, "N_CANDIDATE": 20621, "N_TARGET": 90249, "KS_STAT": 0.05243, "KS_MLOGP": 39.81, "KS_PASS": "PASS", "T_STAT": -10.15, "T_MLOGP": 23.44, "T_PASS": "FAIL", "MAD_DIST": 0.4, "MAD_THRESHOLD": 5.7, "MAD_PASS": "PASS", "NOTES": "PASS_at_KS_(2/3)"}, {"TEST_NAME": "s-iglck-v", "TYPE": "unambiguous", "CUTOFF": "\u221e", "OUTCOME": "PASS", "UNIT": "mg/l", "UNIT_PREVALENCE": 100.0, "N_CANDIDATE": 7877, "N_TARGET": 39042, "KS_STAT": 0.05025, "KS_MLOGP": 14.1, "KS_PASS": "PASS", "T_STAT": 3.239, "T_MLOGP": 2.92, "T_PASS": "FAIL", "MAD_DIST": 2.9, "MAD_THRESHOLD": 49.8, "MAD_PASS": "PASS", "NOTES": "PASS_at_KS_(2/3)"}, {"TEST_NAME": "b-crp", "TYPE": "unambiguous", "CUTOFF": "\u221e", "OUTCOME": "PASS", "UNIT": "mg/l", "UNIT_PREVALENCE": 100.0, "N_CANDIDATE": 3350, "N_TARGET": 2366, "KS_STAT": 0.09378, "KS_MLOGP": 10.34, "KS_PASS": "PASS", "T_STAT": -1.146, "T_MLOGP": 0.5987, "T_PASS": "PASS", "MAD_DIST": 1.0, "MAD_THRESHOLD": 33.0, "MAD_PASS": "PASS", "NOTES": "PASS_at_KS_(3/3)"}, {"TEST_NAME": "s-tfr", "TYPE": "unambiguous", "CUTOFF": "\u221e", "OUTCOME": "PASS", "UNIT": "mg/l", "UNIT_PREVALENCE": 99.99, "N_CANDIDATE": 2018, "N_TARGET": 75736, "KS_STAT": 0.2886, "KS_MLOGP": 144.8, "KS_PASS": "PASS", "T_STAT": 20.34, "T_MLOGP": 83.32, "T_PASS": "FAIL", "MAD_DIST": 1.2, "MAD_THRESHOLD": 3.3, "MAD_PASS": "PASS", "NOTES": "PASS_at_KS_(2/3)"}, {"TEST_NAME": "s-mkomp-4", "TYPE": "unambiguous", "CUTOFF": "\u221e", "OUTCOME": "PASS", "UNIT": "g/l", "UNIT_PREVALENCE": 100.0, "N_CANDIDATE": 1434, "N_TARGET": 25572, "KS_STAT": 0.000743, "KS_MLOGP": -0.0, "KS_PASS": "FAIL", "T_STAT": -1.039, "T_MLOGP": 0.5247, "T_PASS": "PASS", "MAD_DIST": 0.0, "MAD_THRESHOLD": 0.0, "MAD_PASS": "PASS", "NOTES": "PASS_at_T_(2/3)"}, {"TEST_NAME": "b-crp-pik", "TYPE": "unambiguous", "CUTOFF": "\u221e", "OUTCOME": "PASS", "UNIT": "mg/l", "UNIT_PREVALENCE": 100.0, "N_CANDIDATE": 1059, "N_TARGET": 353, "KS_STAT": 0.08782, "KS_MLOGP": 1.486, "KS_PASS": "PASS", "T_STAT": -2.634, "T_MLOGP": 2.061, "T_PASS": "FAIL", "MAD_DIST": 5.0, "MAD_THRESHOLD": 54.0, "MAD_PASS": "PASS", "NOTES": "PASS_at_KS_(2/3)"}, {"TEST_NAME": "s-psa-suh", "TYPE": "unambiguous", "CUTOFF": "\u221e", "OUTCOME": "PASS", "UNIT": "%", "UNIT_PREVALENCE": 99.24, "N_CANDIDATE": 699, "N_TARGET": 15340, "KS_STAT": 0.4731, "KS_MLOGP": 137.3, "KS_PASS": "FAIL", "T_STAT": -23.09, "T_MLOGP": 89.42, "T_PASS": "FAIL", "MAD_DIST": 8.0, "MAD_THRESHOLD": 18.0, "MAD_PASS": "PASS", "NOTES": "PASS_at_MAD_(1/3)"}, {"TEST_NAME": "p-cl", "TYPE": "unambiguous", "CUTOFF": "\u221e", "OUTCOME": "PASS", "UNIT": "mmol/l", "UNIT_PREVALENCE": 100.0, "N_CANDIDATE": 503, "N_TARGET": 441201, "KS_STAT": 0.07716, "KS_MLOGP": 2.32, "KS_PASS": "PASS", "T_STAT": -3.598, "T_MLOGP": 3.453, "T_PASS": "FAIL", "MAD_DIST": 0.0, "MAD_THRESHOLD": 9.0, "MAD_PASS": "PASS", "NOTES": "PASS_at_KS_(2/3)"}, {"TEST_NAME": "b-hkr", "TYPE": "ambiguous", "CUTOFF": 0.8595, "OUTCOME": "PASS", "UNIT": "osuus", "UNIT_PREVALENCE": 46.72, "N_CANDIDATE": 1558906, "N_TARGET": 4240703, "KS_STAT": 0.03919, "KS_MLOGP": 300.0, "KS_PASS": "PASS", "T_STAT": 10.5, "T_MLOGP": 25.04, "T_PASS": "FAIL", "MAD_DIST": 0.01, "MAD_THRESHOLD": 0.12, "MAD_PASS": "PASS", "NOTES": "PASS_at_KS_(2/3)"}, {"TEST_NAME": "b-hkr", "TYPE": "ambiguous", "CUTOFF": "\u221e", "OUTCOME": "PASS", "UNIT": "%", "UNIT_PREVALENCE": 53.16, "N_CANDIDATE": 191557, "N_TARGET": 4824770, "KS_STAT": 0.05765, "KS_MLOGP": 300.0, "KS_PASS": "PASS", "T_STAT": 53.64, "T_MLOGP": 300.0, "T_PASS": "FAIL", "MAD_DIST": 0.0, "MAD_THRESHOLD": 12.0, "MAD_PASS": "PASS", "NOTES": "PASS_at_KS_(2/3)"}, {"TEST_NAME": "p-tt-inr", "TYPE": "ambiguous", "CUTOFF": "\u221e", "OUTCOME": "PASS", "UNIT": "inr", "UNIT_PREVALENCE": 93.35, "N_CANDIDATE": 1026823, "N_TARGET": 339780, "KS_STAT": 0.1171, "KS_MLOGP": 300.0, "KS_PASS": "PASS", "T_STAT": 97.96, "T_MLOGP": 300.0, "T_PASS": "FAIL", "MAD_DIST": 0.5, "MAD_THRESHOLD": 1.5, "MAD_PASS": "PASS", "NOTES": "PASS_at_KS_(2/3)"}, {"TEST_NAME": "s-ph", "TYPE": "ambiguous", "CUTOFF": "\u221e", "OUTCOME": "PASS", "UNIT": "1", "UNIT_PREVALENCE": 83.33, "N_CANDIDATE": 396270, "N_TARGET": 140, "KS_STAT": 0.1458, "KS_MLOGP": 2.334, "KS_PASS": "PASS", "T_STAT": -2.552, "T_MLOGP": 1.929, "T_PASS": "FAIL", "MAD_DIST": 0.015, "MAD_THRESHOLD": 0.045, "MAD_PASS": "PASS", "NOTES": "PASS_at_KS_(2/3)"}, {"TEST_NAME": "b-eos", "TYPE": "ambiguous", "CUTOFF": "\u221e", "OUTCOME": "PASS", "UNIT": "e9/l", "UNIT_PREVALENCE": 97.68, "N_CANDIDATE": 382440, "N_TARGET": 1092967, "KS_STAT": 0.06737, "KS_MLOGP": 300.0, "KS_PASS": "PASS", "T_STAT": 2.498, "T_MLOGP": 1.903, "T_PASS": "FAIL", "MAD_DIST": 0.01, "MAD_THRESHOLD": 0.24, "MAD_PASS": "PASS", "NOTES": "PASS_at_KS_(2/3)"}, {"TEST_NAME": "ab-ph", "TYPE": "ambiguous", "CUTOFF": "\u221e", "OUTCOME": "PASS", "UNIT": "ph", "UNIT_PREVALENCE": 72.83, "N_CANDIDATE": 380651, "N_TARGET": 2975, "KS_STAT": 0.1419, "KS_MLOGP": 51.61, "KS_PASS": "PASS", "T_STAT": -14.52, "T_MLOGP": 45.54, "T_PASS": "FAIL", "MAD_DIST": 0.01, "MAD_THRESHOLD": 0.09, "MAD_PASS": "PASS", "NOTES": "PASS_at_KS_(2/3)"}, {"TEST_NAME": "b-monos", "TYPE": "ambiguous", "CUTOFF": "\u221e", "OUTCOME": "PASS", "UNIT": "e9/l", "UNIT_PREVALENCE": 97.82, "N_CANDIDATE": 373740, "N_TARGET": 965697, "KS_STAT": 0.05309, "KS_MLOGP": 300.0, "KS_PASS": "PASS", "T_STAT": 41.14, "T_MLOGP": 300.0, "T_PASS": "FAIL", "MAD_DIST": 0.01, "MAD_THRESHOLD": 0.45, "MAD_PASS": "PASS", "NOTES": "PASS_at_KS_(2/3)"}, {"TEST_NAME": "p-tsh", "TYPE": "ambiguous", "CUTOFF": "\u221e", "OUTCOME": "PASS", "UNIT": "mu/l", "UNIT_PREVALENCE": 97.24, "N_CANDIDATE": 344154, "N_TARGET": 1315114, "KS_STAT": 0.03165, "KS_MLOGP": 237.1, "KS_PASS": "PASS", "T_STAT": -24.22, "T_MLOGP": 128.8, "T_PASS": "FAIL", "MAD_DIST": 0.09, "MAD_THRESHOLD": 2.43, "MAD_PASS": "PASS", "NOTES": "PASS_at_KS_(2/3)"}, {"TEST_NAME": "b-ly", "TYPE": "ambiguous", "CUTOFF": "\u221e", "OUTCOME": "PASS", "UNIT": "e9/l", "UNIT_PREVALENCE": 97.41, "N_CANDIDATE": 335323, "N_TARGET": 784182, "KS_STAT": 0.05066, "KS_MLOGP": 300.0, "KS_PASS": "PASS", "T_STAT": -1.136, "T_MLOGP": 0.592, "T_PASS": "PASS", "MAD_DIST": 0.07, "MAD_THRESHOLD": 1.56, "MAD_PASS": "PASS", "NOTES": "PASS_at_KS_(3/3)"}, {"TEST_NAME": "u-suhti", "TYPE": "ambiguous", "CUTOFF": "\u221e", "OUTCOME": "PASS", "UNIT": "kg/l", "UNIT_PREVALENCE": 91.82, "N_CANDIDATE": 261486, "N_TARGET": 41398, "KS_STAT": 0.1232, "KS_MLOGP": 300.0, "KS_PASS": "PASS", "T_STAT": -0.627, "T_MLOGP": 0.2752, "T_PASS": "PASS", "MAD_DIST": 0.003, "MAD_THRESHOLD": 0.015, "MAD_PASS": "PASS", "NOTES": "PASS_at_KS_(3/3)"}, {"TEST_NAME": "u-keto-o", "TYPE": "ambiguous", "CUTOFF": "\u221e", "OUTCOME": "PASS", "UNIT": "estimate", "UNIT_PREVALENCE": 94.61, "N_CANDIDATE": 49568, "N_TARGET": 133623, "KS_STAT": 0.00291, "KS_MLOGP": 0.03687, "KS_PASS": "FAIL", "T_STAT": 5.854, "T_MLOGP": 8.315, "T_PASS": "FAIL", "MAD_DIST": 0.0, "MAD_THRESHOLD": 0.0, "MAD_PASS": "PASS", "NOTES": "PASS_at_MAD_(1/3)"}];
+  const COLUMNS     = [{"data": "TEST_NAME", "title": "Test name", "className": "col-wide", "render": function(data,type){if(type!=='display')return data;var slug=data.replace(/[^a-zA-Z0-9_-]/g,'_');return '<a href="tests/'+slug+'.html">'+data+'</a>';}}, {"data": "TYPE", "title": "Type", "width": "80px"}, {"data": "CUTOFF", "title": "Cutoff", "width": "80px"}, {"data": "OUTCOME", "title": "Outcome", "width": "75px"}, {"data": "UNIT", "title": "Unit", "className": "col-wide"}, {"data": "UNIT_PREVALENCE", "title": "Unit prev (%)", "width": "90px"}, {"data": "N_CANDIDATE", "title": "N cand", "width": "85px"}, {"data": "N_TARGET", "title": "N target", "width": "75px"}, {"data": "KS_STAT", "title": "KS stat", "width": "75px"}, {"data": "KS_MLOGP", "title": "KS \u2212log10p", "width": "85px"}, {"data": "KS_PASS", "title": "KS pass", "width": "70px"}, {"data": "T_STAT", "title": "T stat", "width": "75px"}, {"data": "T_MLOGP", "title": "T \u2212log10p", "width": "85px"}, {"data": "T_PASS", "title": "T pass", "width": "70px"}, {"data": "MAD_DIST", "title": "MAD dist", "width": "80px"}, {"data": "MAD_THRESHOLD", "title": "MAD thr", "width": "80px"}, {"data": "MAD_PASS", "title": "MAD pass", "width": "70px"}, {"data": "NOTES", "title": "Notes", "className": "col-wide"}];
+  const OUTCOME_COL = 3;
+  const NUMERIC_COLS = {"2": true, "5": true, "6": true, "7": true, "8": true, "9": true, "11": true, "12": true, "14": true, "15": true};  // set of column indices with numeric data
+
+  // Per-column filter state
+  const colFilters = new Array(COLUMNS.length).fill('');
+
+  // Parse a numeric comparison expression like "<3", ">=20", "!=0"
+  function parseNumeric(expr) {
+    var m = expr.trim().match(/^([<>]=?|!=?)\s*(-?\d+\.?\d*(?:e[+-]?\d+)?)$/i);
+    if (!m) return null;
+    var op = m[1], val = parseFloat(m[2]);
+    return function (x) {
+      var n = parseFloat(x);
+      if (isNaN(n)) return false;
+      if (op === '<')  return n <  val;
+      if (op === '>')  return n >  val;
+      if (op === '<=') return n <= val;
+      if (op === '>=') return n >= val;
+      if (op === '=' || op === '==') return n === val;
+      if (op === '!=') return n !== val;
+      return true;
+    };
+  }
+
+  // Global custom filter handles both numeric comparisons and regex
+  $.fn.dataTable.ext.search.push(function (settings, data) {
+    for (var i = 0; i < colFilters.length; i++) {
+      var expr = colFilters[i].trim();
+      if (!expr) continue;
+      var numFn = NUMERIC_COLS[i] ? parseNumeric(expr) : null;
+      if (numFn) {
+        if (!numFn(data[i])) return false;
+      } else {
+        try {
+          if (!new RegExp(expr, 'i').test(data[i])) return false;
+        } catch (e) { /* invalid regex — ignore */ }
+      }
+    }
+    return true;
+  });
+
+  $(document).ready(function () {
+    var table = $('#results').DataTable({
+      data:       DATA,
+      columns:    COLUMNS,
+      pageLength: 25,
+      autoWidth:  false,
+      order:      [[OUTCOME_COL, 'asc']],
+      search:     { regex: true, smart: false },
+      columnDefs: [{
+        targets: OUTCOME_COL,
+        render: function (data, type) {
+          if (type !== 'display') return data;
+          var cls = { PASS: 'pass', FAIL: 'fail', SKIP: 'skip' }[data] || '';
+          return '<span class="' + cls + '">' + data + '</span>';
+        }
+      }]
+    });
+
+    // Wire per-column search inputs via event delegation (works with any DOM structure)
+    $(document).on('input', '#results thead tr.search-row input', function () {
+      var idx = $(this).closest('th').index();
+      colFilters[idx] = this.value;
+      table.draw();
+    });
+  });
+  </script>
+</body>
+</html>

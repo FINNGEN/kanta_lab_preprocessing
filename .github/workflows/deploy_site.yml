@@ -1,0 +1,51 @@
+name: Deploy injection site
+
+on:
+  push:
+    branches: [dev]
+    paths:
+      - scripts/injection/data/**
+      - scripts/injection/build_site.py
+      - scripts/injection/README.md
+      - .github/workflows/deploy_site.yml
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install pandas markdown
+
+      - name: Build site
+        run: |
+          mkdir -p _site
+          python3 scripts/injection/build_site.py \
+            --data-dir scripts/injection/data \
+            --out-dir _site/injection
+
+      - uses: actions/configure-pages@v4
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - id: deployment
+        uses: actions/deploy-pages@v4

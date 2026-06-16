@@ -69,6 +69,26 @@ The raw to output column mapping is as follows:
 
 ![Summary of the wdl pipeline](./kanta_pipeline.png)
 
+# UNIT INJECTION
+
+Many lab records carry a numeric value but no unit (the `MEASUREMENT_UNIT_PRE_FIX` field is NULL). The unit injection pipeline ([`scripts/injection/`](/scripts/injection/)) identifies these records and, where possible, assigns a unit by comparing their value distribution against records of the same `TEST_NAME` that already have a unit.
+
+Each `TEST_NAME` is classified into one of three categories based on the amount of reference data available (records that have both a value and a unit):
+
+| Category | Condition | How a unit is assigned |
+|---|---|---|
+| `UNAMBIGUOUS` | One unit accounts for ≥ threshold% of reference records | Distribution comparison against that dominant unit via KS / t / MAD tests |
+| `AMBIGUOUS` | Multiple units present; no single one dominates | Per-unit comparison, optionally after splitting a bimodal distribution |
+| `NO_DATA` | Fewer than `--min-target-n` reference records with any unit | No engine run; unit rescued via OMOP (see below) |
+
+## NO_DATA handling
+
+`NO_DATA` TEST_NAMEs have too little reference data for a statistical distribution comparison. Instead, they are enriched using the [OMOP unit table](/scripts/injection/omop_unit_table.tsv): if the OMOP concept mapped to a `NO_DATA` test has category `SINGLE` (only one unit ever observed) or `EQUIVALENT` (multiple units but all mutually convertible), the canonical OMOP unit is injected directly. Tests with OMOP category `MULTIPLE` or with no OMOP mapping receive no unit.
+
+Results are written to `no_data_results.tsv`. At the active 98% threshold (~500 min-count), ~28% of TEST_NAMEs (≈202) fall into this category, representing ~3.5% of measurements.
+
+For full details on the injection engine, bimodality detection, and output columns, see the [injection README](/scripts/injection/README.md).
+
 # MERGE OF RAW DATA
 
 Inputs reports and responses are sorted over the same keys and merged
