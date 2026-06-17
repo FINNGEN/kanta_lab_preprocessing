@@ -28,9 +28,7 @@ def main(
     process_func = partial(processing.process_chunk, chunks_dir=chunks_dir)
 
     if n_workers > 1:
-        process_in_parallel(
-            process_func, iter_indexed_chunks, n_workers=n_workers
-        )
+        process_in_parallel(process_func, iter_indexed_chunks, n_workers=n_workers)
     else:
         for indexed_chunk in iter_indexed_chunks:
             process_func(indexed_chunk)

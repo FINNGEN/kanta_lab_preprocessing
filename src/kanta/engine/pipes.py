@@ -8,7 +8,7 @@ def noop_filter(df):
 
 
 def rename_cols(df: pd.DataFrame) -> pd.DataFrame:
-    return df.rename(columns=config.RENAME_COLUMNS)
+    return df.rename(columns=config.COLUMN_ALIASES)
 
 
 def run_all(df: pd.DataFrame) -> pd.DataFrame:
