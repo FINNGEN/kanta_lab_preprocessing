@@ -23,12 +23,12 @@ If failing due to OOM in the sort+dedup stage, try increasing the bucket count.
 The GCP VM type appears to matter. N2D is about 2x faster than E2.
 """
 
-import tempfile
-import shutil
 from argparse import ArgumentParser
 from pathlib import Path
 
 import polars as pl
+
+from kanta import output
 
 
 COLUMNS_UNIQUENESS_SORT = [
@@ -47,13 +47,10 @@ def main(
     assembled_file: Path,
     phenotype_file: Path,
     output_file: Path,
+    tmp_dir: Path,
     *,
     partition_n_buckets: int,
-    keep_intermediate_files: bool,
 ):
-    # Set up output file and temporary directory for intermediate files
-    tmp_dir = Path(tempfile.mkdtemp())
-
     print()
     print("=== TIDY-UP STAGE ===")
     print("# Run info")
@@ -160,9 +157,6 @@ def main(
         .sink_parquet(output_file)
     )
 
-    if not keep_intermediate_files:
-        shutil.rmtree(tmp_dir)
-
 
 def init_cli():
     parser = ArgumentParser()
@@ -202,7 +196,7 @@ def init_cli():
 
 
 def consolidate_columns(assembled_file: Path, output_file: Path) -> Path:
-    """Remove unecessary columns form the assembled file and rename the ones we will keep."""
+    """Remove unnecessary columns form the assembled file and rename the ones we will keep."""
     rename_columns = {
         "main.FINNGENID": "FINNGENID",
         "main.EVENT_AGE": "EVENT_AGE",
@@ -262,10 +256,17 @@ def sort_dedup(frame: pl.LazyFrame | pl.DataFrame):
 
 if __name__ == "__main__":
     args = init_cli()
+
+    output.check_safe_write(args.output_file)
+    tmp_dir = output.create_tmp_dir()
+
     main(
         args.assembled_file,
         args.phenotype_file,
         args.output_file,
+        tmp_dir,
         partition_n_buckets=args.partition_n_buckets,
-        keep_intermediate_files=args.keep_intermediate_files,
     )
+
+    if not args.keep_intermediate_files:
+        output.teardown_dir(tmp_dir)

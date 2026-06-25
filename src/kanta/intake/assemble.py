@@ -15,6 +15,8 @@ from pathlib import Path
 
 import polars as pl
 
+from kanta import output
+
 
 EXPECTED_COLUMNS_MAIN = [
     "FINNGENID",
@@ -62,7 +64,7 @@ COL_PREFIX_MAIN = "main."
 COL_PREFIX_FREETEXT = "freetext."
 
 
-def main(source_list_file: Path, output_file: Path) -> Path:
+def main(source_list_file: Path, output_file: Path) -> None:
     print()
     print("=== ASSEMBLE STAGE ===")
     pairs = validate_input_pairs(source_list_file)
@@ -72,7 +74,7 @@ def main(source_list_file: Path, output_file: Path) -> Path:
 
     print("# Checking merge consistency")
     is_consistent = check_merge_consistency(output_file)
-    print("All good." if is_consistent else "!!! Inconsitent merge !!!")
+    print("All good." if is_consistent else "!!! Inconsistent merge !!!")
 
 
 def validate_input_pairs(
@@ -80,8 +82,18 @@ def validate_input_pairs(
 ) -> list[tuple[Path, Path]]:
     pairs = []
     with open(source_list_file) as fp:
-        for line in fp:
+        for line_number, line in enumerate(fp, start=1):
+            # Skip blank lines (e.g. a trailing newline at end of file).
+            if not line.strip():
+                continue
+
             values = line.split(separator, maxsplit=2)
+            if len(values) != 2:
+                raise ValueError(
+                    f"Malformed source-list line {line_number} in {source_list_file}: "
+                    f"expected a main and a freetext path separated by {separator!r}, "
+                    f"got: {line.strip()!r}"
+                )
 
             main = validate_tsv_gz(values[0], source_list_file.parent)
             freetext = validate_tsv_gz(values[1], source_list_file.parent)
@@ -136,7 +148,7 @@ def merge_by_pair(pairs: list[tuple[Path, Path]], parquet_output: str | Path) ->
     )
 
 
-def reorder_columns(frame: pl.LazyFame | pl.DataFrame) -> pl.LazyFrame | pl.DataFrame:
+def reorder_columns(frame: pl.LazyFrame | pl.DataFrame) -> pl.LazyFrame | pl.DataFrame:
     column_order = (
         ["_rowid_source"]
         # Columns for main
@@ -257,5 +269,7 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
+
+    output.check_safe_write(args.output_file)
 
     main(args.source_list_file, args.output_file)
