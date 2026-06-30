@@ -8,12 +8,14 @@ workflow intake {
     String tidyup_docker
     Int partition_n_buckets = 24
     String prefix = "finngen_R14_kanta_laboratory_responses_internal_1.0"
+    Boolean test = false
   }
 
   call assemble {
     input:
       source_list_file = source_list_file,
       docker = assemble_docker,
+      test = test,
   }
 
   call tidyup {
@@ -27,7 +29,8 @@ workflow intake {
 
   output {
     File assembled = assemble.assembled_file
-    File tidied = tidyup.tidied_file
+    File tidied_parquet = tidyup.tidied_parquet
+    File tidied_tsv_gz = tidyup.tidied_tsv_gz
   }
 }
 
@@ -36,11 +39,12 @@ task assemble {
   input {
     File source_list_file
     String docker
+    Boolean test
   }
 
   command <<<
     set -euxo pipefail
-    sed 's|gs://[^/]*/|/mnt/disks/gcs/|g' ~{source_list_file} > source_list_fuse.txt
+    sed 's|gs://[^/]*/|/mnt/disks/gcs/|g' ~{source_list_file} ~{if test then "| head -n1" else ""} > source_list_fuse.txt
     python3 -m kanta.intake.assemble \
       --source-list-file source_list_fuse.txt \
       --output-file assembled.parquet
@@ -75,10 +79,12 @@ task tidyup {
       --phenotype-file ~{phenotype_file} \
       --output-file ~{prefix}.parquet \
       --partition-n-buckets ~{partition_n_buckets}
+    clickhouse --query "SELECT * FROM '~{prefix}.parquet' ORDER BY ROWID" --format TSVWithNames | gzip > ~{prefix}.txt.gz
   >>>
 
   output {
-    File tidied_file = "~{prefix}.parquet"
+    File tidied_parquet = "~{prefix}.parquet"
+    File tidied_tsv_gz = "~{prefix}.txt.gz"
   }
 
   runtime {
