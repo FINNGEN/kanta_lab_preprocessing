@@ -4,7 +4,8 @@ workflow intake {
   input {
     File source_list_file
     File phenotype_file
-    String docker
+    String assemble_docker
+    String tidyup_docker
     Int partition_n_buckets = 24
     String prefix = "finngen_R14_kanta_laboratory_responses_internal_1.0"
   }
@@ -12,14 +13,14 @@ workflow intake {
   call assemble {
     input:
       source_list_file = source_list_file,
-      docker = docker,
+      docker = assemble_docker,
   }
 
   call tidyup {
     input:
       assembled_file = assemble.assembled_file,
       phenotype_file = phenotype_file,
-      docker = docker,
+      docker = tidyup_docker,
       partition_n_buckets = partition_n_buckets,
       prefix = prefix,
   }

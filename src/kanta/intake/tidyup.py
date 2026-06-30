@@ -101,7 +101,7 @@ def main(
             how="left",
             maintain_order="left",
         )
-        .with_row_index(name="_rowid", offset=1)
+        .with_row_index(name="ROWID", offset=1)
     )
 
     print("# Sanitize text fields")
@@ -120,7 +120,7 @@ def main(
         "load_id_pseudo",
         "file_name_pseudo",
         "laboratoriotutkimusoid",
-        "_rowid",
+        "ROWID",
         "_rowid_source",
         "SEX",
     ]
@@ -129,30 +129,6 @@ def main(
             pl.selectors.exclude(*trusted_columns)
             .str.replace_all(pattern="\r\n|\r|\n", value=unicode_newline)
             .str.replace_all(pattern="\t", value=unicode_tab, literal=True)
-        )
-        # Re-order column to be somewhat backward compatible with previous implementation
-        .select(
-            "_rowid",
-            "_rowid_source",
-            "FINNGENID",
-            "EVENT_AGE",
-            "APPROX_EVENT_DAY",
-            "TIME",
-            "laboratoriotutkimusnimike",
-            "paikallinentutkimusnimike_koodi",
-            "paikallinentutkimusnimike_selite",
-            "tutkimuskoodistonjarjestelma",
-            "tutkimusvastauksentila",
-            "tutkimustulosarvo",
-            "tutkimustulosyksikko",
-            "tuloksenpoikkeavuus",
-            "viitearvoryhma",
-            "viitevalialkuarvo",
-            "viitevalialkuyksikko",
-            "viitevaliloppuarvo",
-            "viitevaliloppuyksikko",
-            "tutkimustulosteksti",
-            "SEX",
         )
         .sink_parquet(output_file)
     )
@@ -196,27 +172,16 @@ def init_cli():
 
 
 def consolidate_columns(assembled_file: Path, output_file: Path) -> Path:
-    """Remove unnecessary columns form the assembled file and rename the ones we will keep."""
+    """Keep all main.* columns (stripped of prefix) plus freetext text field and _rowid_source."""
+    schema = pl.scan_parquet(assembled_file).collect_schema()
+
+    internal_columns = {"main._rowid", "main._filename"}
     rename_columns = {
-        "main.FINNGENID": "FINNGENID",
-        "main.EVENT_AGE": "EVENT_AGE",
-        "main.APPROX_EVENT_DAY": "APPROX_EVENT_DAY",
-        "main.TIME": "TIME",
-        "main.laboratoriotutkimusnimike": "laboratoriotutkimusnimike",
-        "main.paikallinentutkimusnimike_koodi": "paikallinentutkimusnimike_koodi",
-        "main.paikallinentutkimusnimike_selite": "paikallinentutkimusnimike_selite",
-        "main.tutkimuskoodistonjarjestelma": "tutkimuskoodistonjarjestelma",
-        "main.tutkimusvastauksentila": "tutkimusvastauksentila",
-        "main.tutkimustulosarvo": "tutkimustulosarvo",
-        "main.tutkimustulosyksikko": "tutkimustulosyksikko",
-        "main.tuloksenpoikkeavuus": "tuloksenpoikkeavuus",
-        "main.viitearvoryhma": "viitearvoryhma",
-        "main.viitevalialkuarvo": "viitevalialkuarvo",
-        "main.viitevalialkuyksikko": "viitevalialkuyksikko",
-        "main.viitevaliloppuarvo": "viitevaliloppuarvo",
-        "main.viitevaliloppuyksikko": "viitevaliloppuyksikko",
-        "freetext.tutkimustulosteksti": "tutkimustulosteksti",
+        col: col.removeprefix("main.")
+        for col in schema.names()
+        if col.startswith("main.") and col not in internal_columns
     }
+    rename_columns["freetext.tutkimustulosteksti"] = "tutkimustulosteksti"
 
     out_columns = list(rename_columns.keys()) + ["_rowid_source"]
 
