@@ -5,7 +5,6 @@ and deduplication.
 
 Differences from the WDL implementation
 =======================================
-- No logging of duplicates/err lines.
 - Outputs to a single parquet file, no .txt.gz, as this is very slow.
 
 
@@ -24,11 +23,16 @@ The GCP VM type appears to matter. N2D is about 2x faster than E2.
 """
 
 from argparse import ArgumentParser
+from datetime import datetime
 from pathlib import Path
 
 import polars as pl
 
 from kanta import output
+
+
+def log_step(message: str) -> None:
+    print(f"[{datetime.now():%Y-%m-%d %H:%M:%S}] {message}", flush=True)
 
 
 COLUMNS_UNIQUENESS_SORT = [
@@ -40,6 +44,8 @@ COLUMNS_UNIQUENESS_SORT = [
     "tutkimusvastauksentila",
     "tutkimustulosarvo",
     "tutkimustulosyksikko",
+    "tutkimustulosteksti",
+    
 ]
 
 
@@ -66,21 +72,41 @@ def main(
     tmp_dir_sort_dedup = tmp_dir / "sort_dedup"
     tmp_dir_sort_dedup.mkdir()
 
-    print("# Consolidate")
+    tmp_dir_duplicates = tmp_dir / "duplicates"
+    tmp_dir_duplicates.mkdir()
+
+    log_step("# Consolidate: start")
     consolidated_file = consolidate_columns(assembled_file, tmp_file_consolidate)
+    log_step("# Consolidate: done")
 
-    print("# Partition")
+    log_step("# Partition: start")
     partition(consolidated_file, tmp_dir_partition, partition_n_buckets)
+    log_step("# Partition: done")
 
-    print("# Sort + Dedup")
-    for bucket_file in tmp_dir_partition.glob("bucket_id__*.parquet"):
-        (
-            pl.scan_parquet(bucket_file)
-            .pipe(sort_dedup)
-            .sink_parquet(tmp_dir_sort_dedup / bucket_file.name)
-        )
+    log_step("# Sort + Dedup: start")
+    bucket_files_to_process = sorted(tmp_dir_partition.glob("bucket_id__*.parquet"))
+    total_n_before = 0
+    total_n_after = 0
+    for i, bucket_file in enumerate(bucket_files_to_process, start=1):
+        log_step(f"# Sort + Dedup: bucket {i}/{len(bucket_files_to_process)} ({bucket_file.name})")
+        n_before = pl.scan_parquet(bucket_file).select(pl.len()).collect().item()
+        output_bucket_file = tmp_dir_sort_dedup / bucket_file.name
+        kept, dropped = sort_dedup(pl.scan_parquet(bucket_file))
+        kept.sink_parquet(output_bucket_file)
+        dropped.sink_parquet(tmp_dir_duplicates / bucket_file.name)
+        n_after = pl.scan_parquet(output_bucket_file).select(pl.len()).collect().item()
+        total_n_before += n_before
+        total_n_after += n_after
+    n_removed = total_n_before - total_n_after
+    pct_removed = 100 * n_removed / total_n_before if total_n_before else 0
+    log_step(f"# Sort + Dedup: done, removed {n_removed} duplicate rows total ({pct_removed:.2f}% of {total_n_before})")
 
-    print("# Concatenate + join SEX")
+    duplicates_output_file = output_file.with_name(f"{output_file.stem}_duplicates.parquet")
+    log_step(f"# Sort + Dedup: writing duplicate rows to {duplicates_output_file}")
+    duplicate_bucket_files = sorted(tmp_dir_duplicates.glob("bucket_id__*.parquet"))
+    pl.scan_parquet(duplicate_bucket_files).sink_parquet(duplicates_output_file)
+
+    log_step("# Concatenate + join SEX: building lazy plan")
     bucket_files = []
     for bucket_id in range(partition_n_buckets):
         bucket_files.append(tmp_dir_sort_dedup / f"bucket_id__{bucket_id}.parquet")
@@ -104,7 +130,7 @@ def main(
         .with_row_index(name="ROWID", offset=1)
     )
 
-    print("# Sanitize text fields")
+    log_step("# Sanitize text fields: building lazy plan")
     # Unicode "SYMBOL FOR NEWLINE", displayed as: ␤
     unicode_newline = "\u2424"
     # Unicode "SYMBOL FOR HORIZONTAL TABULATION", displayed as: ␉
@@ -124,6 +150,7 @@ def main(
         "_rowid_source",
         "SEX",
     ]
+    log_step("# Concatenate + join SEX + Sanitize: executing final sink_parquet (this runs the whole lazy plan)")
     (
         df_concat.with_columns(
             pl.selectors.exclude(*trusted_columns)
@@ -132,6 +159,7 @@ def main(
         )
         .sink_parquet(output_file)
     )
+    log_step("# Concatenate + join SEX + Sanitize: done")
 
 
 def init_cli():
@@ -197,6 +225,7 @@ def consolidate_columns(assembled_file: Path, output_file: Path) -> Path:
 
 def partition(assembled_file: Path, tmp_dir: Path, n_buckets):
     for bucket_id in range(n_buckets):
+        log_step(f"# Partition: bucket {bucket_id + 1}/{n_buckets}")
         (
             pl.scan_parquet(assembled_file)
             .filter(pl.col("FINNGENID").hash() % n_buckets == bucket_id)
@@ -205,6 +234,7 @@ def partition(assembled_file: Path, tmp_dir: Path, n_buckets):
 
 
 def sort_dedup(frame: pl.LazyFrame | pl.DataFrame):
+    """Sort by the full column order, then split into kept rows (first per duplicate key) and dropped duplicates."""
     all_columns = frame.collect_schema().names()
     sort_subset_columns = set(COLUMNS_UNIQUENESS_SORT)
     other_columns = []
@@ -214,15 +244,19 @@ def sort_dedup(frame: pl.LazyFrame | pl.DataFrame):
 
     sort_full_columns = COLUMNS_UNIQUENESS_SORT + other_columns
 
-    return frame.sort(by=sort_full_columns).unique(
-        subset=COLUMNS_UNIQUENESS_SORT, keep="first", maintain_order=True
-    )
+    sorted_frame = frame.sort(by=sort_full_columns)
+    is_first = pl.struct(COLUMNS_UNIQUENESS_SORT).is_first_distinct()
+
+    kept = sorted_frame.filter(is_first)
+    dropped = sorted_frame.filter(~is_first)
+    return kept, dropped
 
 
 if __name__ == "__main__":
     args = init_cli()
 
     output.check_safe_write(args.output_file)
+    output.check_safe_write(args.output_file.with_name(f"{args.output_file.stem}_duplicates.parquet"))
     tmp_dir = output.create_tmp_dir()
 
     main(

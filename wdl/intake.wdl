@@ -31,6 +31,7 @@ workflow intake {
     File assembled = assemble.assembled_file
     File tidied_parquet = tidyup.tidied_parquet
     File tidied_tsv_gz = tidyup.tidied_tsv_gz
+    File tidied_duplicates_parquet = tidyup.tidied_duplicates_parquet
   }
 }
 
@@ -85,12 +86,13 @@ task tidyup {
   output {
     File tidied_parquet = "~{prefix}.parquet"
     File tidied_tsv_gz = "~{prefix}.txt.gz"
+    File tidied_duplicates_parquet = "~{prefix}_duplicates.parquet"
   }
 
   runtime {
     docker: docker
     disks: "local-disk ~{ceil(size(assembled_file, 'GB')) * 3 + 20} HDD"
-    memory: "32 GB"
+    memory: "64 GB"
     cpu: 32
   }
 }
