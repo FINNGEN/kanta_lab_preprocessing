@@ -7,11 +7,12 @@ RUN apt install pigz
 # Install kanta package
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 ENV PATH="/root/.local/bin:$PATH"
-RUN uv python install 3.12
+RUN uv python install 3.14
 ADD pyproject.toml pyproject.toml
 ADD README.md README.md
 ADD uv.lock uv.lock
 ADD src src
-RUN uv venv --python 3.12 /opt/kanta-venv && uv pip install --python /opt/kanta-venv/bin/python .
+ENV UV_PROJECT_ENVIRONMENT="/opt/kanta-venv"
+RUN uv sync --python 3.14 --locked
 ENV PATH="/opt/kanta-venv/bin:$PATH"
 

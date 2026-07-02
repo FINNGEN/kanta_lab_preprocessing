@@ -11,11 +11,13 @@ workflow intake {
     Boolean test = false
   }
 
+  Array[Array[File]] all_source_pairs = read_tsv(source_list_file)
+  Array[Array[File]] source_pairs = if test then [all_source_pairs[0]] else all_source_pairs
+
   call assemble {
     input:
-      source_list_file = source_list_file,
+      source_pairs = source_pairs,
       docker = assemble_docker,
-      test = test,
   }
 
   call tidyup {
@@ -38,16 +40,14 @@ workflow intake {
 
 task assemble {
   input {
-    File source_list_file
+    Array[Array[File]] source_pairs
     String docker
-    Boolean test
   }
 
   command <<<
     set -euxo pipefail
-    sed 's|gs://[^/]*/|/mnt/disks/gcs/|g' ~{source_list_file} ~{if test then "| head -n1" else ""} > source_list_fuse.txt
     python3 -m kanta.intake.assemble \
-      --source-list-file source_list_fuse.txt \
+      --source-list-file ~{write_tsv(source_pairs)} \
       --output-file assembled.parquet
   >>>
 
@@ -57,7 +57,7 @@ task assemble {
 
   runtime {
     docker: docker
-    disks: "local-disk 100 HDD"
+    disks: "local-disk ~{ceil(size(flatten(source_pairs), 'GB') * 3)} SSD"
     memory: "8 GB"
     cpu: 4
   }
@@ -81,7 +81,12 @@ task tidyup {
       --phenotype-file ~{phenotype_file} \
       --output-file ~{prefix}.parquet \
       --partition-n-buckets ~{partition_n_buckets}
-    clickhouse --query "SELECT * FROM '~{prefix}.parquet' ORDER BY ROWID" --format TSVWithNames | gzip > ~{prefix}.txt.gz
+    
+    clickhouse --query "SELECT * FROM '~{prefix}.parquet'" \
+      --format TSVWithNames \
+      --max_threads "$(nproc)" \
+      --input_format_parquet_preserve_order 1 \
+      | pigz > ~{prefix}.txt.gz
   >>>
 
   output {

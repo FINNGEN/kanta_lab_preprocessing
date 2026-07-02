@@ -17,7 +17,8 @@ buckets. Runs in 5-8 min.
 
 Lowest tested working spec: 8 CPUs / 8 GB RAM, 32 buckets. Runs in 6-12 min.
 
-If failing due to OOM in the sort+dedup stage, try increasing the bucket count.
+If failing due to OOM, try increasing the bucket count — both the sort+dedup
+stage and the final join+sanitize stage process one bucket at a time.
 
 The GCP VM type appears to matter. N2D is about 2x faster than E2.
 """
@@ -27,6 +28,7 @@ from datetime import datetime
 from pathlib import Path
 
 import polars as pl
+import pyarrow.parquet as pq
 
 from kanta import output
 
@@ -87,6 +89,7 @@ def main(
     bucket_files_to_process = sorted(tmp_dir_partition.glob("bucket_id__*.parquet"))
     total_n_before = 0
     total_n_after = 0
+    bucket_row_counts = {}
     for i, bucket_file in enumerate(bucket_files_to_process, start=1):
         log_step(f"# Sort + Dedup: bucket {i}/{len(bucket_files_to_process)} ({bucket_file.name})")
         n_before = pl.scan_parquet(bucket_file).select(pl.len()).collect().item()
@@ -97,6 +100,7 @@ def main(
         n_after = pl.scan_parquet(output_bucket_file).select(pl.len()).collect().item()
         total_n_before += n_before
         total_n_after += n_after
+        bucket_row_counts[bucket_file.name] = n_after
     n_removed = total_n_before - total_n_after
     pct_removed = 100 * n_removed / total_n_before if total_n_before else 0
     log_step(f"# Sort + Dedup: done, removed {n_removed} duplicate rows total ({pct_removed:.2f}% of {total_n_before})")
@@ -104,12 +108,7 @@ def main(
     duplicates_output_file = output_file.with_name(f"{output_file.stem}_duplicates.parquet")
     log_step(f"# Sort + Dedup: writing duplicate rows to {duplicates_output_file}")
     duplicate_bucket_files = sorted(tmp_dir_duplicates.glob("bucket_id__*.parquet"))
-    pl.scan_parquet(duplicate_bucket_files).sink_parquet(duplicates_output_file)
-
-    log_step("# Concatenate + join SEX: building lazy plan")
-    bucket_files = []
-    for bucket_id in range(partition_n_buckets):
-        bucket_files.append(tmp_dir_sort_dedup / f"bucket_id__{bucket_id}.parquet")
+    concatenate_parquet_files(duplicate_bucket_files, duplicates_output_file)
 
     df_pheno = pl.scan_csv(
         phenotype_file,
@@ -117,20 +116,6 @@ def main(
         separator="\t",
     ).select("FINNGENID", "SEX")
 
-    df_concat = (
-        pl.scan_parquet(bucket_files)
-        # Join SEX
-        .join(
-            df_pheno,
-            left_on="FINNGENID",
-            right_on="FINNGENID",
-            how="left",
-            maintain_order="left",
-        )
-        .with_row_index(name="ROWID", offset=1)
-    )
-
-    log_step("# Sanitize text fields: building lazy plan")
     # Unicode "SYMBOL FOR NEWLINE", displayed as: ␤
     unicode_newline = "\u2424"
     # Unicode "SYMBOL FOR HORIZONTAL TABULATION", displayed as: ␉
@@ -150,16 +135,52 @@ def main(
         "_rowid_source",
         "SEX",
     ]
-    log_step("# Concatenate + join SEX + Sanitize: executing final sink_parquet (this runs the whole lazy plan)")
-    (
-        df_concat.with_columns(
-            pl.selectors.exclude(*trusted_columns)
-            .str.replace_all(pattern="\r\n|\r|\n", value=unicode_newline)
-            .str.replace_all(pattern="\t", value=unicode_tab, literal=True)
+
+    tmp_dir_final = tmp_dir / "final"
+    tmp_dir_final.mkdir()
+
+    # Process one bucket at a time (rather than one join + with_row_index +
+    # sanitize + sink over the whole dataset) because maintain_order="left" on
+    # the join and the global counter in with_row_index both disable Polars'
+    # streaming engine, forcing full materialization of the joined/indexed/
+    # sanitized frame in memory. Per-bucket, each chunk is small enough to
+    # materialize safely; ROWID stays globally monotonic via a running offset.
+    log_step("# Join SEX + Sanitize: start (per bucket)")
+    row_index_offset = 1
+    final_bucket_files = []
+    for bucket_id in range(partition_n_buckets):
+        bucket_name = f"bucket_id__{bucket_id}.parquet"
+        bucket_file = tmp_dir_sort_dedup / bucket_name
+        n_rows = bucket_row_counts[bucket_name]
+        log_step(
+            f"# Join SEX + Sanitize: bucket {bucket_id + 1}/{partition_n_buckets} "
+            f"({bucket_name}), {n_rows} rows, ROWID offset {row_index_offset}"
         )
-        .sink_parquet(output_file)
-    )
-    log_step("# Concatenate + join SEX + Sanitize: done")
+        output_bucket_file = tmp_dir_final / bucket_name
+        (
+            pl.scan_parquet(bucket_file)
+            .join(
+                df_pheno,
+                left_on="FINNGENID",
+                right_on="FINNGENID",
+                how="left",
+                maintain_order="left",
+            )
+            .with_row_index(name="ROWID", offset=row_index_offset)
+            .with_columns(
+                pl.selectors.exclude(*trusted_columns)
+                .str.replace_all(pattern="\r\n|\r|\n", value=unicode_newline)
+                .str.replace_all(pattern="\t", value=unicode_tab, literal=True)
+            )
+            .sink_parquet(output_bucket_file)
+        )
+        final_bucket_files.append(output_bucket_file)
+        row_index_offset += n_rows
+    log_step("# Join SEX + Sanitize: done")
+
+    log_step("# Concatenate final bucket files: start")
+    concatenate_parquet_files(final_bucket_files, output_file)
+    log_step("# Concatenate final bucket files: done")
 
 
 def init_cli():
@@ -231,6 +252,27 @@ def partition(assembled_file: Path, tmp_dir: Path, n_buckets):
             .filter(pl.col("FINNGENID").hash() % n_buckets == bucket_id)
             .sink_parquet(tmp_dir / f"bucket_id__{bucket_id}.parquet")
         )
+
+
+def concatenate_parquet_files(input_files: list[Path], output_file: Path) -> None:
+    """Concatenate parquet files by copying row batches directly, one at a time.
+
+    Polars' `sink_parquet` over a multi-file `scan_parquet` is not reliably
+    streaming in all versions/engines, and has been observed to materialize
+    the whole dataset in memory. Using pyarrow directly guarantees a bounded
+    memory footprint regardless of total row count.
+    """
+    writer = None
+    try:
+        for input_file in input_files:
+            reader = pq.ParquetFile(input_file)
+            if writer is None:
+                writer = pq.ParquetWriter(output_file, reader.schema_arrow, compression="zstd")
+            for batch in reader.iter_batches():
+                writer.write_batch(batch)
+    finally:
+        if writer is not None:
+            writer.close()
 
 
 def sort_dedup(frame: pl.LazyFrame | pl.DataFrame):
