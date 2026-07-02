@@ -75,6 +75,7 @@ task tidyup {
 
   command <<<
     set -euxo pipefail
+    echo "cpus: $(nproc)"
     python3 -m kanta.intake.tidyup \
       --assembled-file ~{assembled_file} \
       --phenotype-file ~{phenotype_file} \
@@ -91,8 +92,7 @@ task tidyup {
 
   runtime {
     docker: docker
-    disks: "local-disk ~{ceil(size(assembled_file, 'GB')) * 3 + 20} HDD"
-    memory: "64 GB"
-    cpu: 32
+    predefinedMachineType: "n2d-highcpu-32"
+    disks: "local-disk ~{ceil(size(assembled_file, 'GB')) * 3} SSD"
   }
 }
