@@ -1,0 +1,9 @@
+{
+    "intake.test": false,
+    "intake.source_list_file": "gs://fg-3/kanta_v4/inputs/kanta_inputs.txt",
+    "intake.phenotype_file": "gs://finngen-production-library-red/finngen_R14/phenotype_1.0/data/finngen_R14_minimum_1.0.txt.gz",
+    "intake.assemble_docker": "europe-west1-docker.pkg.dev/finngen-refinery-dev/fg-refinery-registry/kanta:v4-intake",
+    "intake.tidyup_docker": "europe-west1-docker.pkg.dev/finngen-refinery-dev/fg-refinery-registry/kanta:v4-intake.latest",
+    "intake.partition_n_buckets": 48,
+    "intake.prefix": "finngen_R14_kanta_laboratory_responses_internal_1.0"
+}
