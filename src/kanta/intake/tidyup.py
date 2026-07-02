@@ -44,8 +44,8 @@ COLUMNS_UNIQUENESS_SORT = [
     "tutkimusvastauksentila",
     "tutkimustulosarvo",
     "tutkimustulosyksikko",
-    "tutkimustulosteksti",
-    
+    "tuloksenpoikkeavuus",
+    "tutkimustulosteksti"    
 ]
 
 
