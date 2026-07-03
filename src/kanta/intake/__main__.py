@@ -53,6 +53,9 @@ if __name__ == "__main__":
     )
     output.check_safe_write(output_file_assemble_stage)
     output.check_safe_write(output_file_tidyup_stage)
+    output.check_safe_write(
+        output_file_tidyup_stage.with_name(f"{output_file_tidyup_stage.stem}_duplicates.parquet")
+    )
 
     tmp_dir = output.create_tmp_dir()
 
