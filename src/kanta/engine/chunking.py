@@ -3,38 +3,10 @@ from collections.abc import Iterator
 from pathlib import Path
 
 import pandas as pd
+import pyarrow as pa
 import pyarrow.parquet as pq
 
-
-# Which columns to read from the input file. This is used very early in the pipeline to limit the
-# amount of data read, so the column renaming has not been done yet, hence using the original
-# column names.
-# TODO(Vincent 2026-06-17)  This should use the canonical column aliases from the config. A good
-# time to do that would be when the data processing is in place so that all the column reference
-# the canonical column aliases.
-READ_COLUMNS = [
-    "FINNGENID",
-    "EVENT_AGE",
-    "tutkimuskoodistonjarjestelma",
-    "paikallinentutkimusnimike_selite",
-    "tutkimustulosarvo",
-    "tutkimustulosyksikko",
-    "tutkimusvastauksentila",
-    "tuloksenpoikkeavuus",
-    "viitearvoryhma",
-    "viitevalialkuarvo",
-    "viitevalialkuyksikko",
-    "viitevaliloppuarvo",
-    "viitevaliloppuyksikko",
-    "tutkimustulosteksti",
-    "paikallinentutkimusnimike_koodi",
-    "laboratoriotutkimusnimike",
-    "APPROX_EVENT_DAY",
-    "TIME",
-    "_rowid",
-    "_rowid_source",
-    "SEX",
-]
+from kanta import config
 
 # Number of rows per chunk when streaming the input Parquet file.
 # The value is independent of the number of CPUs: the memory used by the engine
@@ -56,7 +28,8 @@ def chunk_iterator(
     for batch in parquet_file.iter_batches(
         batch_size=N_LINES_PER_CHUNK,
         # Select only the given columns, this speeds up the read quite a lot for Parquet files.
-        columns=READ_COLUMNS,
+        # An empty list means all columns are read (pyarrow expects `None` for that).
+        columns=config.READ_COLUMNS or None,
     ):
         yield (
             chunk_index,
@@ -83,10 +56,20 @@ def write_chunk(dataframe: pd.DataFrame, chunks_dir: Path, chunk_index: int) -> 
     return chunk_path
 
 
-def concatenate_chunks(chunks_dir: Path, output_file: Path, cleanup: bool = True):
+def concatenate_chunks(
+    chunks_dir: Path,
+    output_file: Path,
+    *,
+    empty_schema: pa.Schema | None = None,
+    cleanup: bool = True,
+):
     """Concatenate chunks in order so no sorting is required afterwards.
 
     The order relies on the filename, which holds the chunk index.
+
+    If no chunk files exist (e.g. a side-channel output that only gets chunks written when
+    there's something to report), pass `empty_schema` to still write an empty `output_file`,
+    so callers can always rely on it existing.
     """
     chunks = sorted(chunks_dir.glob(CHUNKS_FILE_GLOB), key=get_chunk_index)
 
@@ -99,6 +82,9 @@ def concatenate_chunks(chunks_dir: Path, output_file: Path, cleanup: bool = True
             if writer is None:
                 writer = pq.ParquetWriter(output_file, table.schema)
             writer.write_table(table)
+
+        if writer is None and empty_schema is not None:
+            writer = pq.ParquetWriter(output_file, empty_schema)
 
     finally:
         if writer is not None:

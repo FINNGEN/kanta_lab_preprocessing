@@ -4,6 +4,11 @@ import warnings
 from pathlib import Path
 
 
+def derive_output_path(output_prefix: Path, suffix: str = "") -> Path:
+    """Derive an output file path from a shared prefix, e.g. prefix + "_errors" -> prefix_errors.parquet."""
+    return output_prefix.parent / f"{output_prefix.name}{suffix}.parquet"
+
+
 def check_safe_write(output_file: Path) -> None:
     """Check it's safe to write to output file path."""
     if output_file.exists():

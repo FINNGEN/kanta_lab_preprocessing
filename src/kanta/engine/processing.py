@@ -4,6 +4,7 @@ from pathlib import Path
 import pandas as pd
 
 from kanta.engine import chunking, pipes
+from kanta.engine.errors import AbbrSink, ErrorSink
 
 
 def configure_pandas():
@@ -33,9 +34,24 @@ def configure_pandas():
     warnings.filterwarnings("error", category=pd.errors.ChainedAssignmentError)
 
 
-def process_chunk(indexed_chunk: tuple[int, pd.DataFrame], chunks_dir: Path) -> Path:
+def process_chunk(
+    indexed_chunk: tuple[int, pd.DataFrame],
+    chunks_dir: Path,
+    errors_dir: Path,
+    abbr_dir: Path,
+) -> Path:
     chunk_index, df_chunk = indexed_chunk
 
-    df_chunk = pipes.run_all(df_chunk)
+    errors = ErrorSink()
+    abbr_changes = AbbrSink()
+    df_chunk = pipes.run_all(df_chunk, errors, abbr_changes)
+
+    if errors.frames:
+        errors_df = pd.concat(errors.frames, ignore_index=True)
+        chunking.write_chunk(errors_df, errors_dir, chunk_index)
+
+    if abbr_changes.frames:
+        abbr_df = pd.concat(abbr_changes.frames, ignore_index=True)
+        chunking.write_chunk(abbr_df, abbr_dir, chunk_index)
 
     return chunking.write_chunk(df_chunk, chunks_dir, chunk_index)

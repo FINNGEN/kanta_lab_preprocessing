@@ -6,11 +6,14 @@ from pathlib import Path
 
 from kanta import output
 from kanta.engine import chunking, processing
+from kanta.engine.errors import ABBR_EMPTY_SCHEMA, EMPTY_SCHEMA
 
 
 def main(
     input_file: Path,
     output_file: Path,
+    errors_file: Path,
+    abbr_file: Path,
     tmp_dir: Path,
     *,
     is_test_run=False,
@@ -22,10 +25,21 @@ def main(
     chunks_dir = tmp_dir / "chunks"
     chunks_dir.mkdir()
 
+    errors_dir = tmp_dir / "errors"
+    errors_dir.mkdir()
+
+    abbr_dir = tmp_dir / "abbr"
+    abbr_dir.mkdir()
+
     # Iterate over each chunk
     iter_indexed_chunks = chunking.chunk_iterator(input_file, is_test_run=is_test_run)
 
-    process_func = partial(processing.process_chunk, chunks_dir=chunks_dir)
+    process_func = partial(
+        processing.process_chunk,
+        chunks_dir=chunks_dir,
+        errors_dir=errors_dir,
+        abbr_dir=abbr_dir,
+    )
 
     if n_workers > 1:
         process_in_parallel(process_func, iter_indexed_chunks, n_workers=n_workers)
@@ -34,6 +48,8 @@ def main(
             process_func(indexed_chunk)
 
     chunking.concatenate_chunks(chunks_dir, output_file)
+    chunking.concatenate_chunks(errors_dir, errors_file, empty_schema=EMPTY_SCHEMA)
+    chunking.concatenate_chunks(abbr_dir, abbr_file, empty_schema=ABBR_EMPTY_SCHEMA)
 
 
 def process_in_parallel(func, indexed_chunks, *, n_workers: int):
@@ -78,9 +94,14 @@ def init_cli():
         required=False,
     )
     parser.add_argument(
-        "--output-file",
+        "--output-prefix",
         type=Path,
-        help="Output file path (Parquet)",
+        help=(
+            "Prefix for output file paths (Parquet). Produces <prefix>.parquet for the "
+            "cleaned data, <prefix>_errors.parquet for rows dropped/flagged by filters, "
+            "and <prefix>_abbr.parquet for TEST_NAME_ABBREVIATION changes. Future output "
+            "files follow the same <prefix>_<name>.parquet convention."
+        ),
         required=True,
     )
     parser.add_argument(
@@ -114,12 +135,20 @@ def init_cli():
 if __name__ == "__main__":
     args = init_cli()
 
-    output.check_safe_write(args.output_file)
+    output_file = output.derive_output_path(args.output_prefix)
+    errors_file = output.derive_output_path(args.output_prefix, "_errors")
+    abbr_file = output.derive_output_path(args.output_prefix, "_abbr")
+
+    output.check_safe_write(output_file)
+    output.check_safe_write(errors_file)
+    output.check_safe_write(abbr_file)
     tmp_dir = output.create_tmp_dir()
 
     main(
         args.input_file,
-        args.output_file,
+        output_file,
+        errors_file,
+        abbr_file,
         tmp_dir,
         is_test_run=args.test,
         n_workers=args.n_workers,
