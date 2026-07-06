@@ -84,8 +84,9 @@ NA_KEYWORDS_OVERRIDES = {
 # message classification).
 PROBLEMATIC_MEASUREMENT_STATUS = ["K", "W", "X", "I", "D", "P"]
 
-# National (THL) lab id -> abbreviation mapping (2-column TSV, header "CodeId\tAbbreviation").
-THL_LAB_ID_ABBREVIATION_FILE = DATA_DIR / "thl_lab_id_abbrv_map.tsv"
+# National (THL) lab id -> abbreviation mapping. Raw THL codeserver export: ";"-delimited,
+# ISO-8859-1 encoded, with a "CodeId;Abbreviation;..." header among other columns we don't use.
+THL_LAB_ID_ABBREVIATION_FILE = DATA_DIR / "thl_lab_id_abbrv_map.txt"
 
 # tutkimuksentekotapa (MEASUREMENT_METHOD) codes -> short English label.
 # Source: THL codeserver classification (CodeId;Abbreviation columns).

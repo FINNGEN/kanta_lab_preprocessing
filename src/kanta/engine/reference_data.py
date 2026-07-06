@@ -21,9 +21,16 @@ class FallbackToKeyDict(dict):
 
 @lru_cache(maxsize=1)
 def get_thl_lab_map() -> FallbackToKeyDict:
-    """National (THL) lab id -> abbreviation mapping."""
-    df = pd.read_csv(config.THL_LAB_ID_ABBREVIATION_FILE, sep="\t", dtype=str)
-    return FallbackToKeyDict(zip(df["CodeId"], df["Abbreviation"]))
+    """National (THL) lab id -> abbreviation mapping, lowercased with spaces stripped."""
+    df = pd.read_csv(
+        config.THL_LAB_ID_ABBREVIATION_FILE,
+        sep=";",
+        encoding="latin-1",
+        usecols=["CodeId", "Abbreviation"],
+        dtype=str,
+    )
+    abbreviation = df["Abbreviation"].str.replace(" ", "", regex=False).str.lower()
+    return FallbackToKeyDict(zip(df["CodeId"], abbreviation))
 
 
 @lru_cache(maxsize=1)
