@@ -4,7 +4,7 @@ from pathlib import Path
 import pandas as pd
 
 from kanta.engine import chunking, pipes
-from kanta.engine.errors import AbbrSink, ErrorSink
+from kanta.engine.errors import AbbrSink, ErrorSink, UnitSink
 
 
 def configure_pandas():
@@ -39,12 +39,14 @@ def process_chunk(
     chunks_dir: Path,
     errors_dir: Path,
     abbr_dir: Path,
+    unit_dir: Path,
 ) -> Path:
     chunk_index, df_chunk = indexed_chunk
 
     errors = ErrorSink()
     abbr_changes = AbbrSink()
-    df_chunk = pipes.run_all(df_chunk, errors, abbr_changes)
+    unit_changes = UnitSink()
+    df_chunk = pipes.run_all(df_chunk, errors, abbr_changes, unit_changes)
 
     if errors.frames:
         errors_df = pd.concat(errors.frames, ignore_index=True)
@@ -53,5 +55,9 @@ def process_chunk(
     if abbr_changes.frames:
         abbr_df = pd.concat(abbr_changes.frames, ignore_index=True)
         chunking.write_chunk(abbr_df, abbr_dir, chunk_index)
+
+    if unit_changes.frames:
+        unit_df = pd.concat(unit_changes.frames, ignore_index=True)
+        chunking.write_chunk(unit_df, unit_dir, chunk_index)
 
     return chunking.write_chunk(df_chunk, chunks_dir, chunk_index)

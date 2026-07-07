@@ -51,7 +51,15 @@ OUT_COLUMNS = [
     "ROWID",
     "_rowid_source",
     "SEX",
+    "source::MEASUREMENT_VALUE",
+    "source::MEASUREMENT_UNIT",
+    "source::TEST_NAME_ABBREVIATION",
+    "source::TEST_OUTCOME",
 ]
+
+# Columns snapshotted into a source::<col> output column immediately after renaming and
+# before any filter modifies them, so the raw pre-cleaning value survives in the output.
+SOURCE_COLUMNS = ["MEASUREMENT_VALUE", "MEASUREMENT_UNIT", "TEST_NAME_ABBREVIATION",'TEST_OUTCOME']
 
 # Format used to parse APPROX_EVENT_DATETIME (APPROX_EVENT_DAY + "T" + TIME).
 DATE_TIME_FORMAT = "%Y-%m-%dT%H:%M"
@@ -64,6 +72,10 @@ ERR_COLUMNS = ["ROWID", "_rowid_source", "ERR", "ERR_VALUE"]
 # Columns of the abbreviation-change table that fix_abbreviation appends to. Kept as
 # separate OLD_ABBR/NEW_ABBR columns rather than a single combined value.
 ABBR_COLUMNS = ["ROWID", "_rowid_source", "ERR", "OLD_ABBR", "NEW_ABBR"]
+
+# Columns of the unit-change table that fix_measurement_unit appends to. Kept as
+# separate OLD_UNIT/NEW_UNIT columns rather than a single combined value.
+UNIT_COLUMNS = ["ROWID", "_rowid_source", "ERR", "OLD_UNIT", "NEW_UNIT"]
 
 # Columns to leave untouched when stripping whitespace (e.g. free text, where spaces are
 # meaningful), using post-alias (renamed) column names.
@@ -117,3 +129,88 @@ ABBREVIATION_DELETION_PATTERNS = [
 ABBREVIATION_REPLACEMENTS = [
     ("–", "-"),
 ]
+
+# Manually curated MEASUREMENT_UNIT correction table: raw/dirty unit string -> corrected
+# unit. TSV with an OLD_UNIT/MEASUREMENT_UNIT header (plus a COUNT column this loader
+# ignores).
+UNIT_MAP_FILE = DATA_DIR / "unit_mapping.txt"
+
+# Stray characters stripped from MEASUREMENT_UNIT before mapping/regex fixes.
+UNIT_STRIP_CHARS = [" ", "_", ",", ".", "-", "(", ")", "{", "}", "\\", "?", "!"]
+
+# Ordered (pattern, replacement) regex pairs applied to whatever MEASUREMENT_UNIT values
+# UNIT_MAP_FILE didn't already resolve. Order matters: earlier patterns can create the
+# text later patterns match on.
+UNIT_REPLACEMENTS = [
+    (r"(^\*+$|^$)", "NA"),
+    (r"\bc\b", "°c"),
+    (r"(^(\b)?\d+(?=e\d+))", ""),
+    (r"(à?x?(10)?e0?(?=\d)|x?10(\^|\*)|^\^(?=[0-9]+.?l))", "e"),
+    (r"(y|µ)ks(ikkö)?", "u"),
+    (r"y", "u"),
+    (r"lµ", "ly"),
+    (r"tehtµ", "tehty"),
+    (r"µg", "ug"),
+    (r"m([a-z]?)µ", "mu"),
+    (r"^mµ.?l$", "mu/l"),
+    (r"^µ.?l$", "u/l"),
+    (r"^u.?l$", "u/l"),
+    (r"µmol", "umol"),
+    (r"^µmol.?l$", "umol/l"),
+    (r"^(µ|u)g.?l$", "ug/l"),
+    (r"^(m)?mmo(l)?/", "mmol/"),
+    (r"(mo(t|l|i)?(l)?)(?=$)|nol", "mol"),
+    (r"^mmol.?(l|i).?$", "mmol/l"),
+    (r"krea", ""),
+    (r"^mmol.?mol.?$", "mmol/mol"),
+    (r"(^(m)?m(h)?/h$|^mh.?h$)", "mm/h"),
+    (r"^.?mg.?l$", "mg/l"),
+    (r"^ml/min.*", "ml/min/173m2"),
+    (r"^inrarvo$", "inr"),
+    (r"^mg/lfeu$", "mg/l"),
+    (r"^mo(l)?sm/kg.*$", "mosm/kgh2o"),
+    (r"(^tilo(s)?$|^(til)osuu(s)$)", "osuus"),
+    (r"(kopio(t)?(a)?|klp|sol(y|µ|u)|sol(y|µ|u)a|pisteet)", "kpl"),
+    (r"(n(ä)?kö(ke)?k(enttä|entt)?|s(y|µ)n(fält|f)?$)", "nk"),
+    (r"(^(kpla)/nk|^kpl.?nk$|/nk$)", "kpl/nk"),
+    (r"^.*ti(i)?t(t)?er(i)?.*$", "titre"),
+    (r"^elia(u|µ)", "eliau"),
+    (r"^eliau/m$", "eliau/ml"),
+    (r"^a(u|µ)/ml$", "au/ml"),
+    (r"(gulos(t.*)$|gulo)", "gstool"),
+    (r"((u|µ)g/g(\s+)?stool|(u|µ)g/g(f)?)", "ug/g"),
+    (r"(^promil(l)?$|^o/oo$)", "promille"),
+    (r"(^\-$|^negat$|^neg$)", "N"),
+    (r"(^pos$|^\+$)", "A"),
+    (r"^p.?g$", "pg"),
+    (r"^f.?l$", "fl"),
+    (r"\/\/", "/"),
+    (r"(c)?aste(c)?", "aste"),
+    (r"sek", "s"),
+    (r"ve/", "responseequivalent/"),
+    (r"^ve$", "responseequivalent"),
+    (r"aru", "au"),
+    (r"liter", "l"),
+    (r"(/d$|/vrk$)", "/24h"),
+    (r"nk$", "field"),
+    (r"kpl", "u"),
+    (r"(lausunto|lomake)", "form"),
+    (r"indeksi", "index"),
+    (r"arvio", "estimate"),
+    (r"suhde", "ratio"),
+    (r"krt", "times"),
+    (r"/100le(uk)$", "/100leuk"),
+    (r"/l(/|)?(4|37c|ph7|ph74)+", "/l"),
+    (r"nmol(bce)?/mmol", "nmol/mmol"),
+    (r"^ku/l$", "u/ml"),
+    (r"^pg/ml$", "ng/l"),
+    (r"^(µ|u)g/ml$", "mg/l"),
+    (r"(^\s+$|^$)", "NA"),
+]
+
+# TEST_OUTCOME codes rewritten to their standard AR/LABRA equivalent. Every other raw
+# value (including e.g. "POS"/"NEG") passes through unchanged.
+TEST_OUTCOME_MAP = {
+    "<": "L",
+    ">": "H",
+}

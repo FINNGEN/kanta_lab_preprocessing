@@ -55,3 +55,15 @@ def get_thl_manual_map() -> dict[str, str]:
         dtype=str,
     )
     return dict(zip(df["CODE"], df["NAME"]))
+
+
+@lru_cache(maxsize=1)
+def get_unit_map() -> dict[str, str]:
+    """Raw/dirty MEASUREMENT_UNIT string -> corrected unit, from a manually curated table."""
+    df = pd.read_csv(
+        config.UNIT_MAP_FILE,
+        sep="\t",
+        usecols=["OLD_UNIT", "MEASUREMENT_UNIT"],
+        dtype=str,
+    )
+    return dict(zip(df["OLD_UNIT"], df["MEASUREMENT_UNIT"]))

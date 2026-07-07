@@ -6,7 +6,7 @@ from pathlib import Path
 
 from kanta import output
 from kanta.engine import chunking, processing
-from kanta.engine.errors import ABBR_EMPTY_SCHEMA, EMPTY_SCHEMA
+from kanta.engine.errors import ABBR_EMPTY_SCHEMA, EMPTY_SCHEMA, UNIT_EMPTY_SCHEMA
 
 
 def main(
@@ -14,6 +14,7 @@ def main(
     output_file: Path,
     errors_file: Path,
     abbr_file: Path,
+    unit_file: Path,
     tmp_dir: Path,
     *,
     is_test_run=False,
@@ -31,6 +32,9 @@ def main(
     abbr_dir = tmp_dir / "abbr"
     abbr_dir.mkdir()
 
+    unit_dir = tmp_dir / "unit"
+    unit_dir.mkdir()
+
     # Iterate over each chunk
     iter_indexed_chunks = chunking.chunk_iterator(input_file, is_test_run=is_test_run)
 
@@ -39,6 +43,7 @@ def main(
         chunks_dir=chunks_dir,
         errors_dir=errors_dir,
         abbr_dir=abbr_dir,
+        unit_dir=unit_dir,
     )
 
     if n_workers > 1:
@@ -50,6 +55,7 @@ def main(
     chunking.concatenate_chunks(chunks_dir, output_file)
     chunking.concatenate_chunks(errors_dir, errors_file, empty_schema=EMPTY_SCHEMA)
     chunking.concatenate_chunks(abbr_dir, abbr_file, empty_schema=ABBR_EMPTY_SCHEMA)
+    chunking.concatenate_chunks(unit_dir, unit_file, empty_schema=UNIT_EMPTY_SCHEMA)
 
 
 def process_in_parallel(func, indexed_chunks, *, n_workers: int):
@@ -99,8 +105,9 @@ def init_cli():
         help=(
             "Prefix for output file paths (Parquet). Produces <prefix>.parquet for the "
             "cleaned data, <prefix>_errors.parquet for rows dropped/flagged by filters, "
-            "and <prefix>_abbr.parquet for TEST_NAME_ABBREVIATION changes. Future output "
-            "files follow the same <prefix>_<name>.parquet convention."
+            "<prefix>_abbr.parquet for TEST_NAME_ABBREVIATION changes, and "
+            "<prefix>_unit.parquet for MEASUREMENT_UNIT changes. Future output files "
+            "follow the same <prefix>_<name>.parquet convention."
         ),
         required=True,
     )
@@ -138,10 +145,12 @@ if __name__ == "__main__":
     output_file = output.derive_output_path(args.output_prefix)
     errors_file = output.derive_output_path(args.output_prefix, "_errors")
     abbr_file = output.derive_output_path(args.output_prefix, "_abbr")
+    unit_file = output.derive_output_path(args.output_prefix, "_unit")
 
     output.check_safe_write(output_file)
     output.check_safe_write(errors_file)
     output.check_safe_write(abbr_file)
+    output.check_safe_write(unit_file)
     tmp_dir = output.create_tmp_dir()
 
     main(
@@ -149,6 +158,7 @@ if __name__ == "__main__":
         output_file,
         errors_file,
         abbr_file,
+        unit_file,
         tmp_dir,
         is_test_run=args.test,
         n_workers=args.n_workers,
