@@ -5,6 +5,17 @@ from pathlib import Path
 # Directory for static reference/mapping data files used by the engine's filters.
 DATA_DIR = Path(__file__).parent / "engine" / "data"
 
+# Output of the separate unit-injection pipeline (scripts/injection/), referenced in place
+# rather than copied into DATA_DIR, since it's this repo's own output, not an external source.
+REPO_ROOT = Path(__file__).parent.parent.parent
+INJECTION_RESULTS_FILE = REPO_ROOT / "scripts" / "injection" / "data" / "injection_results.tsv"
+
+# Default thresholds for flagging an uncertain bimodal-split unit injection in QC_NOTES:
+# below this bimodality coefficient, or above this mode overlap (%), the split's separation
+# can't be fully trusted. Overridable via --bimodal-bc-threshold/--bimodal-overlap-threshold.
+BIMODAL_BC_THRESHOLD_DEFAULT = 0.555
+BIMODAL_OVERLAP_THRESHOLD_DEFAULT = 0.1
+
 # Which columns to read from the input file, using the original (pre-alias) column names.
 # An empty list means all columns are read.
 READ_COLUMNS = []
@@ -55,6 +66,10 @@ OUT_COLUMNS = [
     "source::MEASUREMENT_UNIT",
     "source::TEST_NAME_ABBREVIATION",
     "source::TEST_OUTCOME",
+    "harmonization_omop::IS_UNIT_VALID",
+    "IS_VALUE_EXTRACTED",
+    "cleaned-pre-fix::MEASUREMENT_UNIT",
+    "QC_NOTES",
 ]
 
 # Columns snapshotted into a source::<col> output column immediately after renaming and
@@ -214,3 +229,36 @@ TEST_OUTCOME_MAP = {
     "<": "L",
     ">": "H",
 }
+
+# Public repo hosting Usagi (OMOP) harmonization reference tables.
+HARMONIZATION_REPO_BRANCH = "kanta_v4"
+HARMONIZATION_REPO_URL = (
+    "https://raw.githubusercontent.com/FINNGEN/kanta_lab_harmonisation_public/"
+    f"refs/heads/{HARMONIZATION_REPO_BRANCH}/VOCABULARIES/"
+)
+
+# Usagi-approved MEASUREMENT_UNIT source codes, filtered to unique-for-lab units.
+# Refreshed from HARMONIZATION_REPO_URL on load; falls back to this local snapshot if offline.
+USAGI_UNITS_FILE = DATA_DIR / "UNITSfi.usagi.csv"
+USAGI_UNITS_URL = HARMONIZATION_REPO_URL + "UNITSfi/UNITSfi.usagi.csv"
+
+# Usagi lab-test mapping table (mappingStatus/OMOP concept id per TEST_NAME_ABBREVIATION).
+# Refreshed from HARMONIZATION_REPO_URL on load; falls back to this local snapshot if offline.
+USAGI_MAPPING_FILE = DATA_DIR / "LABfi_ALL.usagi.csv"
+USAGI_MAPPING_URL = HARMONIZATION_REPO_URL + "LABfi_ALL/LABfi_ALL.usagi.csv"
+
+# Free-text prefixes stripped from the start of MEASUREMENT_FREE_TEXT before numeric extraction.
+FREE_TEXT_RESULT_STRINGS = [
+    "tutkimuksentulos:",
+    "resultat:",
+    "provresultat:",
+    "tutkimuksen tulos:",
+    "tulos:",
+    "vastaus:",
+]
+
+# (pattern, replacement) pairs applied to MEASUREMENT_FREE_TEXT before numeric extraction.
+FREE_TEXT_MEASUREMENT_REPLACEMENTS = [
+    (r"\*", ""),
+    (r",", "."),
+]

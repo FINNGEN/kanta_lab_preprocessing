@@ -157,8 +157,10 @@ def map_measurement_method(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def run(df: pd.DataFrame, errors: ErrorSink, abbr_changes: AbbrSink) -> pd.DataFrame:
-    return (
+def run(
+    df: pd.DataFrame, errors: ErrorSink, abbr_changes: AbbrSink, verbose: bool = False
+) -> pd.DataFrame:
+    df = (
         df.pipe(fix_date, errors)
         .pipe(remove_spaces)
         .pipe(fix_na)
@@ -169,3 +171,8 @@ def run(df: pd.DataFrame, errors: ErrorSink, abbr_changes: AbbrSink) -> pd.DataF
         .pipe(fix_abbreviation, abbr_changes)
         .pipe(map_measurement_method)
     )
+    if verbose:
+        n_errors = sum(len(frame) for frame in errors.frames)
+        n_abbr_changes = sum(len(frame) for frame in abbr_changes.frames)
+        print(f"[filter_minimal] {n_errors} rows flagged/dropped, {n_abbr_changes} abbreviations changed")
+    return df

@@ -4,7 +4,7 @@ from argparse import ArgumentParser
 from functools import partial
 from pathlib import Path
 
-from kanta import output
+from kanta import config, output
 from kanta.engine import chunking, processing
 from kanta.engine.errors import ABBR_EMPTY_SCHEMA, EMPTY_SCHEMA, UNIT_EMPTY_SCHEMA
 
@@ -19,6 +19,9 @@ def main(
     *,
     is_test_run=False,
     n_workers=1,
+    verbose=False,
+    bc_threshold=config.BIMODAL_BC_THRESHOLD_DEFAULT,
+    overlap_threshold=config.BIMODAL_OVERLAP_THRESHOLD_DEFAULT,
 ):
     # Setup
     processing.configure_pandas()
@@ -44,6 +47,9 @@ def main(
         errors_dir=errors_dir,
         abbr_dir=abbr_dir,
         unit_dir=unit_dir,
+        verbose=verbose,
+        bc_threshold=bc_threshold,
+        overlap_threshold=overlap_threshold,
     )
 
     if n_workers > 1:
@@ -127,6 +133,35 @@ def init_cli():
         help="Keep intermediate files, useful for debugging.",
         action="store_true",
     )
+    parser.add_argument(
+        "--verbose",
+        help=(
+            "Print per-filter debugging output (e.g. mapping counts) to screen. "
+            "Only meaningful together with --test: with multiple chunks/workers, "
+            "output from different chunks will interleave and print out of order."
+        ),
+        action="store_true",
+    )
+    parser.add_argument(
+        "--bimodal-bc-threshold",
+        type=float,
+        default=config.BIMODAL_BC_THRESHOLD_DEFAULT,
+        help=(
+            "Below this bimodality coefficient, a unit-injection split's separation is "
+            f"flagged as uncertain in QC_NOTES (default: {config.BIMODAL_BC_THRESHOLD_DEFAULT})."
+        ),
+        required=False,
+    )
+    parser.add_argument(
+        "--bimodal-overlap-threshold",
+        type=float,
+        default=config.BIMODAL_OVERLAP_THRESHOLD_DEFAULT,
+        help=(
+            "Above this mode overlap (%%), a unit-injection split's separation is flagged "
+            f"as uncertain in QC_NOTES (default: {config.BIMODAL_OVERLAP_THRESHOLD_DEFAULT})."
+        ),
+        required=False,
+    )
 
     args = parser.parse_args()
 
@@ -162,6 +197,9 @@ if __name__ == "__main__":
         tmp_dir,
         is_test_run=args.test,
         n_workers=args.n_workers,
+        verbose=args.verbose,
+        bc_threshold=args.bimodal_bc_threshold,
+        overlap_threshold=args.bimodal_overlap_threshold,
     )
 
     if not args.keep_intermediate_files:

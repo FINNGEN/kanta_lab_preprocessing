@@ -56,9 +56,13 @@ def fix_test_outcome(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def run(df: pd.DataFrame, unit_changes: UnitSink) -> pd.DataFrame:
-    return (
+def run(df: pd.DataFrame, unit_changes: UnitSink, verbose: bool = False) -> pd.DataFrame:
+    df = (
         df.pipe(strip_unit_characters)
         .pipe(fix_measurement_unit, unit_changes)
         .pipe(fix_test_outcome)
     )
+    if verbose:
+        n_unit_changes = sum(len(frame) for frame in unit_changes.frames)
+        print(f"[fix_unit] {n_unit_changes} units regex-fixed")
+    return df
