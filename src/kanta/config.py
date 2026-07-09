@@ -10,12 +10,6 @@ DATA_DIR = Path(__file__).parent / "engine" / "data"
 REPO_ROOT = Path(__file__).parent.parent.parent
 INJECTION_RESULTS_FILE = REPO_ROOT / "scripts" / "injection" / "data" / "injection_results.tsv"
 
-# Default thresholds for flagging an uncertain bimodal-split unit injection in QC_NOTES:
-# below this bimodality coefficient, or above this mode overlap (%), the split's separation
-# can't be fully trusted. Overridable via --bimodal-bc-threshold/--bimodal-overlap-threshold.
-BIMODAL_BC_THRESHOLD_DEFAULT = 0.555
-BIMODAL_OVERLAP_THRESHOLD_DEFAULT = 0.1
-
 # Which columns to read from the input file, using the original (pre-alias) column names.
 # An empty list means all columns are read.
 READ_COLUMNS = []

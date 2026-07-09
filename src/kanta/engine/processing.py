@@ -3,7 +3,6 @@ from pathlib import Path
 
 import pandas as pd
 
-from kanta import config
 from kanta.engine import chunking, pipes
 from kanta.engine.errors import AbbrSink, ErrorSink, UnitSink
 
@@ -42,23 +41,13 @@ def process_chunk(
     abbr_dir: Path,
     unit_dir: Path,
     verbose: bool = False,
-    bc_threshold: float = config.BIMODAL_BC_THRESHOLD_DEFAULT,
-    overlap_threshold: float = config.BIMODAL_OVERLAP_THRESHOLD_DEFAULT,
 ) -> Path:
     chunk_index, df_chunk = indexed_chunk
 
     errors = ErrorSink()
     abbr_changes = AbbrSink()
     unit_changes = UnitSink()
-    df_chunk = pipes.run_all(
-        df_chunk,
-        errors,
-        abbr_changes,
-        unit_changes,
-        verbose=verbose,
-        bc_threshold=bc_threshold,
-        overlap_threshold=overlap_threshold,
-    )
+    df_chunk = pipes.run_all(df_chunk, errors, abbr_changes, unit_changes, verbose=verbose)
 
     if errors.frames:
         errors_df = pd.concat(errors.frames, ignore_index=True)

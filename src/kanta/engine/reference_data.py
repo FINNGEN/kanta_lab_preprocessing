@@ -12,6 +12,7 @@ from functools import lru_cache
 from pathlib import Path
 from urllib.error import URLError
 
+import numpy as np
 import pandas as pd
 
 from kanta import config
@@ -118,6 +119,48 @@ def get_injection_results() -> pd.DataFrame:
         usecols=["TEST_NAME", "SUB_DIST", "CUTOFF", "UNIT", "OUTCOME", "BIMODAL_BC", "BIMODAL_OVERLAP"],
         dtype={"TEST_NAME": str, "SUB_DIST": str, "UNIT": str, "OUTCOME": str},
     )
+
+
+@lru_cache(maxsize=1)
+def get_injection_table() -> pd.DataFrame:
+    """Unit-injection candidates indexed by TEST_NAME: CUTOFF, LOW_UNIT, HIGH_UNIT, BIMODAL_BC,
+    BIMODAL_OVERLAP.
+
+    Simple (non-split) tests get CUTOFF=-inf and only HIGH_UNIT set, so comparing
+    MEASUREMENT_VALUE against CUTOFF in the filter always resolves to HIGH_UNIT for them —
+    the same low/high logic handles both simple and bimodal-split tests, no separate branch
+    needed. Split tests are only included when both their low and high side are PASS: one
+    FAILed side means the true boundary can't be trusted, so the whole test is excluded.
+    """
+    results = get_injection_results()
+
+    simple = results[(results["SUB_DIST"] == "all") & (results["OUTCOME"] == "PASS")]
+    simple_table = pd.DataFrame(
+        {
+            "CUTOFF": -np.inf,
+            "LOW_UNIT": np.nan,
+            "HIGH_UNIT": simple["UNIT"].values,
+            "BIMODAL_BC": np.nan,
+            "BIMODAL_OVERLAP": np.nan,
+        },
+        index=simple["TEST_NAME"],
+    )
+
+    split = results[results["SUB_DIST"] != "all"]
+    low = split[split["SUB_DIST"] == "low"].set_index("TEST_NAME")
+    high = split[split["SUB_DIST"] == "high"].set_index("TEST_NAME")
+    usable = (low["OUTCOME"] == "PASS") & (high["OUTCOME"] == "PASS")
+    split_table = pd.DataFrame(
+        {
+            "CUTOFF": low["CUTOFF"],
+            "LOW_UNIT": low["UNIT"],
+            "HIGH_UNIT": high["UNIT"],
+            "BIMODAL_BC": low["BIMODAL_BC"],
+            "BIMODAL_OVERLAP": low["BIMODAL_OVERLAP"],
+        }
+    )[usable]
+
+    return pd.concat([simple_table, split_table])
 
 
 @lru_cache(maxsize=1)

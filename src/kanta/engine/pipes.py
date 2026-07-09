@@ -28,14 +28,12 @@ def run_all(
     abbr_changes: AbbrSink,
     unit_changes: UnitSink,
     verbose: bool = False,
-    bc_threshold: float = config.BIMODAL_BC_THRESHOLD_DEFAULT,
-    overlap_threshold: float = config.BIMODAL_OVERLAP_THRESHOLD_DEFAULT,
 ) -> pd.DataFrame:
     return (
         df.pipe(rename_cols)
         .pipe(snapshot_source_cols)
         .pipe(filter_minimal.run, errors, abbr_changes, verbose)
         .pipe(fix_unit.run, unit_changes, verbose)
-        .pipe(harmonization.run, verbose, bc_threshold, overlap_threshold)
+        .pipe(harmonization.run, verbose)
         .pipe(select_out_cols)
     )
