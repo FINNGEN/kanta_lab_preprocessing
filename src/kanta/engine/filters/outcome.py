@@ -8,7 +8,7 @@ from kanta.engine import reference_data
 
 def extract_positive(df: pd.DataFrame, verbose: bool = False) -> pd.DataFrame:
     """Assign extracted::IS_POS ("0"/"1") from a free-text positive/negative lookup table."""
-    posneg_table = reference_data.get_posneg_table(verbose=verbose)
+    posneg_table = reference_data.get_posneg_table()
     df["extracted::IS_POS"] = df["MEASUREMENT_FREE_TEXT"].map(posneg_table).fillna("NA")
 
     if verbose:
@@ -65,11 +65,11 @@ def extract_outcome(df: pd.DataFrame, verbose: bool = False) -> pd.DataFrame:
 
     strip_pattern = "(" + "|".join(re.escape(char) for char in config.UNIT_STRIP_CHARS) + ")"
     parts["unit"] = parts["unit"].replace(strip_pattern, "", regex=True)
-    unit_map = reference_data.get_unit_map(verbose=verbose)
+    unit_map = reference_data.get_unit_map()
     is_mapped = parts["unit"].isin(unit_map)
     parts.loc[is_mapped, "unit"] = parts.loc[is_mapped, "unit"].map(unit_map)
 
-    usagi_units = reference_data.get_usagi_units(verbose=verbose)
+    usagi_units = reference_data.get_usagi_units()
     is_valid = (
         parts["comp"].isin(["<", ">"])
         & pd.to_numeric(parts["value"], errors="coerce").notna()
@@ -99,7 +99,7 @@ def impute_outcome(df: pd.DataFrame, verbose: bool = False) -> pd.DataFrame:
     get "NA". LOW_PROBLEM/HIGH_PROBLEM ("1") mark a limit-crossing as itself abnormal
     (e.g. "L*" instead of "L").
     """
-    limits = reference_data.get_ab_limits(verbose=verbose)
+    limits = reference_data.get_ab_limits()
     matched = limits.reindex(df["harmonization_omop::OMOP_ID"]).set_axis(df.index)
 
     value = pd.to_numeric(df["harmonization_omop::MEASUREMENT_VALUE"], errors="coerce")

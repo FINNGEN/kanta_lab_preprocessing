@@ -81,7 +81,7 @@ def flag_omop_qc(df: pd.DataFrame, verbose: bool = False) -> pd.DataFrame:
     """
     _ensure_qc_pass(df)
 
-    rules = reference_data.get_omop_qc(verbose=verbose)
+    rules = reference_data.get_omop_qc()
     is_registered = df["harmonization_omop::OMOP_ID"].isin(rules["harmonization_omop::OMOP_ID"])
     df.loc[is_registered, "QC_PASS"] = "1"
 

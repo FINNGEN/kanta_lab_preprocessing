@@ -3,8 +3,17 @@ from pathlib import Path
 
 import pandas as pd
 
-from kanta.engine import chunking, pipes
+from kanta.engine import chunking, pipes, reference_data
 from kanta.engine.errors import AbbrSink, ErrorSink, UnitSink
+
+
+def init_worker(cache_dir: Path) -> None:
+    """Pool initializer for spawned worker processes: applies the pandas config (spawn doesn't
+    inherit it) and points this worker at the per-run reference-data pickle cache that main()
+    already populated via reference_data.warm_all(), before any worker started.
+    """
+    configure_pandas()
+    reference_data.set_cache_dir(cache_dir)
 
 
 def configure_pandas():

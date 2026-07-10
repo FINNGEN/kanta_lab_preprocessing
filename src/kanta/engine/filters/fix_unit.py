@@ -18,7 +18,7 @@ def strip_unit_characters(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def fix_measurement_unit(df: pd.DataFrame, unit_changes: UnitSink, verbose: bool = False) -> pd.DataFrame:
+def fix_measurement_unit(df: pd.DataFrame, unit_changes: UnitSink) -> pd.DataFrame:
     """Fix MEASUREMENT_UNIT in two steps: exact-match dictionary lookup, then regex clean-up.
 
     Rows resolved by the dictionary lookup (config.UNIT_MAP_FILE) are excluded from the
@@ -26,7 +26,7 @@ def fix_measurement_unit(df: pd.DataFrame, unit_changes: UnitSink, verbose: bool
     behavior where dictionary-driven changes were never logged.
     """
     col = "MEASUREMENT_UNIT"
-    unit_map = reference_data.get_unit_map(verbose=verbose)
+    unit_map = reference_data.get_unit_map()
     is_mapped = df[col].isin(unit_map)
     df.loc[is_mapped, col] = df.loc[is_mapped, col].map(unit_map)
 
@@ -59,7 +59,7 @@ def fix_test_outcome(df: pd.DataFrame) -> pd.DataFrame:
 def run(df: pd.DataFrame, unit_changes: UnitSink, verbose: bool = False) -> pd.DataFrame:
     df = (
         df.pipe(strip_unit_characters)
-        .pipe(fix_measurement_unit, unit_changes, verbose)
+        .pipe(fix_measurement_unit, unit_changes)
         .pipe(fix_test_outcome)
     )
     if verbose:

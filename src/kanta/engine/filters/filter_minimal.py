@@ -81,28 +81,36 @@ def lab_id_source(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def get_lab_abbrv(df: pd.DataFrame, errors: ErrorSink, verbose: bool = False) -> pd.DataFrame:
+def get_lab_abbrv(df: pd.DataFrame, abbr_changes: AbbrSink) -> pd.DataFrame:
     """Assign TEST_NAME_ABBREVIATION: keep the local name if TEST_ID is local, map via THL otherwise.
 
-    National ids missing from the THL map are logged but kept (not dropped) — the mapping
-    lookup itself falls back to the raw TEST_ID when unmapped.
+    National ids missing from the THL map fall back to the raw TEST_ID (get_thl_lab_map() is a
+    FallbackToKeyDict) rather than being dropped, so this is logged as an abbreviation change
+    to abbr_changes, not an error — the row isn't lost, just resolved differently.
     """
     col = "TEST_NAME_ABBREVIATION"
     df[col] = df[col].str.lower()
 
-    thl_lab_map = reference_data.get_thl_lab_map(verbose=verbose)
+    thl_lab_map = reference_data.get_thl_lab_map()
     is_national = df["TEST_ID_IS_NATIONAL"] == "1"
     is_unmapped = ~df["TEST_ID"].isin(thl_lab_map)
 
-    bad_rows = df.loc[is_national & is_unmapped]
-    errors.add(bad_rows, err_name="lab_mapping", err_value=bad_rows["TEST_ID"])
-
+    old_abbr = df[col].copy()
     df.loc[is_national, col] = df.loc[is_national, "TEST_ID"].map(thl_lab_map)
     df[col] = df[col].str.replace('"', "")
+
+    fallback_mask = is_national & is_unmapped
+    fallback_rows = df.loc[fallback_mask]
+    abbr_changes.add(
+        fallback_rows,
+        err_name="lab_mapping",
+        old_abbr=old_abbr.loc[fallback_mask],
+        new_abbr=fallback_rows[col],
+    )
     return df
 
 
-def get_coding_map(df: pd.DataFrame, verbose: bool = False) -> pd.DataFrame:
+def get_coding_map(df: pd.DataFrame) -> pd.DataFrame:
     """Map CODING_SYSTEM via the THL organization map, then derive CODING_SYSTEM_MAP.
 
     Faithfully replicates finngen_qc's ordering: CODING_SYSTEM_MAP's prefix-stripping step
@@ -110,7 +118,7 @@ def get_coding_map(df: pd.DataFrame, verbose: bool = False) -> pd.DataFrame:
     so it only resolves to a non-"NA" value for rows the first round left unmapped.
     """
     col = "CODING_SYSTEM"
-    df[col] = df[col].map(reference_data.get_thl_sote_map(verbose=verbose))
+    df[col] = df[col].map(reference_data.get_thl_sote_map())
 
     tmp_system = (
         df[col]
@@ -119,7 +127,7 @@ def get_coding_map(df: pd.DataFrame, verbose: bool = False) -> pd.DataFrame:
         .str.split(".", n=1, expand=False)
         .str[0]
     )
-    df["CODING_SYSTEM_MAP"] = tmp_system.map(reference_data.get_thl_manual_map(verbose=verbose)).fillna("NA")
+    df["CODING_SYSTEM_MAP"] = tmp_system.map(reference_data.get_thl_manual_map()).fillna("NA")
     return df
 
 
@@ -157,17 +165,15 @@ def map_measurement_method(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def run(
-    df: pd.DataFrame, errors: ErrorSink, abbr_changes: AbbrSink, verbose: bool = False
-) -> pd.DataFrame:
+def run(df: pd.DataFrame, errors: ErrorSink, abbr_changes: AbbrSink, verbose: bool = False) -> pd.DataFrame:
     df = (
         df.pipe(fix_date, errors)
         .pipe(remove_spaces)
         .pipe(fix_na)
         .pipe(filter_measurement_status, errors)
         .pipe(lab_id_source)
-        .pipe(get_lab_abbrv, errors, verbose)
-        .pipe(get_coding_map, verbose)
+        .pipe(get_lab_abbrv, abbr_changes)
+        .pipe(get_coding_map)
         .pipe(fix_abbreviation, abbr_changes)
         .pipe(map_measurement_method)
     )

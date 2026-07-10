@@ -12,7 +12,7 @@ def approve_status(df: pd.DataFrame, verbose: bool = False) -> pd.DataFrame:
     reference table itself, not the data being processed. Since get_usagi_mapping()
     is cached, this mutates the same table object on every call, so it's idempotent.
     """
-    usagi_mapping = reference_data.get_usagi_mapping(verbose=verbose)
+    usagi_mapping = reference_data.get_usagi_mapping()
     not_approved = usagi_mapping["harmonization_omop::mappingStatus"] != "APPROVED"
     usagi_mapping.loc[not_approved, "harmonization_omop::OMOP_ID"] = "0"
 
@@ -26,7 +26,7 @@ def approve_status(df: pd.DataFrame, verbose: bool = False) -> pd.DataFrame:
 
 def check_usagi_unit(df: pd.DataFrame, verbose: bool = False) -> pd.DataFrame:
     """Populate harmonization_omop::IS_UNIT_VALID: whether MEASUREMENT_UNIT is Usagi-approved."""
-    is_valid = df["MEASUREMENT_UNIT"].isin(reference_data.get_usagi_units(verbose=verbose))
+    is_valid = df["MEASUREMENT_UNIT"].isin(reference_data.get_usagi_units())
     df["harmonization_omop::IS_UNIT_VALID"] = np.where(is_valid, "1", "0")
     if verbose:
         counts = df["harmonization_omop::IS_UNIT_VALID"].value_counts().to_dict()
@@ -48,7 +48,7 @@ def extract_measurement(df: pd.DataFrame, verbose: bool = False) -> pd.DataFrame
 
     cleaned = df[ft_col].astype(str).str.lower().str.strip().str.replace(r"\s", "", regex=True)
 
-    is_valid_unit = df["MEASUREMENT_UNIT"].isin(reference_data.get_usagi_units(verbose=verbose))
+    is_valid_unit = df["MEASUREMENT_UNIT"].isin(reference_data.get_usagi_units())
     cleaned.loc[is_valid_unit] = [
         text.replace(unit, "")
         for text, unit in zip(cleaned.loc[is_valid_unit], df.loc[is_valid_unit, "MEASUREMENT_UNIT"])
@@ -104,7 +104,7 @@ def inject_missing_unit(df: pd.DataFrame, verbose: bool = False) -> pd.DataFrame
     df["cleaned-pre-fix::MEASUREMENT_UNIT"] = df["MEASUREMENT_UNIT"]
 
     is_eligible = (df["MEASUREMENT_VALUE"] != "NA") & (df["MEASUREMENT_UNIT"] == "NA")
-    table = reference_data.get_injection_table(verbose=verbose)
+    table = reference_data.get_injection_table()
 
     is_candidate = is_eligible & df["TEST_NAME_ABBREVIATION"].isin(table.index)
     test_name = df.loc[is_candidate, "TEST_NAME_ABBREVIATION"]
@@ -152,7 +152,7 @@ def omop_mapping(df: pd.DataFrame, verbose: bool = False) -> pd.DataFrame:
     join_cols = ["TEST_NAME_ABBREVIATION", "MEASUREMENT_UNIT"]
     out_cols = ["harmonization_omop::OMOP_ID", "harmonization_omop::omopQuantity"]
 
-    mapping = reference_data.get_usagi_mapping(verbose=verbose).drop_duplicates(subset=join_cols, keep="first")
+    mapping = reference_data.get_usagi_mapping().drop_duplicates(subset=join_cols, keep="first")
     lookup = mapping.set_index(join_cols)[out_cols]
 
     keys = pd.MultiIndex.from_arrays([df["TEST_NAME_ABBREVIATION"], df["MEASUREMENT_UNIT"]])
@@ -182,7 +182,7 @@ def unit_harmonization(df: pd.DataFrame, verbose: bool = False) -> pd.DataFrame:
     since the formula only ever comes from our own static reference table, not user input.
     """
     join_cols = ["harmonization_omop::OMOP_ID", "harmonization_omop::omopQuantity", "MEASUREMENT_UNIT"]
-    table = reference_data.get_conversion_table(verbose=verbose)
+    table = reference_data.get_conversion_table()
 
     keys = pd.MultiIndex.from_arrays([df[col] for col in join_cols])
     matched = table.reindex(keys).set_axis(df.index)

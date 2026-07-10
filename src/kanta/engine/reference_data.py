@@ -2,9 +2,14 @@
 
 Each loader is cached so the underlying file is only read once per process: once in the
 main process for serial runs, once per worker process when running in parallel (since
-`spawn` workers re-import modules fresh, the cache is naturally per-process).
+`spawn` workers re-import modules fresh, the cache is naturally per-process). On top of that,
+a per-run pickle cache (see set_cache_dir()/`_cached()`) lets worker processes skip the
+parse/join/regex work entirely and just deserialize the already-built object, since
+reference_data.warm_all() has already computed and pickled everything once, in the main
+process, before any worker starts.
 """
 
+import pickle
 import shutil
 import urllib.request
 import warnings
@@ -16,6 +21,36 @@ import numpy as np
 import pandas as pd
 
 from kanta import config
+
+# Set once via set_cache_dir() (by main(), before dispatching to workers). None means "no
+# pickle cache available" — callers still work, just without the cross-process speedup.
+_CACHE_DIR: Path | None = None
+
+
+def set_cache_dir(path: Path) -> None:
+    """Point the per-run pickle cache at `path` (created fresh once per run by the caller)."""
+    global _CACHE_DIR
+    _CACHE_DIR = path
+
+
+def _cached(key: str, compute):
+    """Pickle-cache compute()'s result under _CACHE_DIR, keyed by `key`.
+
+    Only ever written once per run: main() populates the whole cache via warm_all() before
+    any worker starts, so workers only ever read here, never write concurrently. If _CACHE_DIR
+    isn't set (e.g. a standalone script importing this module directly, without going through
+    main()), just computes without caching.
+    """
+    if _CACHE_DIR is None:
+        return compute()
+
+    cache_path = _CACHE_DIR / f"{key}.pkl"
+    if cache_path.exists():
+        return pickle.loads(cache_path.read_bytes())
+
+    result = compute()
+    cache_path.write_bytes(pickle.dumps(result))
+    return result
 
 
 class FallbackToKeyDict(dict):
@@ -45,7 +80,8 @@ def _refresh_from_remote(url: str, local_path: Path, timeout: float = 5.0, verbo
         if verbose:
             print(f"[reference_data] refreshed {local_path.name} from {url}")
     except (URLError, OSError) as e:
-        warnings.warn(f"Could not refresh {local_path.name} from {url} ({e}); using local copy.")
+        if verbose:
+            warnings.warn(f"Could not refresh {local_path.name} from {url} ({e}); using local copy.")
     finally:
         tmp_path.unlink(missing_ok=True)
 
@@ -53,15 +89,19 @@ def _refresh_from_remote(url: str, local_path: Path, timeout: float = 5.0, verbo
 @lru_cache(maxsize=1)
 def get_thl_lab_map(verbose: bool = False) -> FallbackToKeyDict:
     """National (THL) lab id -> abbreviation mapping, lowercased with spaces stripped."""
-    df = pd.read_csv(
-        config.THL_LAB_ID_ABBREVIATION_FILE,
-        sep=";",
-        encoding="latin-1",
-        usecols=["CodeId", "Abbreviation"],
-        dtype=str,
-    )
-    abbreviation = df["Abbreviation"].str.replace(" ", "", regex=False).str.lower()
-    result = FallbackToKeyDict(zip(df["CodeId"], abbreviation))
+
+    def compute():
+        df = pd.read_csv(
+            config.THL_LAB_ID_ABBREVIATION_FILE,
+            sep=";",
+            encoding="latin-1",
+            usecols=["CodeId", "Abbreviation"],
+            dtype=str,
+        )
+        abbreviation = df["Abbreviation"].str.replace(" ", "", regex=False).str.lower()
+        return FallbackToKeyDict(zip(df["CodeId"], abbreviation))
+
+    result = _cached("thl_lab_map", compute)
     if verbose:
         print(f"[reference_data] thl_lab_map: {len(result)} entries loaded, sample {_sample_dict(result)}")
     return result
@@ -70,13 +110,17 @@ def get_thl_lab_map(verbose: bool = False) -> FallbackToKeyDict:
 @lru_cache(maxsize=1)
 def get_thl_sote_map(verbose: bool = False) -> FallbackToKeyDict:
     """National (THL) organization id -> lab/organization name mapping."""
-    df = pd.read_csv(
-        config.THL_SOTE_MAP_FILE,
-        sep="\t",
-        usecols=["OrganizationId", "LAB_NAME"],
-        dtype=str,
-    )
-    result = FallbackToKeyDict(zip(df["OrganizationId"], df["LAB_NAME"]))
+
+    def compute():
+        df = pd.read_csv(
+            config.THL_SOTE_MAP_FILE,
+            sep="\t",
+            usecols=["OrganizationId", "LAB_NAME"],
+            dtype=str,
+        )
+        return FallbackToKeyDict(zip(df["OrganizationId"], df["LAB_NAME"]))
+
+    result = _cached("thl_sote_map", compute)
     if verbose:
         print(f"[reference_data] thl_sote_map: {len(result)} entries loaded, sample {_sample_dict(result)}")
     return result
@@ -85,13 +129,17 @@ def get_thl_sote_map(verbose: bool = False) -> FallbackToKeyDict:
 @lru_cache(maxsize=1)
 def get_thl_manual_map(verbose: bool = False) -> dict[str, str]:
     """Manual mapping from a short numeric code (derived from CODING_SYSTEM) to a coding system name."""
-    df = pd.read_csv(
-        config.THL_CODING_MANUAL_MAP_FILE,
-        sep="\t",
-        usecols=["CODE", "NAME"],
-        dtype=str,
-    )
-    result = dict(zip(df["CODE"], df["NAME"]))
+
+    def compute():
+        df = pd.read_csv(
+            config.THL_CODING_MANUAL_MAP_FILE,
+            sep="\t",
+            usecols=["CODE", "NAME"],
+            dtype=str,
+        )
+        return dict(zip(df["CODE"], df["NAME"]))
+
+    result = _cached("thl_manual_map", compute)
     if verbose:
         print(f"[reference_data] thl_manual_map: {len(result)} entries loaded, sample {_sample_dict(result)}")
     return result
@@ -100,13 +148,17 @@ def get_thl_manual_map(verbose: bool = False) -> dict[str, str]:
 @lru_cache(maxsize=1)
 def get_unit_map(verbose: bool = False) -> dict[str, str]:
     """Raw/dirty MEASUREMENT_UNIT string -> corrected unit, from a manually curated table."""
-    df = pd.read_csv(
-        config.UNIT_MAP_FILE,
-        sep="\t",
-        usecols=["OLD_UNIT", "MEASUREMENT_UNIT"],
-        dtype=str,
-    )
-    result = dict(zip(df["OLD_UNIT"], df["MEASUREMENT_UNIT"]))
+
+    def compute():
+        df = pd.read_csv(
+            config.UNIT_MAP_FILE,
+            sep="\t",
+            usecols=["OLD_UNIT", "MEASUREMENT_UNIT"],
+            dtype=str,
+        )
+        return dict(zip(df["OLD_UNIT"], df["MEASUREMENT_UNIT"]))
+
+    result = _cached("unit_map", compute)
     if verbose:
         print(f"[reference_data] unit_map: {len(result)} entries loaded, sample {_sample_dict(result)}")
     return result
@@ -115,15 +167,19 @@ def get_unit_map(verbose: bool = False) -> dict[str, str]:
 @lru_cache(maxsize=1)
 def get_usagi_units(verbose: bool = False) -> set[str]:
     """Usagi-approved lab MEASUREMENT_UNIT source codes, filtered to unique-for-lab units."""
-    _refresh_from_remote(config.USAGI_UNITS_URL, config.USAGI_UNITS_FILE, verbose=verbose)
-    df = pd.read_csv(
-        config.USAGI_UNITS_FILE, usecols=["sourceCode", "ADD_INFO:UniqueForLab"]
-    ).drop_duplicates()
-    assert df["ADD_INFO:UniqueForLab"].dtype == bool
-    result = set(df.loc[df["ADD_INFO:UniqueForLab"], "sourceCode"])
+
+    def compute():
+        _refresh_from_remote(config.USAGI_UNITS_URL, config.USAGI_UNITS_FILE, verbose=verbose)
+        df = pd.read_csv(
+            config.USAGI_UNITS_FILE, usecols=["sourceCode", "ADD_INFO:UniqueForLab"]
+        ).drop_duplicates()
+        assert df["ADD_INFO:UniqueForLab"].dtype == bool
+        return set(df.loc[df["ADD_INFO:UniqueForLab"], "sourceCode"]), len(df)
+
+    result, n_total = _cached("usagi_units", compute)
     if verbose:
         sample = sorted(result)[:5]
-        print(f"[reference_data] usagi_units: {len(result)}/{len(df)} unique-for-lab units loaded, sample {sample}")
+        print(f"[reference_data] usagi_units: {len(result)}/{n_total} unique-for-lab units loaded, sample {sample}")
     return result
 
 
@@ -136,12 +192,16 @@ def get_injection_results(verbose: bool = False) -> pd.DataFrame:
     needed to know where the split boundary is, even though its own UNIT must not be used.
     Callers are responsible for checking OUTCOME before using a row's UNIT.
     """
-    df = pd.read_csv(
-        config.INJECTION_RESULTS_FILE,
-        sep="\t",
-        usecols=["TEST_NAME", "SUB_DIST", "CUTOFF", "UNIT", "OUTCOME", "BIMODAL_BC", "BIMODAL_OVERLAP"],
-        dtype={"TEST_NAME": str, "SUB_DIST": str, "UNIT": str, "OUTCOME": str},
-    )
+
+    def compute():
+        return pd.read_csv(
+            config.INJECTION_RESULTS_FILE,
+            sep="\t",
+            usecols=["TEST_NAME", "SUB_DIST", "CUTOFF", "UNIT", "OUTCOME", "BIMODAL_BC", "BIMODAL_OVERLAP"],
+            dtype={"TEST_NAME": str, "SUB_DIST": str, "UNIT": str, "OUTCOME": str},
+        )
+
+    df = _cached("injection_results", compute)
     if verbose:
         counts = df["OUTCOME"].value_counts().to_dict()
         print(f"[reference_data] injection_results: {len(df)} rows loaded, OUTCOME counts {counts}")
@@ -160,40 +220,41 @@ def get_injection_table(verbose: bool = False) -> pd.DataFrame:
     needed. Split tests are only included when both their low and high side are PASS: one
     FAILed side means the true boundary can't be trusted, so the whole test is excluded.
     """
-    results = get_injection_results(verbose=verbose)
 
-    simple = results[(results["SUB_DIST"] == "all") & (results["OUTCOME"] == "PASS")]
-    simple_table = pd.DataFrame(
-        {
-            "CUTOFF": -np.inf,
-            "LOW_UNIT": np.nan,
-            "HIGH_UNIT": simple["UNIT"].values,
-            "BIMODAL_BC": np.nan,
-            "BIMODAL_OVERLAP": np.nan,
-        },
-        index=simple["TEST_NAME"],
-    )
+    def compute():
+        results = get_injection_results(verbose=verbose)
 
-    split = results[results["SUB_DIST"] != "all"]
-    low = split[split["SUB_DIST"] == "low"].set_index("TEST_NAME")
-    high = split[split["SUB_DIST"] == "high"].set_index("TEST_NAME")
-    usable = (low["OUTCOME"] == "PASS") & (high["OUTCOME"] == "PASS")
-    split_table = pd.DataFrame(
-        {
-            "CUTOFF": low["CUTOFF"],
-            "LOW_UNIT": low["UNIT"],
-            "HIGH_UNIT": high["UNIT"],
-            "BIMODAL_BC": low["BIMODAL_BC"],
-            "BIMODAL_OVERLAP": low["BIMODAL_OVERLAP"],
-        }
-    )[usable]
-
-    table = pd.concat([simple_table, split_table])
-    if verbose:
-        print(
-            f"[reference_data] injection_table: {len(simple_table)} simple + "
-            f"{len(split_table)} split = {len(table)} tests"
+        simple = results[(results["SUB_DIST"] == "all") & (results["OUTCOME"] == "PASS")]
+        simple_table = pd.DataFrame(
+            {
+                "CUTOFF": -np.inf,
+                "LOW_UNIT": np.nan,
+                "HIGH_UNIT": simple["UNIT"].values,
+                "BIMODAL_BC": np.nan,
+                "BIMODAL_OVERLAP": np.nan,
+            },
+            index=simple["TEST_NAME"],
         )
+
+        split = results[results["SUB_DIST"] != "all"]
+        low = split[split["SUB_DIST"] == "low"].set_index("TEST_NAME")
+        high = split[split["SUB_DIST"] == "high"].set_index("TEST_NAME")
+        usable = (low["OUTCOME"] == "PASS") & (high["OUTCOME"] == "PASS")
+        split_table = pd.DataFrame(
+            {
+                "CUTOFF": low["CUTOFF"],
+                "LOW_UNIT": low["UNIT"],
+                "HIGH_UNIT": high["UNIT"],
+                "BIMODAL_BC": low["BIMODAL_BC"],
+                "BIMODAL_OVERLAP": low["BIMODAL_OVERLAP"],
+            }
+        )[usable]
+
+        return pd.concat([simple_table, split_table]), len(simple_table), len(split_table)
+
+    table, n_simple, n_split = _cached("injection_table", compute)
+    if verbose:
+        print(f"[reference_data] injection_table: {n_simple} simple + {n_split} split = {len(table)} tests")
         print(table.head(3).to_string())
     return table
 
@@ -207,27 +268,31 @@ def get_usagi_mapping(verbose: bool = False) -> pd.DataFrame:
     source CSV, and the engine's own MEASUREMENT_UNIT/TEST_NAME_ABBREVIATION columns use the
     string "NA" (not NaN) for missing, so join keys must match on that same convention.
     """
-    _refresh_from_remote(config.USAGI_MAPPING_URL, config.USAGI_MAPPING_FILE, verbose=verbose)
-    df = pd.read_csv(
-        config.USAGI_MAPPING_FILE,
-        usecols=[
-            "mappingStatus",
-            "conceptId",
-            "ADD_INFO:omopQuantity",
-            "ADD_INFO:testNameAbbreviation",
-            "ADD_INFO:measurementUnit",
-        ],
-        dtype=str,
-    ).drop_duplicates()
-    df = df.rename(
-        columns={
-            "mappingStatus": "harmonization_omop::mappingStatus",
-            "conceptId": "harmonization_omop::OMOP_ID",
-            "ADD_INFO:omopQuantity": "harmonization_omop::omopQuantity",
-            "ADD_INFO:testNameAbbreviation": "TEST_NAME_ABBREVIATION",
-            "ADD_INFO:measurementUnit": "MEASUREMENT_UNIT",
-        }
-    ).fillna("NA")
+
+    def compute():
+        _refresh_from_remote(config.USAGI_MAPPING_URL, config.USAGI_MAPPING_FILE, verbose=verbose)
+        df = pd.read_csv(
+            config.USAGI_MAPPING_FILE,
+            usecols=[
+                "mappingStatus",
+                "conceptId",
+                "ADD_INFO:omopQuantity",
+                "ADD_INFO:testNameAbbreviation",
+                "ADD_INFO:measurementUnit",
+            ],
+            dtype=str,
+        ).drop_duplicates()
+        return df.rename(
+            columns={
+                "mappingStatus": "harmonization_omop::mappingStatus",
+                "conceptId": "harmonization_omop::OMOP_ID",
+                "ADD_INFO:omopQuantity": "harmonization_omop::omopQuantity",
+                "ADD_INFO:testNameAbbreviation": "TEST_NAME_ABBREVIATION",
+                "ADD_INFO:measurementUnit": "MEASUREMENT_UNIT",
+            }
+        ).fillna("NA")
+
+    df = _cached("usagi_mapping", compute)
     if verbose:
         print(f"[reference_data] usagi_mapping: {len(df)} rows loaded")
         print(df.head(3).to_string(index=False))
@@ -241,18 +306,23 @@ def get_harmonization_counts(verbose: bool = False) -> pd.DataFrame:
     "NA"-fills harmonization_omop::MEASUREMENT_UNIT: a blank target unit is a legitimate choice
     for some OMOP concepts (e.g. Presence/Threshold quantities), not a missing value to drop.
     """
-    _refresh_from_remote(config.HARMONIZATION_COUNTS_URL, config.HARMONIZATION_COUNTS_FILE, verbose=verbose)
-    df = pd.read_csv(
-        config.HARMONIZATION_COUNTS_FILE,
-        sep="\t",
-        usecols=[
-            "harmonization_omop::OMOP_ID",
-            "harmonization_omop::omopQuantity",
-            "harmonization_omop::MEASUREMENT_UNIT",
-        ],
-        dtype=str,
-    )
-    df["harmonization_omop::MEASUREMENT_UNIT"] = df["harmonization_omop::MEASUREMENT_UNIT"].fillna("NA")
+
+    def compute():
+        _refresh_from_remote(config.HARMONIZATION_COUNTS_URL, config.HARMONIZATION_COUNTS_FILE, verbose=verbose)
+        df = pd.read_csv(
+            config.HARMONIZATION_COUNTS_FILE,
+            sep="\t",
+            usecols=[
+                "harmonization_omop::OMOP_ID",
+                "harmonization_omop::omopQuantity",
+                "harmonization_omop::MEASUREMENT_UNIT",
+            ],
+            dtype=str,
+        )
+        df["harmonization_omop::MEASUREMENT_UNIT"] = df["harmonization_omop::MEASUREMENT_UNIT"].fillna("NA")
+        return df
+
+    df = _cached("harmonization_counts", compute)
     if verbose:
         print(f"[reference_data] harmonization_counts: {len(df)} rows loaded")
         print(df.head(3).to_string(index=False))
@@ -271,29 +341,34 @@ def get_unit_conversion(verbose: bool = False) -> pd.DataFrame:
     with this quantity", while a real value means "only applies to this specific OMOP_ID" — future
     harmonize logic needs to distinguish the two with .isna(), not a string comparison.
     """
-    _refresh_from_remote(config.UNIT_CONVERSION_URL, config.UNIT_CONVERSION_FILE, verbose=verbose)
-    df = pd.read_csv(
-        config.UNIT_CONVERSION_FILE,
-        sep="\t",
-        usecols=[
-            "omop_quantity",
-            "source_unit_valid",
-            "to_source_unit_valid",
-            "conversion",
-            "only_to_omop_concepts",
-        ],
-        dtype=str,
-    ).rename(
-        columns={
-            "omop_quantity": "harmonization_omop::omopQuantity",
-            "source_unit_valid": "MEASUREMENT_UNIT",
-            "to_source_unit_valid": "harmonization_omop::MEASUREMENT_UNIT",
-            "conversion": "harmonization_omop::CONVERSION_FACTOR",
-        }
-    )
-    df[["MEASUREMENT_UNIT", "harmonization_omop::MEASUREMENT_UNIT"]] = df[
-        ["MEASUREMENT_UNIT", "harmonization_omop::MEASUREMENT_UNIT"]
-    ].fillna("NA")
+
+    def compute():
+        _refresh_from_remote(config.UNIT_CONVERSION_URL, config.UNIT_CONVERSION_FILE, verbose=verbose)
+        df = pd.read_csv(
+            config.UNIT_CONVERSION_FILE,
+            sep="\t",
+            usecols=[
+                "omop_quantity",
+                "source_unit_valid",
+                "to_source_unit_valid",
+                "conversion",
+                "only_to_omop_concepts",
+            ],
+            dtype=str,
+        ).rename(
+            columns={
+                "omop_quantity": "harmonization_omop::omopQuantity",
+                "source_unit_valid": "MEASUREMENT_UNIT",
+                "to_source_unit_valid": "harmonization_omop::MEASUREMENT_UNIT",
+                "conversion": "harmonization_omop::CONVERSION_FACTOR",
+            }
+        )
+        df[["MEASUREMENT_UNIT", "harmonization_omop::MEASUREMENT_UNIT"]] = df[
+            ["MEASUREMENT_UNIT", "harmonization_omop::MEASUREMENT_UNIT"]
+        ].fillna("NA")
+        return df
+
+    df = _cached("unit_conversion", compute)
     if verbose:
         print(f"[reference_data] unit_conversion: {len(df)} rows loaded")
         print(df.head(3).to_string(index=False))
@@ -317,30 +392,33 @@ def get_conversion_table(verbose: bool = False) -> pd.DataFrame:
     source MEASUREMENT_UNIT) key, the OMOP-specific one wins (mirrors old finngen_qc's
     _priority tie-break) — resolved once here rather than on every chunk.
     """
-    unit_conversion = get_unit_conversion(verbose=verbose)
-    harmonization_counts = get_harmonization_counts(verbose=verbose)
 
-    merged = pd.merge(
-        unit_conversion,
-        harmonization_counts,
-        on=["harmonization_omop::omopQuantity", "harmonization_omop::MEASUREMENT_UNIT"],
-        how="inner",
-    )
+    def compute():
+        unit_conversion = get_unit_conversion(verbose=verbose)
+        harmonization_counts = get_harmonization_counts(verbose=verbose)
 
-    applies = merged["only_to_omop_concepts"].isna() | (
-        merged["only_to_omop_concepts"] == merged["harmonization_omop::OMOP_ID"]
-    )
-    merged = merged[applies].copy()
+        merged = pd.merge(
+            unit_conversion,
+            harmonization_counts,
+            on=["harmonization_omop::omopQuantity", "harmonization_omop::MEASUREMENT_UNIT"],
+            how="inner",
+        )
 
-    join_cols = ["harmonization_omop::OMOP_ID", "harmonization_omop::omopQuantity", "MEASUREMENT_UNIT"]
-    merged["_is_specific"] = merged["only_to_omop_concepts"].notna()
-    table = (
-        merged.sort_values("_is_specific", ascending=False)
-        .drop_duplicates(subset=join_cols, keep="first")
-        .drop(columns=["_is_specific", "only_to_omop_concepts"])
-        .set_index(join_cols)
-    )
+        applies = merged["only_to_omop_concepts"].isna() | (
+            merged["only_to_omop_concepts"] == merged["harmonization_omop::OMOP_ID"]
+        )
+        merged = merged[applies].copy()
 
+        join_cols = ["harmonization_omop::OMOP_ID", "harmonization_omop::omopQuantity", "MEASUREMENT_UNIT"]
+        merged["_is_specific"] = merged["only_to_omop_concepts"].notna()
+        return (
+            merged.sort_values("_is_specific", ascending=False)
+            .drop_duplicates(subset=join_cols, keep="first")
+            .drop(columns=["_is_specific", "only_to_omop_concepts"])
+            .set_index(join_cols)
+        )
+
+    table = _cached("conversion_table", compute)
     if verbose:
         print(f"[reference_data] conversion_table: {len(table)} (OMOP_ID, quantity, unit) conversions ready")
         print(table.head(3).to_string())
@@ -356,13 +434,17 @@ def get_posneg_table(verbose: bool = False) -> dict[str, str]:
     plain dict for .map(), not a merge table, so a duplicate MEASUREMENT_FREE_TEXT key can never
     fan out a row in df (none found in the current snapshot, but this guarantees it either way).
     """
-    df = pd.read_csv(
-        config.POSNEG_MAP_FILE,
-        sep="\t",
-        usecols=["MEASUREMENT_FREE_TEXT", "extracted::IS_POS"],
-        dtype=str,
-    ).dropna(subset=["extracted::IS_POS"])
-    result = dict(zip(df["MEASUREMENT_FREE_TEXT"].drop_duplicates(keep="first"), df["extracted::IS_POS"]))
+
+    def compute():
+        df = pd.read_csv(
+            config.POSNEG_MAP_FILE,
+            sep="\t",
+            usecols=["MEASUREMENT_FREE_TEXT", "extracted::IS_POS"],
+            dtype=str,
+        ).dropna(subset=["extracted::IS_POS"])
+        return dict(zip(df["MEASUREMENT_FREE_TEXT"].drop_duplicates(keep="first"), df["extracted::IS_POS"]))
+
+    result = _cached("posneg_table", compute)
     if verbose:
         print(f"[reference_data] posneg_table: {len(result)} entries loaded, sample {_sample_dict(result)}")
     return result
@@ -377,14 +459,18 @@ def get_ab_limits(verbose: bool = False) -> pd.DataFrame:
     transiently by the caller for comparison — pd.to_numeric parses the literal "-inf"/"inf"
     tokens in the source file fine.
     """
-    df = pd.read_csv(
-        config.AB_LIMITS_FILE,
-        sep="\t",
-        dtype=str,
-    ).rename(columns={"ID": "harmonization_omop::OMOP_ID"})
-    df = df.drop_duplicates(subset="harmonization_omop::OMOP_ID", keep="first").set_index(
-        "harmonization_omop::OMOP_ID"
-    )
+
+    def compute():
+        df = pd.read_csv(
+            config.AB_LIMITS_FILE,
+            sep="\t",
+            dtype=str,
+        ).rename(columns={"ID": "harmonization_omop::OMOP_ID"})
+        return df.drop_duplicates(subset="harmonization_omop::OMOP_ID", keep="first").set_index(
+            "harmonization_omop::OMOP_ID"
+        )
+
+    df = _cached("ab_limits", compute)
     if verbose:
         print(f"[reference_data] ab_limits: {len(df)} OMOP_ID reference ranges loaded")
         print(df.head(3).to_string())
@@ -400,13 +486,42 @@ def get_omop_qc(verbose: bool = False) -> pd.DataFrame:
     and a "too low" implausible-value check), and some rows are placeholder "register this
     OMOP_ID as checked" entries with SIDE/THRESHOLD left blank — callers iterate rows directly.
     """
-    df = pd.read_csv(
-        config.OMOP_QC_FILE,
-        sep="\t",
-        usecols=["harmonization_omop::OMOP_ID", "THRESHOLD", "SIDE", "QC_NOTES"],
-        dtype=str,
-    )
+
+    def compute():
+        return pd.read_csv(
+            config.OMOP_QC_FILE,
+            sep="\t",
+            usecols=["harmonization_omop::OMOP_ID", "THRESHOLD", "SIDE", "QC_NOTES"],
+            dtype=str,
+        )
+
+    df = _cached("omop_qc", compute)
     if verbose:
         print(f"[reference_data] omop_qc: {len(df)} rules loaded, {df['SIDE'].isna().sum()} placeholder-only")
         print(df.head(3).to_string())
     return df
+
+
+def warm_all(verbose: bool = True) -> None:
+    """Load every reference table once, up front, so remote-fetch fallback warnings (and basic
+    load confirmation) surface immediately at startup in one place, and so the per-run pickle
+    cache (see set_cache_dir()) is fully populated before any worker process starts.
+
+    Filters call these loaders with no `verbose` argument during actual chunk processing (i.e.
+    quietly, relying on the default verbose=False) — they trust this warm-up already ran and
+    populated every @lru_cache/pickle cache, so there's nothing left to print, re-fetch, or
+    re-parse. Calling the "outer" functions is enough: get_injection_table()/get_conversion_table()
+    already call their own inputs (get_injection_results(), get_unit_conversion(),
+    get_harmonization_counts()) internally, so a separate call to those isn't needed.
+    """
+    get_thl_lab_map(verbose=verbose)
+    get_thl_sote_map(verbose=verbose)
+    get_thl_manual_map(verbose=verbose)
+    get_unit_map(verbose=verbose)
+    get_usagi_units(verbose=verbose)
+    get_injection_table(verbose=verbose)
+    get_usagi_mapping(verbose=verbose)
+    get_conversion_table(verbose=verbose)
+    get_posneg_table(verbose=verbose)
+    get_ab_limits(verbose=verbose)
+    get_omop_qc(verbose=verbose)
