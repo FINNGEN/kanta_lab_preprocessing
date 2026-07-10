@@ -5,6 +5,7 @@ from pathlib import Path
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
+from tqdm import tqdm
 
 from kanta import config
 
@@ -81,16 +82,18 @@ def concatenate_chunks(
 
     writer = None
     try:
-        for chunk_path in chunks:
+        for chunk_path in tqdm(chunks, desc=f"Concatenating into {output_file.name}"):
             table = pq.read_table(chunk_path)
 
-            # Initialize the ParquetWriter, needs the schema.
+            # Initialize the ParquetWriter, needs the schema. Match write_chunk's zstd so
+            # concatenation doesn't decompress every chunk just to recompress it with a
+            # different codec (pq.ParquetWriter's default is snappy).
             if writer is None:
-                writer = pq.ParquetWriter(output_file, table.schema)
+                writer = pq.ParquetWriter(output_file, table.schema, compression="zstd")
             writer.write_table(table)
 
         if writer is None and empty_schema is not None:
-            writer = pq.ParquetWriter(output_file, empty_schema)
+            writer = pq.ParquetWriter(output_file, empty_schema, compression="zstd")
 
     finally:
         if writer is not None:
