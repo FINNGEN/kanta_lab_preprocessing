@@ -1,3 +1,4 @@
+import math
 import shutil
 from collections.abc import Iterator
 from pathlib import Path
@@ -8,8 +9,8 @@ import pyarrow.parquet as pq
 
 from kanta import config
 
-# Number of rows per chunk when streaming the input Parquet file.
-# The value is independent of the number of CPUs: the memory used by the engine
+# Default number of rows per chunk when streaming the input Parquet file, overridable via
+# --chunk-size. The value is independent of the number of CPUs: the memory used by the engine
 # is already proportional to the number of workers, so scaling the number of
 # rows per chunk by the number of workers would make the memory use scale by
 # (N workers × N workers).
@@ -18,15 +19,21 @@ CHUNKS_FILE_TEMPLATE = "chunk_{index:06d}.parquet"
 CHUNKS_FILE_GLOB = "chunk_*.parquet"
 
 
+def count_rows(input_file: Path) -> int:
+    """Total row count for input_file, read straight from the Parquet footer metadata — no row
+    data is scanned, so this is instant regardless of file size."""
+    return pq.ParquetFile(input_file).metadata.num_rows
+
+
 def chunk_iterator(
-    input_file: Path, *, is_test_run: bool = False
+    input_file: Path, *, is_test_run: bool = False, chunk_size: int = N_LINES_PER_CHUNK
 ) -> Iterator[tuple[int, pd.DataFrame]]:
     # Use pyarrow to read the Parquet file in chunks.
     parquet_file = pq.ParquetFile(input_file)
 
     chunk_index = 0
     for batch in parquet_file.iter_batches(
-        batch_size=N_LINES_PER_CHUNK,
+        batch_size=chunk_size,
         # Select only the given columns, this speeds up the read quite a lot for Parquet files.
         # An empty list means all columns are read (pyarrow expects `None` for that).
         columns=config.READ_COLUMNS or None,

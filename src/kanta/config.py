@@ -61,9 +61,18 @@ OUT_COLUMNS = [
     "source::TEST_NAME_ABBREVIATION",
     "source::TEST_OUTCOME",
     "harmonization_omop::IS_UNIT_VALID",
+    "harmonization_omop::OMOP_ID",
+    "harmonization_omop::omopQuantity",
+    "harmonization_omop::MEASUREMENT_VALUE",
+    "harmonization_omop::MEASUREMENT_UNIT",
+    "harmonization_omop::CONVERSION_FACTOR",
+    "extracted::IS_POS",
+    "extracted::TEST_OUTCOME_TEXT",
+    "imputed::TEST_OUTCOME",
     "IS_VALUE_EXTRACTED",
     "cleaned-pre-fix::MEASUREMENT_UNIT",
     "QC_NOTES",
+    "QC_PASS",
 ]
 
 # Columns snapshotted into a source::<col> output column immediately after renaming and
@@ -241,6 +250,17 @@ USAGI_UNITS_URL = HARMONIZATION_REPO_URL + "UNITSfi/UNITSfi.usagi.csv"
 USAGI_MAPPING_FILE = DATA_DIR / "LABfi_ALL.usagi.csv"
 USAGI_MAPPING_URL = HARMONIZATION_REPO_URL + "LABfi_ALL/LABfi_ALL.usagi.csv"
 
+# Target MEASUREMENT_UNIT per OMOP concept (chosen destination unit for harmonization).
+# Not published in the harmonization repo yet, so this URL currently 404s and every refresh
+# falls back to the local snapshot with a warning; update once the file is actually published.
+HARMONIZATION_COUNTS_FILE = DATA_DIR / "harmonization_counts.tsv"
+HARMONIZATION_COUNTS_URL = HARMONIZATION_REPO_URL + "LABfi_ALL/harmonization_counts.tsv"
+
+# Per-OMOP-quantity unit conversion factors (source unit -> target unit).
+# Not published in the harmonization repo yet either; local snapshot manually placed for now.
+UNIT_CONVERSION_FILE = DATA_DIR / "quantity_source_unit_conversion.tsv"
+UNIT_CONVERSION_URL = HARMONIZATION_REPO_URL + "LABfi_ALL/quantity_source_unit_conversion.tsv"
+
 # Free-text prefixes stripped from the start of MEASUREMENT_FREE_TEXT before numeric extraction.
 FREE_TEXT_RESULT_STRINGS = [
     "tutkimuksentulos:",
@@ -256,3 +276,24 @@ FREE_TEXT_MEASUREMENT_REPLACEMENTS = [
     (r"\*", ""),
     (r",", "."),
 ]
+
+# Tokens in MEASUREMENT_FREE_TEXT that signal an out-of-range comparison (Finnish "yli"/"alle"
+# mean "over"/"under" and get normalized to ">"/"<").
+STATUS_INDICATORS = ("<", ">", "yli", "alle")
+
+# Free-text -> pos/neg (extracted::IS_POS) mapping, e.g. "NEGAT" -> "0".
+POSNEG_MAP_FILE = DATA_DIR / "negpos_mapping.tsv"
+
+# Per-OMOP_ID abnormality reference range: LOW_LIMIT/HIGH_LIMIT plus LOW_PROBLEM/HIGH_PROBLEM
+# flags (whether crossing that limit is itself a problem, e.g. "L*" vs "L").
+AB_LIMITS_FILE = DATA_DIR / "abnormality_estimation.table.tsv"
+
+# Per-OMOP_ID QC threshold rules: SIDE ("<"/"<="/">"/"==") + THRESHOLD flags
+# harmonization_omop::MEASUREMENT_VALUE as a QC failure, tagged with QC_NOTES (e.g.
+# "IMPLAUSIBLE_VALUE"). A row can carry multiple rules; some rows are placeholder
+# "register this OMOP_ID as checked" entries with no SIDE/THRESHOLD at all.
+OMOP_QC_FILE = DATA_DIR / "omop_qc.tsv"
+
+# (TEST_OUTCOME, extracted::IS_POS) pairs considered a logical conflict (e.g. a categorical
+# "Normal" outcome alongside a text-extracted positive result) -> QC_PASS flagged as failed.
+OUTCOME_MISMATCH = [("N", "1"), ("A", "0")]

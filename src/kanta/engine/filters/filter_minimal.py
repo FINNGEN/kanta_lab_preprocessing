@@ -81,7 +81,7 @@ def lab_id_source(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def get_lab_abbrv(df: pd.DataFrame, errors: ErrorSink) -> pd.DataFrame:
+def get_lab_abbrv(df: pd.DataFrame, errors: ErrorSink, verbose: bool = False) -> pd.DataFrame:
     """Assign TEST_NAME_ABBREVIATION: keep the local name if TEST_ID is local, map via THL otherwise.
 
     National ids missing from the THL map are logged but kept (not dropped) — the mapping
@@ -90,7 +90,7 @@ def get_lab_abbrv(df: pd.DataFrame, errors: ErrorSink) -> pd.DataFrame:
     col = "TEST_NAME_ABBREVIATION"
     df[col] = df[col].str.lower()
 
-    thl_lab_map = reference_data.get_thl_lab_map()
+    thl_lab_map = reference_data.get_thl_lab_map(verbose=verbose)
     is_national = df["TEST_ID_IS_NATIONAL"] == "1"
     is_unmapped = ~df["TEST_ID"].isin(thl_lab_map)
 
@@ -102,7 +102,7 @@ def get_lab_abbrv(df: pd.DataFrame, errors: ErrorSink) -> pd.DataFrame:
     return df
 
 
-def get_coding_map(df: pd.DataFrame) -> pd.DataFrame:
+def get_coding_map(df: pd.DataFrame, verbose: bool = False) -> pd.DataFrame:
     """Map CODING_SYSTEM via the THL organization map, then derive CODING_SYSTEM_MAP.
 
     Faithfully replicates finngen_qc's ordering: CODING_SYSTEM_MAP's prefix-stripping step
@@ -110,7 +110,7 @@ def get_coding_map(df: pd.DataFrame) -> pd.DataFrame:
     so it only resolves to a non-"NA" value for rows the first round left unmapped.
     """
     col = "CODING_SYSTEM"
-    df[col] = df[col].map(reference_data.get_thl_sote_map())
+    df[col] = df[col].map(reference_data.get_thl_sote_map(verbose=verbose))
 
     tmp_system = (
         df[col]
@@ -119,7 +119,7 @@ def get_coding_map(df: pd.DataFrame) -> pd.DataFrame:
         .str.split(".", n=1, expand=False)
         .str[0]
     )
-    df["CODING_SYSTEM_MAP"] = tmp_system.map(reference_data.get_thl_manual_map()).fillna("NA")
+    df["CODING_SYSTEM_MAP"] = tmp_system.map(reference_data.get_thl_manual_map(verbose=verbose)).fillna("NA")
     return df
 
 
@@ -166,8 +166,8 @@ def run(
         .pipe(fix_na)
         .pipe(filter_measurement_status, errors)
         .pipe(lab_id_source)
-        .pipe(get_lab_abbrv, errors)
-        .pipe(get_coding_map)
+        .pipe(get_lab_abbrv, errors, verbose)
+        .pipe(get_coding_map, verbose)
         .pipe(fix_abbreviation, abbr_changes)
         .pipe(map_measurement_method)
     )

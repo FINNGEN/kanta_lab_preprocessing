@@ -1,0 +1,342 @@
+harmonization_omop::OMOP_ID	MEASUREMENT_FREE_TEXT	extracted::IS_POS	DESC	COUNT	ratio_COUNT	Npeople	ratio_Npeople
+3011397	+	1	Hemoglobin [Presence] in Urine by Test strip	49320	1	26651	1
+3014051	+	1	Protein [Presence] in Urine by Test strip	31778	8.129	19597	8.058
+40763086	+	1	Leukocyte esterase [Presence] in Urine by Automated test strip	29249	1	18548	1
+3021601	+	1	Nitrite [Presence] in Urine by Test strip	27005	0.492	15250	0.477
+3041096	1+	1	Erythrocytes [Presence] in Urine by Automated	24188	1	15187	1
+3011397	++	1	Hemoglobin [Presence] in Urine by Test strip	21738	1	14056	1
+40763086	3+	1	Leukocyte esterase [Presence] in Urine by Automated test strip	21211	1	11780	1
+3029937	+	1	Albumin [Presence] in Urine by Test strip	21147	1	12864	1
+3018095	+	1	Leukocytes [#/volume] in Urine	20593	1	13563	1
+3035350	+	1	Ketones [Presence] in Urine by Test strip	20166	1	16219	1
+3009261	+++	1	Glucose [Presence] in Urine by Test strip	20046	1	9747	1
+3041096	+	1	Erythrocytes [Presence] in Urine by Automated	19368	1	12678	1
+40763086	+++	1	Leukocyte esterase [Presence] in Urine by Automated test strip	19290	1	11241	1
+40763086	++	1	Leukocyte esterase [Presence] in Urine by Automated test strip	19110	1	12649	1
+40763086	1+	1	Leukocyte esterase [Presence] in Urine by Automated test strip	18557	1	13158	1
+40763086	2+	1	Leukocyte esterase [Presence] in Urine by Automated test strip	15987	1	11048	1
+3011397	+++	1	Hemoglobin [Presence] in Urine by Test strip	15965	1	10647	1
+3011397	+*	1	Hemoglobin [Presence] in Urine by Test strip	15888	1	6837	1
+3041096	3+	1	Erythrocytes [Presence] in Urine by Automated	14242	1	9073	1
+3009261	3+	1	Glucose [Presence] in Urine by Test strip	12431	1	6259	1
+3029937	++	1	Albumin [Presence] in Urine by Test strip	12219	1	6996	1
+3041096	2+	1	Erythrocytes [Presence] in Urine by Automated	12141	1	8732	1
+3029937	1+	1	Albumin [Presence] in Urine by Test strip	11010	1	7345	1
+3014051	++	1	Protein [Presence] in Urine by Test strip	10898	8.782	7311	8.632
+3045414	+	1	Leukocytes [Presence] in Urine	10831	1	7343	1
+3018095	+++	1	Leukocytes [#/volume] in Urine	10715	1	6336	1
+3014051	1+	1	Protein [Presence] in Urine by Test strip	10319	NA	6274	NA
+3009261	+	1	Glucose [Presence] in Urine by Test strip	10310	1	6489	1
+40763086	+*	1	Leukocyte esterase [Presence] in Urine by Automated test strip	10002	1	5472	1
+3018095	++	1	Leukocytes [#/volume] in Urine	8975	1	6478	1
+3009261	++	1	Glucose [Presence] in Urine by Test strip	7881	1	5247	1
+3041096	++	1	Erythrocytes [Presence] in Urine by Automated	7398	1	5423	1
+3041096	+++	1	Erythrocytes [Presence] in Urine by Automated	7329	1	5112	1
+40763086	+++*	1	Leukocyte esterase [Presence] in Urine by Automated test strip	7137	1	3428	1
+40763086	++*	1	Leukocyte esterase [Presence] in Urine by Automated test strip	6930	1	3872	1
+3021601	+*	1	Nitrite [Presence] in Urine by Test strip	6587	0.988	3012	0.978
+3029937	2+	1	Albumin [Presence] in Urine by Test strip	6076	1	3827	1
+3029937	+*	1	Albumin [Presence] in Urine by Test strip	6010	1	3894	1
+3011397	++*	1	Hemoglobin [Presence] in Urine by Test strip	5714	1	3405	1
+3041096	1+ Arvio	1	Erythrocytes [Presence] in Urine by Automated	5548	1	4033	1
+3021601	1+	1	Nitrite [Presence] in Urine by Test strip	5360	0.342	2906	0.329
+3014051	2+	1	Protein [Presence] in Urine by Test strip	5302	NA	3277	NA
+3035350	1+	1	Ketones [Presence] in Urine by Test strip	5274	1	4719	1
+3045414	+++	1	Leukocytes [Presence] in Urine	4938	1	3107	1
+3029937	+++	1	Albumin [Presence] in Urine by Test strip	4837	1	2455	1
+3009261	1+	1	Glucose [Presence] in Urine by Test strip	4652	1	3154	1
+3045414	++	1	Leukocytes [Presence] in Urine	4608	1	3418	1
+3029937	1+ Arvio	1	Albumin [Presence] in Urine by Test strip	4558	1	3292	1
+40763086	3+ Arvio	1	Leukocyte esterase [Presence] in Urine by Automated test strip	4530	1	2966	1
+3045424	+	1	Erythrocytes [Presence] in Urine	4520	1	3106	1
+3011397	+++*	1	Hemoglobin [Presence] in Urine by Test strip	4246	1	2740	1
+40763086	1+ Arvio	1	Leukocyte esterase [Presence] in Urine by Automated test strip	4092	1	3275	1
+3035350	++	1	Ketones [Presence] in Urine by Test strip	4035	1	3711	1
+3029937	++*	1	Albumin [Presence] in Urine by Test strip	3778	1	2337	1
+3041096	3+ Arvio	1	Erythrocytes [Presence] in Urine by Automated	3748	1	2723	1
+3016251	+(pos)	1	Hemoglobin.gastrointestinal [Presence] in Stool	3692	1	1777	1
+3014051	+++	1	Protein [Presence] in Urine by Test strip	3676	11.633	2381	10.443
+3009261	+++*	1	Glucose [Presence] in Urine by Test strip	3600	1	1641	1
+3021601	+ Arvio	1	Nitrite [Presence] in Urine by Test strip	3490	1	2394	1
+3035350	+*	1	Ketones [Presence] in Urine by Test strip	3461	1	2706	1
+40763086	2+ Arvio	1	Leukocyte esterase [Presence] in Urine by Automated test strip	3445	1	2719	1
+3009261	2+	1	Glucose [Presence] in Urine by Test strip	3106	1	2253	1
+3045414	3+	1	Leukocytes [Presence] in Urine	2820	1	1873	1
+3009261	3+ Arvio	1	Glucose [Presence] in Urine by Test strip	2758	1	1643	1
+3029937	2+ Arvio	1	Albumin [Presence] in Urine by Test strip	2519	1	1687	1
+3041096	2+ Arvio	1	Erythrocytes [Presence] in Urine by Automated	2319	1	1887	1
+3045424	++	1	Erythrocytes [Presence] in Urine	2254	1	1616	1
+3041096	4+	1	Erythrocytes [Presence] in Urine by Automated	2240	1	2006	1
+3009261	4+	1	Glucose [Presence] in Urine by Test strip	2187	1	1438	1
+3045424	1+	1	Erythrocytes [Presence] in Urine	1880	1	1403	1
+3035350	+++	1	Ketones [Presence] in Urine by Test strip	1877	1	1715	1
+3011397	1+	1	Hemoglobin [Presence] in Urine by Test strip	1833	1	1409	1
+3045424	+++	1	Erythrocytes [Presence] in Urine	1815	1	1235	1
+3045414	1+	1	Leukocytes [Presence] in Urine	1804	1	1513	1
+3045414	2+	1	Leukocytes [Presence] in Urine	1804	1	1465	1
+40763086	3+*	1	Leukocyte esterase [Presence] in Urine by Automated test strip	1801	1	836	1
+3014051	3+	1	Protein [Presence] in Urine by Test strip	1772	NA	1195	NA
+1001926	+(pos)	1	Buprenorphine [Presence] in Urine by Screen method	1706	1	107	1
+3035350	2+	1	Ketones [Presence] in Urine by Test strip	1703	1	1607	1
+40763086	++++	1	Leukocyte esterase [Presence] in Urine by Automated test strip	1651	1	1363	1
+40763086	2+*	1	Leukocyte esterase [Presence] in Urine by Automated test strip	1608	1	944	1
+3029937	3+	1	Albumin [Presence] in Urine by Test strip	1594	1	1023	1
+3033319	+(pos)	1	Streptococcus pyogenes Ag [Presence] in Throat	1587	1	1437	1
+40763086	1+*	1	Leukocyte esterase [Presence] in Urine by Automated test strip	1513	1	963	1
+3041096	1+*	1	Erythrocytes [Presence] in Urine by Automated	1501	1	890	1
+3009261	+*	1	Glucose [Presence] in Urine by Test strip	1487	1	990	1
+3014051	1+*	1	Protein [Presence] in Urine by Test strip	1419	NA	869	NA
+3000764	+(pos)	1	Benzodiazepines [Presence] in Urine	1379	1	408	1
+36304419	+++	1	Bacteria [Presence] in Urine	1250	1	491	1
+3009261	1+ Arvio	1	Glucose [Presence] in Urine by Test strip	1248	1	894	1
+3009261	++*	1	Glucose [Presence] in Urine by Test strip	1221	1	824	1
+36304419	+	1	Bacteria [Presence] in Urine	1071	1	606	1
+3045414	+*	1	Leukocytes [Presence] in Urine	1069	1	867	1
+3029937	+++*	1	Albumin [Presence] in Urine by Test strip	1004	1	696	1
+3045424	3+	1	Erythrocytes [Presence] in Urine	965	1	738	1
+3011397	2+	1	Hemoglobin [Presence] in Urine by Test strip	960	1	803	1
+3009261	3+*	1	Glucose [Presence] in Urine by Test strip	913	1	498	1
+3041096	+/-	NA	Erythrocytes [Presence] in Urine by Automated	859	1	725	1
+40763086	Resultat: 2+	1	Leukocyte esterase [Presence] in Urine by Automated test strip	851	1	453	1
+3009261	++++	1	Glucose [Presence] in Urine by Test strip	840	1	710	1
+3037121	+	1	Protein [Mass/volume] in Urine	833	1	725	1
+3035350	1+ Arvio	1	Ketones [Presence] in Urine by Test strip	814	1	751	1
+3041096	2+*	1	Erythrocytes [Presence] in Urine by Automated	807	1	562	1
+3041096	3+*	1	Erythrocytes [Presence] in Urine by Automated	791	1	539	1
+3037121	+/-	NA	Protein [Mass/volume] in Urine	787	1	681	1
+40763086	Provresultat: 3+	1	Leukocyte esterase [Presence] in Urine by Automated test strip	768	1	392	1
+40763086	Resultat: 1+	1	Leukocyte esterase [Presence] in Urine by Automated test strip	745	1	458	1
+3011397	3+	1	Hemoglobin [Presence] in Urine by Test strip	731	1	609	1
+40763086	Resultat: 3+	1	Leukocyte esterase [Presence] in Urine by Automated test strip	725	1	378	1
+3045424	2+	1	Erythrocytes [Presence] in Urine	716	1	602	1
+3028707	+(pos)	1	Methadone [Presence] in Urine by Screen method	710	1	71	1
+40763086	4+	1	Leukocyte esterase [Presence] in Urine by Automated test strip	698	1	604	1
+3029937	3+ Arvio	1	Albumin [Presence] in Urine by Test strip	667	1	453	1
+3045414	++*	1	Leukocytes [Presence] in Urine	656	1	538	1
+3014051	Resultat: 1+	1	Protein [Presence] in Urine by Test strip	642	NA	388	NA
+3041096	++++	1	Erythrocytes [Presence] in Urine by Automated	621	1	528	1
+3008230	+/-	NA	Borrelia burgdorferi IgM Ab [Units/volume] in Serum	609	1	472	1
+3016888	+/-	NA	Borrelia burgdorferi IgG Ab [Units/volume] in Serum	595	1	453	1
+3035350	3+	1	Ketones [Presence] in Urine by Test strip	593	1	567	1
+3014051	2+*	1	Protein [Presence] in Urine by Test strip	586	NA	387	NA
+3014051	Provresultat: 1+	1	Protein [Presence] in Urine by Test strip	581	NA	379	NA
+3053028	+(pos eiA)	1	Streptococcus sp identified in Specimen by Organism specific culture	576	1	476	1
+40763086	Provresultat: 2+	1	Leukocyte esterase [Presence] in Urine by Automated test strip	544	1	355	1
+3016888	++	1	Borrelia burgdorferi IgG Ab [Units/volume] in Serum	517	1	381	1
+3009261	2+ Arvio	1	Glucose [Presence] in Urine by Test strip	497	1	410	1
+3011397	+/-	NA	Hemoglobin [Presence] in Urine by Test strip	483	1	420	1
+3018095	2+	1	Leukocytes [#/volume] in Urine	474	1	382	1
+40763086	Provresultat: 1+	1	Leukocyte esterase [Presence] in Urine by Automated test strip	473	1	353	1
+3021601	1+ Arvio	1	Nitrite [Presence] in Urine by Test strip	470	1	397	1
+3028300	+(pos)	1	Cannabinoids [Presence] in Urine	468	1	162	1
+3045414	+++*	1	Leukocytes [Presence] in Urine	464	1	371	1
+3002523	+(pos)	1	Influenza virus A Ag [Presence] in Specimen	460	1	460	1
+3035350	++*	1	Ketones [Presence] in Urine by Test strip	453	1	409	1
+3041096	Provresultat: 1+	1	Erythrocytes [Presence] in Urine by Automated	445	1	302	1
+3037121	++	1	Protein [Mass/volume] in Urine	437	1	381	1
+3002582	+/-	NA	Erythrocytes [#/volume] in Urine	436	1	308	1
+3044938	+(pos)	1	Influenza virus A RNA [Presence] in Specimen by NAA with probe detection	434	1	424	1
+3029937	+/-	NA	Albumin [Presence] in Urine by Test strip	422	1	362	1
+3014051	Resultat: 2+	1	Protein [Presence] in Urine by Test strip	422	NA	230	NA
+3016251	+*	1	Hemoglobin.gastrointestinal [Presence] in Stool	419	1	277	1
+3035350	2+ Arvio	1	Ketones [Presence] in Urine by Test strip	413	1	383	1
+40763086	++++*	1	Leukocyte esterase [Presence] in Urine by Automated test strip	408	1	260	1
+3018095	1+	1	Leukocytes [#/volume] in Urine	390	1	337	1
+3006462	+	1	Nitrate [Presence] in Urine	382	1	169	1
+3018095	3+	1	Leukocytes [#/volume] in Urine	372	1	317	1
+3016888	+++	1	Borrelia burgdorferi IgG Ab [Units/volume] in Serum	371	1	285	1
+3041096	+*	1	Erythrocytes [Presence] in Urine by Automated	368	1	305	1
+3009261	2+*	1	Glucose [Presence] in Urine by Test strip	365	1	246	1
+3016888	+	1	Borrelia burgdorferi IgG Ab [Units/volume] in Serum	362	1	302	1
+3008230	+	1	Borrelia burgdorferi IgM Ab [Units/volume] in Serum	356	1	278	1
+3014051	+/-	NA	Protein [Presence] in Urine by Test strip	346	NA	309	NA
+3018095	++++	1	Leukocytes [#/volume] in Urine	346	1	283	1
+4211845	1+	1	Urine protein measurement	341	1	217	1
+3041096	Provresultat: 3+	1	Erythrocytes [Presence] in Urine by Automated	340	1	200	1
+40758897	+	1	Direct antiglobulin test.IgG specific reagent [Presence] on Red Blood Cells	336	1	258	1
+3009261	1+*	1	Glucose [Presence] in Urine by Test strip	329	1	233	1
+3011397	Resultat: 3+	1	Hemoglobin [Presence] in Urine by Test strip	323	1	171	1
+3037121	1+	1	Protein [Mass/volume] in Urine	317	1	270	1
+3011397	Resultat: 1+	1	Hemoglobin [Presence] in Urine by Test strip	292	1	158	1
+40763086	Resultat: 4+	1	Leukocyte esterase [Presence] in Urine by Automated test strip	288	1	174	1
+3009261	Provresultat: 3+	1	Glucose [Presence] in Urine by Test strip	273	1	160	1
+3016251	+	1	Hemoglobin.gastrointestinal [Presence] in Stool	265	1	177	1
+3002582	+	1	Erythrocytes [#/volume] in Urine	263	1	230	1
+36304419	++	1	Bacteria [Presence] in Urine	261	1	212	1
+4211845	2+	1	Urine protein measurement	256	1	139	1
+3009261	Resultat: 4+	1	Glucose [Presence] in Urine by Test strip	253	1	144	1
+3018095	4+	1	Leukocytes [#/volume] in Urine	252	1	180	1
+3053028	+(pos A)	1	Streptococcus sp identified in Specimen by Organism specific culture	249	1	226	1
+40758897	(+)	1	Direct antiglobulin test.IgG specific reagent [Presence] on Red Blood Cells	246	1	215	1
+3009261	Provresultat: 4+	1	Glucose [Presence] in Urine by Test strip	246	1	149	1
+3021601	Provresultat: +	1	Nitrite [Presence] in Urine by Test strip	243	0.946	156	0.945
+3014051	Provresultat: 2+	1	Protein [Presence] in Urine by Test strip	240	NA	146	NA
+3002582	3+	1	Erythrocytes [#/volume] in Urine	239	1	171	1
+3041096	Resultat: 1+	1	Erythrocytes [Presence] in Urine by Automated	238	1	159	1
+3008230	++	1	Borrelia burgdorferi IgM Ab [Units/volume] in Serum	235	1	191	1
+3008230	+++	1	Borrelia burgdorferi IgM Ab [Units/volume] in Serum	234	1	186	1
+3011397	Resultat: 2+	1	Hemoglobin [Presence] in Urine by Test strip	231	1	146	1
+3041096	Provresultat: 2+	1	Erythrocytes [Presence] in Urine by Automated	231	1	165	1
+3011397	+h	1	Hemoglobin [Presence] in Urine by Test strip	227	1	144	1
+3037121	2+	1	Protein [Mass/volume] in Urine	226	1	179	1
+3002582	2+	1	Erythrocytes [#/volume] in Urine	225	1	168	1
+40758897	+++	1	Direct antiglobulin test.IgG specific reagent [Presence] on Red Blood Cells	221	1	79	1
+40758897	++	1	Direct antiglobulin test.IgG specific reagent [Presence] on Red Blood Cells	218	1	124	1
+3002582	+++	1	Erythrocytes [#/volume] in Urine	218	1	179	1
+3041096	heikko+	1	Erythrocytes [Presence] in Urine by Automated	217	1	174	1
+3041096	Resultat: 2+	1	Erythrocytes [Presence] in Urine by Automated	215	1	159	1
+40763086	Tutkimuksen tulos: 3+	1	Leukocyte esterase [Presence] in Urine by Automated test strip	215	1	141	1
+3041096	Resultat: 3+	1	Erythrocytes [Presence] in Urine by Automated	214	1	146	1
+3050238	+	1	Crystals [Presence] in Synovial fluid by Light microscopy	210	1	186	1
+3003740	+(pos)	1	Influenza virus B Ag [Presence] in Specimen	208	1	207	1
+3041145	+/-	NA	Herpes simplex virus IgM Ab [Presence] in Serum by Immunoassay	203	1	179	1
+3014051	Resultat: +/-	NA	Protein [Presence] in Urine by Test strip	203	NA	118	NA
+3002582	++	1	Erythrocytes [#/volume] in Urine	201	1	172	1
+3021601	Tutkimuksen tulos: +	1	Nitrite [Presence] in Urine by Test strip	197	0.99	143	0.986
+3037121	+++	1	Protein [Mass/volume] in Urine	197	1	179	1
+3024135	mahd A+++	1	Streptococcus.beta-hemolytic [Presence] in Throat by Organism specific culture	190	1	180	1
+3035350	(+)	1	Ketones [Presence] in Urine by Test strip	188	1	170	1
+3014051	4+	1	Protein [Presence] in Urine by Test strip	186	NA	147	NA
+3002582	1+	1	Erythrocytes [#/volume] in Urine	183	1	155	1
+3011397	Provresultat: 3+	1	Hemoglobin [Presence] in Urine by Test strip	182	1	119	1
+3027456	+	1	Digoxin [Moles/volume] in Serum or Plasma	178	1	157	1
+3041096	+++*	1	Erythrocytes [Presence] in Urine by Automated	177	1	139	1
+3002582	++++	1	Erythrocytes [#/volume] in Urine	173	1	122	1
+3035350	1+*	1	Ketones [Presence] in Urine by Test strip	173	1	160	1
+40763086	Tutkimuksen tulos: +	1	Leukocyte esterase [Presence] in Urine by Automated test strip	169	1	148	1
+3041096	Tutkimuksen tulos: 1+	1	Erythrocytes [Presence] in Urine by Automated	168	1	137	1
+3035350	3+ Arvio	1	Ketones [Presence] in Urine by Test strip	166	1	145	1
+3041096	Tutkimuksen tulos: +/-	NA	Erythrocytes [Presence] in Urine by Automated	165	1	149	1
+3009261	Resultat: 3+	1	Glucose [Presence] in Urine by Test strip	162	1	114	1
+3010521	+/-	NA	Mycoplasma pneumoniae IgM Ab [Presence] in Serum by Immunoassay	162	1	116	1
+3050238	uraat+	1	Crystals [Presence] in Synovial fluid by Light microscopy	162	1	138	1
+46235759	+(pos)	1	Influenza virus B RNA [Presence] in Nasopharynx by NAA with probe detection	158	1	156	1
+3024135	Tehty 1. LÖYDÖS: Strep.pyogenes (A) Määrä: +++Beetahemolyyttiset streptokokit ovat herkkiä penisilliinille ja kefalosporiineille sekä yleensä herkkiä klindamysiinille. Herkkyysmääritys voidaan tarvittaessa pyytää 3vrk:n kuluessa.	1	Streptococcus.beta-hemolytic [Presence] in Throat by Organism specific culture	158	1	149	1
+1761868	+	1	Lipid panel - Serum or Plasma	156	1	51	1
+40763086	heikko+	1	Leukocyte esterase [Presence] in Urine by Automated test strip	153	1	117	1
+3021601	Tutkimuksen tulos: + Arvio	NA	Nitrite [Presence] in Urine by Test strip	152	1	124	1
+3041096	(+)	1	Erythrocytes [Presence] in Urine by Automated	151	1	85	1
+40763086	Tutkimuksen tulos: 1+	1	Leukocyte esterase [Presence] in Urine by Automated test strip	149	1	126	1
+3027456	+++	1	Digoxin [Moles/volume] in Serum or Plasma	147	1	41	1
+40763086	Tutkimuksen tulos: 2+	1	Leukocyte esterase [Presence] in Urine by Automated test strip	145	1	117	1
+3011397	Tutkimuksen tulos: +	1	Hemoglobin [Presence] in Urine by Test strip	144	1	112	1
+3009261	Resultat: 1+	1	Glucose [Presence] in Urine by Test strip	142	1	105	1
+3037467	+	1	Urinalysis macro (dipstick) panel - Urine	142	1	109	1
+3035350	+++*	1	Ketones [Presence] in Urine by Test strip	141	1	137	1
+3027008	+(pos)	1	Opiates [Presence] in Urine	139	1	83	1
+3015635	+/-	NA	Cytomegalovirus IgM Ab [Units/volume] in Serum or Plasma	138	1	120	1
+3035350	Resultat: 1+	1	Ketones [Presence] in Urine by Test strip	135	1	115	1
+40761511	+	1	CBC panel - Blood by Automated count	135	1	53	1
+3007844	+/-	NA	Epstein Barr virus capsid IgM Ab [Units/volume] in Serum by Immunoassay	132	1	111	1
+3041096	Tutkimuksen tulos: 2+	1	Erythrocytes [Presence] in Urine by Automated	132	1	109	1
+3011397	Provresultat: 1+	1	Hemoglobin [Presence] in Urine by Test strip	132	1	106	1
+3005570	++++	1	Glucose [Moles/volume] in Urine	131	1	101	1
+3044254	+(pos)	1	Respiratory syncytial virus RNA [Presence] in Specimen by NAA with probe detection	130	1	119	1
+40758895	+++	1	Direct antiglobulin test.complement C3d specific reagent [Presence] on Red Blood Cells	127	1	47	1
+3045683	02+.05+	0	HLA typing for celiac disease panel - Blood or Tissue	126	1	125	1
+3009261	Provresultat: 1+	1	Glucose [Presence] in Urine by Test strip	124	1	97	1
+3011397	++++	1	Hemoglobin [Presence] in Urine by Test strip	123	1	111	1
+3021601	Resultat: +	1	Nitrite [Presence] in Urine by Test strip	123	0.866	87	0.906
+3035350	++++	1	Ketones [Presence] in Urine by Test strip	121	1	110	1
+3014051	3+*	1	Protein [Presence] in Urine by Test strip	119	NA	86	NA
+3011397	+/- hieman	NA	Hemoglobin [Presence] in Urine by Test strip	118	1	63	1
+3003191	+(>25 U/l)	1	Choriogonadotropin [Presence] in Serum or Plasma	117	1	104	1
+3024135	Tehty STREPTOCOCCUS PYOGENES(A)  / +++Beta-hemolyyttiset streptokokit ovat luonnostaanherkkiä penisilliinille ja kefalosporiineille.Betahemolytiska streptokocker är till sinanaturliga egenskaper penicillin-och kefalosporinkänsliga.	1	Streptococcus.beta-hemolytic [Presence] in Throat by Organism specific culture	116	1	110	1
+3037121	3+	1	Protein [Mass/volume] in Urine	116	1	93	1
+3048929	+(pos)	1	Epstein Barr virus Ab [Presence] in Serum	114	1	110	1
+40758895	++	1	Direct antiglobulin test.complement C3d specific reagent [Presence] on Red Blood Cells	113	1	66	1
+3012220	+/-	NA	Varicella zoster virus IgM Ab [Presence] in Serum by Immunoassay	113	1	106	1
+3021601	++	1	Nitrite [Presence] in Urine by Test strip	111	0.011	88	0.013
+3009261	Resultat: 2+	1	Glucose [Presence] in Urine by Test strip	110	1	88	1
+3041096	h+	1	Erythrocytes [Presence] in Urine by Automated	110	1	66	1
+3035350	4+	1	Ketones [Presence] in Urine by Test strip	107	1	106	1
+3033319	+++(pos)	1	Streptococcus pyogenes Ag [Presence] in Throat	107	1	104	1
+3041096	Tutkimuksen tulos: 3+	1	Erythrocytes [Presence] in Urine by Automated	106	1	88	1
+3045683	02+,05+	0	HLA typing for celiac disease panel - Blood or Tissue	105	1	102	1
+3011397	+/-INTACT	NA	Hemoglobin [Presence] in Urine by Test strip	104	1	80	1
+3041096	Resultat: +/-	NA	Erythrocytes [Presence] in Urine by Automated	103	1	61	1
+3050238	+*	1	Crystals [Presence] in Synovial fluid by Light microscopy	102	1	93	1
+40763086	Vastaus: 2+	1	Leukocyte esterase [Presence] in Urine by Automated test strip	101	1	48	1
+3027944	+(pos)	1	Amphetamines [Presence] in Urine	100	1	42	1
+3035350	Resultat: 1+ l	1	Ketones [Presence] in Urine by Test strip	94	1	78	1
+3009261	++++*	1	Glucose [Presence] in Urine by Test strip	93	1	59	1
+3009261	Provresultat: 2+	1	Glucose [Presence] in Urine by Test strip	90	1	71	1
+36304419	Resultat: +	1	Bacteria [Presence] in Urine	89	1	55	1
+3027456	++	1	Digoxin [Moles/volume] in Serum or Plasma	88	1	57	1
+3041096	++*	1	Erythrocytes [Presence] in Urine by Automated	87	1	75	1
+3041096	+/-INTACT	NA	Erythrocytes [Presence] in Urine by Automated	87	1	51	1
+3029937	Provresultat: 1+	1	Albumin [Presence] in Urine by Test strip	87	1	72	1
+3024135	Tehty Streptococcus pyogenes / +++Beta-hemolyyttiset streptokokit ovat luonnostaan herkkiä penisilliinille ja kefalosporiineille.Betahemolytiska streptokocker är till sina naturliga egenskaper penicillin- och kefalosporinkänsliga.	1	Streptococcus.beta-hemolytic [Presence] in Throat by Organism specific culture	87	1	84	1
+40763086	Tutkimuksen tulos: ++	1	Leukocyte esterase [Presence] in Urine by Automated test strip	86	1	79	1
+3011397	Provresultat: 2+	1	Hemoglobin [Presence] in Urine by Test strip	85	1	63	1
+3014051	Tutkimuksen tulos: 1+	NA	Protein [Presence] in Urine by Test strip	84	NA	67	NA
+4211845	+	1	Urine protein measurement	84	1	75	1
+3045683	02-.0302+	NA	HLA typing for celiac disease panel - Blood or Tissue	84	1	82	1
+3041096	+h	1	Erythrocytes [Presence] in Urine by Automated	84	1	62	1
+3009261	Tutkimuksen tulos: 3+	1	Glucose [Presence] in Urine by Test strip	83	1	61	1
+3005570	3+	1	Glucose [Moles/volume] in Urine	83	1	59	1
+3045414	Tutkimuksen tulos: +	1	Leukocytes [Presence] in Urine	83	1	73	1
+3014051	+*	1	Protein [Presence] in Urine by Test strip	83	NA	69	NA
+3029937	Tutkimuksen tulos: 1+	1	Albumin [Presence] in Urine by Test strip	82	1	69	1
+3029937	Tutkimuksen tulos: +	1	Albumin [Presence] in Urine by Test strip	81	1	71	1
+3041096	Tutkimuksen tulos: +	1	Erythrocytes [Presence] in Urine by Automated	80	1	72	1
+3037467	1+	1	Urinalysis macro (dipstick) panel - Urine	79	1.013	63	1
+40763086	Tutkimuksen tulos: +++	1	Leukocyte esterase [Presence] in Urine by Automated test strip	79	1	70	1
+40763086	Vastaus: 1+	1	Leukocyte esterase [Presence] in Urine by Automated test strip	78	1	49	1
+3041096	+-	NA	Erythrocytes [Presence] in Urine by Automated	78	1	52	1
+3007853	tehty; Staphylococcus aureus +++	1	Bacteria identified in Skin by Aerobe culture	78	1	71	1
+3011397	4+	1	Hemoglobin [Presence] in Urine by Test strip	78	1	70	1
+3027456	++++	1	Digoxin [Moles/volume] in Serum or Plasma	77	1	21	1
+3022907	1+	1	Direct antiglobulin test.polyspecific reagent [Presence] on Red Blood Cells	77	1	76	1
+40758895	+	1	Direct antiglobulin test.complement C3d specific reagent [Presence] on Red Blood Cells	75	1	52	1
+3045424	1+*	1	Erythrocytes [Presence] in Urine	74	1	59	1
+3003191	+(pos)	1	Choriogonadotropin [Presence] in Serum or Plasma	73	1	73	1
+3029937	Tutkimuksen tulos: +/-	NA	Albumin [Presence] in Urine by Test strip	73	1	70	1
+3035350	Tutkimuksen tulos: +	1	Ketones [Presence] in Urine by Test strip	73	1	72	1
+3014051	Resultat: 1+ Lomake	1	Protein [Presence] in Urine by Test strip	72	NA	63	NA
+36304419	Resultat: 3+	1	Bacteria [Presence] in Urine	72	1	43	1
+3027456	(+)	1	Digoxin [Moles/volume] in Serum or Plasma	71	1	67	1
+40763086	h+	1	Leukocyte esterase [Presence] in Urine by Automated test strip	71	1	52	1
+3044889	am+jivex	NA	12 lead EKG panel	70	1	70	1
+3014051	Vastaus: 1+	1	Protein [Presence] in Urine by Test strip	69	NA	38	NA
+42868544	+/-	NA	Hantavirus puumala IgM Ab [Presence] in Serum or Plasma by Immunofluorescence	69	1	60	1
+40763086	Provresultat: 4+	1	Leukocyte esterase [Presence] in Urine by Automated test strip	69	1	43	1
+3024135	Tehty STREPTOC. DYSGALACTIAE SSP EQUISIMILIS / +++Beetahemolyyttinen streptokokki, C/G-ryhmä.Beta-hemolyyttiset streptokokit ovat luonnostaanherkkiä penisilliinille ja kefalosporiineille.Betahemolytiska streptokocker är till sinanaturliga egenskaper penicillin-och kefalosporinkänsliga.	1	Streptococcus.beta-hemolytic [Presence] in Throat by Organism specific culture	68	1	67	1
+3024135	Tehty 1. LÖYDÖS: Strep.pyogenes (A) Määrä: +++Beetahemolyyttiset streptokokit ovat herkkiä penisilliinille ja 1. polven kefalosporiineille. Mikäli herkkyystutkimus löydökselle tarvitaan, sen voi pyytää 3 vrk:n kuluessa ottamalla yhteyttä asiakaspalveluun.	1	Streptococcus.beta-hemolytic [Presence] in Throat by Organism specific culture	67	1	67	1
+4211845	3+	1	Urine protein measurement	66	1	45	1
+3024135	mahd A++	NA	Streptococcus.beta-hemolytic [Presence] in Throat by Organism specific culture	65	1	64	1
+3009261	Tutkimuksen tulos: +++	1	Glucose [Presence] in Urine by Test strip	65	1	49	1
+3003694	A+(pos)	NA	ABO and Rh group [Type] in Blood	64	1	63	1
+3000764	+,ei varm.	NA	Benzodiazepines [Presence] in Urine	64	1	38	1
+3044938	+(pos)*	1	Influenza virus A RNA [Presence] in Specimen by NAA with probe detection	64	1	63	1
+40763086	Resultat: 3+ Lomake	1	Leukocyte esterase [Presence] in Urine by Automated test strip	63	1	53	1
+3014051	Resultat: + Lomake	1	Protein [Presence] in Urine by Test strip	62	NA	40	NA
+3045414	Tutkimuksen tulos: +++	1	Leukocytes [Presence] in Urine	62	1	45	1
+3024135	Tehty Streptococcus dysgalactiae ssp equisimilis / +++Beetahemolyyttinen streptokokki, C/G-ryhmä. Beta-hemolyyttiset streptokokit ovat luonnostaan herkkiä penisilliinille ja kefalosporiineille.Betahemolytiska streptokocker är till sina naturliga egenskaper penicillin- och kefalosporinkänsliga.	1	Streptococcus.beta-hemolytic [Presence] in Throat by Organism specific culture	62	1	62	1
+3045414	Tutkimuksen tulos: ++	1	Leukocytes [Presence] in Urine	59	1	51	1
+3040363	+/-	NA	Hepatitis A virus IgG Ab [Presence] in Serum by Immunoassay	59	1	57	1
+3009261	Vastaus: 4+	1	Glucose [Presence] in Urine by Test strip	59	1	33	1
+3005570	4+	1	Glucose [Moles/volume] in Urine	58	1	49	1
+40763086	Vastaus: 3+	1	Leukocyte esterase [Presence] in Urine by Automated test strip	58	1	37	1
+3035350	Provresultat: 1+	1	Ketones [Presence] in Urine by Test strip	57	1	52	1
+40758897	++++	1	Direct antiglobulin test.IgG specific reagent [Presence] on Red Blood Cells	57	1	27	1
+3024135	Tehty 1. LÖYDÖS: Strep.dysgalact(C/G) Määrä: +++C- tai G-ryhmän beetahemolyyttinen streptokokki.Beetahemolyyttiset streptokokit ovat herkkiä penisilliinille ja kefalosporiineille sekä yleensä herkkiä klindamysiinille. Herkkyysmääritys voidaan tarvittaessa pyytää 3vrk:n kuluessa.	1	Streptococcus.beta-hemolytic [Presence] in Throat by Organism specific culture	56	1	54	1
+3016251	Tutkimuksen tulos: +(pos)	1	Hemoglobin.gastrointestinal [Presence] in Stool	56	1	30	1
+3003694	O+(pos)	NA	ABO and Rh group [Type] in Blood	55	1	55	1
+1175715	+/-	NA	Chlamydophila pneumoniae IgM Ab [Presence] in Serum by Immunoassay	55	1	45	1
+3011397	Resultat: +/-	NA	Hemoglobin [Presence] in Urine by Test strip	55	1	43	1
+3011397	Tutkimuksen tulos: ++	1	Hemoglobin [Presence] in Urine by Test strip	55	1	52	1
+3023511	+(>25 U/l)	1	Choriogonadotropin [Units/volume] in Urine	54	1	50	1
+3037121	++++	1	Protein [Mass/volume] in Urine	54	1	47	1
+3035350	Tutkimuksen tulos: 1+	1	Ketones [Presence] in Urine by Test strip	54	1	53	1
+40763086	Provresultat: 1+ Lomake	1	Leukocyte esterase [Presence] in Urine by Automated test strip	53	1	46	1
+36032419	+(pos)	1	SARS-CoV-2 (COVID-19) Ag [Presence] in Upper respiratory specimen by Immunoassay	53	1	51	1
+40763086	Tutkimuksen tulos: 4+	1	Leukocyte esterase [Presence] in Urine by Automated test strip	52	NA	50	NA
+3045683	02-,0302+	NA	HLA typing for celiac disease panel - Blood or Tissue	52	1	52	1
+3014051	Resultat: 3+	1	Protein [Presence] in Urine by Test strip	52	NA	40	NA
+3029937	h+	NA	Albumin [Presence] in Urine by Test strip	51	NA	43	NA
+3037467	++	1	Urinalysis macro (dipstick) panel - Urine	51	NA	39	NA
+3014051	Provresultat: 3+	1	Protein [Presence] in Urine by Test strip	51	NA	32	NA
+3024135	Tehty 1. LÖYDÖS: (Viljely) Strep.pyogenes (A) Määrä: +++Beetahemolyyttiset streptokokit ovat herkkiä penisilliinille ja 1. polven kefalosporiineille. Mikäli herkkyystutkimus löydökselle tarvitaan, sen voi pyytää 3 vrk:n kuluessa ottamalla yhteyttä asiakaspalveluun.	1	Streptococcus.beta-hemolytic [Presence] in Throat by Organism specific culture	51	NA	49	NA
+3041096	Tutkimuksen tulos: ++	1	Erythrocytes [Presence] in Urine by Automated	50	NA	48	NA
+3024403	1+	1	Complement+Immunoglobulin [Units/volume] in Red Blood Cells	50	NA	41	NA

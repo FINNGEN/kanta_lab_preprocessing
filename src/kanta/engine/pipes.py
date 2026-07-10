@@ -2,7 +2,7 @@ import pandas as pd
 
 from kanta import config
 from kanta.engine.errors import AbbrSink, ErrorSink, UnitSink
-from kanta.engine.filters import filter_minimal, fix_unit, harmonization
+from kanta.engine.filters import filter_minimal, fix_unit, harmonization, outcome, qc
 
 
 def rename_cols(df: pd.DataFrame) -> pd.DataFrame:
@@ -35,5 +35,7 @@ def run_all(
         .pipe(filter_minimal.run, errors, abbr_changes, verbose)
         .pipe(fix_unit.run, unit_changes, verbose)
         .pipe(harmonization.run, verbose)
+        .pipe(outcome.run, verbose)
+        .pipe(qc.run, errors, verbose)
         .pipe(select_out_cols)
     )

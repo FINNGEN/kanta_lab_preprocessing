@@ -4,6 +4,8 @@ from argparse import ArgumentParser
 from functools import partial
 from pathlib import Path
 
+from tqdm import tqdm
+
 from kanta import output
 from kanta.engine import chunking, processing
 from kanta.engine.errors import ABBR_EMPTY_SCHEMA, EMPTY_SCHEMA, UNIT_EMPTY_SCHEMA
@@ -19,6 +21,7 @@ def main(
     *,
     is_test_run=False,
     n_workers=1,
+    chunk_size=chunking.N_LINES_PER_CHUNK,
     verbose=False,
 ):
     # Setup
@@ -37,7 +40,10 @@ def main(
     unit_dir.mkdir()
 
     # Iterate over each chunk
-    iter_indexed_chunks = chunking.chunk_iterator(input_file, is_test_run=is_test_run)
+    iter_indexed_chunks = chunking.chunk_iterator(
+        input_file, is_test_run=is_test_run, chunk_size=chunk_size
+    )
+    total_chunks = chunking.count_chunks(input_file, chunk_size, is_test_run=is_test_run)
 
     process_func = partial(
         processing.process_chunk,
@@ -49,9 +55,9 @@ def main(
     )
 
     if n_workers > 1:
-        process_in_parallel(process_func, iter_indexed_chunks, n_workers=n_workers)
+        process_in_parallel(process_func, iter_indexed_chunks, n_workers=n_workers, total=total_chunks)
     else:
-        for indexed_chunk in iter_indexed_chunks:
+        for indexed_chunk in tqdm(iter_indexed_chunks, total=total_chunks, desc="Processing chunks"):
             process_func(indexed_chunk)
 
     chunking.concatenate_chunks(chunks_dir, output_file)
@@ -60,7 +66,7 @@ def main(
     chunking.concatenate_chunks(unit_dir, unit_file, empty_schema=UNIT_EMPTY_SCHEMA)
 
 
-def process_in_parallel(func, indexed_chunks, *, n_workers: int):
+def process_in_parallel(func, indexed_chunks, *, n_workers: int, total: int | None = None):
     """Process the chunks in parallel using `n_workers` spawned processes."""
     # Explicitly use the "spawn" method to create workers for consistent behavior across OSes
     # and Python versions.
@@ -77,7 +83,9 @@ def process_in_parallel(func, indexed_chunks, *, n_workers: int):
     # rewrite to Polars will remove the use of `multiprocessing` and this problem.
     # See: https://bugs.python.org/issue22393
     with ctx.Pool(n_workers, initializer=processing.configure_pandas) as pool:
-        for _result in pool.imap_unordered(func, indexed_chunks):
+        for _result in tqdm(
+            pool.imap_unordered(func, indexed_chunks), total=total, desc="Processing chunks"
+        ):
             # Consume the iterator, discard the result since it's written to disk.
             pass
 
@@ -125,6 +133,17 @@ def init_cli():
         required=False,
     )
     parser.add_argument(
+        "--chunk-size",
+        type=int,
+        default=chunking.N_LINES_PER_CHUNK,
+        help=(
+            f"Number of rows per chunk when streaming the input Parquet file. "
+            f"Defaults to {chunking.N_LINES_PER_CHUNK}. Independent of --n-workers "
+            "(see chunking.py for why scaling it by worker count is a bad idea)."
+        ),
+        required=False,
+    )
+    parser.add_argument(
         "--keep-intermediate-files",
         help="Keep intermediate files, useful for debugging.",
         action="store_true",
@@ -143,6 +162,9 @@ def init_cli():
 
     if args.n_workers < 1:
         raise ValueError("--n-workers must be 1 or more")
+
+    if args.chunk_size < 1:
+        raise ValueError("--chunk-size must be 1 or more")
 
     if args.test:
         args.n_workers = 1
@@ -173,6 +195,7 @@ if __name__ == "__main__":
         tmp_dir,
         is_test_run=args.test,
         n_workers=args.n_workers,
+        chunk_size=args.chunk_size,
         verbose=args.verbose,
     )
 
