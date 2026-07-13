@@ -1,7 +1,10 @@
+import logging
 import shutil
 import tempfile
 import warnings
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 
 def derive_output_path(output_prefix: Path, suffix: str = "") -> Path:
@@ -17,14 +20,14 @@ def check_safe_write(output_file: Path) -> None:
         )
 
     free_space = check_free_space(output_file.parent)
-    print(f"Free space in dir for output file {output_file.name}: {free_space}")
+    logger.info(f"Free space in dir for output file {output_file.name}: {free_space}")
 
 
 def create_tmp_dir():
     tmp_dir = Path(tempfile.mkdtemp())
 
     free_space = check_free_space(tmp_dir)
-    print(f"Free space: {free_space} in {tmp_dir}")
+    logger.info(f"Free space: {free_space} in {tmp_dir}")
 
     return tmp_dir
 

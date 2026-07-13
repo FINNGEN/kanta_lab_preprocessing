@@ -1,15 +1,19 @@
+import logging
 import math
 import multiprocessing as mp
 import os
+import time
 from argparse import ArgumentParser
 from functools import partial
 from pathlib import Path
 
 from tqdm import tqdm
 
-from kanta import output
+from kanta import log_utils, output
 from kanta.engine import chunking, processing, reference_data
 from kanta.engine.errors import ABBR_EMPTY_SCHEMA, EMPTY_SCHEMA, UNIT_EMPTY_SCHEMA
+
+logger = logging.getLogger(__name__)
 
 
 def main(
@@ -74,7 +78,7 @@ def main(
     )
     num_rows = chunking.count_rows(input_file)
     total_chunks = 1 if is_test_run else math.ceil(num_rows / chunk_size)
-    print(f"Input: {num_rows:,} rows -> {total_chunks:,} chunks of up to {chunk_size:,} rows each")
+    logger.info(f"Input: {num_rows:,} rows -> {total_chunks:,} chunks of up to {chunk_size:,} rows each")
 
     process_func = partial(
         processing.process_chunk,
@@ -85,6 +89,7 @@ def main(
         verbose=verbose,
     )
 
+    chunking_start = time.perf_counter()
     if n_workers > 1:
         process_in_parallel(
             process_func, iter_indexed_chunks, n_workers=n_workers, total=total_chunks, cache_dir=cache_dir
@@ -92,6 +97,7 @@ def main(
     else:
         for indexed_chunk in tqdm(iter_indexed_chunks, total=total_chunks, desc="Processing chunks"):
             process_func(indexed_chunk)
+    logger.info(f"Processed {total_chunks:,} chunks in {log_utils.format_duration(time.perf_counter() - chunking_start)}")
 
     chunking.concatenate_chunks(chunks_dir, output_file)
     chunking.concatenate_chunks(errors_dir, errors_file, empty_schema=EMPTY_SCHEMA)
@@ -103,7 +109,7 @@ def main(
     # they're not part of this count.
     n_output = chunking.count_rows(output_file)
     n_errors = chunking.count_rows(errors_file)
-    print(f"Output: {n_output:,} rows + {n_errors:,} dropped/errored = {n_output + n_errors:,}")
+    logger.info(f"Output: {n_output:,} rows + {n_errors:,} dropped/errored = {n_output + n_errors:,}")
     assert n_input_rows[0] == n_output + n_errors, (
         f"Row count mismatch: {n_input_rows[0]:,} input rows but {n_output:,} output + "
         f"{n_errors:,} errors = {n_output + n_errors:,} rows — rows were lost or duplicated"
@@ -228,6 +234,9 @@ if __name__ == "__main__":
     errors_file = output.derive_output_path(args.output_prefix, "_errors")
     abbr_file = output.derive_output_path(args.output_prefix, "_abbr")
     unit_file = output.derive_output_path(args.output_prefix, "_unit")
+
+    log_file = args.output_prefix.parent / f"{args.output_prefix.name}.log"
+    log_utils.configure_logging(log_file)
 
     output.check_safe_write(output_file)
     output.check_safe_write(errors_file)

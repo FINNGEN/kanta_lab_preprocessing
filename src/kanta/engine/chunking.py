@@ -1,4 +1,6 @@
+import logging
 import shutil
+import time
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -8,6 +10,9 @@ import pyarrow.parquet as pq
 from tqdm import tqdm
 
 from kanta import config
+from kanta.log_utils import format_duration
+
+logger = logging.getLogger(__name__)
 
 # Default number of rows per chunk when streaming the input Parquet file, overridable via
 # --chunk-size. The value is independent of the number of CPUs: the memory used by the engine
@@ -80,6 +85,7 @@ def concatenate_chunks(
     """
     chunks = sorted(chunks_dir.glob(CHUNKS_FILE_GLOB), key=get_chunk_index)
 
+    start_time = time.perf_counter()
     writer = None
     try:
         for chunk_path in tqdm(chunks, desc=f"Concatenating into {output_file.name}"):
@@ -98,6 +104,11 @@ def concatenate_chunks(
     finally:
         if writer is not None:
             writer.close()
+
+    logger.info(
+        f"Concatenated {len(chunks):,} chunks into {output_file.name} in "
+        f"{format_duration(time.perf_counter() - start_time)}"
+    )
 
     if cleanup:
         shutil.rmtree(chunks_dir)

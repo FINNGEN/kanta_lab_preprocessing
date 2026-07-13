@@ -9,6 +9,7 @@ reference_data.warm_all() has already computed and pickled everything once, in t
 process, before any worker starts.
 """
 
+import logging
 import pickle
 import shutil
 import urllib.request
@@ -21,6 +22,8 @@ import numpy as np
 import pandas as pd
 
 from kanta import config
+
+logger = logging.getLogger(__name__)
 
 # Set once via set_cache_dir() (by main(), before dispatching to workers). None means "no
 # pickle cache available" — callers still work, just without the cross-process speedup.
@@ -78,7 +81,7 @@ def _refresh_from_remote(url: str, local_path: Path, timeout: float = 5.0, verbo
             shutil.copyfileobj(response, f)
         tmp_path.replace(local_path)
         if verbose:
-            print(f"[reference_data] refreshed {local_path.name} from {url}")
+            logger.info(f"[reference_data] refreshed {local_path.name} from {url}")
     except (URLError, OSError) as e:
         if verbose:
             warnings.warn(f"Could not refresh {local_path.name} from {url} ({e}); using local copy.")
@@ -103,7 +106,7 @@ def get_thl_lab_map(verbose: bool = False) -> FallbackToKeyDict:
 
     result = _cached("thl_lab_map", compute)
     if verbose:
-        print(f"[reference_data] thl_lab_map: {len(result)} entries loaded, sample {_sample_dict(result)}")
+        logger.info(f"[reference_data] thl_lab_map: {len(result)} entries loaded, sample {_sample_dict(result)}")
     return result
 
 
@@ -122,7 +125,7 @@ def get_thl_sote_map(verbose: bool = False) -> FallbackToKeyDict:
 
     result = _cached("thl_sote_map", compute)
     if verbose:
-        print(f"[reference_data] thl_sote_map: {len(result)} entries loaded, sample {_sample_dict(result)}")
+        logger.info(f"[reference_data] thl_sote_map: {len(result)} entries loaded, sample {_sample_dict(result)}")
     return result
 
 
@@ -141,7 +144,7 @@ def get_thl_manual_map(verbose: bool = False) -> dict[str, str]:
 
     result = _cached("thl_manual_map", compute)
     if verbose:
-        print(f"[reference_data] thl_manual_map: {len(result)} entries loaded, sample {_sample_dict(result)}")
+        logger.info(f"[reference_data] thl_manual_map: {len(result)} entries loaded, sample {_sample_dict(result)}")
     return result
 
 
@@ -160,7 +163,7 @@ def get_unit_map(verbose: bool = False) -> dict[str, str]:
 
     result = _cached("unit_map", compute)
     if verbose:
-        print(f"[reference_data] unit_map: {len(result)} entries loaded, sample {_sample_dict(result)}")
+        logger.info(f"[reference_data] unit_map: {len(result)} entries loaded, sample {_sample_dict(result)}")
     return result
 
 
@@ -179,7 +182,7 @@ def get_usagi_units(verbose: bool = False) -> set[str]:
     result, n_total = _cached("usagi_units", compute)
     if verbose:
         sample = sorted(result)[:5]
-        print(f"[reference_data] usagi_units: {len(result)}/{n_total} unique-for-lab units loaded, sample {sample}")
+        logger.info(f"[reference_data] usagi_units: {len(result)}/{n_total} unique-for-lab units loaded, sample {sample}")
     return result
 
 
@@ -204,8 +207,8 @@ def get_injection_results(verbose: bool = False) -> pd.DataFrame:
     df = _cached("injection_results", compute)
     if verbose:
         counts = df["OUTCOME"].value_counts().to_dict()
-        print(f"[reference_data] injection_results: {len(df)} rows loaded, OUTCOME counts {counts}")
-        print(df.head(3).to_string(index=False))
+        logger.info(f"[reference_data] injection_results: {len(df)} rows loaded, OUTCOME counts {counts}")
+        logger.info(df.head(3).to_string(index=False))
     return df
 
 
@@ -254,8 +257,8 @@ def get_injection_table(verbose: bool = False) -> pd.DataFrame:
 
     table, n_simple, n_split = _cached("injection_table", compute)
     if verbose:
-        print(f"[reference_data] injection_table: {n_simple} simple + {n_split} split = {len(table)} tests")
-        print(table.head(3).to_string())
+        logger.info(f"[reference_data] injection_table: {n_simple} simple + {n_split} split = {len(table)} tests")
+        logger.info(table.head(3).to_string())
     return table
 
 
@@ -294,8 +297,8 @@ def get_usagi_mapping(verbose: bool = False) -> pd.DataFrame:
 
     df = _cached("usagi_mapping", compute)
     if verbose:
-        print(f"[reference_data] usagi_mapping: {len(df)} rows loaded")
-        print(df.head(3).to_string(index=False))
+        logger.info(f"[reference_data] usagi_mapping: {len(df)} rows loaded")
+        logger.info(df.head(3).to_string(index=False))
     return df
 
 
@@ -324,8 +327,8 @@ def get_harmonization_counts(verbose: bool = False) -> pd.DataFrame:
 
     df = _cached("harmonization_counts", compute)
     if verbose:
-        print(f"[reference_data] harmonization_counts: {len(df)} rows loaded")
-        print(df.head(3).to_string(index=False))
+        logger.info(f"[reference_data] harmonization_counts: {len(df)} rows loaded")
+        logger.info(df.head(3).to_string(index=False))
     return df
 
 
@@ -370,8 +373,8 @@ def get_unit_conversion(verbose: bool = False) -> pd.DataFrame:
 
     df = _cached("unit_conversion", compute)
     if verbose:
-        print(f"[reference_data] unit_conversion: {len(df)} rows loaded")
-        print(df.head(3).to_string(index=False))
+        logger.info(f"[reference_data] unit_conversion: {len(df)} rows loaded")
+        logger.info(df.head(3).to_string(index=False))
     return df
 
 
@@ -420,8 +423,8 @@ def get_conversion_table(verbose: bool = False) -> pd.DataFrame:
 
     table = _cached("conversion_table", compute)
     if verbose:
-        print(f"[reference_data] conversion_table: {len(table)} (OMOP_ID, quantity, unit) conversions ready")
-        print(table.head(3).to_string())
+        logger.info(f"[reference_data] conversion_table: {len(table)} (OMOP_ID, quantity, unit) conversions ready")
+        logger.info(table.head(3).to_string())
     return table
 
 
@@ -446,7 +449,7 @@ def get_posneg_table(verbose: bool = False) -> dict[str, str]:
 
     result = _cached("posneg_table", compute)
     if verbose:
-        print(f"[reference_data] posneg_table: {len(result)} entries loaded, sample {_sample_dict(result)}")
+        logger.info(f"[reference_data] posneg_table: {len(result)} entries loaded, sample {_sample_dict(result)}")
     return result
 
 
@@ -472,8 +475,8 @@ def get_ab_limits(verbose: bool = False) -> pd.DataFrame:
 
     df = _cached("ab_limits", compute)
     if verbose:
-        print(f"[reference_data] ab_limits: {len(df)} OMOP_ID reference ranges loaded")
-        print(df.head(3).to_string())
+        logger.info(f"[reference_data] ab_limits: {len(df)} OMOP_ID reference ranges loaded")
+        logger.info(df.head(3).to_string())
     return df
 
 
@@ -497,8 +500,8 @@ def get_omop_qc(verbose: bool = False) -> pd.DataFrame:
 
     df = _cached("omop_qc", compute)
     if verbose:
-        print(f"[reference_data] omop_qc: {len(df)} rules loaded, {df['SIDE'].isna().sum()} placeholder-only")
-        print(df.head(3).to_string())
+        logger.info(f"[reference_data] omop_qc: {len(df)} rules loaded, {df['SIDE'].isna().sum()} placeholder-only")
+        logger.info(df.head(3).to_string())
     return df
 
 
