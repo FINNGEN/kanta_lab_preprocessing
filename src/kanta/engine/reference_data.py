@@ -174,10 +174,12 @@ def get_usagi_units(verbose: bool = False) -> set[str]:
     def compute():
         _refresh_from_remote(config.USAGI_UNITS_URL, config.USAGI_UNITS_FILE, verbose=verbose)
         df = pd.read_csv(
-            config.USAGI_UNITS_FILE, usecols=["sourceCode", "ADD_INFO:UniqueForLab"]
+            config.USAGI_UNITS_FILE,
+            sep="\t",
+            usecols=["MEASUREMENT_UNIT", "UNIQUE_FOR_LAB"],
+            dtype=str,
         ).drop_duplicates()
-        assert df["ADD_INFO:UniqueForLab"].dtype == bool
-        return set(df.loc[df["ADD_INFO:UniqueForLab"], "sourceCode"]), len(df)
+        return set(df.loc[df["UNIQUE_FOR_LAB"] == "TRUE", "MEASUREMENT_UNIT"]), len(df)
 
     result, n_total = _cached("usagi_units", compute)
     if verbose:
@@ -264,36 +266,28 @@ def get_injection_table(verbose: bool = False) -> pd.DataFrame:
 
 @lru_cache(maxsize=1)
 def get_usagi_mapping(verbose: bool = False) -> pd.DataFrame:
-    """Usagi lab-test mapping table: mappingStatus/OMOP_ID/omopQuantity per
+    """Usagi lab-test mapping table: MAPPING_STATUS/OMOP_ID/OMOP_QUANTITY per
     (TEST_NAME_ABBREVIATION, MEASUREMENT_UNIT) pair.
 
-    "NA"-fills all columns since ADD_INFO:measurementUnit (etc.) can be genuinely blank in the
-    source CSV, and the engine's own MEASUREMENT_UNIT/TEST_NAME_ABBREVIATION columns use the
-    string "NA" (not NaN) for missing, so join keys must match on that same convention.
+    "NA"-fills all columns since MEASUREMENT_UNIT (etc.) can be genuinely blank in the source
+    TSV, and the engine's own MEASUREMENT_UNIT/TEST_NAME_ABBREVIATION columns use the string
+    "NA" (not NaN) for missing, so join keys must match on that same convention.
     """
 
     def compute():
         _refresh_from_remote(config.USAGI_MAPPING_URL, config.USAGI_MAPPING_FILE, verbose=verbose)
-        df = pd.read_csv(
+        return pd.read_csv(
             config.USAGI_MAPPING_FILE,
+            sep="\t",
             usecols=[
-                "mappingStatus",
-                "conceptId",
-                "ADD_INFO:omopQuantity",
-                "ADD_INFO:testNameAbbreviation",
-                "ADD_INFO:measurementUnit",
+                "TEST_NAME_ABBREVIATION",
+                "MEASUREMENT_UNIT",
+                "harmonization_omop::OMOP_ID",
+                "harmonization_omop::OMOP_QUANTITY",
+                "harmonization_omop::MAPPING_STATUS",
             ],
             dtype=str,
-        ).drop_duplicates()
-        return df.rename(
-            columns={
-                "mappingStatus": "harmonization_omop::mappingStatus",
-                "conceptId": "harmonization_omop::OMOP_ID",
-                "ADD_INFO:omopQuantity": "harmonization_omop::omopQuantity",
-                "ADD_INFO:testNameAbbreviation": "TEST_NAME_ABBREVIATION",
-                "ADD_INFO:measurementUnit": "MEASUREMENT_UNIT",
-            }
-        ).fillna("NA")
+        ).drop_duplicates().fillna("NA")
 
     df = _cached("usagi_mapping", compute)
     if verbose:
@@ -304,7 +298,7 @@ def get_usagi_mapping(verbose: bool = False) -> pd.DataFrame:
 
 @lru_cache(maxsize=1)
 def get_harmonization_counts(verbose: bool = False) -> pd.DataFrame:
-    """Target MEASUREMENT_UNIT per (OMOP_ID, omopQuantity) — the chosen harmonization destination.
+    """Target MEASUREMENT_UNIT per (OMOP_ID, OMOP_QUANTITY) — the chosen harmonization destination.
 
     "NA"-fills harmonization_omop::MEASUREMENT_UNIT: a blank target unit is a legitimate choice
     for some OMOP concepts (e.g. Presence/Threshold quantities), not a missing value to drop.
@@ -317,7 +311,7 @@ def get_harmonization_counts(verbose: bool = False) -> pd.DataFrame:
             sep="\t",
             usecols=[
                 "harmonization_omop::OMOP_ID",
-                "harmonization_omop::omopQuantity",
+                "harmonization_omop::OMOP_QUANTITY",
                 "harmonization_omop::MEASUREMENT_UNIT",
             ],
             dtype=str,
@@ -334,12 +328,12 @@ def get_harmonization_counts(verbose: bool = False) -> pd.DataFrame:
 
 @lru_cache(maxsize=1)
 def get_unit_conversion(verbose: bool = False) -> pd.DataFrame:
-    """Per-omopQuantity unit conversion factors: MEASUREMENT_UNIT (source) -> harmonization_omop::
+    """Per-OMOP_QUANTITY unit conversion factors: MEASUREMENT_UNIT (source) -> harmonization_omop::
     MEASUREMENT_UNIT (target), with harmonization_omop::CONVERSION_FACTOR (numeric or a formula
     string containing "X", e.g. "10.93*X-23.50").
 
     "NA"-fills the two unit columns for the same reason as get_harmonization_counts() (a blank
-    unit can be a legitimate source/target for Presence/Threshold quantities). only_to_omop_concepts
+    unit can be a legitimate source/target for Presence/Threshold quantities). ONLY_TO_OMOP_CONCEPTS
     is deliberately left with real NaN (not "NA"-filled): a NaN there means "applies to any OMOP_ID
     with this quantity", while a real value means "only applies to this specific OMOP_ID" — future
     harmonize logic needs to distinguish the two with .isna(), not a string comparison.
@@ -351,19 +345,17 @@ def get_unit_conversion(verbose: bool = False) -> pd.DataFrame:
             config.UNIT_CONVERSION_FILE,
             sep="\t",
             usecols=[
-                "omop_quantity",
-                "source_unit_valid",
-                "to_source_unit_valid",
-                "conversion",
-                "only_to_omop_concepts",
+                "harmonization_omop::OMOP_QUANTITY",
+                "MEASUREMENT_UNIT",
+                "TO_MEASUREMENT_UNIT",
+                "CONVERSION",
+                "ONLY_TO_OMOP_CONCEPTS",
             ],
             dtype=str,
         ).rename(
             columns={
-                "omop_quantity": "harmonization_omop::omopQuantity",
-                "source_unit_valid": "MEASUREMENT_UNIT",
-                "to_source_unit_valid": "harmonization_omop::MEASUREMENT_UNIT",
-                "conversion": "harmonization_omop::CONVERSION_FACTOR",
+                "TO_MEASUREMENT_UNIT": "harmonization_omop::MEASUREMENT_UNIT",
+                "CONVERSION": "harmonization_omop::CONVERSION_FACTOR",
             }
         )
         df[["MEASUREMENT_UNIT", "harmonization_omop::MEASUREMENT_UNIT"]] = df[
@@ -380,18 +372,18 @@ def get_unit_conversion(verbose: bool = False) -> pd.DataFrame:
 
 @lru_cache(maxsize=1)
 def get_conversion_table(verbose: bool = False) -> pd.DataFrame:
-    """Per-(OMOP_ID, omopQuantity, MEASUREMENT_UNIT) conversion factors, indexed for a direct
+    """Per-(OMOP_ID, OMOP_QUANTITY, MEASUREMENT_UNIT) conversion factors, indexed for a direct
     row lookup of harmonization_omop::MEASUREMENT_UNIT (target) / CONVERSION_FACTOR.
 
-    Merges get_unit_conversion() (conversion factors, keyed by omopQuantity + target unit, each
-    either general or restricted to one specific OMOP_ID via only_to_omop_concepts) with
+    Merges get_unit_conversion() (conversion factors, keyed by OMOP_QUANTITY + target unit, each
+    either general or restricted to one specific OMOP_ID via ONLY_TO_OMOP_CONCEPTS) with
     get_harmonization_counts() (the target unit actually *chosen* for each OMOP_ID) on
-    (omopQuantity, target unit) — this narrows the general conversion table down to only the
+    (OMOP_QUANTITY, target unit) — this narrows the general conversion table down to only the
     rows that convert to the unit chosen for a given OMOP_ID, tagging each surviving row with
-    that OMOP_ID. A row is then kept only if it's general (only_to_omop_concepts is NaN) or
+    that OMOP_ID. A row is then kept only if it's general (ONLY_TO_OMOP_CONCEPTS is NaN) or
     restricted to this exact OMOP_ID; a restriction naming a *different* OMOP_ID is dropped.
 
-    When both a general and an OMOP-specific row survive for the same (OMOP_ID, omopQuantity,
+    When both a general and an OMOP-specific row survive for the same (OMOP_ID, OMOP_QUANTITY,
     source MEASUREMENT_UNIT) key, the OMOP-specific one wins (mirrors old finngen_qc's
     _priority tie-break) — resolved once here rather than on every chunk.
     """
@@ -403,21 +395,21 @@ def get_conversion_table(verbose: bool = False) -> pd.DataFrame:
         merged = pd.merge(
             unit_conversion,
             harmonization_counts,
-            on=["harmonization_omop::omopQuantity", "harmonization_omop::MEASUREMENT_UNIT"],
+            on=["harmonization_omop::OMOP_QUANTITY", "harmonization_omop::MEASUREMENT_UNIT"],
             how="inner",
         )
 
-        applies = merged["only_to_omop_concepts"].isna() | (
-            merged["only_to_omop_concepts"] == merged["harmonization_omop::OMOP_ID"]
+        applies = merged["ONLY_TO_OMOP_CONCEPTS"].isna() | (
+            merged["ONLY_TO_OMOP_CONCEPTS"] == merged["harmonization_omop::OMOP_ID"]
         )
         merged = merged[applies].copy()
 
-        join_cols = ["harmonization_omop::OMOP_ID", "harmonization_omop::omopQuantity", "MEASUREMENT_UNIT"]
-        merged["_is_specific"] = merged["only_to_omop_concepts"].notna()
+        join_cols = ["harmonization_omop::OMOP_ID", "harmonization_omop::OMOP_QUANTITY", "MEASUREMENT_UNIT"]
+        merged["_is_specific"] = merged["ONLY_TO_OMOP_CONCEPTS"].notna()
         return (
             merged.sort_values("_is_specific", ascending=False)
             .drop_duplicates(subset=join_cols, keep="first")
-            .drop(columns=["_is_specific", "only_to_omop_concepts"])
+            .drop(columns=["_is_specific", "ONLY_TO_OMOP_CONCEPTS"])
             .set_index(join_cols)
         )
 

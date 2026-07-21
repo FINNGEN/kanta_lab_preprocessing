@@ -13,7 +13,7 @@ def approve_status(df: pd.DataFrame, verbose: bool = False) -> pd.DataFrame:
     is cached, this mutates the same table object on every call, so it's idempotent.
     """
     usagi_mapping = reference_data.get_usagi_mapping()
-    not_approved = usagi_mapping["harmonization_omop::mappingStatus"] != "APPROVED"
+    not_approved = usagi_mapping["harmonization_omop::MAPPING_STATUS"] != "APPROVED"
     usagi_mapping.loc[not_approved, "harmonization_omop::OMOP_ID"] = "0"
 
     if verbose:
@@ -139,7 +139,7 @@ def inject_missing_unit(df: pd.DataFrame, verbose: bool = False) -> pd.DataFrame
 
 
 def omop_mapping(df: pd.DataFrame, verbose: bool = False) -> pd.DataFrame:
-    """Assign harmonization_omop::OMOP_ID / harmonization_omop::omopQuantity by looking up each
+    """Assign harmonization_omop::OMOP_ID / harmonization_omop::OMOP_QUANTITY by looking up each
     row's (TEST_NAME_ABBREVIATION, MEASUREMENT_UNIT) pair in the Usagi mapping table.
 
     approve_status() already zeroed OMOP_ID to "0" for non-APPROVED rows within the (cached)
@@ -150,7 +150,7 @@ def omop_mapping(df: pd.DataFrame, verbose: bool = False) -> pd.DataFrame:
     never fan out into more than one output row.
     """
     join_cols = ["TEST_NAME_ABBREVIATION", "MEASUREMENT_UNIT"]
-    out_cols = ["harmonization_omop::OMOP_ID", "harmonization_omop::omopQuantity"]
+    out_cols = ["harmonization_omop::OMOP_ID", "harmonization_omop::OMOP_QUANTITY"]
 
     mapping = reference_data.get_usagi_mapping().drop_duplicates(subset=join_cols, keep="first")
     lookup = mapping.set_index(join_cols)[out_cols]
@@ -168,7 +168,7 @@ def omop_mapping(df: pd.DataFrame, verbose: bool = False) -> pd.DataFrame:
 
 def unit_harmonization(df: pd.DataFrame, verbose: bool = False) -> pd.DataFrame:
     """Convert MEASUREMENT_VALUE into harmonization_omop::MEASUREMENT_VALUE using the per-
-    (OMOP_ID, omopQuantity, MEASUREMENT_UNIT) factor from reference_data.get_conversion_table().
+    (OMOP_ID, OMOP_QUANTITY, MEASUREMENT_UNIT) factor from reference_data.get_conversion_table().
 
     Writes the converted value into a *new* column instead of overwriting MEASUREMENT_VALUE, so
     the original value stays available to compare conversion success/failure against. The target
@@ -181,7 +181,7 @@ def unit_harmonization(df: pd.DataFrame, verbose: bool = False) -> pd.DataFrame:
     (e.g. "10.93*X-23.50", X = the row's MEASUREMENT_VALUE); eval() is run with builtins disabled
     since the formula only ever comes from our own static reference table, not user input.
     """
-    join_cols = ["harmonization_omop::OMOP_ID", "harmonization_omop::omopQuantity", "MEASUREMENT_UNIT"]
+    join_cols = ["harmonization_omop::OMOP_ID", "harmonization_omop::OMOP_QUANTITY", "MEASUREMENT_UNIT"]
     table = reference_data.get_conversion_table()
 
     keys = pd.MultiIndex.from_arrays([df[col] for col in join_cols])
