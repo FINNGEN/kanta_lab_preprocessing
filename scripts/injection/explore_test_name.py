@@ -63,9 +63,16 @@ def query_counts(parquet, out="test_name_counts.tsv"):
 
     result = clickhouse(f"""
         SELECT TEST_NAME, count() AS COUNT, any(OMOP_CONCEPT_ID) AS OMOP_CONCEPT_ID
-        FROM file('{parquet}')
-        WHERE (MEASUREMENT_VALUE_EXTRACTED IS NOT NULL OR MEASUREMENT_VALUE_SOURCE IS NOT NULL)
-          AND MEASUREMENT_UNIT_PRE_FIX IS NULL
+        FROM (
+            SELECT
+                TEST_NAME_ABBREVIATION                     AS TEST_NAME,
+                MEASUREMENT_VALUE                          AS MEASUREMENT_VALUE,
+                `cleaned-pre-fix::MEASUREMENT_UNIT`         AS MEASUREMENT_UNIT_PRE_FIX,
+                `harmonization_omop::OMOP_ID`                AS OMOP_CONCEPT_ID
+            FROM file('{parquet}')
+        )
+        WHERE MEASUREMENT_VALUE != 'NA'
+          AND MEASUREMENT_UNIT_PRE_FIX = 'NA'
         GROUP BY TEST_NAME
         HAVING COUNT > {_COUNTS_MIN}
         ORDER BY COUNT DESC
@@ -86,6 +93,13 @@ def query_details(parquet, counts_file="test_name_counts.tsv", out="test_name_de
     counts_abs = str(Path(counts_file).resolve())
     result = clickhouse(f"""
         WITH
+        renamed AS (
+            SELECT
+                TEST_NAME_ABBREVIATION              AS TEST_NAME,
+                `source::MEASUREMENT_VALUE`          AS MEASUREMENT_VALUE_SOURCE,
+                `cleaned-pre-fix::MEASUREMENT_UNIT`  AS MEASUREMENT_UNIT_PRE_FIX
+            FROM file('{parquet}')
+        ),
         global_names AS (
             SELECT DISTINCT TEST_NAME
             FROM file('{counts_abs}', TSVWithNames)
@@ -107,9 +121,9 @@ def query_details(parquet, counts_file="test_name_counts.tsv", out="test_name_de
                         ) AS unit_json
                     FROM (
                         SELECT TEST_NAME, MEASUREMENT_UNIT_PRE_FIX, count() AS unit_cnt
-                        FROM file('{parquet}')
-                        WHERE MEASUREMENT_VALUE_SOURCE IS NOT NULL
-                          AND MEASUREMENT_UNIT_PRE_FIX IS NOT NULL
+                        FROM renamed
+                        WHERE MEASUREMENT_VALUE_SOURCE != 'NA'
+                          AND MEASUREMENT_UNIT_PRE_FIX != 'NA'
                         GROUP BY TEST_NAME, MEASUREMENT_UNIT_PRE_FIX
                     ) AS sub
                 ) AS ranked
@@ -119,9 +133,9 @@ def query_details(parquet, counts_file="test_name_counts.tsv", out="test_name_de
         ),
         total_counts AS (
             SELECT TEST_NAME, count() AS COUNT
-            FROM file('{parquet}')
-            WHERE MEASUREMENT_VALUE_SOURCE IS NOT NULL
-              AND MEASUREMENT_UNIT_PRE_FIX IS NOT NULL
+            FROM renamed
+            WHERE MEASUREMENT_VALUE_SOURCE != 'NA'
+              AND MEASUREMENT_UNIT_PRE_FIX != 'NA'
             GROUP BY TEST_NAME
         )
         SELECT
@@ -356,21 +370,21 @@ def dump_summary_md(plot_name, threshold, min_count, out="summary_table.md", out
 def _query_test_values(parquet, name, mode, unit=None):
     if mode == "candidate":
         q = f"""
-            SELECT coalesce(MEASUREMENT_VALUE_EXTRACTED, MEASUREMENT_VALUE_SOURCE) AS value
+            SELECT MEASUREMENT_VALUE AS value
             FROM file('{parquet}')
-            WHERE TEST_NAME = {{name:String}}
-              AND MEASUREMENT_UNIT_PRE_FIX IS NULL
-              AND isNotNull(coalesce(MEASUREMENT_VALUE_EXTRACTED, MEASUREMENT_VALUE_SOURCE))
+            WHERE TEST_NAME_ABBREVIATION = {{name:String}}
+              AND `cleaned-pre-fix::MEASUREMENT_UNIT` = 'NA'
+              AND MEASUREMENT_VALUE != 'NA'
             FORMAT TSV
         """
         out = clickhouse(q, name=name)
     else:
         q = f"""
-            SELECT MEASUREMENT_VALUE_SOURCE AS value
+            SELECT `source::MEASUREMENT_VALUE` AS value
             FROM file('{parquet}')
-            WHERE TEST_NAME = {{name:String}}
-              AND MEASUREMENT_UNIT_PRE_FIX = {{unit:String}}
-              AND MEASUREMENT_VALUE_SOURCE IS NOT NULL
+            WHERE TEST_NAME_ABBREVIATION = {{name:String}}
+              AND `cleaned-pre-fix::MEASUREMENT_UNIT` = {{unit:String}}
+              AND `source::MEASUREMENT_VALUE` != 'NA'
             FORMAT TSV
         """
         out = clickhouse(q, name=name, unit=unit)
