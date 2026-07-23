@@ -70,6 +70,7 @@ OUT_COLUMNS = [
     "extracted::TEST_OUTCOME_TEXT",
     "imputed::TEST_OUTCOME",
     "IS_VALUE_EXTRACTED",
+    "IS_UNIT_EXTRACTED",
     "cleaned-pre-fix::MEASUREMENT_UNIT",
     "QC_NOTES",
     "QC_PASS",
@@ -91,9 +92,9 @@ ERR_COLUMNS = ["ROWID", "_rowid_source", "ERR", "ERR_VALUE"]
 # separate OLD_ABBR/NEW_ABBR columns rather than a single combined value.
 ABBR_COLUMNS = ["ROWID", "_rowid_source", "ERR", "OLD_ABBR", "NEW_ABBR"]
 
-# Columns of the unit-change table that fix_measurement_unit appends to. Kept as
-# separate OLD_UNIT/NEW_UNIT columns rather than a single combined value.
-UNIT_COLUMNS = ["ROWID", "_rowid_source", "ERR", "OLD_UNIT", "NEW_UNIT"]
+# Columns of the unit-change table that fix_measurement_unit/extract_measurement append to.
+# Kept as separate OLD_UNIT/NEW_UNIT columns rather than a single combined value.
+UNIT_COLUMNS = ["ROWID", "_rowid_source", "TEST_NAME_ABBREVIATION", "ERR", "OLD_UNIT", "NEW_UNIT"]
 
 # Columns to leave untouched when stripping whitespace (e.g. free text, where spaces are
 # meaningful), using post-alias (renamed) column names.

@@ -1,8 +1,12 @@
+import re
+
 import numpy as np
 import pandas as pd
 
 from kanta import config
 from kanta.engine import reference_data
+from kanta.engine.errors import UnitSink
+from kanta.engine.filters.fix_unit import normalize_unit_candidate
 
 
 def approve_status(df: pd.DataFrame, verbose: bool = False) -> pd.DataFrame:
@@ -35,40 +39,78 @@ def check_usagi_unit(df: pd.DataFrame, verbose: bool = False) -> pd.DataFrame:
     return df
 
 
-def extract_measurement(df: pd.DataFrame, verbose: bool = False) -> pd.DataFrame:
+_VALUE_TRAILING_RE = re.compile(r"^(-?\d+(?:\.\d+)?)\s*(.*)$")
+
+
+def extract_measurement(df: pd.DataFrame, unit_changes: UnitSink, verbose: bool = False) -> pd.DataFrame:
     """Populate MEASUREMENT_VALUE from MEASUREMENT_FREE_TEXT where it's currently missing.
 
-    Cleans the free text (lowercase, strip whitespace), strips the row's own
-    MEASUREMENT_UNIT from it when that unit is Usagi-approved (reference_data.get_usagi_units())
-    so numbers glued directly to their unit (e.g. "5.2mmol/l") can still be parsed, then
-    applies the free-text cleanup rules and parses what's left as a number.
+    Cleans the free text (lowercase, strip whitespace, strip known result-prefixes, comma ->
+    period) then splits it into a leading number and whatever trails it (_VALUE_TRAILING_RE).
+    An empty trailing part means a bare number (e.g. "4.9") — extract directly. A non-empty
+    trailing part is a unit *candidate*: it's run through normalize_unit_candidate() (the exact
+    same cleaning fix_unit.run() applies to the structured MEASUREMENT_UNIT column, so a unit
+    embedded in free text is held to the identical standard as one coming from the source
+    field) and checked against reference_data.get_usagi_units(). Only if that candidate turns
+    out to be a real, recognized unit does extraction succeed at all (e.g. "4.82 e12/l" ->
+    trailing "e12/l" is valid -> extract 4.82; "peruttu" doesn't even reach this far, since it
+    doesn't start with a number; "4.1 hyytynyt" starts with a number but "hyytynyt" isn't a
+    real unit, so nothing is extracted) — a number attached to text we can't identify as a
+    unit isn't reliably a measurement, so it's safer to skip it than to guess. Whenever the
+    trailing part does validate, it's also written into MEASUREMENT_UNIT wherever that's
+    currently missing ("NA") — never overwriting a unit the row already has. Every such
+    injection is logged to unit_changes (err_name="EXTRACTION"), same <prefix>_unit.parquet sink
+    fix_unit.py's regex-driven changes go to, so it's traceable alongside them. OLD_UNIT is
+    recorded as "NA/<original free text>" (e.g. "NA/4.82 E12/L") rather than a bare "NA", so the
+    free-text source of the extraction is visible directly in the sink without needing to
+    cross-reference MEASUREMENT_FREE_TEXT separately. IS_UNIT_EXTRACTED ("1"/"0") flags exactly
+    these rows on df itself too — in principle this is reconstructable later from source::
+    MEASUREMENT_UNIT vs cleaned-pre-fix::MEASUREMENT_UNIT (fix_unit.py never turns a genuinely
+    blank unit into a real one, so a diff there would mean it came from here), but that inference
+    would silently rely on an undocumented invariant of fix_unit.py's behavior — recording it
+    explicitly, where the answer is known for certain, is more robust.
     """
     ft_col = "MEASUREMENT_FREE_TEXT"
     value_col = "MEASUREMENT_VALUE"
+    unit_col = "MEASUREMENT_UNIT"
 
-    cleaned = df[ft_col].astype(str).str.lower().str.strip().str.replace(r"\s", "", regex=True)
-
-    is_valid_unit = df["MEASUREMENT_UNIT"].isin(reference_data.get_usagi_units())
-    cleaned.loc[is_valid_unit] = [
-        text.replace(unit, "")
-        for text, unit in zip(cleaned.loc[is_valid_unit], df.loc[is_valid_unit, "MEASUREMENT_UNIT"])
-    ]
-
+    text = df[ft_col].astype(str).str.lower().str.strip()
     for pattern in config.FREE_TEXT_RESULT_STRINGS:
-        cleaned = cleaned.str.replace(rf"^\s*{pattern}\s*", "", regex=True)
+        text = text.str.replace(rf"^\s*{pattern}\s*", "", regex=True)
     for pattern, replacement in config.FREE_TEXT_MEASUREMENT_REPLACEMENTS:
-        cleaned = cleaned.str.replace(pattern, replacement, regex=True)
+        text = text.str.replace(pattern, replacement, regex=True)
 
-    extracted = pd.to_numeric(cleaned, errors="coerce")
+    parts = text.str.extract(_VALUE_TRAILING_RE)
+    parts.columns = ["num", "trailing"]
+    numeric = pd.to_numeric(parts["num"], errors="coerce")
+    trailing_candidate = normalize_unit_candidate(parts["trailing"].fillna("NA"))
+
+    usagi_units = reference_data.get_usagi_units()
+    is_bare_number = numeric.notna() & (trailing_candidate == "NA")
+    is_number_plus_unit = numeric.notna() & trailing_candidate.isin(usagi_units)
+    can_extract = is_bare_number | is_number_plus_unit
 
     is_missing = df[value_col] == "NA"
-    is_extracted = is_missing & extracted.notna()
+    is_extracted = is_missing & can_extract
 
     df["IS_VALUE_EXTRACTED"] = np.where(is_extracted, "1", "0")
-    df.loc[is_extracted, value_col] = extracted.loc[is_extracted].astype(str)
+    df.loc[is_extracted, value_col] = numeric.loc[is_extracted].astype(str)
+
+    inject_idx = is_extracted & is_number_plus_unit & (df[unit_col] == "NA")
+    injected_rows = df.loc[inject_idx]
+    old_unit_with_source_text = "NA/" + df.loc[inject_idx, ft_col].astype(str)
+    unit_changes.add(
+        injected_rows,
+        err_name="EXTRACTION",
+        old_unit=old_unit_with_source_text,
+        new_unit=trailing_candidate.loc[inject_idx],
+    )
+    df["IS_UNIT_EXTRACTED"] = np.where(inject_idx, "1", "0")
+    df.loc[inject_idx, unit_col] = trailing_candidate.loc[inject_idx]
 
     if verbose:
         print(f"[harmonization] {is_extracted.sum()}/{len(df)} MEASUREMENT_VALUE extracted from free text")
+        print(f"[harmonization] {inject_idx.sum()} with MEASUREMENT_UNIT recovered from free text")
 
     return df
 
@@ -218,10 +260,10 @@ def unit_harmonization(df: pd.DataFrame, verbose: bool = False) -> pd.DataFrame:
     return df
 
 
-def run(df: pd.DataFrame, verbose: bool = False) -> pd.DataFrame:
+def run(df: pd.DataFrame, unit_changes: UnitSink, verbose: bool = False) -> pd.DataFrame:
     df = (
         df.pipe(approve_status, verbose)
-        .pipe(extract_measurement, verbose)
+        .pipe(extract_measurement, unit_changes, verbose)
         .pipe(inject_missing_unit, verbose)
         .pipe(omop_mapping, verbose)
         .pipe(unit_harmonization, verbose)
