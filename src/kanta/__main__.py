@@ -4,7 +4,7 @@ if __name__ == "__main__":
     from argparse import ArgumentParser, BooleanOptionalAction
     from pathlib import Path
 
-    from kanta import config, engine, output
+    from kanta import config, engine, log_utils, output
     from kanta.engine import chunking
     from kanta.intake import assemble, tidyup
 
@@ -148,6 +148,12 @@ if __name__ == "__main__":
         args.output_dir
         / f"finngen_R14_kanta_laboratory_responses_1.0_{today}_RELEASE.parquet"
     )
+
+    log_file_engine = output.check_safe_write(
+        args.output_dir
+        / f"finngen_R14_kanta_laboratory_responses_1.0_{today}.log"
+    )
+    log_utils.configure_logging(log_file_engine)
 
     tmp_dir = output.create_tmp_dir()
 
