@@ -265,6 +265,39 @@ def get_injection_table(verbose: bool = False) -> pd.DataFrame:
 
 
 @lru_cache(maxsize=1)
+def get_omop_injection_table(verbose: bool = False) -> pd.DataFrame:
+    """Test-specific unit corrections (e.g. osuus -> ratio for b-hkr), indexed by
+    (TEST_NAME_ABBREVIATION, MEASUREMENT_UNIT) for a direct row lookup of the corrected unit.
+
+    "NA"-fills source_unit_clean/source_unit_clean_fix (blank cells in the source TSV) since a
+    blank source_unit_clean means "this row's MEASUREMENT_UNIT is missing", using the same "NA"
+    string convention the engine's own MEASUREMENT_UNIT column uses -- not a wildcard matching
+    any unit for that abbreviation.
+    """
+
+    def compute():
+        df = pd.read_csv(
+            config.OMOP_INJECTION_FILE,
+            sep="\t",
+            usecols=["TEST_NAME_ABBREVIATION", "source_unit_clean", "source_unit_clean_fix"],
+            dtype=str,
+            keep_default_na=False,
+        )
+        df[["source_unit_clean", "source_unit_clean_fix"]] = df[["source_unit_clean", "source_unit_clean_fix"]].replace(
+            "", "NA"
+        )
+        return df.drop_duplicates(subset=["TEST_NAME_ABBREVIATION", "source_unit_clean"], keep="first").set_index(
+            ["TEST_NAME_ABBREVIATION", "source_unit_clean"]
+        )
+
+    table = _cached("omop_injection", compute)
+    if verbose:
+        logger.info(f"[reference_data] omop_injection: {len(table)} (abbreviation, unit) corrections loaded")
+        logger.info(table.head(3).to_string())
+    return table
+
+
+@lru_cache(maxsize=1)
 def get_usagi_mapping(verbose: bool = False) -> pd.DataFrame:
     """Usagi lab-test mapping table: MAPPING_STATUS/OMOP_ID/OMOP_QUANTITY per
     (TEST_NAME_ABBREVIATION, MEASUREMENT_UNIT) pair.
@@ -515,6 +548,7 @@ def warm_all(verbose: bool = True) -> None:
     get_unit_map(verbose=verbose)
     get_usagi_units(verbose=verbose)
     get_injection_table(verbose=verbose)
+    get_omop_injection_table(verbose=verbose)
     get_usagi_mapping(verbose=verbose)
     get_conversion_table(verbose=verbose)
     get_posneg_table(verbose=verbose)

@@ -132,7 +132,7 @@ def add_qc_note(df: pd.DataFrame, idx: pd.Index, notes: pd.Series) -> None:
     df.loc[idx, "QC_NOTES"] = np.where(is_first_note, notes, existing + ";" + notes)
 
 
-def inject_missing_unit(df: pd.DataFrame, verbose: bool = False) -> pd.DataFrame:
+def inject_missing_unit(df: pd.DataFrame, unit_changes: UnitSink, verbose: bool = False) -> pd.DataFrame:
     """Assign MEASUREMENT_UNIT to rows with a value but no unit, from scripts/injection's results.
 
     Snapshots the pre-injection MEASUREMENT_UNIT into cleaned-pre-fix::MEASUREMENT_UNIT first
@@ -141,7 +141,13 @@ def inject_missing_unit(df: pd.DataFrame, verbose: bool = False) -> pd.DataFrame
     (reference_data.get_injection_table()) handles both simple (single-unit) and bimodal-split
     tests: simple tests have CUTOFF=-inf, so comparing MEASUREMENT_VALUE against CUTOFF always
     resolves to HIGH_UNIT for them. Whenever a split has any mode overlap at all, its BC/overlap
-    values are copied into QC_NOTES for transparency.
+    values are copied into QC_NOTES for transparency. Every injection is logged to unit_changes
+    (err_name="INJECTION", OLD_UNIT always "NA" since is_eligible requires it) so this step's
+    changes are traceable in the same <prefix>_unit.parquet sink as fix_unit.py's regex fixes,
+    extract_measurement's EXTRACTION, and fix_unit_based_on_abbreviation's ABBREVIATION_FIX —
+    the sink is meant to hold every MEASUREMENT_UNIT change in the pipeline, not just some of
+    them, so a row injected here and then corrected by fix_unit_based_on_abbreviation shows up
+    as two chained entries under the same ROWID.
     """
     df["cleaned-pre-fix::MEASUREMENT_UNIT"] = df["MEASUREMENT_UNIT"]
 
@@ -160,6 +166,13 @@ def inject_missing_unit(df: pd.DataFrame, verbose: bool = False) -> pd.DataFrame
 
     has_unit = assigned_unit.notna()
     inject_idx = has_unit[has_unit].index
+
+    unit_changes.add(
+        df.loc[inject_idx],
+        err_name="INJECTION",
+        old_unit=df.loc[inject_idx, "MEASUREMENT_UNIT"],
+        new_unit=assigned_unit.loc[inject_idx],
+    )
     df.loc[inject_idx, "MEASUREMENT_UNIT"] = assigned_unit.loc[inject_idx]
 
     bc = test_name.map(table["BIMODAL_BC"])
@@ -177,6 +190,40 @@ def inject_missing_unit(df: pd.DataFrame, verbose: bool = False) -> pd.DataFrame
 
     if verbose:
         print(f"[harmonization] unit injected: {int(has_unit.sum())} ({int(needs_note.sum())} with overlap noted)")
+    return df
+
+
+def fix_unit_based_on_abbreviation(df: pd.DataFrame, unit_changes: UnitSink, verbose: bool = False) -> pd.DataFrame:
+    """Correct known bad/synonym units for specific TEST_NAME_ABBREVIATIONs (e.g. osuus -> ratio
+    for b-hkr), from reference_data.get_omop_injection_table() (src/kanta/engine/data/
+    omop_injection.tsv, built by scripts/injection/build_omop_injection_table.py from the legacy
+    finngen_qc abbreviation-fix table).
+
+    Applies to every row with a unit present, not just previously-injected ones — this is a
+    general "known bad/synonym unit for this test" correction, independent of where the unit
+    came from. A blank source_unit_clean in the table only matches rows whose MEASUREMENT_UNIT
+    is currently "NA" (missing) — never a wildcard for any unit — mirroring the exact-match
+    semantics of the old finngen_qc fix_unit_based_on_abbreviation. Runs after inject_missing_unit
+    (so injected units are eligible for correction too) and before omop_mapping/check_usagi_unit
+    (so the correction is reflected in the final OMOP match and IS_UNIT_VALID check).
+    """
+    table = reference_data.get_omop_injection_table()
+    keys = pd.MultiIndex.from_arrays([df["TEST_NAME_ABBREVIATION"], df["MEASUREMENT_UNIT"]])
+    matched = table.reindex(keys).set_axis(df.index)
+
+    fix_idx = matched.index[matched["source_unit_clean_fix"].notna()]
+
+    unit_changes.add(
+        df.loc[fix_idx],
+        err_name="ABBREVIATION_FIX",
+        old_unit=df.loc[fix_idx, "MEASUREMENT_UNIT"],
+        new_unit=matched.loc[fix_idx, "source_unit_clean_fix"],
+    )
+    df.loc[fix_idx, "MEASUREMENT_UNIT"] = matched.loc[fix_idx, "source_unit_clean_fix"]
+
+    if verbose:
+        print(f"[harmonization] fix_unit_based_on_abbreviation: {len(fix_idx)}/{len(df)} units corrected")
+
     return df
 
 
@@ -233,7 +280,12 @@ def unit_harmonization(df: pd.DataFrame, verbose: bool = False) -> pd.DataFrame:
     factor = matched["harmonization_omop::CONVERSION_FACTOR"]
     df["harmonization_omop::CONVERSION_FACTOR"] = factor.fillna("NA")
 
-    value = pd.to_numeric(df["MEASUREMENT_VALUE"], errors="coerce")
+    # MEASUREMENT_VALUE is Arrow-backed (string[pyarrow]) from the parquet read, so a
+    # non-numeric string like "NA" coerces to a NaN *value* that pyarrow's own validity
+    # bitmap still marks as "not null" -- .notna() on the raw pd.to_numeric() result would
+    # then wrongly report True for every unit-less row. Casting to plain float64 first
+    # switches to standard IEEE NaN semantics, where .notna() correctly excludes it.
+    value = pd.to_numeric(df["MEASUREMENT_VALUE"], errors="coerce").astype("float64")
     has_conversion = factor.notna() & value.notna()
     is_formula = factor.astype(str).str.contains("X", na=False)
 
@@ -264,7 +316,8 @@ def run(df: pd.DataFrame, unit_changes: UnitSink, verbose: bool = False) -> pd.D
     df = (
         df.pipe(approve_status, verbose)
         .pipe(extract_measurement, unit_changes, verbose)
-        .pipe(inject_missing_unit, verbose)
+        .pipe(inject_missing_unit, unit_changes, verbose)
+        .pipe(fix_unit_based_on_abbreviation, unit_changes, verbose)
         .pipe(omop_mapping, verbose)
         .pipe(unit_harmonization, verbose)
         .pipe(check_usagi_unit, verbose)

@@ -70,9 +70,14 @@ def extract_outcome(df: pd.DataFrame, verbose: bool = False) -> pd.DataFrame:
     parts.loc[is_mapped, "unit"] = parts.loc[is_mapped, "unit"].map(unit_map)
 
     usagi_units = reference_data.get_usagi_units()
+    # parts["value"] stays Arrow-backed (string[pyarrow]) through str.split(expand=True), so
+    # .notna() on the raw pd.to_numeric() result would wrongly admit a non-numeric token that
+    # happens to coerce to a NaN value (pyarrow's validity bitmap still marks it "not null") --
+    # see the same fix/reasoning in harmonization.py's unit_harmonization.
+    is_numeric_value = pd.to_numeric(parts["value"], errors="coerce").astype("float64").notna()
     is_valid = (
         parts["comp"].isin(["<", ">"])
-        & pd.to_numeric(parts["value"], errors="coerce").notna()
+        & is_numeric_value
         & (parts["unit"].isin(usagi_units) | parts["unit"].isna())
     )
 
