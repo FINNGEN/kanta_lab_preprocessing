@@ -35,7 +35,7 @@ from pathlib import Path
 import pandas as pd
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-_DEFAULT_USAGI_FILE = _REPO_ROOT / "src/kanta/finngen_qc/data/LABfi_ALL.usagi.csv"
+_DEFAULT_USAGI_FILE = _REPO_ROOT / "src/kanta/engine/data/LABfi.tsv"
 
 
 def clickhouse(query):
@@ -77,11 +77,11 @@ def query_raw_counts(parquet, min_count, cache="unharmonized_raw_counts.tsv"):
 
 def load_abbrev_omop_map(usagi_path):
     """TEST_NAME_ABBREVIATION -> sorted list of distinct OMOP_IDs it maps to via ANY of its
-    APPROVED, Measurement-domain units in the Usagi table (unit-agnostic, unlike omop_mapping's
-    own per-row (abbreviation, unit) join)."""
-    df = pd.read_csv(usagi_path, dtype=str)
-    df = df[(df["domainId"] == "Measurement") & (df["mappingStatus"] == "APPROVED")]
-    grouped = df.groupby("ADD_INFO:testNameAbbreviation")["conceptId"].agg(lambda s: sorted(set(s)))
+    APPROVED units in the Usagi table (unit-agnostic, unlike omop_mapping's own per-row
+    (abbreviation, unit) join)."""
+    df = pd.read_csv(usagi_path, sep="\t", dtype=str)
+    df = df[df["harmonization_omop::MAPPING_STATUS"] == "APPROVED"]
+    grouped = df.groupby("TEST_NAME_ABBREVIATION")["harmonization_omop::OMOP_ID"].agg(lambda s: sorted(set(s)))
     return grouped.to_dict()
 
 
@@ -146,7 +146,7 @@ def build_parser():
     p.add_argument("--min-count", type=int, default=50, metavar="INT",
                    help="Minimum row count per (TEST_NAME_ABBREVIATION, MEASUREMENT_UNIT, OMOP_ID_RAW) to include")
     p.add_argument("--usagi", default=str(_DEFAULT_USAGI_FILE), metavar="PATH",
-                   help="Usagi lab mapping CSV, for the abbreviation-level OMOP_ID fallback")
+                   help="Usagi lab mapping TSV, for the abbreviation-level OMOP_ID fallback")
     p.add_argument("--out", default="unharmonized_counts.tsv", metavar="PATH",
                    help="Output TSV path (final, resolved table)")
     p.add_argument("--raw-cache", default="unharmonized_raw_counts.tsv", metavar="PATH",

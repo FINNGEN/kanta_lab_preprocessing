@@ -1,6 +1,9 @@
 finngen_qc/test/
 /scripts/test/
 
+# Claude Code local runtime state (permissions, locks, worktrees) — machine-specific
+.claude/
+
 # injection site — generated HTML (rebuilt by CI)
 scripts/injection/html/
 # injection intermediate pipeline cache files (not needed for site)
