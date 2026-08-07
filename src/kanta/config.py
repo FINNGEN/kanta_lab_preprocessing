@@ -10,9 +10,7 @@ DATA_DIR = Path(__file__).parent / "engine" / "data"
 REPO_ROOT = Path(__file__).parent.parent.parent
 INJECTION_RESULTS_FILE = REPO_ROOT / "scripts" / "injection" / "data" / "injection_results.tsv"
 
-# Test-specific unit corrections (e.g. osuus -> ratio for b-hkr), built by
-# scripts/injection/build_omop_injection_table.py from the legacy finngen_qc abbreviation-fix
-# table, filtered down to entries not already superseded by INJECTION_RESULTS_FILE.
+# Test-specific unit corrections (e.g. osuus -> ratio for b-hkr).
 OMOP_INJECTION_FILE = DATA_DIR / "omop_injection.tsv"
 
 # Which columns to read from the input file, using the original (pre-alias) column names.

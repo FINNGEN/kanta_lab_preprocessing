@@ -29,11 +29,8 @@ class ErrorSink:
         frame = df[ID_COLUMNS].copy()
         frame["ERR"] = err_name
         frame["ERR_VALUE"] = err_value
-        # Force plain object dtype rather than whatever Arrow string width err_value happened
-        # to inherit from its source column: different filters build err_value from columns of
-        # different Arrow string widths (string vs large_string), so leaving it as-is means
-        # different chunks' error files disagree on schema and pq.ParquetWriter chokes when
-        # concatenating them (only shows up across chunks, never in a single-chunk --test run).
+        # Different filters build err_value from columns of different Arrow string widths;
+        # forcing object dtype keeps every chunk's schema consistent for concatenation.
         frame = frame.astype({"ERR": object, "ERR_VALUE": object})
         self.frames.append(frame[config.ERR_COLUMNS])
 
@@ -59,7 +56,7 @@ class AbbrSink:
         frame["ERR"] = err_name
         frame["OLD_ABBR"] = old_abbr
         frame["NEW_ABBR"] = new_abbr
-        # See UnitSink.add's comment: normalize away Arrow string-width mismatches across chunks.
+        # Normalize away Arrow string-width mismatches across chunks (see ErrorSink.add).
         frame = frame.astype({"ERR": object, "OLD_ABBR": object, "NEW_ABBR": object})
         self.frames.append(frame[config.ABBR_COLUMNS])
 
@@ -88,13 +85,7 @@ class UnitSink:
         frame["ERR"] = err_name
         frame["OLD_UNIT"] = old_unit
         frame["NEW_UNIT"] = new_unit
-        # fix_unit.py's own changes build OLD_UNIT/NEW_UNIT from MEASUREMENT_UNIT (Arrow
-        # `string`), while harmonization.py's EXTRACTION changes build them from
-        # MEASUREMENT_FREE_TEXT (Arrow `large_string`) — so depending on which chunk got which
-        # kind of change, the concatenated per-chunk unit file ends up with a different Arrow
-        # string width for the same logical column, and pq.ParquetWriter raises a schema
-        # mismatch when concatenating chunks written with a different width (only visible in a
-        # full/multi-chunk run, never a single-chunk --test run). Forcing plain object dtype
-        # here makes every chunk agree on schema regardless of the source column's width.
+        # Different filters build OLD_UNIT/NEW_UNIT from columns of different Arrow string
+        # widths; forcing object dtype keeps every chunk's schema consistent for concatenation.
         frame = frame.astype({"ERR": object, "OLD_UNIT": object, "NEW_UNIT": object})
         self.frames.append(frame[config.UNIT_COLUMNS])

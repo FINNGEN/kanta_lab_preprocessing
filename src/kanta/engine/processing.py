@@ -29,17 +29,9 @@ def configure_pandas():
     # engine="pyarrow" on every call.
     pd.options.io.parquet.engine = "pyarrow"
 
-    # Turn chained assignment into a hard error.
-    # Chained assignments have weird behavior in that they would turn operations into no-ops.
-    # For example this chained assignment *does not change any value* of df:
-    #   `df[df["A"] > 0]["B"] = 1`
-    # Instead, use `.loc` or `.iloc` to get correct behavior:
-    #   `df.loc[df["A"] > 0, "B"] = 1`
-    # We change Pandas default from just throwing a warning (ChainedAssignmentError), to actually
-    # raising an error.
-    # Note that unfortunately we can't just set the option
-    # `mode.chained_assignment` to `"raise"` because it has no effect under
-    # Copy-on-Write, so we have to resort to promoting the warning to an error.
+    # Chained assignment (e.g. `df[df["A"] > 0]["B"] = 1`) silently no-ops under
+    # Copy-on-Write — promote pandas' warning to a hard error instead. Use `.loc`/`.iloc`
+    # to assign correctly.
     warnings.filterwarnings("error", category=pd.errors.ChainedAssignmentError)
 
 

@@ -9,9 +9,7 @@ from kanta.engine.errors import UnitSink
 
 def _strip_unit_chars(series: pd.Series) -> pd.Series:
     """Remove stray characters from a MEASUREMENT_UNIT-like string series, then lowercase
-    non-NA values. Pulled out of strip_unit_characters() so the exact same cleaning can be
-    applied to a free-standing candidate (e.g. a unit token pulled from free text), not just
-    the structured MEASUREMENT_UNIT column."""
+    non-NA values."""
     pattern = "(" + "|".join(re.escape(char) for char in config.UNIT_STRIP_CHARS) + ")"
     series = series.replace(pattern, "", regex=True).replace(r"^\s*$", "NA", regex=True)
 
@@ -21,11 +19,8 @@ def _strip_unit_chars(series: pd.Series) -> pd.Series:
 
 
 def _apply_unit_fixes(series: pd.Series) -> tuple[pd.Series, pd.Series]:
-    """Fix a MEASUREMENT_UNIT-like string series in two steps: exact-match dictionary lookup,
-    then regex clean-up. Returns (fixed_series, is_mapped) — is_mapped identifies rows the
-    dictionary lookup already resolved (excluded from the regex step), needed by the caller to
-    know which changes were dictionary- vs regex-driven. Pulled out of fix_measurement_unit()
-    for the same sharing reason as _strip_unit_chars()."""
+    """Fix a MEASUREMENT_UNIT-like string series: exact-match dictionary lookup, then regex
+    clean-up. Returns (fixed_series, is_mapped)."""
     unit_map = reference_data.get_unit_map()
     is_mapped = series.isin(unit_map)
     series = series.copy()
@@ -38,11 +33,9 @@ def _apply_unit_fixes(series: pd.Series) -> tuple[pd.Series, pd.Series]:
 
 
 def normalize_unit_candidate(series: pd.Series) -> pd.Series:
-    """Apply the exact same cleaning fix_unit.run() applies to the structured MEASUREMENT_UNIT
-    column to an arbitrary candidate unit-like string series (e.g. a token pulled from free
-    text in harmonization.extract_measurement) — no UnitSink/logging, since a candidate isn't
-    a row's real unit yet, just a string being evaluated for whether it could be one.
-    """
+    """Apply the same cleaning fix_unit.run() applies to MEASUREMENT_UNIT to an arbitrary
+    candidate string (e.g. a unit token pulled from free text). No logging — a candidate
+    isn't a row's real unit yet."""
     return _apply_unit_fixes(_strip_unit_chars(series))[0]
 
 
@@ -53,23 +46,29 @@ def strip_unit_characters(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def fix_measurement_unit(df: pd.DataFrame, unit_changes: UnitSink) -> pd.DataFrame:
-    """Fix MEASUREMENT_UNIT in two steps: exact-match dictionary lookup, then regex clean-up.
+    """Fix MEASUREMENT_UNIT: exact-match dictionary lookup, then regex clean-up on the rest.
 
-    Rows resolved by the dictionary lookup (config.UNIT_MAP_FILE) are excluded from the
-    regex step. Only regex-driven changes are logged to unit_changes, matching prior
-    behavior where dictionary-driven changes were never logged.
+    Both steps log to unit_changes under separate err_names ("unit_map" vs "unit_regex"),
+    since dictionary hits alone can be millions of rows (e.g. "10e9/l" -> "e9/l").
     """
     col = "MEASUREMENT_UNIT"
     old = df[col].copy()
     df[col], is_mapped = _apply_unit_fixes(df[col])
 
-    is_changed = ~is_mapped & (old != df[col])
-    changed_rows = df.loc[is_changed]
+    is_map_changed = is_mapped & (old != df[col])
     unit_changes.add(
-        changed_rows,
+        df.loc[is_map_changed],
+        err_name="unit_map",
+        old_unit=old.loc[is_map_changed],
+        new_unit=df.loc[is_map_changed, col],
+    )
+
+    is_regex_changed = ~is_mapped & (old != df[col])
+    unit_changes.add(
+        df.loc[is_regex_changed],
         err_name="unit_regex",
-        old_unit=old.loc[is_changed],
-        new_unit=df.loc[is_changed, col],
+        old_unit=old.loc[is_regex_changed],
+        new_unit=df.loc[is_regex_changed, col],
     )
     return df
 
@@ -93,5 +92,5 @@ def run(df: pd.DataFrame, unit_changes: UnitSink, verbose: bool = False) -> pd.D
     )
     if verbose:
         n_unit_changes = sum(len(frame) for frame in unit_changes.frames)
-        print(f"[fix_unit] {n_unit_changes} units regex-fixed")
+        print(f"[fix_unit] {n_unit_changes} units fixed (dictionary + regex)")
     return df

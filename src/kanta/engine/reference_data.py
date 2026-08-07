@@ -1,12 +1,8 @@
 """Static reference/mapping tables loaded from disk, used by the engine's filters.
 
-Each loader is cached so the underlying file is only read once per process: once in the
-main process for serial runs, once per worker process when running in parallel (since
-`spawn` workers re-import modules fresh, the cache is naturally per-process). On top of that,
-a per-run pickle cache (see set_cache_dir()/`_cached()`) lets worker processes skip the
-parse/join/regex work entirely and just deserialize the already-built object, since
-reference_data.warm_all() has already computed and pickled everything once, in the main
-process, before any worker starts.
+Each loader is @lru_cache'd per process, plus a per-run pickle cache (set_cache_dir())
+so worker processes can deserialize tables warm_all() already built, instead of
+re-parsing them.
 """
 
 import logging
@@ -39,10 +35,7 @@ def set_cache_dir(path: Path) -> None:
 def _cached(key: str, compute):
     """Pickle-cache compute()'s result under _CACHE_DIR, keyed by `key`.
 
-    Only ever written once per run: main() populates the whole cache via warm_all() before
-    any worker starts, so workers only ever read here, never write concurrently. If _CACHE_DIR
-    isn't set (e.g. a standalone script importing this module directly, without going through
-    main()), just computes without caching.
+    Computes without caching if _CACHE_DIR isn't set.
     """
     if _CACHE_DIR is None:
         return compute()
@@ -192,10 +185,8 @@ def get_usagi_units(verbose: bool = False) -> set[str]:
 def get_injection_results(verbose: bool = False) -> pd.DataFrame:
     """Unit-injection targets from scripts/injection/ (both PASS and FAIL rows kept).
 
-    FAIL rows are kept here (not dropped) because a bimodal split's low/high pair can have
-    one side FAIL and the other PASS (e.g. neutrofiilit) — the FAIL side's CUTOFF is still
-    needed to know where the split boundary is, even though its own UNIT must not be used.
-    Callers are responsible for checking OUTCOME before using a row's UNIT.
+    Kept because a bimodal split's low/high pair can have one side FAIL and the other PASS —
+    the FAIL side's CUTOFF is still needed. Callers must check OUTCOME before using UNIT.
     """
 
     def compute():
@@ -219,11 +210,8 @@ def get_injection_table(verbose: bool = False) -> pd.DataFrame:
     """Unit-injection candidates indexed by TEST_NAME: CUTOFF, LOW_UNIT, HIGH_UNIT, BIMODAL_BC,
     BIMODAL_OVERLAP.
 
-    Simple (non-split) tests get CUTOFF=-inf and only HIGH_UNIT set, so comparing
-    MEASUREMENT_VALUE against CUTOFF in the filter always resolves to HIGH_UNIT for them —
-    the same low/high logic handles both simple and bimodal-split tests, no separate branch
-    needed. Split tests are only included when both their low and high side are PASS: one
-    FAILed side means the true boundary can't be trusted, so the whole test is excluded.
+    Simple tests get CUTOFF=-inf and only HIGH_UNIT set. Split tests are included only when
+    both their low and high side are PASS.
     """
 
     def compute():
@@ -266,13 +254,12 @@ def get_injection_table(verbose: bool = False) -> pd.DataFrame:
 
 @lru_cache(maxsize=1)
 def get_omop_injection_table(verbose: bool = False) -> pd.DataFrame:
-    """Test-specific unit corrections (e.g. osuus -> ratio for b-hkr), indexed by
-    (TEST_NAME_ABBREVIATION, MEASUREMENT_UNIT) for a direct row lookup of the corrected unit.
-
-    "NA"-fills source_unit_clean/source_unit_clean_fix (blank cells in the source TSV) since a
-    blank source_unit_clean means "this row's MEASUREMENT_UNIT is missing", using the same "NA"
-    string convention the engine's own MEASUREMENT_UNIT column uses -- not a wildcard matching
-    any unit for that abbreviation.
+    """Test-specific unit corrections, indexed by (TEST_NAME_ABBREVIATION, MEASUREMENT_UNIT)
+    for a direct row lookup of the corrected unit. Examples:
+    - b-hkr "osuus" -> "ratio" (not a formal unit)
+    - du-prot "g" -> "g/24h" (incomplete)
+    - p-krea "mmol/l" -> "umol/l" (incorrect)
+    - -l-ind "NA" -> "index" (missing)
     """
 
     def compute():
@@ -302,9 +289,7 @@ def get_usagi_mapping(verbose: bool = False) -> pd.DataFrame:
     """Usagi lab-test mapping table: MAPPING_STATUS/OMOP_ID/OMOP_QUANTITY per
     (TEST_NAME_ABBREVIATION, MEASUREMENT_UNIT) pair.
 
-    "NA"-fills all columns since MEASUREMENT_UNIT (etc.) can be genuinely blank in the source
-    TSV, and the engine's own MEASUREMENT_UNIT/TEST_NAME_ABBREVIATION columns use the string
-    "NA" (not NaN) for missing, so join keys must match on that same convention.
+    "NA"-fills all columns so join keys match the engine's "NA" (not NaN) missing-value convention.
     """
 
     def compute():
@@ -331,11 +316,7 @@ def get_usagi_mapping(verbose: bool = False) -> pd.DataFrame:
 
 @lru_cache(maxsize=1)
 def get_harmonization_counts(verbose: bool = False) -> pd.DataFrame:
-    """Target MEASUREMENT_UNIT per (OMOP_ID, OMOP_QUANTITY) — the chosen harmonization destination.
-
-    "NA"-fills harmonization_omop::MEASUREMENT_UNIT: a blank target unit is a legitimate choice
-    for some OMOP concepts (e.g. Presence/Threshold quantities), not a missing value to drop.
-    """
+    """Reads in the target MEASUREMENT_UNIT per (OMOP_ID, OMOP_QUANTITY)."""
 
     def compute():
         _refresh_from_remote(config.HARMONIZATION_COUNTS_URL, config.HARMONIZATION_COUNTS_FILE, verbose=verbose)
@@ -361,16 +342,7 @@ def get_harmonization_counts(verbose: bool = False) -> pd.DataFrame:
 
 @lru_cache(maxsize=1)
 def get_unit_conversion(verbose: bool = False) -> pd.DataFrame:
-    """Per-OMOP_QUANTITY unit conversion factors: MEASUREMENT_UNIT (source) -> harmonization_omop::
-    MEASUREMENT_UNIT (target), with harmonization_omop::CONVERSION_FACTOR (numeric or a formula
-    string containing "X", e.g. "10.93*X-23.50").
-
-    "NA"-fills the two unit columns for the same reason as get_harmonization_counts() (a blank
-    unit can be a legitimate source/target for Presence/Threshold quantities). ONLY_TO_OMOP_CONCEPTS
-    is deliberately left with real NaN (not "NA"-filled): a NaN there means "applies to any OMOP_ID
-    with this quantity", while a real value means "only applies to this specific OMOP_ID" — future
-    harmonize logic needs to distinguish the two with .isna(), not a string comparison.
-    """
+    """Reads in the conversion factor per (OMOP_QUANTITY, source unit, target unit)."""
 
     def compute():
         _refresh_from_remote(config.UNIT_CONVERSION_URL, config.UNIT_CONVERSION_FILE, verbose=verbose)
@@ -405,20 +377,12 @@ def get_unit_conversion(verbose: bool = False) -> pd.DataFrame:
 
 @lru_cache(maxsize=1)
 def get_conversion_table(verbose: bool = False) -> pd.DataFrame:
-    """Per-(OMOP_ID, OMOP_QUANTITY, MEASUREMENT_UNIT) conversion factors, indexed for a direct
-    row lookup of harmonization_omop::MEASUREMENT_UNIT (target) / CONVERSION_FACTOR.
+    """Build a per-row conversion lookup from unit_conversion + harmonization_counts.
 
-    Merges get_unit_conversion() (conversion factors, keyed by OMOP_QUANTITY + target unit, each
-    either general or restricted to one specific OMOP_ID via ONLY_TO_OMOP_CONCEPTS) with
-    get_harmonization_counts() (the target unit actually *chosen* for each OMOP_ID) on
-    (OMOP_QUANTITY, target unit) — this narrows the general conversion table down to only the
-    rows that convert to the unit chosen for a given OMOP_ID, tagging each surviving row with
-    that OMOP_ID. A row is then kept only if it's general (ONLY_TO_OMOP_CONCEPTS is NaN) or
-    restricted to this exact OMOP_ID; a restriction naming a *different* OMOP_ID is dropped.
+    Input:  OMOP_QUANTITY, MEASUREMENT_UNIT (source), TARGET_UNIT, CONVERSION_FACTOR
+    Output: index (OMOP_ID, OMOP_QUANTITY, MEASUREMENT_UNIT) -> TARGET_UNIT, CONVERSION_FACTOR
 
-    When both a general and an OMOP-specific row survive for the same (OMOP_ID, OMOP_QUANTITY,
-    source MEASUREMENT_UNIT) key, the OMOP-specific one wins (mirrors old finngen_qc's
-    _priority tie-break) — resolved once here rather than on every chunk.
+    E.g. (3020564, Substance Concentration, mmol/l) -> (umol/l, 1000)
     """
 
     def compute():
@@ -455,12 +419,13 @@ def get_conversion_table(verbose: bool = False) -> pd.DataFrame:
 
 @lru_cache(maxsize=1)
 def get_posneg_table(verbose: bool = False) -> dict[str, str]:
-    """MEASUREMENT_FREE_TEXT -> extracted::IS_POS ("0"/"1") for text-based positive/negative
-    results (e.g. "NEGAT" -> "0").
+    """MEASUREMENT_FREE_TEXT -> extracted::IS_POS ("0"/"1") lookup.
 
-    Rows with a missing extracted::IS_POS are dropped (not a valid pos/neg signal). Built as a
-    plain dict for .map(), not a merge table, so a duplicate MEASUREMENT_FREE_TEXT key can never
-    fan out a row in df (none found in the current snapshot, but this guarantees it either way).
+    MEASUREMENT_FREE_TEXT  ->  extracted::IS_POS
+    "NEGAT"                ->  "0"
+    "Posit."               ->  "1"
+
+    Built as a plain dict so a duplicate key can never fan out a row in df.
     """
 
     def compute():
@@ -481,11 +446,11 @@ def get_posneg_table(verbose: bool = False) -> dict[str, str]:
 @lru_cache(maxsize=1)
 def get_ab_limits(verbose: bool = False) -> pd.DataFrame:
     """Per-OMOP_ID abnormality reference range: LOW_LIMIT/HIGH_LIMIT plus LOW_PROBLEM/HIGH_PROBLEM
-    flags, indexed by harmonization_omop::OMOP_ID for a direct row lookup.
+    flags, indexed by OMOP_ID. See scripts/qc_scripts/abnormality.py for how it's built.
 
-    Kept as dtype=str throughout (engine convention); LOW_LIMIT/HIGH_LIMIT are cast to numeric
-    transiently by the caller for comparison — pd.to_numeric parses the literal "-inf"/"inf"
-    tokens in the source file fine.
+    OMOP_ID   LOW_LIMIT  HIGH_LIMIT  LOW_PROBLEM  HIGH_PROBLEM
+    1002102   -inf       inf         0            0
+    1175426   57.0       98.0        0            0
     """
 
     def compute():
@@ -507,12 +472,14 @@ def get_ab_limits(verbose: bool = False) -> pd.DataFrame:
 
 @lru_cache(maxsize=1)
 def get_omop_qc(verbose: bool = False) -> pd.DataFrame:
-    """Per-OMOP_ID QC threshold rules: SIDE/THRESHOLD/QC_NOTES, usecols=["harmonization_omop::
-    OMOP_ID", "THRESHOLD", "SIDE", "QC_NOTES"].
+    """Per-OMOP_ID QC threshold rules: SIDE/THRESHOLD/QC_NOTES.
 
-    Not deduplicated or indexed: a single OMOP_ID can carry several rules (e.g. both a "too high"
-    and a "too low" implausible-value check), and some rows are placeholder "register this
-    OMOP_ID as checked" entries with SIDE/THRESHOLD left blank — callers iterate rows directly.
+    OMOP_ID  THRESHOLD  SIDE  QC_NOTES
+    3026361  20         >     IMPLAUSIBLE_VALUE
+    3026361  0.5        <     IMPOSSIBLE_VALUE
+
+    Not deduplicated: an OMOP_ID can carry several rules. Some rows are placeholder
+    "register as checked" entries with SIDE/THRESHOLD blank.
     """
 
     def compute():
@@ -531,16 +498,8 @@ def get_omop_qc(verbose: bool = False) -> pd.DataFrame:
 
 
 def warm_all(verbose: bool = True) -> None:
-    """Load every reference table once, up front, so remote-fetch fallback warnings (and basic
-    load confirmation) surface immediately at startup in one place, and so the per-run pickle
-    cache (see set_cache_dir()) is fully populated before any worker process starts.
-
-    Filters call these loaders with no `verbose` argument during actual chunk processing (i.e.
-    quietly, relying on the default verbose=False) — they trust this warm-up already ran and
-    populated every @lru_cache/pickle cache, so there's nothing left to print, re-fetch, or
-    re-parse. Calling the "outer" functions is enough: get_injection_table()/get_conversion_table()
-    already call their own inputs (get_injection_results(), get_unit_conversion(),
-    get_harmonization_counts()) internally, so a separate call to those isn't needed.
+    """Load every reference table once, up front, so load/fallback diagnostics print once at
+    startup and the per-run pickle cache is populated before any worker process starts.
     """
     get_thl_lab_map(verbose=verbose)
     get_thl_sote_map(verbose=verbose)

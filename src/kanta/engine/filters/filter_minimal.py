@@ -113,9 +113,7 @@ def get_lab_abbrv(df: pd.DataFrame, abbr_changes: AbbrSink) -> pd.DataFrame:
 def get_coding_map(df: pd.DataFrame) -> pd.DataFrame:
     """Map CODING_SYSTEM via the THL organization map, then derive CODING_SYSTEM_MAP.
 
-    Faithfully replicates finngen_qc's ordering: CODING_SYSTEM_MAP's prefix-stripping step
-    reads CODING_SYSTEM *after* it has already been overwritten by the first mapping round,
-    so it only resolves to a non-"NA" value for rows the first round left unmapped.
+    Only resolves values the org map left unchanged, e.g. "3575029" -> "CGI_Suomi_Oy".
     """
     col = "CODING_SYSTEM"
     df[col] = df[col].map(reference_data.get_thl_sote_map())
