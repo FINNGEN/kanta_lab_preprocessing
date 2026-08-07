@@ -32,22 +32,15 @@ def main(
     # Setup
     processing.configure_pandas()
 
-    # Per-run pickle cache for reference tables (see reference_data.py's module docstring):
-    # created fresh here, populated once below by warm_all(), then read (never written) by
-    # worker processes — regenerated every run, never reused across separate invocations.
+    # Per-run pickle cache for reference tables, populated below by warm_all().
     cache_dir = tmp_dir / "refcache"
     cache_dir.mkdir()
     reference_data.set_cache_dir(cache_dir)
 
-    # Load every reference table once up front, regardless of --verbose, so remote-fetch
-    # fallback warnings (and basic load confirmation) always surface exactly once, here — not
-    # potentially once per worker process later. Actual chunk processing loads these tables
-    # quietly (see reference_data.warm_all()'s docstring).
+    # Load every reference table once, up front, before workers start.
     reference_data.warm_all()
 
-    # Per-chunk filter debugging output is only meaningful for a single chunk (--test): in a
-    # full run it would print once per chunk, since it reports business-logic details of the
-    # chunk currently being processed, not something a one-time warm-up can cover.
+    # Per-filter debug output only makes sense for a single chunk (--test).
     verbose = verbose and is_test_run
 
     chunks_dir = tmp_dir / "chunks"
@@ -62,10 +55,8 @@ def main(
     unit_dir = tmp_dir / "unit"
     unit_dir.mkdir()
 
-    # Iterate over each chunk. Wrapped to count actual input rows consumed as a side effect —
-    # equals the full file's row count normally, but only the first chunk's size for --test,
-    # where the row-conservation check below needs to compare against what was *actually* fed
-    # into the pipeline, not the whole file.
+    # Counts rows actually consumed (only the first chunk under --test), for the
+    # row-conservation check below.
     n_input_rows = [0]
 
     def _counted_chunks(iterable):
@@ -104,9 +95,7 @@ def main(
     chunking.concatenate_chunks(abbr_dir, abbr_file, empty_schema=ABBR_EMPTY_SCHEMA)
     chunking.concatenate_chunks(unit_dir, unit_file, empty_schema=UNIT_EMPTY_SCHEMA)
 
-    # Every input row must land in exactly one of output_file (kept) or errors_file (dropped) —
-    # abbr_file/unit_file are side-channel change-logs, not exclusive of the main output, so
-    # they're not part of this count.
+    # Every input row must land in exactly one of output_file or errors_file.
     n_output = chunking.count_rows(output_file)
     n_errors = chunking.count_rows(errors_file)
     logger.info(f"Output: {n_output:,} rows + {n_errors:,} dropped/errored = {n_output + n_errors:,}")
@@ -204,11 +193,8 @@ def init_cli():
     parser.add_argument(
         "--verbose",
         help=(
-            "Print per-filter debugging output (e.g. mapping counts) to screen. Only takes "
-            "effect together with --test — ignored in a full run, since it reports the "
-            "currently-processed chunk's own business-logic details, which would otherwise "
-            "print once per chunk. Reference-table load diagnostics are separate: those always "
-            "print once at startup regardless of this flag (see reference_data.warm_all())."
+            "Print per-filter debugging output (e.g. mapping counts). Only takes effect "
+            "together with --test."
         ),
         action="store_true",
     )

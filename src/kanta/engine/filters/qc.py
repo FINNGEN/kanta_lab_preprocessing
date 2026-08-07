@@ -18,12 +18,7 @@ _OPS = {
 
 
 def _ensure_qc_pass(df: pd.DataFrame) -> None:
-    """Create QC_PASS as "2" (unchecked) if it doesn't exist yet, mirroring add_qc_note's
-    lazy-create-as-"NA" pattern for QC_NOTES.
-
-    The old pipeline had a dedicated initialize_qc_columns step ahead of every QC filter;
-    since that wasn't ported, each QC filter here is responsible for creating it itself.
-    """
+    """Create QC_PASS as "2" (unchecked) if it doesn't exist yet."""
     if "QC_PASS" not in df.columns:
         df["QC_PASS"] = "2"
 
@@ -31,10 +26,6 @@ def _ensure_qc_pass(df: pd.DataFrame) -> None:
 def check_dates_in_measurement(df: pd.DataFrame, errors: ErrorSink, verbose: bool = False) -> pd.DataFrame:
     """Drop rows whose MEASUREMENT_VALUE looks like a DDMMYY date typed into a value field
     (exactly 6 digits, day/month/year each in a plausible range).
-
-    Checks MEASUREMENT_VALUE (the raw/free-text-extracted value), not the harmonized one: a
-    date-shaped data-entry error is a raw-value problem, and unit-conversion arithmetic would
-    destroy the 6-digit pattern anyway.
     """
     col = "MEASUREMENT_VALUE"
 
@@ -69,15 +60,12 @@ def check_dates_in_measurement(df: pd.DataFrame, errors: ErrorSink, verbose: boo
 
 
 def flag_omop_qc(df: pd.DataFrame, verbose: bool = False) -> pd.DataFrame:
-    """Flag QC_PASS="0" for rows whose harmonization_omop::MEASUREMENT_VALUE fails a per-OMOP_ID
-    threshold rule (reference_data.get_omop_qc()); any OMOP_ID appearing in that table at all is
-    first marked QC_PASS="1" (checked), then downgraded to "0" per failing rule. A single OMOP_ID
-    can carry several rules (e.g. both a too-high and a too-low check); some rows are
-    placeholder "register this OMOP_ID as checked" entries with no SIDE/THRESHOLD, skipped here.
+    """Flag QC_PASS="0" for rows failing a per-OMOP_ID threshold rule (get_omop_qc()).
 
-    Uses the harmonized value only (same reasoning as harmonization.impute_outcome): THRESHOLD is
-    keyed only by OMOP_ID, implicitly assuming the harmonized/target unit, so comparing an
-    unconverted value against it would be unit-inconsistent.
+    OMOP_ID  THRESHOLD  SIDE  ->  QC_PASS
+    3000963  500        >     ->  "0" if value > 500
+    3026361  20         >     ->  "0" if value > 20
+    3026361  0.5        <     ->  "0" if value < 0.5
     """
     _ensure_qc_pass(df)
 

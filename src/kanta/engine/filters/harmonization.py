@@ -1,19 +1,18 @@
+import re
+
 import numpy as np
 import pandas as pd
 
 from kanta import config
 from kanta.engine import reference_data
+from kanta.engine.errors import UnitSink
+from kanta.engine.filters.fix_unit import normalize_unit_candidate
 
 
 def approve_status(df: pd.DataFrame, verbose: bool = False) -> pd.DataFrame:
-    """Zero out OMOP_ID for non-APPROVED rows in the (cached) Usagi mapping table.
-
-    Doesn't modify df: mirrors the old finngen_qc step, which only corrected the
-    reference table itself, not the data being processed. Since get_usagi_mapping()
-    is cached, this mutates the same table object on every call, so it's idempotent.
-    """
+    """Zero out OMOP_ID for non-APPROVED rows in the cached Usagi mapping table."""
     usagi_mapping = reference_data.get_usagi_mapping()
-    not_approved = usagi_mapping["harmonization_omop::mappingStatus"] != "APPROVED"
+    not_approved = usagi_mapping["harmonization_omop::MAPPING_STATUS"] != "APPROVED"
     usagi_mapping.loc[not_approved, "harmonization_omop::OMOP_ID"] = "0"
 
     if verbose:
@@ -35,40 +34,61 @@ def check_usagi_unit(df: pd.DataFrame, verbose: bool = False) -> pd.DataFrame:
     return df
 
 
-def extract_measurement(df: pd.DataFrame, verbose: bool = False) -> pd.DataFrame:
+_VALUE_TRAILING_RE = re.compile(r"^(-?\d+(?:\.\d+)?)\s*(.*)$")
+
+
+def extract_measurement(df: pd.DataFrame, unit_changes: UnitSink, verbose: bool = False) -> pd.DataFrame:
     """Populate MEASUREMENT_VALUE from MEASUREMENT_FREE_TEXT where it's currently missing.
 
-    Cleans the free text (lowercase, strip whitespace), strips the row's own
-    MEASUREMENT_UNIT from it when that unit is Usagi-approved (reference_data.get_usagi_units())
-    so numbers glued directly to their unit (e.g. "5.2mmol/l") can still be parsed, then
-    applies the free-text cleanup rules and parses what's left as a number.
+    MEASUREMENT_FREE_TEXT   -> MEASUREMENT_VALUE  MEASUREMENT_UNIT  IS_VALUE_EXTRACTED  IS_UNIT_EXTRACTED
+    "4.9"                   -> 4.9                NA                1                   0
+    "tulos: 4.82 e12/l"     -> 4.82               e12/l             1                   1
+    "4.1 hyytynyt"          -> unchanged          NA                0                   0
+
+    The trailing text is cleaned via normalize_unit_candidate() and only kept as a unit if
+    it's Usagi-recognized (get_usagi_units()).
     """
     ft_col = "MEASUREMENT_FREE_TEXT"
     value_col = "MEASUREMENT_VALUE"
+    unit_col = "MEASUREMENT_UNIT"
 
-    cleaned = df[ft_col].astype(str).str.lower().str.strip().str.replace(r"\s", "", regex=True)
-
-    is_valid_unit = df["MEASUREMENT_UNIT"].isin(reference_data.get_usagi_units())
-    cleaned.loc[is_valid_unit] = [
-        text.replace(unit, "")
-        for text, unit in zip(cleaned.loc[is_valid_unit], df.loc[is_valid_unit, "MEASUREMENT_UNIT"])
-    ]
-
+    text = df[ft_col].astype(str).str.lower().str.strip()
     for pattern in config.FREE_TEXT_RESULT_STRINGS:
-        cleaned = cleaned.str.replace(rf"^\s*{pattern}\s*", "", regex=True)
+        text = text.str.replace(rf"^\s*{pattern}\s*", "", regex=True)
     for pattern, replacement in config.FREE_TEXT_MEASUREMENT_REPLACEMENTS:
-        cleaned = cleaned.str.replace(pattern, replacement, regex=True)
+        text = text.str.replace(pattern, replacement, regex=True)
 
-    extracted = pd.to_numeric(cleaned, errors="coerce")
+    parts = text.str.extract(_VALUE_TRAILING_RE)
+    parts.columns = ["num", "trailing"]
+    numeric = pd.to_numeric(parts["num"], errors="coerce")
+    trailing_candidate = normalize_unit_candidate(parts["trailing"].fillna("NA"))
+
+    usagi_units = reference_data.get_usagi_units()
+    is_bare_number = numeric.notna() & (trailing_candidate == "NA")
+    is_number_plus_unit = numeric.notna() & trailing_candidate.isin(usagi_units)
+    can_extract = is_bare_number | is_number_plus_unit
 
     is_missing = df[value_col] == "NA"
-    is_extracted = is_missing & extracted.notna()
+    is_extracted = is_missing & can_extract
 
     df["IS_VALUE_EXTRACTED"] = np.where(is_extracted, "1", "0")
-    df.loc[is_extracted, value_col] = extracted.loc[is_extracted].astype(str)
+    df.loc[is_extracted, value_col] = numeric.loc[is_extracted].astype(str)
+
+    inject_idx = is_extracted & is_number_plus_unit & (df[unit_col] == "NA")
+    injected_rows = df.loc[inject_idx]
+    old_unit_with_source_text = "NA/" + df.loc[inject_idx, ft_col].astype(str)
+    unit_changes.add(
+        injected_rows,
+        err_name="EXTRACTION",
+        old_unit=old_unit_with_source_text,
+        new_unit=trailing_candidate.loc[inject_idx],
+    )
+    df["IS_UNIT_EXTRACTED"] = np.where(inject_idx, "1", "0")
+    df.loc[inject_idx, unit_col] = trailing_candidate.loc[inject_idx]
 
     if verbose:
         print(f"[harmonization] {is_extracted.sum()}/{len(df)} MEASUREMENT_VALUE extracted from free text")
+        print(f"[harmonization] {inject_idx.sum()} with MEASUREMENT_UNIT recovered from free text")
 
     return df
 
@@ -90,16 +110,11 @@ def add_qc_note(df: pd.DataFrame, idx: pd.Index, notes: pd.Series) -> None:
     df.loc[idx, "QC_NOTES"] = np.where(is_first_note, notes, existing + ";" + notes)
 
 
-def inject_missing_unit(df: pd.DataFrame, verbose: bool = False) -> pd.DataFrame:
-    """Assign MEASUREMENT_UNIT to rows with a value but no unit, from scripts/injection's results.
+def inject_missing_unit(df: pd.DataFrame, unit_changes: UnitSink, verbose: bool = False) -> pd.DataFrame:
+    """Assign MEASUREMENT_UNIT to rows with a value but no unit.
 
-    Snapshots the pre-injection MEASUREMENT_UNIT into cleaned-pre-fix::MEASUREMENT_UNIT first
-    (same bookkeeping convention as the old finngen_qc pipeline's dump_unit_before_fix), so an
-    injected row can be spotted afterward by comparing the two columns. One lookup
-    (reference_data.get_injection_table()) handles both simple (single-unit) and bimodal-split
-    tests: simple tests have CUTOFF=-inf, so comparing MEASUREMENT_VALUE against CUTOFF always
-    resolves to HIGH_UNIT for them. Whenever a split has any mode overlap at all, its BC/overlap
-    values are copied into QC_NOTES for transparency.
+    The unit is guessed by comparing a test's no-unit values against the value distributions
+    of other units seen for that same test name. See scripts/injection/README.md.
     """
     df["cleaned-pre-fix::MEASUREMENT_UNIT"] = df["MEASUREMENT_UNIT"]
 
@@ -118,6 +133,13 @@ def inject_missing_unit(df: pd.DataFrame, verbose: bool = False) -> pd.DataFrame
 
     has_unit = assigned_unit.notna()
     inject_idx = has_unit[has_unit].index
+
+    unit_changes.add(
+        df.loc[inject_idx],
+        err_name="INJECTION",
+        old_unit=df.loc[inject_idx, "MEASUREMENT_UNIT"],
+        new_unit=assigned_unit.loc[inject_idx],
+    )
     df.loc[inject_idx, "MEASUREMENT_UNIT"] = assigned_unit.loc[inject_idx]
 
     bc = test_name.map(table["BIMODAL_BC"])
@@ -138,19 +160,44 @@ def inject_missing_unit(df: pd.DataFrame, verbose: bool = False) -> pd.DataFrame
     return df
 
 
-def omop_mapping(df: pd.DataFrame, verbose: bool = False) -> pd.DataFrame:
-    """Assign harmonization_omop::OMOP_ID / harmonization_omop::omopQuantity by looking up each
-    row's (TEST_NAME_ABBREVIATION, MEASUREMENT_UNIT) pair in the Usagi mapping table.
+def fix_unit_based_on_abbreviation(df: pd.DataFrame, unit_changes: UnitSink, verbose: bool = False) -> pd.DataFrame:
+    """Secondary injection: harmonize missing/incorrect/incomplete units still present in the data.
 
-    approve_status() already zeroed OMOP_ID to "0" for non-APPROVED rows within the (cached)
-    mapping table, so that's reflected here for free, with no separate APPROVED filter needed.
-    Rows whose (TEST_NAME_ABBREVIATION, MEASUREMENT_UNIT) pair has no match at all in the mapping
-    table get "NA" (distinct from the "0" approve_status assigns to a matched-but-not-approved
-    pair). The mapping table is deduplicated on the join keys (keep first) so a row in df can
-    never fan out into more than one output row.
+    Looked up from reference_data.get_omop_injection_table() by (TEST_NAME_ABBREVIATION,
+    MEASUREMENT_UNIT). Examples:
+    - b-hkr "osuus" -> "ratio" (not a formal unit)
+    - du-prot "g" -> "g/24h" (incomplete)
+    - p-krea "mmol/l" -> "umol/l" (incorrect)
+    - -l-ind "NA" -> "index" (missing)
+    """
+    table = reference_data.get_omop_injection_table()
+    keys = pd.MultiIndex.from_arrays([df["TEST_NAME_ABBREVIATION"], df["MEASUREMENT_UNIT"]])
+    matched = table.reindex(keys).set_axis(df.index)
+
+    fix_idx = matched.index[matched["source_unit_clean_fix"].notna()]
+
+    unit_changes.add(
+        df.loc[fix_idx],
+        err_name="ABBREVIATION_FIX",
+        old_unit=df.loc[fix_idx, "MEASUREMENT_UNIT"],
+        new_unit=matched.loc[fix_idx, "source_unit_clean_fix"],
+    )
+    df.loc[fix_idx, "MEASUREMENT_UNIT"] = matched.loc[fix_idx, "source_unit_clean_fix"]
+
+    if verbose:
+        print(f"[harmonization] fix_unit_based_on_abbreviation: {len(fix_idx)}/{len(df)} units corrected")
+
+    return df
+
+
+def omop_mapping(df: pd.DataFrame, verbose: bool = False) -> pd.DataFrame:
+    """Assign harmonization_omop::OMOP_ID / OMOP_QUANTITY by looking up each row's
+    (TEST_NAME_ABBREVIATION, MEASUREMENT_UNIT) in the Usagi mapping table.
+
+    No match -> "NA". Matched but not APPROVED -> "0" (via approve_status()).
     """
     join_cols = ["TEST_NAME_ABBREVIATION", "MEASUREMENT_UNIT"]
-    out_cols = ["harmonization_omop::OMOP_ID", "harmonization_omop::omopQuantity"]
+    out_cols = ["harmonization_omop::OMOP_ID", "harmonization_omop::OMOP_QUANTITY"]
 
     mapping = reference_data.get_usagi_mapping().drop_duplicates(subset=join_cols, keep="first")
     lookup = mapping.set_index(join_cols)[out_cols]
@@ -167,21 +214,15 @@ def omop_mapping(df: pd.DataFrame, verbose: bool = False) -> pd.DataFrame:
 
 
 def unit_harmonization(df: pd.DataFrame, verbose: bool = False) -> pd.DataFrame:
-    """Convert MEASUREMENT_VALUE into harmonization_omop::MEASUREMENT_VALUE using the per-
-    (OMOP_ID, omopQuantity, MEASUREMENT_UNIT) factor from reference_data.get_conversion_table().
+    """Convert MEASUREMENT_VALUE into harmonization_omop::MEASUREMENT_VALUE via
+    reference_data.get_conversion_table(). No match or non-numeric value -> "NA".
 
-    Writes the converted value into a *new* column instead of overwriting MEASUREMENT_VALUE, so
-    the original value stays available to compare conversion success/failure against. The target
-    unit (harmonization_omop::MEASUREMENT_UNIT) and the factor used
-    (harmonization_omop::CONVERSION_FACTOR) are copied onto df alongside it for traceability.
-    Rows with no OMOP_ID match, no conversion entry, or a non-numeric MEASUREMENT_VALUE get "NA"
-    for all three.
-
-    CONVERSION_FACTOR is either a plain numeric multiplier or a formula string containing "X"
-    (e.g. "10.93*X-23.50", X = the row's MEASUREMENT_VALUE); eval() is run with builtins disabled
-    since the formula only ever comes from our own static reference table, not user input.
+    OMOP_ID   QUANTITY           UNIT    VALUE  ->  MEASUREMENT_VALUE
+    3020564   Substance Conc.    mmol/l  5      ->  5000      (factor 1000)
+    3004410   Mass fraction      %       10     ->  86.3      ("10.93*X-23.50")
+    9999999   (no match)         g/l     5      ->  NA
     """
-    join_cols = ["harmonization_omop::OMOP_ID", "harmonization_omop::omopQuantity", "MEASUREMENT_UNIT"]
+    join_cols = ["harmonization_omop::OMOP_ID", "harmonization_omop::OMOP_QUANTITY", "MEASUREMENT_UNIT"]
     table = reference_data.get_conversion_table()
 
     keys = pd.MultiIndex.from_arrays([df[col] for col in join_cols])
@@ -191,7 +232,12 @@ def unit_harmonization(df: pd.DataFrame, verbose: bool = False) -> pd.DataFrame:
     factor = matched["harmonization_omop::CONVERSION_FACTOR"]
     df["harmonization_omop::CONVERSION_FACTOR"] = factor.fillna("NA")
 
-    value = pd.to_numeric(df["MEASUREMENT_VALUE"], errors="coerce")
+    # MEASUREMENT_VALUE is Arrow-backed (string[pyarrow]) from the parquet read, so a
+    # non-numeric string like "NA" coerces to a NaN *value* that pyarrow's own validity
+    # bitmap still marks as "not null" -- .notna() on the raw pd.to_numeric() result would
+    # then wrongly report True for every unit-less row. Casting to plain float64 first
+    # switches to standard IEEE NaN semantics, where .notna() correctly excludes it.
+    value = pd.to_numeric(df["MEASUREMENT_VALUE"], errors="coerce").astype("float64")
     has_conversion = factor.notna() & value.notna()
     is_formula = factor.astype(str).str.contains("X", na=False)
 
@@ -218,11 +264,12 @@ def unit_harmonization(df: pd.DataFrame, verbose: bool = False) -> pd.DataFrame:
     return df
 
 
-def run(df: pd.DataFrame, verbose: bool = False) -> pd.DataFrame:
+def run(df: pd.DataFrame, unit_changes: UnitSink, verbose: bool = False) -> pd.DataFrame:
     df = (
         df.pipe(approve_status, verbose)
-        .pipe(extract_measurement, verbose)
-        .pipe(inject_missing_unit, verbose)
+        .pipe(extract_measurement, unit_changes, verbose)
+        .pipe(inject_missing_unit, unit_changes, verbose)
+        .pipe(fix_unit_based_on_abbreviation, unit_changes, verbose)
         .pipe(omop_mapping, verbose)
         .pipe(unit_harmonization, verbose)
         .pipe(check_usagi_unit, verbose)

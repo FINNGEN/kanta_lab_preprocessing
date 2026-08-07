@@ -18,15 +18,11 @@ def extract_positive(df: pd.DataFrame, verbose: bool = False) -> pd.DataFrame:
 
 
 def extract_outcome(df: pd.DataFrame, verbose: bool = False) -> pd.DataFrame:
-    """Extract a structured "<comparator><value><unit>" string (e.g. "<5.2mmol/l") from free-text
-    out-of-range results into extracted::TEST_OUTCOME_TEXT ("NA" when nothing is extracted).
+    """Extract a "<comparator><value><unit>" string (e.g. "<5.2mmol/l") from free-text
+    out-of-range results into extracted::TEST_OUTCOME_TEXT ("NA" if nothing is extracted).
 
-    Only rows whose (lowercased, prefix-stripped) MEASUREMENT_FREE_TEXT contains one of
-    config.STATUS_INDICATORS ("<", ">", "yli"/"alle" = Finnish "over"/"under") are considered.
-    The matching text is split on whitespace into comparator/value/unit (+ a discarded remainder),
-    the comparator normalized to "<"/">", the unit cleaned the same way MEASUREMENT_UNIT is
-    elsewhere (config.UNIT_STRIP_CHARS, reference_data.get_unit_map()) and kept only if it
-    validates against reference_data.get_usagi_units() (or is blank).
+    Only text containing config.STATUS_INDICATORS ("<", ">", "yli"/"alle") is considered; the
+    unit is cleaned the same way MEASUREMENT_UNIT is and kept only if Usagi-recognized.
     """
     ft_col = "MEASUREMENT_FREE_TEXT"
     col = "extracted::TEST_OUTCOME_TEXT"
@@ -70,9 +66,14 @@ def extract_outcome(df: pd.DataFrame, verbose: bool = False) -> pd.DataFrame:
     parts.loc[is_mapped, "unit"] = parts.loc[is_mapped, "unit"].map(unit_map)
 
     usagi_units = reference_data.get_usagi_units()
+    # parts["value"] stays Arrow-backed (string[pyarrow]) through str.split(expand=True), so
+    # .notna() on the raw pd.to_numeric() result would wrongly admit a non-numeric token that
+    # happens to coerce to a NaN value (pyarrow's validity bitmap still marks it "not null") --
+    # see the same fix/reasoning in harmonization.py's unit_harmonization.
+    is_numeric_value = pd.to_numeric(parts["value"], errors="coerce").astype("float64").notna()
     is_valid = (
         parts["comp"].isin(["<", ">"])
-        & pd.to_numeric(parts["value"], errors="coerce").notna()
+        & is_numeric_value
         & (parts["unit"].isin(usagi_units) | parts["unit"].isna())
     )
 
@@ -92,12 +93,7 @@ def impute_outcome(df: pd.DataFrame, verbose: bool = False) -> pd.DataFrame:
     """Assign imputed::TEST_OUTCOME (L/L*/H/H*/N) by comparing harmonization_omop::
     MEASUREMENT_VALUE against the (OMOP_ID-indexed) LOW_LIMIT/HIGH_LIMIT reference range.
 
-    Uses the harmonized value only, no fallback to the raw MEASUREMENT_VALUE: LOW_LIMIT/HIGH_LIMIT
-    are defined in the target/harmonized unit for that OMOP_ID, so comparing an unconverted value
-    against them would be unit-inconsistent. Rows with no successful conversion
-    (harmonization_omop::MEASUREMENT_VALUE == "NA") or no matching OMOP_ID in the reference table
-    get "NA". LOW_PROBLEM/HIGH_PROBLEM ("1") mark a limit-crossing as itself abnormal
-    (e.g. "L*" instead of "L").
+    See scripts/qc_scripts/abnormality.py for how that table is built.
     """
     limits = reference_data.get_ab_limits()
     matched = limits.reindex(df["harmonization_omop::OMOP_ID"]).set_axis(df.index)

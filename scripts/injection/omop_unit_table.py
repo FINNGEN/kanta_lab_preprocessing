@@ -6,8 +6,8 @@ Build a per-OMOP-concept unit conversion table.
 
 Logic
 -----
-1. LABfi_ALL.usagi.csv  → OMOP_CONCEPT_ID → omopQuantity  (only these two fields matter)
-2. quantity_source_unit_conversion.tsv → for each omopQuantity, what units exist
+1. reference_data.get_usagi_mapping()  → OMOP_CONCEPT_ID → omopQuantity  (only these two fields matter)
+2. reference_data.get_unit_conversion() → for each omopQuantity, what units exist
    and what are their pairwise conversions?
 
 CATEGORY
@@ -16,7 +16,7 @@ CATEGORY
   EQUIVALENT  — multiple units, all pairwise conversions = 1
   AMBIGUOUS   — multiple units, at least one conversion ≠ 1
   NO_CONV     — quantity known but not in conversion table
-  NO_QUANTITY — concept has no omopQuantity in LABfi
+  NO_QUANTITY — concept has no omopQuantity in the Usagi mapping
 
 Usage
 -----
@@ -24,40 +24,45 @@ Usage
 """
 
 import argparse
+import sys
 from pathlib import Path
 
 import pandas as pd
 
-DATA_DIR = Path("~/Dropbox/Projects/kanta_lab_preprocessing/src/kanta/finngen_qc/data").expanduser()
+REPO_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(REPO_ROOT / "src"))
+
+from kanta.engine import reference_data as rd  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
 # Loaders
 # ---------------------------------------------------------------------------
 
-def load_lab(path, approved_only=False):
-    """OMOP_CONCEPT_ID → (CONCEPT_NAME, omopQuantity). Units ignored."""
-    df = pd.read_csv(path)
-    df = df[df["domainId"] == "Measurement"]
+def load_lab(approved_only=False):
+    """OMOP_CONCEPT_ID → omop_quantity. CONCEPT_NAME isn't in the engine's trimmed
+    Usagi mapping table, unlike the old finngen_qc LABfi_ALL.usagi.csv, so it's dropped
+    from the output entirely rather than faked."""
+    df = rd.get_usagi_mapping()
     if approved_only:
-        df = df[df["mappingStatus"] == "APPROVED"]
+        df = df[df["harmonization_omop::MAPPING_STATUS"] == "APPROVED"]
+    df = df[df["harmonization_omop::OMOP_ID"] != "NA"]
     df = df.rename(columns={
-        "conceptId":             "OMOP_CONCEPT_ID",
-        "conceptName":           "CONCEPT_NAME",
-        "ADD_INFO:omopQuantity": "omop_quantity",
+        "harmonization_omop::OMOP_ID":       "OMOP_CONCEPT_ID",
+        "harmonization_omop::OMOP_QUANTITY": "omop_quantity",
     })
-    return df[["OMOP_CONCEPT_ID", "CONCEPT_NAME", "omop_quantity"]].drop_duplicates()
+    return df[["OMOP_CONCEPT_ID", "omop_quantity"]].drop_duplicates()
 
 
-def load_conversions(path):
-    df = pd.read_csv(path, sep="\t")
+def load_conversions():
+    df = rd.get_unit_conversion()
     df = df.rename(columns={
-        "omop_quantity":        "omop_quantity",
-        "source_unit_valid":    "unit_from",
-        "to_source_unit_valid": "unit_to",
-        "conversion":           "factor",
+        "harmonization_omop::OMOP_QUANTITY":     "omop_quantity",
+        "MEASUREMENT_UNIT":                      "unit_from",
+        "harmonization_omop::MEASUREMENT_UNIT":  "unit_to",
+        "harmonization_omop::CONVERSION_FACTOR": "factor",
     })
-    df = df[df["unit_from"].notna() & df["unit_to"].notna()]
+    df = df[(df["unit_from"] != "NA") & (df["unit_to"] != "NA")]
     df["factor"] = pd.to_numeric(df["factor"], errors="coerce")
     return df[["omop_quantity", "unit_from", "unit_to", "factor"]]
 
@@ -86,12 +91,11 @@ def build_table(lab_df, conv_df):
     rows = []
 
     for omop_id, grp in lab_df.groupby("OMOP_CONCEPT_ID"):
-        concept_name  = grp["CONCEPT_NAME"].iloc[0]
         omop_quantity = grp["omop_quantity"].iloc[0]
 
-        if pd.isna(omop_quantity) or str(omop_quantity).strip() == "":
+        if pd.isna(omop_quantity) or str(omop_quantity).strip() in ("", "NA"):
             rows.append(dict(
-                OMOP_CONCEPT_ID=omop_id, CONCEPT_NAME=concept_name,
+                OMOP_CONCEPT_ID=omop_id,
                 OMOP_QUANTITY=omop_quantity, N_UNITS=0,
                 UNITS="", CONVERSIONS="", CATEGORY="NO_QUANTITY",
                 CANONICAL_UNIT=pd.NA,
@@ -103,7 +107,7 @@ def build_table(lab_df, conv_df):
 
         if n_units == 0:
             rows.append(dict(
-                OMOP_CONCEPT_ID=omop_id, CONCEPT_NAME=concept_name,
+                OMOP_CONCEPT_ID=omop_id,
                 OMOP_QUANTITY=omop_quantity, N_UNITS=0,
                 UNITS="", CONVERSIONS="", CATEGORY="NO_CONV",
                 CANONICAL_UNIT=pd.NA,
@@ -112,7 +116,7 @@ def build_table(lab_df, conv_df):
 
         if n_units == 1:
             rows.append(dict(
-                OMOP_CONCEPT_ID=omop_id, CONCEPT_NAME=concept_name,
+                OMOP_CONCEPT_ID=omop_id,
                 OMOP_QUANTITY=omop_quantity, N_UNITS=1,
                 UNITS=units[0], CONVERSIONS="1", CATEGORY="SINGLE",
                 CANONICAL_UNIT=units[0],
@@ -145,7 +149,7 @@ def build_table(lab_df, conv_df):
 
         unique_factors = sorted(set(round(f, 8) for f in factors))
         rows.append(dict(
-            OMOP_CONCEPT_ID=omop_id, CONCEPT_NAME=concept_name,
+            OMOP_CONCEPT_ID=omop_id,
             OMOP_QUANTITY=omop_quantity, N_UNITS=n_units,
             UNITS="|".join(units),
             CONVERSIONS="|".join(str(f) for f in unique_factors),
@@ -167,19 +171,17 @@ def main():
         description="Build per-OMOP-concept unit conversion table.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    p.add_argument("--lab-file",      default=str(DATA_DIR / "LABfi_ALL.usagi.csv"))
-    p.add_argument("--conv-file",     default=str(DATA_DIR / "quantity_source_unit_conversion.tsv"))
     p.add_argument("--out",           default="omop_unit_table.tsv")
     p.add_argument("--approved-only", action="store_true",
                    help="Only include APPROVED mappings")
     args = p.parse_args()
 
     print(f"Loading lab mapping  ({'APPROVED only' if args.approved_only else 'all statuses'})...")
-    lab_df = load_lab(args.lab_file, approved_only=args.approved_only)
+    lab_df = load_lab(approved_only=args.approved_only)
     print(f"  {lab_df['OMOP_CONCEPT_ID'].nunique():>6} unique OMOP concepts")
 
     print("Loading conversion table...")
-    conv_df = load_conversions(args.conv_file)
+    conv_df = load_conversions()
     print(f"  {len(conv_df):>6} conversion entries")
 
     print("Building table...")

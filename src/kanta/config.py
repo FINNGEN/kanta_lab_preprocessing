@@ -10,6 +10,9 @@ DATA_DIR = Path(__file__).parent / "engine" / "data"
 REPO_ROOT = Path(__file__).parent.parent.parent
 INJECTION_RESULTS_FILE = REPO_ROOT / "scripts" / "injection" / "data" / "injection_results.tsv"
 
+# Test-specific unit corrections (e.g. osuus -> ratio for b-hkr).
+OMOP_INJECTION_FILE = DATA_DIR / "omop_injection.tsv"
+
 # Which columns to read from the input file, using the original (pre-alias) column names.
 # An empty list means all columns are read.
 READ_COLUMNS = []
@@ -62,7 +65,7 @@ OUT_COLUMNS = [
     "source::TEST_OUTCOME",
     "harmonization_omop::IS_UNIT_VALID",
     "harmonization_omop::OMOP_ID",
-    "harmonization_omop::omopQuantity",
+    "harmonization_omop::OMOP_QUANTITY",
     "harmonization_omop::MEASUREMENT_VALUE",
     "harmonization_omop::MEASUREMENT_UNIT",
     "harmonization_omop::CONVERSION_FACTOR",
@@ -70,6 +73,7 @@ OUT_COLUMNS = [
     "extracted::TEST_OUTCOME_TEXT",
     "imputed::TEST_OUTCOME",
     "IS_VALUE_EXTRACTED",
+    "IS_UNIT_EXTRACTED",
     "cleaned-pre-fix::MEASUREMENT_UNIT",
     "QC_NOTES",
     "QC_PASS",
@@ -91,9 +95,9 @@ ERR_COLUMNS = ["ROWID", "_rowid_source", "ERR", "ERR_VALUE"]
 # separate OLD_ABBR/NEW_ABBR columns rather than a single combined value.
 ABBR_COLUMNS = ["ROWID", "_rowid_source", "ERR", "OLD_ABBR", "NEW_ABBR"]
 
-# Columns of the unit-change table that fix_measurement_unit appends to. Kept as
-# separate OLD_UNIT/NEW_UNIT columns rather than a single combined value.
-UNIT_COLUMNS = ["ROWID", "_rowid_source", "ERR", "OLD_UNIT", "NEW_UNIT"]
+# Columns of the unit-change table that fix_measurement_unit/extract_measurement append to.
+# Kept as separate OLD_UNIT/NEW_UNIT columns rather than a single combined value.
+UNIT_COLUMNS = ["ROWID", "_rowid_source", "TEST_NAME_ABBREVIATION", "ERR", "OLD_UNIT", "NEW_UNIT"]
 
 # Columns to leave untouched when stripping whitespace (e.g. free text, where spaces are
 # meaningful), using post-alias (renamed) column names.
@@ -237,29 +241,26 @@ TEST_OUTCOME_MAP = {
 HARMONIZATION_REPO_BRANCH = "kanta_v4"
 HARMONIZATION_REPO_URL = (
     "https://raw.githubusercontent.com/FINNGEN/kanta_lab_harmonisation_public/"
-    f"refs/heads/{HARMONIZATION_REPO_BRANCH}/VOCABULARIES/"
+    f"refs/heads/{HARMONIZATION_REPO_BRANCH}/MAPPINGS/"
 )
 
 # Usagi-approved MEASUREMENT_UNIT source codes, filtered to unique-for-lab units.
 # Refreshed from HARMONIZATION_REPO_URL on load; falls back to this local snapshot if offline.
-USAGI_UNITS_FILE = DATA_DIR / "UNITSfi.usagi.csv"
-USAGI_UNITS_URL = HARMONIZATION_REPO_URL + "UNITSfi/UNITSfi.usagi.csv"
+USAGI_UNITS_FILE = DATA_DIR / "UNITSfi.tsv"
+USAGI_UNITS_URL = HARMONIZATION_REPO_URL + "UNITSfi.tsv"
 
-# Usagi lab-test mapping table (mappingStatus/OMOP concept id per TEST_NAME_ABBREVIATION).
+# Usagi lab-test mapping table (MAPPING_STATUS/OMOP concept id per TEST_NAME_ABBREVIATION).
 # Refreshed from HARMONIZATION_REPO_URL on load; falls back to this local snapshot if offline.
-USAGI_MAPPING_FILE = DATA_DIR / "LABfi_ALL.usagi.csv"
-USAGI_MAPPING_URL = HARMONIZATION_REPO_URL + "LABfi_ALL/LABfi_ALL.usagi.csv"
+USAGI_MAPPING_FILE = DATA_DIR / "LABfi.tsv"
+USAGI_MAPPING_URL = HARMONIZATION_REPO_URL + "LABfi.tsv"
 
 # Target MEASUREMENT_UNIT per OMOP concept (chosen destination unit for harmonization).
-# Not published in the harmonization repo yet, so this URL currently 404s and every refresh
-# falls back to the local snapshot with a warning; update once the file is actually published.
 HARMONIZATION_COUNTS_FILE = DATA_DIR / "harmonization_counts.tsv"
-HARMONIZATION_COUNTS_URL = HARMONIZATION_REPO_URL + "LABfi_ALL/harmonization_counts.tsv"
+HARMONIZATION_COUNTS_URL = HARMONIZATION_REPO_URL + "harmonization_counts.tsv"
 
 # Per-OMOP-quantity unit conversion factors (source unit -> target unit).
-# Not published in the harmonization repo yet either; local snapshot manually placed for now.
 UNIT_CONVERSION_FILE = DATA_DIR / "quantity_source_unit_conversion.tsv"
-UNIT_CONVERSION_URL = HARMONIZATION_REPO_URL + "LABfi_ALL/quantity_source_unit_conversion.tsv"
+UNIT_CONVERSION_URL = HARMONIZATION_REPO_URL + "quantity_source_unit_conversion.tsv"
 
 # Free-text prefixes stripped from the start of MEASUREMENT_FREE_TEXT before numeric extraction.
 FREE_TEXT_RESULT_STRINGS = [

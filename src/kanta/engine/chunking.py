@@ -14,11 +14,6 @@ from kanta.log_utils import format_duration
 
 logger = logging.getLogger(__name__)
 
-# Default number of rows per chunk when streaming the input Parquet file, overridable via
-# --chunk-size. The value is independent of the number of CPUs: the memory used by the engine
-# is already proportional to the number of workers, so scaling the number of
-# rows per chunk by the number of workers would make the memory use scale by
-# (N workers × N workers).
 N_LINES_PER_CHUNK = 200_000
 CHUNKS_FILE_TEMPLATE = "chunk_{index:06d}.parquet"
 CHUNKS_FILE_GLOB = "chunk_*.parquet"
@@ -75,13 +70,9 @@ def concatenate_chunks(
     empty_schema: pa.Schema | None = None,
     cleanup: bool = True,
 ):
-    """Concatenate chunks in order so no sorting is required afterwards.
+    """Concatenate chunks in filename order into output_file.
 
-    The order relies on the filename, which holds the chunk index.
-
-    If no chunk files exist (e.g. a side-channel output that only gets chunks written when
-    there's something to report), pass `empty_schema` to still write an empty `output_file`,
-    so callers can always rely on it existing.
+    Pass `empty_schema` to still write an empty `output_file` when no chunks exist.
     """
     chunks = sorted(chunks_dir.glob(CHUNKS_FILE_GLOB), key=get_chunk_index)
 
