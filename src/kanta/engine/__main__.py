@@ -1,4 +1,3 @@
-
 import os
 from argparse import ArgumentParser
 from pathlib import Path
@@ -91,18 +90,21 @@ def init_cli():
 if __name__ == "__main__":
     args = init_cli()
 
-    output_file = output.derive_output_path(args.output_prefix)
-    errors_file = output.derive_output_path(args.output_prefix, "_errors")
-    abbr_file = output.derive_output_path(args.output_prefix, "_abbr")
-    unit_file = output.derive_output_path(args.output_prefix, "_unit")
-
-    log_file = args.output_prefix.parent / f"{args.output_prefix.name}.log"
+    output_file = output.check_safe_write(output.derive_output_path(args.output_prefix))
+    errors_file = output.check_safe_write(
+        output.derive_output_path(args.output_prefix, "_errors")
+    )
+    abbr_file = output.check_safe_write(
+        output.derive_output_path(args.output_prefix, "_abbr")
+    )
+    unit_file = output.check_safe_write(
+        output.derive_output_path(args.output_prefix, "_unit")
+    )
+    log_file = output.check_safe_write(
+        args.output_prefix.parent / f"{args.output_prefix.name}.log"
+    )
     log_utils.configure_logging(log_file)
 
-    output.check_safe_write(output_file)
-    output.check_safe_write(errors_file)
-    output.check_safe_write(abbr_file)
-    output.check_safe_write(unit_file)
     tmp_dir = output.create_tmp_dir()
 
     main(

@@ -12,7 +12,7 @@ def derive_output_path(output_prefix: Path, suffix: str = "") -> Path:
     return output_prefix.parent / f"{output_prefix.name}{suffix}.parquet"
 
 
-def check_safe_write(output_file: Path) -> None:
+def check_safe_write(output_file: Path) -> Path:
     """Check it's safe to write to output file path."""
     if output_file.exists():
         raise FileExistsError(
@@ -21,6 +21,8 @@ def check_safe_write(output_file: Path) -> None:
 
     free_space = check_free_space(output_file.parent)
     logger.info(f"Free space in dir for output file {output_file.name}: {free_space}")
+
+    return output_file
 
 
 def create_tmp_dir():

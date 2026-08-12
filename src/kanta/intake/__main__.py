@@ -1,11 +1,13 @@
 if __name__ == "__main__":
+    import datetime
     from argparse import ArgumentParser
-    from datetime import date
     from pathlib import Path
 
     from kanta import output
-    from kanta.intake import assemble
-    from kanta.intake import tidyup
+    from kanta.intake import assemble, tidyup
+
+
+    today = datetime.datetime.now(tz=datetime.UTC).date()
 
     parser = ArgumentParser()
 
@@ -43,16 +45,15 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # Setup
-    output_file_assemble_stage = (
+    output_file_assemble_stage = output.check_safe_write(
         args.output_dir
-        / f"finngen_R14_kanta_laboratory_responses.assemble-stage.{date.today()}.parquet"
+        / f"finngen_R14_kanta_laboratory_responses.assemble-stage.{today}.parquet"
     )
-    output_file_tidyup_stage = (
+
+    output_file_tidyup_stage = output.check_safe_write(
         args.output_dir
-        / f"finngen_R14_kanta_laboratory_responses_internal_1.0_{date.today()}.parquet"
+        / f"finngen_R14_kanta_laboratory_responses_internal_1.0_{today}.parquet"
     )
-    output.check_safe_write(output_file_assemble_stage)
-    output.check_safe_write(output_file_tidyup_stage)
 
     tmp_dir = output.create_tmp_dir()
 
