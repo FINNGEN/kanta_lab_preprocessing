@@ -2,6 +2,19 @@
 
 Based on Kira Detrois' [existing repo](https://github.com/detroiki/kanta_lab).
 
+## Requirements
+
+- Python >= 3.12
+- `pandas >= 3.0.2`, `polars >= 1.40.0`, `pyarrow >= 24.0.0`
+
+Dependencies are declared in `pyproject.toml` and managed with [uv](https://docs.astral.sh/uv/):
+
+```bash
+uv sync
+```
+
+Installing into an existing environment instead requires that environment to be on Python 3.12 or newer, since the dependencies will not resolve on earlier versions.
+
 ## CORE FILE
 
 N.B. The raw data contains a `MEASUREMENT_FREE_TEXT` column that unfortunately cannot be directly released as it contains data that is potentially sensitive. It contains a mix of numerical measurement values, positive/negative outcomes, outcomes linked to thresholds (e.g. <3ml) and general notes. Our approach has been to extract such data from the original column through a process of cleaning and whitelisting of the field.
