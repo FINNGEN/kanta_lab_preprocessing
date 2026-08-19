@@ -1,9 +1,9 @@
 import os
-from argparse import ArgumentParser
+from argparse import ArgumentParser, BooleanOptionalAction
+from datetime import date
 from pathlib import Path
 
 from kanta import log_utils, output
-from kanta.engine import chunking, main
 
 
 def init_cli():
@@ -28,14 +28,26 @@ def init_cli():
     parser.add_argument(
         "--output-prefix",
         type=Path,
+        default=f"kanta_dev_{date.today():%Y_%m_%d}",
         help=(
             "Prefix for output file paths (Parquet). Produces <prefix>.parquet for the "
             "cleaned data, <prefix>_errors.parquet for rows dropped/flagged by filters, "
             "<prefix>_abbr.parquet for TEST_NAME_ABBREVIATION changes, and "
             "<prefix>_unit.parquet for MEASUREMENT_UNIT changes. Future output files "
-            "follow the same <prefix>_<name>.parquet convention."
+            "follow the same <prefix>_<name>.parquet convention. Defaults to "
+            "kanta_dev_<YYYY_MM_DD> (today's date) in the current directory."
         ),
-        required=True,
+        required=False,
+    )
+    parser.add_argument(
+        "--release",
+        action=BooleanOptionalAction,
+        default=True,
+        help=(
+            "Also build the curated release file (<prefix>_RELEASE.parquet): a subset of "
+            "the output columns, renamed/typed for external consumption. Use --no-release "
+            "to skip it. Defaults to on."
+        ),
     )
     parser.add_argument(
         "--n-workers",
@@ -103,6 +115,10 @@ if __name__ == "__main__":
     log_file = output.check_safe_write(
         args.output_prefix.parent / f"{args.output_prefix.name}.log"
     )
+    release_file = output.check_safe_write(
+        output.derive_output_path(args.output_prefix, "_RELEASE")
+    ) if args.release else None
+
     log_utils.configure_logging(log_file)
 
     tmp_dir = output.create_tmp_dir()
@@ -114,6 +130,7 @@ if __name__ == "__main__":
         abbr_file,
         unit_file,
         tmp_dir,
+        release_file=release_file,
         is_test_run=args.test,
         n_workers=args.n_workers,
         chunk_size=args.chunk_size,

@@ -8,7 +8,7 @@ from pathlib import Path
 from tqdm import tqdm
 
 from kanta import log_utils
-from kanta.engine import chunking, processing, reference_data
+from kanta.engine import chunking, processing, reference_data, release
 from kanta.engine.errors import ABBR_EMPTY_SCHEMA, EMPTY_SCHEMA, UNIT_EMPTY_SCHEMA
 
 logger = logging.getLogger(__name__)
@@ -22,6 +22,7 @@ def main(
     unit_file: Path,
     tmp_dir: Path,
     *,
+    release_file: Path | None = None,
     is_test_run=False,
     n_workers=1,
     chunk_size=chunking.N_LINES_PER_CHUNK,
@@ -53,6 +54,11 @@ def main(
     unit_dir = tmp_dir / "unit"
     unit_dir.mkdir()
 
+    release_dir = None
+    if release_file is not None:
+        release_dir = tmp_dir / "release"
+        release_dir.mkdir()
+
     # Counts rows actually consumed (only the first chunk under --test), for the
     # row-conservation check below.
     n_input_rows = [0]
@@ -75,6 +81,7 @@ def main(
         errors_dir=errors_dir,
         abbr_dir=abbr_dir,
         unit_dir=unit_dir,
+        release_dir=release_dir,
         verbose=verbose,
     )
 
@@ -92,6 +99,8 @@ def main(
     chunking.concatenate_chunks(errors_dir, errors_file, empty_schema=EMPTY_SCHEMA)
     chunking.concatenate_chunks(abbr_dir, abbr_file, empty_schema=ABBR_EMPTY_SCHEMA)
     chunking.concatenate_chunks(unit_dir, unit_file, empty_schema=UNIT_EMPTY_SCHEMA)
+    if release_file is not None:
+        chunking.concatenate_chunks(release_dir, release_file, empty_schema=release.RELEASE_EMPTY_SCHEMA)
 
     # Every input row must land in exactly one of output_file or errors_file.
     n_output = chunking.count_rows(output_file)

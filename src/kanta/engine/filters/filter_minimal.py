@@ -89,7 +89,8 @@ def get_lab_abbrv(df: pd.DataFrame, abbr_changes: AbbrSink) -> pd.DataFrame:
     to abbr_changes, not an error — the row isn't lost, just resolved differently.
     """
     col = "TEST_NAME_ABBREVIATION"
-    df[col] = df[col].str.lower()
+    is_not_na = df[col] != "NA"
+    df.loc[is_not_na, col] = df.loc[is_not_na, col].str.lower()
 
     thl_lab_map = reference_data.get_thl_lab_map()
     is_national = df["TEST_ID_IS_NATIONAL"] == "1"

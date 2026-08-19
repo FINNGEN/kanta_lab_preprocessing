@@ -17,9 +17,9 @@ def snapshot_source_cols(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def select_out_cols(df: pd.DataFrame) -> pd.DataFrame:
-    if not config.OUT_COLUMNS:
+    if not config.OUTPUT_COLUMNS:
         return df
-    return df[config.OUT_COLUMNS]
+    return df[list(config.OUTPUT_COLUMNS)]
 
 
 def run_all(

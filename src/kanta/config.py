@@ -37,47 +37,65 @@ COLUMN_ALIASES = {
     "_rowid": "ROWID",
 }
 
-# Which columns to keep in the output, using post-alias (renamed) column names.
-# An empty list means all columns are kept.
-OUT_COLUMNS = [
-    "FINNGENID",
-    "APPROX_EVENT_DATETIME",
-    "EVENT_AGE",
-    "paikallinentutkimusnimike_koodi",
-    "laboratoriotutkimusnimike",
-    "TEST_ID",
-    "TEST_ID_IS_NATIONAL",
-    "TEST_NAME_ABBREVIATION",
-    "MEASUREMENT_VALUE",
-    "MEASUREMENT_UNIT",
-    "MEASUREMENT_STATUS",
-    "MEASUREMENT_METHOD",
-    "TEST_OUTCOME",
-    "CODING_SYSTEM",
-    "CODING_SYSTEM_MAP",
-    "MEASUREMENT_FREE_TEXT",
-    "ROWID",
-    "_rowid_source",
-    "SEX",
-    "source::MEASUREMENT_VALUE",
-    "source::MEASUREMENT_UNIT",
-    "source::TEST_NAME_ABBREVIATION",
-    "source::TEST_OUTCOME",
-    "harmonization_omop::IS_UNIT_VALID",
-    "harmonization_omop::OMOP_ID",
-    "harmonization_omop::OMOP_QUANTITY",
-    "harmonization_omop::MEASUREMENT_VALUE",
-    "harmonization_omop::MEASUREMENT_UNIT",
-    "harmonization_omop::CONVERSION_FACTOR",
-    "extracted::IS_POS",
-    "extracted::TEST_OUTCOME_TEXT",
-    "imputed::TEST_OUTCOME",
-    "IS_VALUE_EXTRACTED",
-    "IS_UNIT_EXTRACTED",
-    "cleaned-pre-fix::MEASUREMENT_UNIT",
-    "QC_NOTES",
-    "QC_PASS",
-]
+# Which columns the engine keeps in its own output, and how the release step selects/
+# renames/types a curated subset of them for the final release file -- one source of
+# truth for both, keyed by the engine's internal (post-alias) column name, in the order
+# the engine's own output file keeps them.
+#
+# Value is (keep, release column name, release dtype[, nullify]):
+# - keep: whether this column is also carried into the release file. False means it stays
+#   engine-internal only (kept for debugging/QC, dropped before the release file) -- the
+#   release name/dtype are still recorded so a future decision to include it doesn't have
+#   to be re-derived from scratch.
+# - dtype: a pandas dtype string. The generic rule is: replace the literal "NA" sentinel
+#   with a real null, then cast to dtype.
+# - nullify: optional, defaults to True. False opts a column out of the "NA" -> null step --
+#   used where an unmapped/unknown value is itself informative (e.g. TEST_NAME), not missing
+#   data. Irrelevant (but still fine to include) when keep=False.
+OUTPUT_COLUMNS = {
+    "FINNGENID": (True, "FINNGENID", "string"),
+    "APPROX_EVENT_DATETIME": (True, "APPROX_EVENT_DATETIME", "datetime64[ns, UTC]"),
+    "EVENT_AGE": (True, "EVENT_AGE", "Float64"),
+    "TEST_ID": (True, "TEST_ID", "string"),
+    "TEST_ID_IS_NATIONAL": (True, "TEST_ID_IS_NATIONAL", "boolean"),
+    "TEST_NAME_ABBREVIATION": (True, "TEST_NAME", "string", False),
+    "MEASUREMENT_VALUE": (True, "MEASUREMENT_VALUE_CLEANED", "Float64"),
+    "MEASUREMENT_UNIT": (True, "MEASUREMENT_UNIT_CLEANED", "string"),
+    "MEASUREMENT_STATUS": (True, "MEASUREMENT_STATUS", "string"),
+    "MEASUREMENT_METHOD": (True, "MEASUREMENT_METHOD", "string"),
+    "TEST_OUTCOME": (True, "TEST_OUTCOME", "string"),
+    "REFERENCE_RANGE_GROUP": (True, "REFERENCE_RANGE_GROUP", "string"),
+    "REFERENCE_RANGE_LOWER_VALUE": (True, "REFERENCE_RANGE_LOW_VALUE", "Float64"),
+    "REFERENCE_RANGE_LOWER_UNIT": (True, "REFERENCE_RANGE_LOW_UNIT", "string"),
+    "REFERENCE_RANGE_UPPER_VALUE": (True, "REFERENCE_RANGE_HIGH_VALUE", "Float64"),
+    "REFERENCE_RANGE_UPPER_UNIT": (True, "REFERENCE_RANGE_HIGH_UNIT", "string"),
+    "CODING_SYSTEM": (True, "CODING_SYSTEM_OID", "string"),
+    "CODING_SYSTEM_MAP": (True, "CODING_SYSTEM_ORG", "string"),
+    "MEASUREMENT_FREE_TEXT": (True, "MEASUREMENT_FREE_TEXT", "string"),
+    "ROWID": (True, "ROWID", "Int64"),
+    "_rowid_source": (False, "ROWID_SOURCE", "Int64"),
+    "SEX": (True, "SEX", "string"),
+    "source::MEASUREMENT_VALUE": (True, "MEASUREMENT_VALUE_SOURCE", "Float64"),
+    "source::MEASUREMENT_UNIT": (True, "MEASUREMENT_UNIT_SOURCE", "string"),
+    "source::TEST_NAME_ABBREVIATION": (True, "TEST_NAME_SOURCE", "string", False),
+    "source::TEST_OUTCOME": (True, "TEST_OUTCOME_SOURCE", "string"),
+    "harmonization_omop::IS_UNIT_VALID": (True, "IS_UNIT_VALID", "Int8"),
+    "harmonization_omop::OMOP_ID": (True, "OMOP_CONCEPT_ID", "string"),
+    "harmonization_omop::OMOP_QUANTITY": (True, "OMOP_QUANTITY", "string"),
+    "harmonization_omop::MEASUREMENT_VALUE": (True, "MEASUREMENT_VALUE_HARMONIZED", "Float64"),
+    "harmonization_omop::MEASUREMENT_UNIT": (True, "MEASUREMENT_UNIT_HARMONIZED", "string"),
+    # Not always a plain number: quantity_source_unit_conversion.tsv has formula-style
+    # values too (e.g. "10.93*X-23.50", X standing in for the source measurement value).
+    "harmonization_omop::CONVERSION_FACTOR": (True, "CONVERSION_FACTOR", "string"),
+    "extracted::IS_POS": (True, "OUTCOME_POS_EXTRACTED", "Int8"),
+    "extracted::TEST_OUTCOME_TEXT": (True, "TEST_OUTCOME_TEXT_EXTRACTED", "string"),
+    "imputed::TEST_OUTCOME": (True, "TEST_OUTCOME_IMPUTED", "string"),
+    "IS_VALUE_EXTRACTED": (True, "IS_VALUE_EXTRACTED", "boolean"),
+    "IS_UNIT_EXTRACTED": (True, "IS_UNIT_EXTRACTED", "boolean"),
+    "cleaned-pre-fix::MEASUREMENT_UNIT": (True, "MEASUREMENT_UNIT_PRE_FIX", "string"),
+    "QC_NOTES": (True, "QC_NOTES", "string"),
+    "QC_PASS": (True, "QC_PASS", "Int8"),
+}
 
 # Columns snapshotted into a source::<col> output column immediately after renaming and
 # before any filter modifies them, so the raw pre-cleaning value survives in the output.

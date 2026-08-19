@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from kanta.engine import chunking, pipes, reference_data
+from kanta.engine import chunking, pipes, reference_data, release
 from kanta.engine.errors import AbbrSink, ErrorSink, UnitSink
 
 
@@ -41,6 +41,7 @@ def process_chunk(
     errors_dir: Path,
     abbr_dir: Path,
     unit_dir: Path,
+    release_dir: Path | None = None,
     verbose: bool = False,
 ) -> Path:
     chunk_index, df_chunk = indexed_chunk
@@ -61,5 +62,9 @@ def process_chunk(
     if unit_changes.frames:
         unit_df = pd.concat(unit_changes.frames, ignore_index=True)
         chunking.write_chunk(unit_df, unit_dir, chunk_index)
+
+    if release_dir is not None:
+        release_df = release.build_release(df_chunk)
+        chunking.write_chunk(release_df, release_dir, chunk_index)
 
     return chunking.write_chunk(df_chunk, chunks_dir, chunk_index)
