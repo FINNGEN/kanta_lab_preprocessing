@@ -32,6 +32,22 @@ def set_cache_dir(path: Path) -> None:
     _CACHE_DIR = path
 
 
+# Set via set_injection_branch() (by main(), before warm_all() — get_injection_results()'s
+# fetch needs this before it runs). Defaults to config.DEFAULT_INJECTION_BRANCH so a standalone
+# script importing this module directly (without going through main()) still gets sensible
+# behavior, same reasoning as _CACHE_DIR's None-is-fine fallback above.
+_INJECTION_BRANCH: str = config.DEFAULT_INJECTION_BRANCH
+
+
+def set_injection_branch(branch: str) -> None:
+    """Point get_injection_results()'s remote fetch at this branch of THIS repo's own
+    scripts/injection/data/injection_results.tsv (not an external repo, unlike
+    HARMONIZATION_REPO_BRANCH) — switchable per run via --injection-branch since it's
+    this repo's own in-progress work, not a fixed external source."""
+    global _INJECTION_BRANCH
+    _INJECTION_BRANCH = branch
+
+
 def _cached(key: str, compute):
     """Pickle-cache compute()'s result under _CACHE_DIR, keyed by `key`.
 
@@ -185,11 +201,20 @@ def get_usagi_units(verbose: bool = False) -> set[str]:
 def get_injection_results(verbose: bool = False) -> pd.DataFrame:
     """Unit-injection targets from scripts/injection/ (both PASS and FAIL rows kept).
 
+    Refreshed from INJECTION_REPO_URL_TEMPLATE (branch set via set_injection_branch(), default
+    config.DEFAULT_INJECTION_BRANCH) on load; falls back to the local snapshot at
+    config.INJECTION_RESULTS_FILE if offline — same fetch-with-fallback mechanism as
+    get_usagi_units()/get_usagi_mapping(), just pointed at this repo's own branch instead of an
+    external one. The local snapshot doubles as a record of which version was actually used for
+    a given run, the same way it already does for the harmonization tables.
+
     Kept because a bimodal split's low/high pair can have one side FAIL and the other PASS —
     the FAIL side's CUTOFF is still needed. Callers must check OUTCOME before using UNIT.
     """
 
     def compute():
+        url = config.INJECTION_REPO_URL_TEMPLATE.format(branch=_INJECTION_BRANCH)
+        _refresh_from_remote(url, config.INJECTION_RESULTS_FILE, verbose=verbose)
         return pd.read_csv(
             config.INJECTION_RESULTS_FILE,
             sep="\t",

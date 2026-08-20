@@ -116,7 +116,7 @@ def inject_missing_unit(df: pd.DataFrame, unit_changes: UnitSink, verbose: bool 
     The unit is guessed by comparing a test's no-unit values against the value distributions
     of other units seen for that same test name. See scripts/injection/README.md.
     """
-    df["cleaned-pre-fix::MEASUREMENT_UNIT"] = df["MEASUREMENT_UNIT"]
+    df["cleaned-pre-inj::MEASUREMENT_UNIT"] = df["MEASUREMENT_UNIT"]
 
     is_eligible = (df["MEASUREMENT_VALUE"] != "NA") & (df["MEASUREMENT_UNIT"] == "NA")
     table = reference_data.get_injection_table()
@@ -157,6 +157,21 @@ def inject_missing_unit(df: pd.DataFrame, unit_changes: UnitSink, verbose: bool 
 
     if verbose:
         print(f"[harmonization] unit injected: {int(has_unit.sum())} ({int(needs_note.sum())} with overlap noted)")
+    return df
+
+
+def snapshot_post_inj_unit(df: pd.DataFrame, verbose: bool = False) -> pd.DataFrame:
+    """Snapshot MEASUREMENT_UNIT into cleaned-post-inj::MEASUREMENT_UNIT, right after primary
+    (TEST_NAME-level statistical) injection but before the secondary abbreviation-based fix.
+
+    Counterpart to cleaned-pre-inj::MEASUREMENT_UNIT (snapshotted at the top of
+    inject_missing_unit, i.e. before primary injection): together the two columns isolate
+    exactly what primary injection changed, independent of whatever the secondary fix
+    (fix_unit_based_on_abbreviation) does to the same column right after this. This is the
+    state secondary injection's own statistical re-validation needs to bootstrap from — the
+    unit each row had *before* any secondary-fix rule was ever applied to it.
+    """
+    df["cleaned-post-inj::MEASUREMENT_UNIT"] = df["MEASUREMENT_UNIT"]
     return df
 
 
@@ -269,6 +284,7 @@ def run(df: pd.DataFrame, unit_changes: UnitSink, verbose: bool = False) -> pd.D
         df.pipe(approve_status, verbose)
         .pipe(extract_measurement, unit_changes, verbose)
         .pipe(inject_missing_unit, unit_changes, verbose)
+        .pipe(snapshot_post_inj_unit, verbose)
         .pipe(fix_unit_based_on_abbreviation, unit_changes, verbose)
         .pipe(omop_mapping, verbose)
         .pipe(unit_harmonization, verbose)

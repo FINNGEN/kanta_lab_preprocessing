@@ -5,10 +5,19 @@ from pathlib import Path
 # Directory for static reference/mapping data files used by the engine's filters.
 DATA_DIR = Path(__file__).parent / "engine" / "data"
 
-# Output of the separate unit-injection pipeline (scripts/injection/), referenced in place
-# rather than copied into DATA_DIR, since it's this repo's own output, not an external source.
+# Output of the separate unit-injection pipeline (scripts/injection/). Refreshed from
+# INJECTION_REPO_URL_TEMPLATE (this repo's own scripts/injection/data/, not an external source)
+# on load, same fetch-with-local-fallback mechanism as HARMONIZATION_REPO_URL below; falls back
+# to this local snapshot if offline. The branch is a runtime parameter (--injection-branch), not
+# a fixed constant like HARMONIZATION_REPO_BRANCH, since it's this repo's own in-progress work
+# and needs to be switchable per run — see reference_data.set_injection_branch().
 REPO_ROOT = Path(__file__).parent.parent.parent
 INJECTION_RESULTS_FILE = REPO_ROOT / "scripts" / "injection" / "data" / "injection_results.tsv"
+INJECTION_REPO_URL_TEMPLATE = (
+    "https://raw.githubusercontent.com/FINNGEN/kanta_lab_preprocessing/"
+    "refs/heads/{branch}/scripts/injection/data/injection_results.tsv"
+)
+DEFAULT_INJECTION_BRANCH = "injection-dev"
 
 # Test-specific unit corrections (e.g. osuus -> ratio for b-hkr).
 OMOP_INJECTION_FILE = DATA_DIR / "omop_injection.tsv"
@@ -92,7 +101,8 @@ OUTPUT_COLUMNS = {
     "imputed::TEST_OUTCOME": (True, "TEST_OUTCOME_IMPUTED", "string"),
     "IS_VALUE_EXTRACTED": (True, "IS_VALUE_EXTRACTED", "boolean"),
     "IS_UNIT_EXTRACTED": (True, "IS_UNIT_EXTRACTED", "boolean"),
-    "cleaned-pre-fix::MEASUREMENT_UNIT": (True, "MEASUREMENT_UNIT_PRE_FIX", "string"),
+    "cleaned-pre-inj::MEASUREMENT_UNIT": (True, "MEASUREMENT_UNIT_PRE_INJ", "string"),
+    "cleaned-post-inj::MEASUREMENT_UNIT": (True, "MEASUREMENT_UNIT_POST_INJ", "string"),
     "QC_NOTES": (True, "QC_NOTES", "string"),
     "QC_PASS": (True, "QC_PASS", "Int8"),
 }

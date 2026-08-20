@@ -7,7 +7,7 @@ from pathlib import Path
 
 from tqdm import tqdm
 
-from kanta import log_utils
+from kanta import config, log_utils
 from kanta.engine import chunking, processing, reference_data, release
 from kanta.engine.errors import ABBR_EMPTY_SCHEMA, EMPTY_SCHEMA, UNIT_EMPTY_SCHEMA
 
@@ -26,6 +26,7 @@ def main(
     is_test_run=False,
     n_workers=1,
     chunk_size=chunking.N_LINES_PER_CHUNK,
+    injection_branch=config.DEFAULT_INJECTION_BRANCH,
     verbose=False,
 ):
     # Setup
@@ -35,6 +36,9 @@ def main(
     cache_dir = tmp_dir / "refcache"
     cache_dir.mkdir()
     reference_data.set_cache_dir(cache_dir)
+
+    # Must be set before warm_all(), which triggers get_injection_results()'s fetch.
+    reference_data.set_injection_branch(injection_branch)
 
     # Load every reference table once, up front, before workers start.
     reference_data.warm_all()

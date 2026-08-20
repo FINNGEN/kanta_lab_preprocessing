@@ -3,7 +3,7 @@ from argparse import ArgumentParser, BooleanOptionalAction
 from datetime import date
 from pathlib import Path
 
-from kanta import log_utils, output
+from kanta import config, log_utils, output
 
 
 def init_cli():
@@ -48,6 +48,19 @@ def init_cli():
             "the output columns, renamed/typed for external consumption. Use --no-release "
             "to skip it. Defaults to on."
         ),
+    )
+    parser.add_argument(
+        "--injection-branch",
+        type=str,
+        default=config.DEFAULT_INJECTION_BRANCH,
+        help=(
+            "Branch of this repo to fetch scripts/injection/data/injection_results.tsv from "
+            f"(default: {config.DEFAULT_INJECTION_BRANCH}). Same fetch-with-local-fallback "
+            "mechanism as the Usagi harmonization tables: falls back to whatever is already "
+            "on disk if the fetch fails, and the local copy left behind after a run is a "
+            "record of which version was actually used."
+        ),
+        required=False,
     )
     parser.add_argument(
         "--n-workers",
@@ -134,6 +147,7 @@ if __name__ == "__main__":
         is_test_run=args.test,
         n_workers=args.n_workers,
         chunk_size=args.chunk_size,
+        injection_branch=args.injection_branch,
         verbose=args.verbose,
     )
 
