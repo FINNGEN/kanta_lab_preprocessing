@@ -67,12 +67,13 @@ def query_counts(parquet, out="test_name_counts.tsv"):
             SELECT
                 TEST_NAME_ABBREVIATION                     AS TEST_NAME,
                 MEASUREMENT_VALUE                          AS MEASUREMENT_VALUE,
-                `cleaned-pre-fix::MEASUREMENT_UNIT`         AS MEASUREMENT_UNIT_PRE_FIX,
+                `cleaned-pre-inj::MEASUREMENT_UNIT`         AS MEASUREMENT_UNIT_PRE_INJ,
                 `harmonization_omop::OMOP_ID`                AS OMOP_CONCEPT_ID
             FROM file('{parquet}')
         )
         WHERE MEASUREMENT_VALUE != 'NA'
-          AND MEASUREMENT_UNIT_PRE_FIX = 'NA'
+          AND MEASUREMENT_UNIT_PRE_INJ = 'NA'
+          AND TEST_NAME != 'NA'
         GROUP BY TEST_NAME
         HAVING COUNT > {_COUNTS_MIN}
         ORDER BY COUNT DESC
@@ -97,8 +98,9 @@ def query_details(parquet, counts_file="test_name_counts.tsv", out="test_name_de
             SELECT
                 TEST_NAME_ABBREVIATION              AS TEST_NAME,
                 `source::MEASUREMENT_VALUE`          AS MEASUREMENT_VALUE_SOURCE,
-                `cleaned-pre-fix::MEASUREMENT_UNIT`  AS MEASUREMENT_UNIT_PRE_FIX
+                `cleaned-pre-inj::MEASUREMENT_UNIT`  AS MEASUREMENT_UNIT_PRE_INJ
             FROM file('{parquet}')
+            WHERE TEST_NAME_ABBREVIATION != 'NA'
         ),
         global_names AS (
             SELECT DISTINCT TEST_NAME
@@ -107,24 +109,24 @@ def query_details(parquet, counts_file="test_name_counts.tsv", out="test_name_de
         top3_units AS (
             SELECT
                 TEST_NAME,
-                argMax(MEASUREMENT_UNIT_PRE_FIX, unit_cnt) AS UNIT,
+                argMax(MEASUREMENT_UNIT_PRE_INJ, unit_cnt) AS UNIT,
                 concat('{{', arrayStringConcat(groupArray(unit_json), ','), '}}') AS PREVALENCE_DICT
             FROM (
-                SELECT TEST_NAME, MEASUREMENT_UNIT_PRE_FIX, unit_cnt, unit_json
+                SELECT TEST_NAME, MEASUREMENT_UNIT_PRE_INJ, unit_cnt, unit_json
                 FROM (
                     SELECT
-                        TEST_NAME, MEASUREMENT_UNIT_PRE_FIX, unit_cnt,
+                        TEST_NAME, MEASUREMENT_UNIT_PRE_INJ, unit_cnt,
                         ROW_NUMBER() OVER (PARTITION BY TEST_NAME ORDER BY unit_cnt DESC) AS rn,
                         concat(
-                            MEASUREMENT_UNIT_PRE_FIX, ':',
+                            MEASUREMENT_UNIT_PRE_INJ, ':',
                             toString(round(100.0 * unit_cnt / SUM(unit_cnt) OVER (PARTITION BY TEST_NAME), 2))
                         ) AS unit_json
                     FROM (
-                        SELECT TEST_NAME, MEASUREMENT_UNIT_PRE_FIX, count() AS unit_cnt
+                        SELECT TEST_NAME, MEASUREMENT_UNIT_PRE_INJ, count() AS unit_cnt
                         FROM renamed
                         WHERE MEASUREMENT_VALUE_SOURCE != 'NA'
-                          AND MEASUREMENT_UNIT_PRE_FIX != 'NA'
-                        GROUP BY TEST_NAME, MEASUREMENT_UNIT_PRE_FIX
+                          AND MEASUREMENT_UNIT_PRE_INJ != 'NA'
+                        GROUP BY TEST_NAME, MEASUREMENT_UNIT_PRE_INJ
                     ) AS sub
                 ) AS ranked
                 WHERE rn <= 3
@@ -135,7 +137,7 @@ def query_details(parquet, counts_file="test_name_counts.tsv", out="test_name_de
             SELECT TEST_NAME, count() AS COUNT
             FROM renamed
             WHERE MEASUREMENT_VALUE_SOURCE != 'NA'
-              AND MEASUREMENT_UNIT_PRE_FIX != 'NA'
+              AND MEASUREMENT_UNIT_PRE_INJ != 'NA'
             GROUP BY TEST_NAME
         )
         SELECT
@@ -373,7 +375,7 @@ def _query_test_values(parquet, name, mode, unit=None):
             SELECT MEASUREMENT_VALUE AS value
             FROM file('{parquet}')
             WHERE TEST_NAME_ABBREVIATION = {{name:String}}
-              AND `cleaned-pre-fix::MEASUREMENT_UNIT` = 'NA'
+              AND `cleaned-pre-inj::MEASUREMENT_UNIT` = 'NA'
               AND MEASUREMENT_VALUE != 'NA'
             FORMAT TSV
         """
@@ -383,7 +385,7 @@ def _query_test_values(parquet, name, mode, unit=None):
             SELECT `source::MEASUREMENT_VALUE` AS value
             FROM file('{parquet}')
             WHERE TEST_NAME_ABBREVIATION = {{name:String}}
-              AND `cleaned-pre-fix::MEASUREMENT_UNIT` = {{unit:String}}
+              AND `cleaned-pre-inj::MEASUREMENT_UNIT` = {{unit:String}}
               AND `source::MEASUREMENT_VALUE` != 'NA'
             FORMAT TSV
         """
@@ -1020,11 +1022,29 @@ def build_parser():
     p.add_argument("--out-dir", default=".", metavar="PATH",
                    help="Output directory for injection results/ (and test/results/ in --test mode). "
                         "Exploration outputs (counts, summary, scatter) go to --dump-dir.")
+    p.add_argument("--release", action="store_true",
+                   help="After a full --inject run, copy the release files (injection_results.tsv, "
+                        "assignment_summary.md, summary_table.md, plot_data.json.gz, "
+                        "test_names_exploration_scatter.png) into scripts/injection/data/ next to "
+                        "this script (not --out-dir, regardless of cwd). Local copy only — does not "
+                        "commit or push.")
     return p
 
 
+_RELEASE_FILES = [
+    "injection_results.tsv",
+    "assignment_summary.md",
+    "summary_table.md",
+    "plot_data.json.gz",
+    "test_names_exploration_scatter.png",
+]
+
+
 def main():
-    args = build_parser().parse_args()
+    parser = build_parser()
+    args = parser.parse_args()
+    if args.release and (not args.inject or args.test):
+        parser.error("--release requires --inject without --test")
 
     out_dir  = Path(args.out_dir)
     # test (sample mode) → test/; named test (screen only) and normal → results/
@@ -1112,6 +1132,27 @@ def main():
             import shutil
             shutil.copy2(work_dir / "injection_results.tsv", out_dir / "injection_results.tsv")
             print(f"Copied injection_results.tsv → {out_dir}/")
+
+            if args.release:
+                script_dir = Path(__file__).resolve().parent
+                release_dir = script_dir / "data"
+                release_dir.mkdir(parents=True, exist_ok=True)
+                for fname in _RELEASE_FILES:
+                    shutil.copy2(work_dir / fname, release_dir / fname)
+                print(f"Released {len(_RELEASE_FILES)} files → {release_dir}/")
+
+                site_dir = script_dir / "html"
+                proc = subprocess.run(
+                    [sys.executable, str(script_dir / "build_site.py"),
+                     "--data-dir", str(release_dir), "--out-dir", str(site_dir)],
+                    capture_output=True, text=True,
+                )
+                if proc.returncode != 0:
+                    print(proc.stdout)
+                    print(proc.stderr, file=sys.stderr)
+                    raise RuntimeError("build_site.py failed")
+                print(proc.stdout)
+                print(f"Built local site preview → {site_dir}/index.html")
 
 
 if __name__ == "__main__":
