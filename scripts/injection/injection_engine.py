@@ -227,7 +227,7 @@ def _gmm_fit(arr, lognormal):
     lo_grid = min(means[0] - 4*sigmas[0], means[1] - 4*sigmas[1])
     hi_grid = max(means[0] + 4*sigmas[0], means[1] + 4*sigmas[1])
     g = np.linspace(lo_grid, hi_grid, 2000)
-    overlap_coef = float(np.trapz(
+    overlap_coef = float(np.trapezoid(
         np.minimum(weights[0] * stats.norm.pdf(g, means[0], sigmas[0]),
                    weights[1] * stats.norm.pdf(g, means[1], sigmas[1])),
         g,

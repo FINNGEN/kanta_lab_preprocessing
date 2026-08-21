@@ -576,7 +576,7 @@ def run_ambiguous(parquet, plot_name, details, dump_dir, plots_dir=None,
     if test_mode:
         ambig = ambig.head(10)
     n_names = len(ambig)
-    print(f"\nAmbiguous TEST_NAMEs: {n_names}")
+    print(f"\nAmbiguous TEST_NAMEs: {n_names}", flush=True)
 
     prev_dict = dict(zip(details["TEST_NAME"], details["PREVALENCE_DICT"]))
 
@@ -586,25 +586,25 @@ def run_ambiguous(parquet, plot_name, details, dump_dir, plots_dir=None,
         tag      = name.replace("/", "_").replace(" ", "_")
         cand_npy = os.path.join(dump_dir, f"cand_{tag}.npy")
 
-        print(f"\n[{i:>4}/{n_names}] {name}")
+        print(f"\n[{i:>4}/{n_names}] {name}", flush=True)
 
         # Candidate values (reuse cache from unambiguous run if present)
         if os.path.exists(cand_npy):
             c_vals = np.load(cand_npy)
-            print(f"  cand=cache  N={len(c_vals):,}")
+            print(f"  cand=cache  N={len(c_vals):,}", flush=True)
         else:
             c_vals = _query_test_values(parquet, name, "candidate")
             np.save(cand_npy, c_vals)
-            print(f"  cand=query  N={len(c_vals):,}")
+            print(f"  cand=query  N={len(c_vals):,}", flush=True)
 
         if len(c_vals) < 2:
-            print("  SKIP: too few candidate values")
+            print("  SKIP: too few candidate values", flush=True)
             continue
 
         # Filter to units with prevalence > 1% (top 3)
         top_units = [(u, p) for u, p in parse_top_units(prev_dict.get(name, ""), n=3) if p > 1.0]
         if not top_units:
-            print("  SKIP: no units with prevalence > 1%")
+            print("  SKIP: no units with prevalence > 1%", flush=True)
             continue
 
         # Load & cache target arrays once (applies min_target_n guard)
@@ -618,17 +618,17 @@ def run_ambiguous(parquet, plot_name, details, dump_dir, plots_dir=None,
                 t_vals_u = _query_test_values(parquet, name, "target", unit=unit)
                 np.save(targ_npy, t_vals_u)
             if len(t_vals_u) < min_target_n:
-                print(f"  SKIP unit {unit}({upct:.1f}%): N_TARGET={len(t_vals_u)}<{min_target_n}")
+                print(f"  SKIP unit {unit}({upct:.1f}%): N_TARGET={len(t_vals_u)}<{min_target_n}", flush=True)
             else:
                 unit_data[unit] = t_vals_u
 
         if not unit_data:
-            print("  SKIP: no units with sufficient reference data")
+            print("  SKIP: no units with sufficient reference data", flush=True)
             continue
 
         # Pre-check: run engine on full candidate vs each qualifying unit.
         # If any unit already passes, record those results and skip bimodality.
-        print(f"  pre-check (full candidate)  units={list(unit_data)}")
+        print(f"  pre-check (full candidate)  units={list(unit_data)}", flush=True)
         precheck = []   # (unit, upct, t_vals, updates, ks_step, t_step, mad_step)
         for unit, upct in [(u, p) for u, p in top_units if u in unit_data]:
             t_vals_u = unit_data[unit]
@@ -645,7 +645,7 @@ def run_ambiguous(parquet, plot_name, details, dump_dir, plots_dir=None,
                   f"  KS={'P' if ks.passed else 'F'}(stat={ks.details['stat']:.3g})"
                   f"  T={'P' if t.passed else 'F'}"
                   f"  MAD={'P' if mad.passed else 'F'}"
-                  f"  → {upd['OUTCOME']}")
+                  f"  → {upd['OUTCOME']}", flush=True)
 
         any_precheck_pass = any(upd["OUTCOME"] == "PASS" for _, _, _, upd, *_ in precheck)
 
@@ -654,7 +654,7 @@ def run_ambiguous(parquet, plot_name, details, dump_dir, plots_dir=None,
         injection_engine.plot_bimodal_check(bim, name, plots_dir or dump_dir)
         plot_data.setdefault(name, {})["bimodal"] = injection_engine.compute_bimodal_plot_data(bim)
         print(f"  bimodal={bim.status}  sep={bim.separator:.4g}"
-              f"  BC={bim.bc:.3f}  dip_p={bim.dip_p:.3g}")
+              f"  BC={bim.bc:.3f}  dip_p={bim.dip_p:.3g}", flush=True)
 
         # Evaluate whether splitting improves the fit
         prefer_split = False
@@ -667,10 +667,10 @@ def run_ambiguous(parquet, plot_name, details, dump_dir, plots_dir=None,
             print(f"  split_improvement={si['improvement']:+.1%}"
                   f"  same_unit={si['same_best_unit']}"
                   f"  (global_KS={si['global_score']:.4f}"
-                  f"  split_KS={si['split_score']:.4f})")
+                  f"  split_KS={si['split_score']:.4f})", flush=True)
             if si["improvement"] > split_threshold and not si["same_best_unit"]:
                 prefer_split = True
-                print(f"  → SPLIT preferred (threshold={split_threshold:.0%})")
+                print(f"  → SPLIT preferred (threshold={split_threshold:.0%})", flush=True)
 
         # Decision-tree figure
         unit_data_fig = {unit: (unit_data[unit], upct)
@@ -689,7 +689,7 @@ def run_ambiguous(parquet, plot_name, details, dump_dir, plots_dir=None,
         )
 
         if any_precheck_pass and not prefer_split:
-            print(f"  pre-check passed → global result kept")
+            print(f"  pre-check passed → global result kept", flush=True)
             for unit, upct, t_vals_u, upd, ks, t, mad in precheck:
                 rows.append(dict(
                     TEST_NAME=name,
@@ -738,7 +738,7 @@ def run_ambiguous(parquet, plot_name, details, dump_dir, plots_dir=None,
             if not sub_dists:
                 sub_dists = [("all", c_vals)]
 
-            print(f"  sub_dists={[s for s, _ in sub_dists]}")
+            print(f"  sub_dists={[s for s, _ in sub_dists]}", flush=True)
             for sub_name, c_sub in sub_dists:
                 for unit, upct in [(u, p) for u, p in top_units if u in unit_data]:
                     t_vals_u = unit_data[unit]
@@ -767,10 +767,10 @@ def run_ambiguous(parquet, plot_name, details, dump_dir, plots_dir=None,
                           f"  KS={'P' if ks.passed else 'F'}(stat={ks.details['stat']:.3g})"
                           f"  T={'P' if t.passed else 'F'}"
                           f"  MAD={'P' if mad.passed else 'F'}"
-                          f"  → {upd['OUTCOME']}")
+                          f"  → {upd['OUTCOME']}", flush=True)
 
     if not rows:
-        print("No ambiguous results to write.")
+        print("No ambiguous results to write.", flush=True)
         return pd.DataFrame(), {}
 
     results = pd.DataFrame(rows)

@@ -257,7 +257,8 @@ def make_figure(name, c_vals, unit_data,
         f"  BC={bim.bc:.3f}  dip_p={bim.dip_p:.3g}"
         f"  n_low={len(c_low):,}  n_high={len(c_high):,}"
     )
-    ax.legend(fontsize=8)
+    if ax.get_legend_handles_labels()[0]:
+        ax.legend(fontsize=8)
 
     # ── (1,0)  Split KDE: low sub vs its best unit ────────────────────────
     ax = axes[1, 0]
@@ -266,7 +267,9 @@ def make_figure(name, c_vals, unit_data,
     if len(t_low) >= 2:
         _kde(ax, t_low, f"{best_l_unit} (best for low)", "darkorange", fill=False, ls="--")
     ax.set_title(f"Split LOW  best={best_l_unit}  KS={best_l_ks:.4f}")
-    ax.set_xlabel("value"); ax.legend(fontsize=8)
+    ax.set_xlabel("value")
+    if ax.get_legend_handles_labels()[0]:
+        ax.legend(fontsize=8)
 
     # ── (1,1)  Split KDE: high sub vs its best unit ───────────────────────
     ax = axes[1, 1]
@@ -275,7 +278,9 @@ def make_figure(name, c_vals, unit_data,
     if len(t_high) >= 2:
         _kde(ax, t_high, f"{best_h_unit} (best for high)", "darkorange", fill=False, ls="--")
     ax.set_title(f"Split HIGH  best={best_h_unit}  KS={best_h_ks:.4f}")
-    ax.set_xlabel("value"); ax.legend(fontsize=8)
+    ax.set_xlabel("value")
+    if ax.get_legend_handles_labels()[0]:
+        ax.legend(fontsize=8)
 
     # ── (1,2)  Score summary text panel ──────────────────────────────────
     ax = axes[1, 2]
