@@ -66,34 +66,58 @@ def flag_omop_qc(df: pd.DataFrame, verbose: bool = False) -> pd.DataFrame:
     3000963  500        >     ->  "0" if value > 500
     3026361  20         >     ->  "0" if value > 20
     3026361  0.5        <     ->  "0" if value < 0.5
+
+    Interval (</<=/>/>=) rules are applied via a single grouped merge_asof against a compiled
+    per-OMOP_ID step function (see reference_data.get_compiled_omop_qc); ==/!= point rules are
+    applied separately and OR'd on top, since they aren't representable as an interval.
     """
     _ensure_qc_pass(df)
 
-    rules = reference_data.get_omop_qc()
-    is_registered = df["harmonization_omop::OMOP_ID"].isin(rules["harmonization_omop::OMOP_ID"])
+    breakpoints, point_rules, registered_ids = reference_data.get_compiled_omop_qc()
+    is_registered = df["harmonization_omop::OMOP_ID"].isin(registered_ids)
     df.loc[is_registered, "QC_PASS"] = "1"
 
     value = pd.to_numeric(df["harmonization_omop::MEASUREMENT_VALUE"], errors="coerce")
-    n_failed = 0
-    for _, rule in rules.iterrows():
-        side = rule["SIDE"]
-        if pd.isna(side) or side not in _OPS or pd.isna(rule["THRESHOLD"]):
-            continue
+    n_flagged = 0
 
+    has_interval = (
+        df["harmonization_omop::OMOP_ID"].isin(breakpoints["harmonization_omop::OMOP_ID"])
+        & value.notna()
+    )
+    if has_interval.any():
+        probe = pd.DataFrame({
+            "_orig_idx": df.index[has_interval],
+            "harmonization_omop::OMOP_ID": df.loc[has_interval, "harmonization_omop::OMOP_ID"].to_numpy(),
+            "value": value.loc[has_interval].to_numpy(),
+        }).sort_values("value")
+
+        merged = pd.merge_asof(
+            probe, breakpoints.sort_values("threshold"),
+            left_on="value", right_on="threshold",
+            by="harmonization_omop::OMOP_ID",
+            direction="backward",
+        )
+        fail = merged.loc[merged["note"].notna()]
+        if len(fail):
+            fail_idx = pd.Index(fail["_orig_idx"])
+            df.loc[fail_idx, "QC_PASS"] = "0"
+            add_qc_note(df, fail_idx, pd.Series(fail["note"].to_numpy(), index=fail_idx))
+            n_flagged += len(fail_idx)
+
+    for _, rule in point_rules.iterrows():
         omop_mask = df["harmonization_omop::OMOP_ID"] == rule["harmonization_omop::OMOP_ID"]
-        fail_mask = omop_mask & _OPS[side](value, float(rule["THRESHOLD"]))
+        fail_mask = omop_mask & _OPS[rule["SIDE"]](value, rule["THRESHOLD"])
         if not fail_mask.any():
             continue
-
         fail_idx = df.index[fail_mask]
         df.loc[fail_idx, "QC_PASS"] = "0"
         add_qc_note(df, fail_idx, pd.Series(rule["QC_NOTES"], index=fail_idx))
-        n_failed += len(fail_idx)
+        n_flagged += len(fail_idx)
 
     if verbose:
         print(
             f"[qc] flag_omop_qc: {int(is_registered.sum())}/{len(df)} rows registered, "
-            f"{n_failed} rule failures"
+            f"{n_flagged} entries flagged"
         )
     return df
 

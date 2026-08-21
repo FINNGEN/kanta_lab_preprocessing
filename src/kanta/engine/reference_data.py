@@ -497,11 +497,16 @@ def get_ab_limits(verbose: bool = False) -> pd.DataFrame:
 
 @lru_cache(maxsize=1)
 def get_omop_qc(verbose: bool = False) -> pd.DataFrame:
-    """Per-OMOP_ID QC threshold rules: SIDE/THRESHOLD/QC_NOTES.
+    """Per-OMOP_ID QC threshold rules: SIDE/THRESHOLD/UNIT/QC_NOTES.
 
-    OMOP_ID  THRESHOLD  SIDE  QC_NOTES
-    3026361  20         >     IMPLAUSIBLE_VALUE
-    3026361  0.5        <     IMPOSSIBLE_VALUE
+    OMOP_ID  THRESHOLD  SIDE  UNIT   QC_NOTES
+    3026361  20         >     e12/l  IMPLAUSIBLE_VALUE
+    3026361  0.5        <     e12/l  IMPOSSIBLE_VALUE
+
+    UNIT is the unit THRESHOLD was written in; filters.qc rescales it to the OMOP_ID's current
+    canonical unit (get_conversion_table()) before comparing against real values, so a rule
+    keeps meaning the same thing if that canonical unit ever changes. "NA" means untracked --
+    no rescaling is ever attempted for that row.
 
     Not deduplicated: an OMOP_ID can carry several rules. Some rows are placeholder
     "register as checked" entries with SIDE/THRESHOLD blank.
@@ -511,7 +516,7 @@ def get_omop_qc(verbose: bool = False) -> pd.DataFrame:
         return pd.read_csv(
             config.OMOP_QC_FILE,
             sep="\t",
-            usecols=["harmonization_omop::OMOP_ID", "THRESHOLD", "SIDE", "QC_NOTES"],
+            usecols=["harmonization_omop::OMOP_ID", "THRESHOLD", "SIDE", "UNIT", "QC_NOTES"],
             dtype=str,
         )
 
@@ -520,6 +525,139 @@ def get_omop_qc(verbose: bool = False) -> pd.DataFrame:
         logger.info(f"[reference_data] omop_qc: {len(df)} rules loaded, {df['SIDE'].isna().sum()} placeholder-only")
         logger.info(df.head(3).to_string())
     return df
+
+
+_QC_LOWER_SIDES = {"<", "<="}
+_QC_UPPER_SIDES = {">", ">="}
+_QC_POINT_SIDES = {"==", "!="}
+
+
+def _rescale_qc_threshold(omop_id: str, quantity: str, threshold: float, file_unit: str,
+                           conversion_table: pd.DataFrame) -> float:
+    """Rescale a QC THRESHOLD from file_unit into the OMOP_ID's current canonical unit, using
+    the exact same conversion_table a real MEASUREMENT_VALUE goes through (see
+    filters.harmonization.unit_harmonization). Never inverts a formula: if there's no *direct*
+    row taking file_unit to the current canonical unit for this OMOP_ID, raise loudly.
+    """
+    if pd.isna(file_unit) or file_unit == "NA":
+        return threshold  # untracked unit -- no rescaling has ever applied here
+
+    key = (omop_id, quantity, file_unit)
+    if key not in conversion_table.index:
+        raise ValueError(
+            f"omop_qc.tsv: OMOP_ID {omop_id} (quantity={quantity!r}) has THRESHOLD written in "
+            f"UNIT={file_unit!r}, but there is no direct conversion row for that unit in "
+            f"quantity_source_unit_conversion.tsv reaching this OMOP_ID's current canonical "
+            f"unit. Add one explicitly -- do not infer or invert an existing formula."
+        )
+    factor = conversion_table.loc[key, "harmonization_omop::CONVERSION_FACTOR"]
+    if "X" in str(factor):
+        return float(eval(str(factor).replace(",", ".").replace("X", repr(float(threshold))),
+                           {"__builtins__": {}}))
+    return float(factor) * threshold
+
+
+@lru_cache(maxsize=1)
+def get_compiled_omop_qc(verbose: bool = False):
+    """Compile get_omop_qc()'s rule rows into a form filters.qc.flag_omop_qc can apply in one
+    vectorized pass, rescaling THRESHOLDs to each OMOP_ID's current canonical unit along the
+    way. Backed by the same _cached() disk-pickle as every other loader here, so this (and its
+    THRESHOLD rescaling, which can raise) runs exactly once per engine run, not once per worker
+    process -- @lru_cache alone would only dedupe within a single process.
+
+    Returns (breakpoints, point_rules, registered_ids):
+      - breakpoints: per OMOP_ID, an ascending (threshold, note) step function for the <=1
+        lower-bound + <=1 upper-bound rules, with a -inf anchor. Meant for a single grouped
+        pd.merge_asof(..., by=OMOP_ID, direction="backward").
+      - point_rules: the (rare) ==/!= rules, which aren't intervals and stay a separate,
+        independently OR'd check.
+      - registered_ids: every OMOP_ID appearing in the file at all (placeholder or active),
+        used for the QC_PASS="1" bulk-registration step.
+
+    Raises ValueError if any OMOP_ID has more than one lower-bound or more than one
+    upper-bound rule (only <=1 of each is supported) -- a real invariant of today's file
+    (verified empirically), not assumed silently.
+    """
+
+    def compute():
+        rules = get_omop_qc()
+        counts = get_harmonization_counts()
+        conversion_table = get_conversion_table()
+        quantity_map = dict(zip(counts["harmonization_omop::OMOP_ID"],
+                                 counts["harmonization_omop::OMOP_QUANTITY"]))
+
+        registered_ids = set(rules["harmonization_omop::OMOP_ID"])
+        active = rules.dropna(subset=["SIDE"]).copy()
+
+        def rescale(row):
+            unit = row["UNIT"]
+            threshold = float(row["THRESHOLD"])
+            if pd.isna(unit) or unit == "NA":
+                return threshold
+            omop_id = row["harmonization_omop::OMOP_ID"]
+            quantity = quantity_map.get(omop_id)
+            if quantity is None:
+                raise ValueError(
+                    f"omop_qc.tsv: OMOP_ID {omop_id} has UNIT={unit!r} but no entry in "
+                    f"harmonization_counts.tsv to determine its quantity for rescaling."
+                )
+            return _rescale_qc_threshold(omop_id, quantity, threshold, unit, conversion_table)
+
+        active["_threshold_rescaled"] = active.apply(rescale, axis=1)
+
+        breakpoint_rows = []
+        point_rows = []
+        for omop_id, group in active.groupby("harmonization_omop::OMOP_ID"):
+            lower = group[group["SIDE"].isin(_QC_LOWER_SIDES)]
+            upper = group[group["SIDE"].isin(_QC_UPPER_SIDES)]
+            point = group[group["SIDE"].isin(_QC_POINT_SIDES)]
+
+            if len(lower) > 1 or len(upper) > 1:
+                which = "lower-bound" if len(lower) > 1 else "upper-bound"
+                raise ValueError(
+                    f"omop_qc.tsv: OMOP_ID {omop_id} has more than one {which} rule -- the "
+                    f"compiler only supports at most one of each per OMOP_ID."
+                )
+
+            bps = []
+            anchor_note = None
+            if len(lower):
+                r = lower.iloc[0]
+                t = r["_threshold_rescaled"]
+                anchor_note = r["QC_NOTES"]
+                resume_at = t if r["SIDE"] == "<" else np.nextafter(t, np.inf)
+                bps.append((resume_at, None))
+            if len(upper):
+                r = upper.iloc[0]
+                t = r["_threshold_rescaled"]
+                fail_at = np.nextafter(t, np.inf) if r["SIDE"] == ">" else t
+                bps.append((fail_at, r["QC_NOTES"]))
+
+            if bps:
+                breakpoint_rows.append((omop_id, -np.inf, anchor_note))
+                breakpoint_rows.extend((omop_id, t, note) for t, note in bps)
+
+            point_rows.extend(
+                (omop_id, r["SIDE"], r["_threshold_rescaled"], r["QC_NOTES"])
+                for _, r in point.iterrows()
+            )
+
+        breakpoints = pd.DataFrame(
+            breakpoint_rows, columns=["harmonization_omop::OMOP_ID", "threshold", "note"]
+        ).sort_values(["harmonization_omop::OMOP_ID", "threshold"]).reset_index(drop=True)
+        point_rules = pd.DataFrame(
+            point_rows, columns=["harmonization_omop::OMOP_ID", "SIDE", "THRESHOLD", "QC_NOTES"]
+        )
+
+        return breakpoints, point_rules, registered_ids
+
+    breakpoints, point_rules, registered_ids = _cached("compiled_omop_qc", compute)
+    if verbose:
+        logger.info(
+            f"[reference_data] compiled_omop_qc: {len(breakpoints)} breakpoint rows, "
+            f"{len(point_rules)} point rules, {len(registered_ids)} registered OMOP_IDs"
+        )
+    return breakpoints, point_rules, registered_ids
 
 
 def warm_all(verbose: bool = True) -> None:
@@ -538,3 +676,4 @@ def warm_all(verbose: bool = True) -> None:
     get_posneg_table(verbose=verbose)
     get_ab_limits(verbose=verbose)
     get_omop_qc(verbose=verbose)
+    get_compiled_omop_qc(verbose=verbose)
