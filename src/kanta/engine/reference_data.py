@@ -79,7 +79,10 @@ def _refresh_from_remote(url: str, local_path: Path, timeout: float = 5.0, verbo
         if verbose:
             warnings.warn(f"Could not refresh {local_path.name} from {url} ({e}); using local copy.")
     finally:
-        tmp_path.unlink(missing_ok=True)
+        try:
+            tmp_path.unlink(missing_ok=True)
+        except OSError:
+            pass
 
 
 @lru_cache(maxsize=1)

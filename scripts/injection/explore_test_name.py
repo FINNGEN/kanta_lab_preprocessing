@@ -925,6 +925,8 @@ def _write_unified(udf, adf, out="injection_results.tsv"):
         return None
 
     combined = pd.concat(parts, ignore_index=True)
+    if "BIMODAL_SEP" not in combined.columns:
+        combined["BIMODAL_SEP"] = np.nan
     combined["CUTOFF"] = np.where(
         combined["SUB_DIST"] == "low",
         combined["BIMODAL_SEP"],
