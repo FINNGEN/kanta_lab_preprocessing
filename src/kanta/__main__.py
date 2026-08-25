@@ -1,10 +1,10 @@
 if __name__ == "__main__":
     import datetime
     import os
-    from argparse import ArgumentParser
+    from argparse import ArgumentParser, BooleanOptionalAction
     from pathlib import Path
 
-    from kanta import engine, output
+    from kanta import config, engine, output
     from kanta.engine import chunking
     from kanta.intake import assemble, tidyup
 
@@ -34,11 +34,34 @@ if __name__ == "__main__":
         type=Path,
     )
     parser.add_argument(
+        "--release",
+        action=BooleanOptionalAction,
+        default=True,
+        help=(
+            "Also build the curated release file (<prefix>_RELEASE.parquet): a subset of "
+            "the output columns, renamed/typed for external consumption. Use --no-release "
+            "to skip it. Defaults to on."
+        ),
+    )
+    parser.add_argument(
         "--partition-n-buckets",
         help="How many buckets to partition the data into to spread the sort+dedup computations.",
         required=False,
         type=int,
         default=24,
+    )
+    parser.add_argument(
+        "--engine-injection-branch",
+        type=str,
+        default=config.DEFAULT_INJECTION_BRANCH,
+        help=(
+            "Branch of this repo to fetch scripts/injection/data/injection_results.tsv from "
+            f"(default: {config.DEFAULT_INJECTION_BRANCH}). Same fetch-with-local-fallback "
+            "mechanism as the Usagi harmonization tables: falls back to whatever is already "
+            "on disk if the fetch fails, and the local copy left behind after a run is a "
+            "record of which version was actually used."
+        ),
+        required=False,
     )
     parser.add_argument(
         "--engine-n-workers",
@@ -121,6 +144,10 @@ if __name__ == "__main__":
         args.output_dir
         / f"finngen_R14_kanta_laboratory_responses_1.0_{today}_unit.parquet"
     )
+    output_file_engine_release = output.check_safe_write(
+        args.output_dir
+        / f"finngen_R14_kanta_laboratory_responses_1.0_{today}_RELEASE.parquet"
+    )
 
     tmp_dir = output.create_tmp_dir()
 
@@ -146,9 +173,11 @@ if __name__ == "__main__":
         abbr_file=output_file_engine_abbr,
         unit_file=output_file_engine_unit,
         tmp_dir=tmp_dir,
+        release_file=output_file_engine_release,
         is_test_run=args.engine_test_run,
         n_workers=args.engine_n_workers,
         chunk_size=args.engine_chunk_size,
+        injection_branch=args.engine_injection_branch,
         verbose=args.verbose,
     )
 
