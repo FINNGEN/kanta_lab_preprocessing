@@ -69,7 +69,6 @@ du-alb	NA	mg/24h	injection_script	PASS,PASS,FAIL
 du-alb	mg	mg/24h	injection_script	PASS,PASS,FAIL
 li-igg-ind	index	ratio	injection_script	FAIL,PASS,PASS
 li-igg-ind	osuus	ratio	injection_script	FAIL,PASS,PASS
-s-apob/apoa1-suhde	NA	ratio	injection_script	PASS,FAIL,PASS
 s-ph	1	ph	injection_script	PASS,PASS,PASS
 u-hb-o	form	estimate	injection_script	PASS,PASS,PASS
 u-kemseul	form	NA	injection_script	PASS,PASS,PASS

@@ -3,24 +3,28 @@
 explore_unharmonized.py
 
 Identifies lab measurements that hold a real source value but failed unit
-harmonization (harmonization_omop::MEASUREMENT_VALUE == "NA"), and resolves an
-OMOP_ID for each one of two ways:
+harmonization (harmonization_omop::MEASUREMENT_VALUE == "NA"). Ground truth and
+inference are kept in separate columns, never conflated:
 
-  MAPPED          harmonization_omop::OMOP_ID is already a real concept (mapping
-                   succeeded on the row's own (TEST_NAME_ABBREVIATION,
-                   MEASUREMENT_UNIT) pair) — conversion itself is what failed
-                   (no factor defined for this unit, including MEASUREMENT_UNIT
-                   == "NA" i.e. the unit is missing entirely).
-  ABBREV_FALLBACK  harmonization_omop::OMOP_ID is "0"/"NA" (the row's own unit
-                   isn't a recognised (abbreviation, unit) pair in the Usagi
-                   mapping table at all — e.g. "osuus" for b-hkr, which is only
-                   mapped via "ratio"/"%"/blank) but TEST_NAME_ABBREVIATION
-                   resolves to exactly one OMOP_ID via its OTHER, Usagi-mapped
-                   units. That OMOP_ID is used as the candidate.
-
-Abbreviations that resolve to 2+ distinct OMOP_IDs across their mapped units
-can't be fallback-resolved automatically — rows for those get OMOP_ID="AMBIGUOUS".
-Abbreviations absent from the Usagi mapping table entirely get OMOP_ID="UNMAPPED".
+  STATUS          Straight from the row's own harmonization_omop::OMOP_ID —
+                   MAPPED if it's already a real concept, UNMAPPED if it's
+                   "0"/"NA". This is a fact about the data, not a guess.
+  OMOP_ID         The row's real OMOP_ID when STATUS=MAPPED; "NA" otherwise.
+                   (When MAPPED, conversion itself is what's failing — no
+                   factor defined for this unit, including MEASUREMENT_UNIT
+                   == "NA" i.e. the unit is missing entirely.)
+  CANDIDATE_OMOP  An inference, computed the same way regardless of STATUS:
+                   what TEST_NAME_ABBREVIATION resolves to via its OTHER,
+                   Usagi-APPROVED units (unit-agnostic) — e.g. "osuus" for
+                   b-hkr isn't itself Usagi-approved, but the abbreviation's
+                   other units ("ratio"/"%"/blank) all agree on one concept,
+                   so that's the candidate. "AMBIGUOUS" if 2+ distinct
+                   concepts, "NA" if the abbreviation isn't in Usagi at all.
+  USAGI_STATUS    What Usagi itself says about this exact (TEST_NAME_ABBREVIATION,
+                   MEASUREMENT_UNIT) pair: "APPROVED", "UNCHECKED" (a candidate
+                   OMOP_ID is sitting right there, just not yet reviewed —
+                   different from having no entry at all), or "MISSING" (no
+                   Usagi row for this exact pair whatsoever).
 
 Injection (--inject --test TEST_NAME): reverse-engineers the unit for a single
 test's unharmonized rows. The discovery table above (built automatically if
@@ -128,10 +132,15 @@ def query_raw_counts(parquet, min_count, cache="unharmonized_raw_counts.tsv"):
 def query_raw_counts_single(parquet, test_name):
     """Same shape as query_raw_counts, but for exactly one TEST_NAME_ABBREVIATION and no
     --min-count floor — used to resolve a --test target that fell under the discovery table's
-    threshold (or wasn't in it because the table was built before this test's data existed)."""
+    threshold (or wasn't in it because the table was built before this test's data existed).
+
+    Selects/groups by the real TEST_NAME_ABBREVIATION column rather than projecting the
+    parameter as a same-named alias — aliasing a literal to a name that collides with a real
+    column lets ClickHouse resolve the WHERE clause against the (always-true) alias instead of
+    the actual column, silently turning the filter into a no-op across the whole file."""
     result = clickhouse(f"""
         SELECT
-            {{name:String}} AS TEST_NAME_ABBREVIATION,
+            TEST_NAME_ABBREVIATION,
             MEASUREMENT_UNIT,
             `harmonization_omop::OMOP_ID` AS OMOP_ID_RAW,
             count() AS COUNT
@@ -139,7 +148,7 @@ def query_raw_counts_single(parquet, test_name):
         WHERE TEST_NAME_ABBREVIATION = {{name:String}}
           AND MEASUREMENT_VALUE != 'NA'
           AND `harmonization_omop::MEASUREMENT_VALUE` = 'NA'
-        GROUP BY MEASUREMENT_UNIT, OMOP_ID_RAW
+        GROUP BY TEST_NAME_ABBREVIATION, MEASUREMENT_UNIT, OMOP_ID_RAW
         FORMAT TSVWithNames
     """, name=test_name)
     if not result.strip():
@@ -157,28 +166,45 @@ def load_abbrev_omop_map(usagi_path):
     return grouped.to_dict()
 
 
-def resolve_omop_ids(df, abbrev_map):
-    """Add OMOP_ID/SOURCE columns, then re-aggregate COUNT since rows that only differed by a
+def load_usagi_status_map(usagi_path):
+    """(TEST_NAME_ABBREVIATION, MEASUREMENT_UNIT) -> MAPPING_STATUS, straight from Usagi. Blank
+    units are normalized to "NA" to match the engine's own missing-unit convention. Pairs with no
+    Usagi row at all aren't in this dict — callers should default to "MISSING"."""
+    df = pd.read_csv(usagi_path, sep="\t", dtype=str, keep_default_na=False, na_values=[""])
+    df["MEASUREMENT_UNIT"] = df["MEASUREMENT_UNIT"].replace("", "NA")
+    return dict(zip(
+        zip(df["TEST_NAME_ABBREVIATION"], df["MEASUREMENT_UNIT"]),
+        df["harmonization_omop::MAPPING_STATUS"],
+    ))
+
+
+def _candidate_omop(abbrev, abbrev_map):
+    ids = abbrev_map.get(abbrev)
+    if not ids:
+        return "NA"
+    if len(ids) == 1:
+        return ids[0]
+    return "AMBIGUOUS"
+
+
+def resolve_omop_ids(df, abbrev_map, usagi_status_map):
+    """Adds STATUS (ground truth, straight from OMOP_ID_RAW), OMOP_ID (real ID when MAPPED, "NA"
+    otherwise), CANDIDATE_OMOP (abbreviation-fallback inference, computed the same way regardless
+    of STATUS), and USAGI_STATUS (this exact (abbreviation, unit) pair's status in Usagi itself —
+    APPROVED/UNCHECKED/MISSING). Then re-aggregates COUNT since rows that only differed by a
     now-collapsed OMOP_ID_RAW (e.g. several "0"/"NA" variants) can merge into the same output row."""
-
-    def resolve(row):
-        raw = row["OMOP_ID_RAW"]
-        if raw not in ("0", "NA", ""):
-            return raw, "MAPPED"
-        ids = abbrev_map.get(row["TEST_NAME_ABBREVIATION"])
-        if not ids:
-            return "UNMAPPED", "UNMAPPED"
-        if len(ids) == 1:
-            return ids[0], "ABBREV_FALLBACK"
-        return "AMBIGUOUS", "AMBIGUOUS"
-
-    resolved = df.apply(resolve, axis=1, result_type="expand")
     df = df.copy()
-    df["OMOP_ID"] = resolved[0]
-    df["SOURCE"] = resolved[1]
+    df["STATUS"] = np.where(df["OMOP_ID_RAW"].isin(["0", "NA", ""]), "UNMAPPED", "MAPPED")
+    df["OMOP_ID"] = np.where(df["STATUS"] == "MAPPED", df["OMOP_ID_RAW"], "NA")
+    df["CANDIDATE_OMOP"] = df["TEST_NAME_ABBREVIATION"].apply(lambda a: _candidate_omop(a, abbrev_map))
+    df["USAGI_STATUS"] = [
+        usagi_status_map.get((t, u), "MISSING")
+        for t, u in zip(df["TEST_NAME_ABBREVIATION"], df["MEASUREMENT_UNIT"])
+    ]
 
     out = (
-        df.groupby(["TEST_NAME_ABBREVIATION", "MEASUREMENT_UNIT", "OMOP_ID", "SOURCE"])["COUNT"]
+        df.groupby(["TEST_NAME_ABBREVIATION", "MEASUREMENT_UNIT", "STATUS", "OMOP_ID",
+                    "CANDIDATE_OMOP", "USAGI_STATUS"])["COUNT"]
         .sum()
         .reset_index()
         .sort_values("COUNT", ascending=False)
@@ -192,15 +218,34 @@ def print_summary(df):
     print(f"\n{'=' * 60}")
     print("UNHARMONIZED SUMMARY")
     print(f"{'=' * 60}")
-    print(f"  (TEST_NAME_ABBREVIATION, MEASUREMENT_UNIT, OMOP_ID) rows: {len(df):,}")
+    print(f"  (TEST_NAME_ABBREVIATION, MEASUREMENT_UNIT) rows: {len(df):,}")
     print(f"  Distinct TEST_NAME_ABBREVIATION: {df['TEST_NAME_ABBREVIATION'].nunique():,}")
-    print(f"  Distinct OMOP_ID:                {df.loc[~df['OMOP_ID'].isin(['AMBIGUOUS', 'UNMAPPED']), 'OMOP_ID'].nunique():,}")
+    print(f"  Distinct OMOP_ID (ground truth, MAPPED): "
+          f"{df.loc[df['STATUS'] == 'MAPPED', 'OMOP_ID'].nunique():,}")
     print(f"  Total measurements affected:     {total_rows:,}")
     print()
-    print(f"  {'SOURCE':<16}  {'ROWS':>8}  {'MEASUREMENTS':>14}")
-    for source, sub in df.groupby("SOURCE"):
+    print(f"  {'STATUS':<10}  {'ROWS':>8}  {'MEASUREMENTS':>14}")
+    for status, sub in df.groupby("STATUS"):
         n = int(sub["COUNT"].sum())
-        print(f"  {source:<16}  {len(sub):>8,}  {n:>14,}  ({100 * n / total_rows:.1f}%)")
+        print(f"  {status:<10}  {len(sub):>8,}  {n:>14,}  ({100 * n / total_rows:.1f}%)")
+
+    unmapped = df[df["STATUS"] == "UNMAPPED"]
+    if len(unmapped):
+        n_unmapped = int(unmapped["COUNT"].sum())
+        print(f"\n  Of {n_unmapped:,} UNMAPPED measurements, by CANDIDATE_OMOP resolvability:")
+        cand_kind = np.select(
+            [unmapped["CANDIDATE_OMOP"] == "AMBIGUOUS", unmapped["CANDIDATE_OMOP"] == "NA"],
+            ["AMBIGUOUS (2+ concepts)", "NA (abbreviation not in Usagi)"],
+            default="single candidate",
+        )
+        for kind, sub in unmapped.groupby(cand_kind):
+            n = int(sub["COUNT"].sum())
+            print(f"    {kind:<32}  {len(sub):>8,}  {n:>14,}  ({100 * n / n_unmapped:.1f}%)")
+
+        print(f"\n  Of {n_unmapped:,} UNMAPPED measurements, by USAGI_STATUS for this exact (abbrev, unit) pair:")
+        for status, sub in unmapped.groupby("USAGI_STATUS"):
+            n = int(sub["COUNT"].sum())
+            print(f"    {status:<32}  {len(sub):>8,}  {n:>14,}  ({100 * n / n_unmapped:.1f}%)")
     print()
     no_unit = df[df["MEASUREMENT_UNIT"] == "NA"]["COUNT"].sum()
     print(f"  Of which MEASUREMENT_UNIT == NA: {int(no_unit):,} "
@@ -212,11 +257,16 @@ def print_summary(df):
 # Injection — OMOP_ID / quantity / target-unit / candidate-CF resolution
 # ---------------------------------------------------------------------------
 
-def resolve_test_omop_id(df, test_name, parquet, abbrev_map, min_count):
-    """Look up test_name's resolved OMOP_ID/SOURCE from the discovery table `df` (built by
+def resolve_test_omop_id(df, test_name, parquet, abbrev_map, usagi_status_map, min_count):
+    """Picks a single working OMOP_ID for test_name out of the discovery table `df` (built by
     resolve_omop_ids). Falls back to a fresh zero-threshold query for just this one test if it
     isn't present — e.g. because its rows fell under --min-count — reusing the exact same
-    resolution logic (resolve_omop_ids) rather than duplicating it."""
+    resolution logic (resolve_omop_ids) rather than duplicating it.
+
+    Prefers real ground-truth MAPPED rows (by volume, if it splits across more than one); only
+    falls back to the CANDIDATE_OMOP inference if nothing is actually MAPPED yet. Returns
+    (omop_id, source) where source is "MAPPED"/"ABBREV_FALLBACK" (how the ID was obtained) or
+    (None, "AMBIGUOUS"/"UNMAPPED"/"NOT_FOUND") if nothing usable was found."""
     rows = df[df["TEST_NAME_ABBREVIATION"] == test_name]
     if rows.empty:
         print(f"  '{test_name}' not in the {len(df)}-row discovery table "
@@ -224,17 +274,24 @@ def resolve_test_omop_id(df, test_name, parquet, abbrev_map, min_count):
         raw = query_raw_counts_single(parquet, test_name)
         if raw.empty:
             return None, "NOT_FOUND"
-        rows = resolve_omop_ids(raw, abbrev_map)
+        rows = resolve_omop_ids(raw, abbrev_map, usagi_status_map)
 
-    real = rows[~rows["OMOP_ID"].isin(["AMBIGUOUS", "UNMAPPED"])]
-    if real.empty:
-        return None, rows["SOURCE"].iloc[0]
+    mapped = rows[rows["STATUS"] == "MAPPED"]
+    if not mapped.empty:
+        agg = mapped.groupby("OMOP_ID")["COUNT"].sum().sort_values(ascending=False)
+        if len(agg) > 1:
+            print(f"  NOTE: '{test_name}' splits across {len(agg)} OMOP_IDs {dict(agg)} — using the dominant one")
+        return agg.index[0], "MAPPED"
 
-    agg = real.groupby(["OMOP_ID", "SOURCE"])["COUNT"].sum().sort_values(ascending=False)
+    candidates = rows[~rows["CANDIDATE_OMOP"].isin(["AMBIGUOUS", "NA"])]
+    if candidates.empty:
+        fallback = "AMBIGUOUS" if (rows["CANDIDATE_OMOP"] == "AMBIGUOUS").any() else "UNMAPPED"
+        return None, fallback
+
+    agg = candidates.groupby("CANDIDATE_OMOP")["COUNT"].sum().sort_values(ascending=False)
     if len(agg) > 1:
-        print(f"  NOTE: '{test_name}' splits across {len(agg)} OMOP_IDs {dict(agg)} — using the dominant one")
-    omop_id, source = agg.index[0]
-    return omop_id, source
+        print(f"  NOTE: '{test_name}' candidate splits across {len(agg)} OMOP_IDs {dict(agg)} — using the dominant one")
+    return agg.index[0], "ABBREV_FALLBACK"
 
 
 def _query_candidate_values(parquet, test_name):
@@ -346,11 +403,11 @@ def _pass_rank(row):
 # Injection — single-test run
 # ---------------------------------------------------------------------------
 
-def run_test_injection(parquet, test_name, df, abbrev_map, dump_dir,
+def run_test_injection(parquet, test_name, df, abbrev_map, usagi_status_map, dump_dir,
                        min_target_n=100, dip_threshold=0.05, split_threshold=0.15,
                        min_count=50):
     print(f"Resolving OMOP_ID for {test_name}...")
-    omop_id, source = resolve_test_omop_id(df, test_name, parquet, abbrev_map, min_count)
+    omop_id, source = resolve_test_omop_id(df, test_name, parquet, abbrev_map, usagi_status_map, min_count)
     if omop_id is None:
         print(f"  SKIP: OMOP_ID resolution = {source}")
         return None
@@ -526,7 +583,8 @@ def main():
 
     raw = query_raw_counts(args.parquet, args.min_count, cache=args.raw_cache)
     abbrev_map = load_abbrev_omop_map(args.usagi)
-    df = resolve_omop_ids(raw, abbrev_map)
+    usagi_status_map = load_usagi_status_map(args.usagi)
+    df = resolve_omop_ids(raw, abbrev_map, usagi_status_map)
     df.to_csv(args.out, sep="\t", index=False)
     print(f"Wrote {args.out}  ({len(df)} rows)")
     print_summary(df)
@@ -534,7 +592,7 @@ def main():
     if args.inject:
         Path(args.dump_dir).mkdir(parents=True, exist_ok=True)
         result = run_test_injection(
-            args.parquet, args.test, df, abbrev_map, args.dump_dir,
+            args.parquet, args.test, df, abbrev_map, usagi_status_map, args.dump_dir,
             min_target_n=args.min_target_n,
             dip_threshold=args.dip_threshold,
             split_threshold=args.split_threshold,
