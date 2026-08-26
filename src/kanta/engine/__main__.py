@@ -3,7 +3,7 @@ from argparse import ArgumentParser, BooleanOptionalAction
 from datetime import date
 from pathlib import Path
 
-from kanta import config, log_utils, output
+from kanta import config, engine, log_utils, output
 
 
 def init_cli():
@@ -76,10 +76,10 @@ def init_cli():
     parser.add_argument(
         "--chunk-size",
         type=int,
-        default=chunking.N_LINES_PER_CHUNK,
+        default=engine.chunking.N_LINES_PER_CHUNK,
         help=(
             f"Number of rows per chunk when streaming the input Parquet file. "
-            f"Defaults to {chunking.N_LINES_PER_CHUNK}. Independent of --n-workers "
+            f"Defaults to {engine.chunking.N_LINES_PER_CHUNK}. Independent of --n-workers "
             "(see chunking.py for why scaling it by worker count is a bad idea)."
         ),
         required=False,
@@ -136,7 +136,7 @@ if __name__ == "__main__":
 
     tmp_dir = output.create_tmp_dir()
 
-    main(
+    engine.main(
         args.input_file,
         output_file,
         errors_file,
