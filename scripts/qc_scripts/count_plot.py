@@ -28,6 +28,8 @@ def main():
     print("Loading files...")
     new_ver = pd.read_csv(args.new, sep='\t')
     old_ver = pd.read_csv(args.old, sep='\t')
+    new_ver['NAME'] = new_ver['NAME'].astype(str)
+    old_ver['NAME'] = old_ver['NAME'].astype(str)
 
     if os.path.exists(args.names):
         names = pd.read_csv(args.names, sep='\t')
