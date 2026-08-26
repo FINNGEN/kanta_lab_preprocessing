@@ -62,49 +62,57 @@ COLUMN_ALIASES = {
 #   used where an unmapped/unknown value is itself informative (e.g. TEST_NAME), not missing
 #   data. Irrelevant (but still fine to include) when keep=False.
 OUTPUT_COLUMNS = {
+    # Metadata
+    "ROWID": (True, "ROWID", "Int64"),
     "FINNGENID": (True, "FINNGENID", "string"),
-    "APPROX_EVENT_DATETIME": (True, "APPROX_EVENT_DATETIME", "datetime64[ns, UTC]"),
+    "SEX": (True, "SEX", "string"),
     "EVENT_AGE": (True, "EVENT_AGE", "Float64"),
+    "APPROX_EVENT_DATETIME": (True, "APPROX_EVENT_DATETIME", "datetime64[ns, UTC]"),
+    # Test name
     "TEST_ID": (True, "TEST_ID", "string"),
     "TEST_ID_IS_NATIONAL": (True, "TEST_ID_IS_NATIONAL", "boolean"),
     "TEST_NAME_ABBREVIATION": (True, "TEST_NAME", "string", False),
+    # Values and units, extraction, omop mapping
     "MEASUREMENT_VALUE": (True, "MEASUREMENT_VALUE_CLEANED", "Float64"),
     "MEASUREMENT_UNIT": (True, "MEASUREMENT_UNIT_CLEANED", "string"),
+    "IS_VALUE_EXTRACTED": (True, "IS_VALUE_EXTRACTED", "boolean"),
+    "IS_UNIT_EXTRACTED": (True, "IS_UNIT_EXTRACTED", "boolean"),
+    "harmonization_omop::MEASUREMENT_VALUE": (True, "MEASUREMENT_VALUE_HARMONIZED", "Float64"),
+    "harmonization_omop::MEASUREMENT_UNIT": (True, "MEASUREMENT_UNIT_HARMONIZED", "string"),
+    "harmonization_omop::IS_UNIT_VALID": (False, "IS_UNIT_VALID", "Int8"),
+    "harmonization_omop::OMOP_ID": (True, "OMOP_CONCEPT_ID", "string"),
+    "harmonization_omop::OMOP_QUANTITY": (True, "OMOP_QUANTITY", "string"),
+    # test outcome, non-numerical results
+    "TEST_OUTCOME": (True, "TEST_OUTCOME", "string"),
+    "extracted::TEST_OUTCOME_TEXT": (True, "TEST_OUTCOME_TEXT_EXTRACTED", "string"),
+    "imputed::TEST_OUTCOME": (True, "TEST_OUTCOME_IMPUTED", "string"),
+    "extracted::IS_POS": (True, "OUTCOME_POS_EXTRACTED", "Int8"),
+    # QC
+    "QC_PASS": (True, "QC_PASS", "Int8"),
+    "QC_NOTES": (True, "QC_NOTES", "string"),
+    # Misc
+    "CODING_SYSTEM": (True, "CODING_SYSTEM_OID", "string"),
+    "CODING_SYSTEM_MAP": (True, "CODING_SYSTEM_ORG", "string"),
     "MEASUREMENT_STATUS": (True, "MEASUREMENT_STATUS", "string"),
     "MEASUREMENT_METHOD": (True, "MEASUREMENT_METHOD", "string"),
-    "TEST_OUTCOME": (True, "TEST_OUTCOME", "string"),
+    # Reference ranges
     "REFERENCE_RANGE_GROUP": (True, "REFERENCE_RANGE_GROUP", "string"),
     "REFERENCE_RANGE_LOWER_VALUE": (True, "REFERENCE_RANGE_LOW_VALUE", "Float64"),
     "REFERENCE_RANGE_LOWER_UNIT": (True, "REFERENCE_RANGE_LOW_UNIT", "string"),
     "REFERENCE_RANGE_UPPER_VALUE": (True, "REFERENCE_RANGE_HIGH_VALUE", "Float64"),
     "REFERENCE_RANGE_UPPER_UNIT": (True, "REFERENCE_RANGE_HIGH_UNIT", "string"),
-    "CODING_SYSTEM": (True, "CODING_SYSTEM_OID", "string"),
-    "CODING_SYSTEM_MAP": (True, "CODING_SYSTEM_ORG", "string"),
-    "MEASUREMENT_FREE_TEXT": (True, "MEASUREMENT_FREE_TEXT", "string"),
-    "ROWID": (True, "ROWID", "Int64"),
+    # Sensitive data
+    "MEASUREMENT_FREE_TEXT": (False, "MEASUREMENT_FREE_TEXT", "string"),
+    # Dumps from source
+    "source::MEASUREMENT_VALUE": (False, "MEASUREMENT_VALUE_SOURCE", "string"),
+    "source::MEASUREMENT_UNIT": (False, "MEASUREMENT_UNIT_SOURCE", "string"),
+    "source::TEST_NAME_ABBREVIATION": (False, "TEST_NAME_SOURCE", "string", False),
+    "source::TEST_OUTCOME": (False, "TEST_OUTCOME_SOURCE", "string"),
+    # Debugging
+    "harmonization_omop::CONVERSION_FACTOR": (False, "CONVERSION_FACTOR", "string"),
+    "cleaned-pre-inj::MEASUREMENT_UNIT": (False, "MEASUREMENT_UNIT_PRE_INJ", "string"),
+    "cleaned-post-inj::MEASUREMENT_UNIT": (False, "MEASUREMENT_UNIT_POST_INJ", "string"),
     "_rowid_source": (False, "ROWID_SOURCE", "Int64"),
-    "SEX": (True, "SEX", "string"),
-    "source::MEASUREMENT_VALUE": (True, "MEASUREMENT_VALUE_SOURCE", "Float64"),
-    "source::MEASUREMENT_UNIT": (True, "MEASUREMENT_UNIT_SOURCE", "string"),
-    "source::TEST_NAME_ABBREVIATION": (True, "TEST_NAME_SOURCE", "string", False),
-    "source::TEST_OUTCOME": (True, "TEST_OUTCOME_SOURCE", "string"),
-    "harmonization_omop::IS_UNIT_VALID": (True, "IS_UNIT_VALID", "Int8"),
-    "harmonization_omop::OMOP_ID": (True, "OMOP_CONCEPT_ID", "string"),
-    "harmonization_omop::OMOP_QUANTITY": (True, "OMOP_QUANTITY", "string"),
-    "harmonization_omop::MEASUREMENT_VALUE": (True, "MEASUREMENT_VALUE_HARMONIZED", "Float64"),
-    "harmonization_omop::MEASUREMENT_UNIT": (True, "MEASUREMENT_UNIT_HARMONIZED", "string"),
-    # Not always a plain number: quantity_source_unit_conversion.tsv has formula-style
-    # values too (e.g. "10.93*X-23.50", X standing in for the source measurement value).
-    "harmonization_omop::CONVERSION_FACTOR": (True, "CONVERSION_FACTOR", "string"),
-    "extracted::IS_POS": (True, "OUTCOME_POS_EXTRACTED", "Int8"),
-    "extracted::TEST_OUTCOME_TEXT": (True, "TEST_OUTCOME_TEXT_EXTRACTED", "string"),
-    "imputed::TEST_OUTCOME": (True, "TEST_OUTCOME_IMPUTED", "string"),
-    "IS_VALUE_EXTRACTED": (True, "IS_VALUE_EXTRACTED", "boolean"),
-    "IS_UNIT_EXTRACTED": (True, "IS_UNIT_EXTRACTED", "boolean"),
-    "cleaned-pre-inj::MEASUREMENT_UNIT": (True, "MEASUREMENT_UNIT_PRE_INJ", "string"),
-    "cleaned-post-inj::MEASUREMENT_UNIT": (True, "MEASUREMENT_UNIT_POST_INJ", "string"),
-    "QC_NOTES": (True, "QC_NOTES", "string"),
-    "QC_PASS": (True, "QC_PASS", "Int8"),
 }
 
 # Columns snapshotted into a source::<col> output column immediately after renaming and
