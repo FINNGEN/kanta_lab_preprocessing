@@ -123,8 +123,11 @@ def get_coding_map(df: pd.DataFrame) -> pd.DataFrame:
         df[col]
         .str.replace("1.2.246.10.", "", regex=False)
         .str.replace("1.2.246.537.10.", "", regex=False)
-        .str.split(".", n=1, expand=False)
-        .str[0]
+        # NOTE(Vincent 2026-08-28) I changed this from `.str.split(".", n=1, expand=False).str[0]`
+        # since that generated a runtime error when df was empty AND pandas was set-up to use
+        # Arrow-backed strings.
+        # The semantic is the same.
+        .str.extract(r"^(?P<x>[^.]*)", expand=False)
     )
     df["CODING_SYSTEM_MAP"] = tmp_system.map(reference_data.get_thl_manual_map()).fillna("NA")
     return df
