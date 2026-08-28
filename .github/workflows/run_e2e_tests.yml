@@ -2,9 +2,7 @@ name: Python end-to-end tests
 
 on:
   push:
-    branches: [ "master", "gh-actions" ]
   pull_request:
-    branches: [ "master", "gh-actions" ]
 
 permissions:
   contents: read
