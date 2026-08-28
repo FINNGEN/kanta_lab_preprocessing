@@ -17,7 +17,6 @@ import polars as pl
 
 from kanta import output
 
-
 EXPECTED_COLUMNS_MAIN = [
     "FINNGENID",
     "EVENT_AGE",
@@ -224,10 +223,10 @@ def check_columns(file_path: Path, expected_columns: list[str], label: str) -> N
 
     if actual_columns != expected_columns:
         if len(actual_columns) == 0:
-            raise Exception(f"No columns in {file_path}")
+            raise ValueError(f"No columns in {file_path}")
 
         if len(expected_columns) == 0:
-            raise Exception(
+            raise ValueError(
                 f"Misconfigured expected columns ({label}): no columns listed"
             )
 
@@ -235,14 +234,14 @@ def check_columns(file_path: Path, expected_columns: list[str], label: str) -> N
             message = f"Columns differ for {label}:\n"
             message += f"Only in expected columns: {list(set(expected_columns) - set(actual_columns))}\n"
             message += f"Only in actual columns: {list(set(actual_columns) - set(expected_columns))}"
-            raise Exception(message)
+            raise ValueError(message)
 
         # Else it's the same columns but in different order
         message = "Column order differ:\n"
         for col_expected, col_actual in zip_longest(expected_columns, actual_columns):
             comp = "==" if col_expected == col_actual else "=!=/!\\=!="
             message += f"{col_expected} {comp} {col_actual}\n"
-        raise Exception(message)
+        raise ValueError(message)
 
 
 def get_columns(input_path: Path) -> list[str]:
