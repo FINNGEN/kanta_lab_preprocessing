@@ -44,13 +44,9 @@ def check_dates_in_measurement(df: pd.DataFrame, errors: ErrorSink, verbose: boo
         bad_rows,
         err_name="DATE_IN_MEASUREMENT",
         err_value=(
-            bad_rows["TEST_NAME_ABBREVIATION"]
-            + "::"
-            + bad_rows["harmonization_omop::MEASUREMENT_VALUE"]
-            + "::"
-            + bad_rows["MEASUREMENT_FREE_TEXT"]
-            + "::"
-            + bad_rows[col]
+            bad_rows["TEST_NAME_ABBREVIATION"].str.cat(bad_rows["harmonization_omop::MEASUREMENT_VALUE"], sep="::")
+            .str.cat(bad_rows["MEASUREMENT_FREE_TEXT"], sep="::")
+            .str.cat(bad_rows[col], sep="::")
         ),
     )
 
