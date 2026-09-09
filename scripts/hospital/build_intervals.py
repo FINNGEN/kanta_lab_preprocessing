@@ -15,7 +15,7 @@ the same patient are merged into episodes.
 
 Usage:
   python3 build_intervals.py [--input PATH] [--out PATH] [--source INPAT] [--chunksize N]
-  python3 build_intervals.py --test   # run against the synthetic fixture in test_data/
+  python3 build_intervals.py --test   # run against the synthetic rows hardcoded below, no disk fixture
 """
 
 import argparse
@@ -28,9 +28,6 @@ from tqdm import tqdm
 DEFAULT_INPUT = Path("/mnt/disks/data/kanta/hospital/finngen_R14_detailed_longitudinal_2.0.txt.gz")
 DEFAULT_OUT_DIR = Path("/mnt/disks/data/kanta/hospital/results/")
 
-TEST_DATA_DIR = Path(__file__).parent / "test_data"
-TEST_INPUT = TEST_DATA_DIR / "detailed_longitudinal_test.txt.gz"
-
 USECOLS = ["FINNGENID", "SOURCE", "EVENT_AGE", "CODE4", "INDEX"]
 DTYPES = {
     "FINNGENID": "string",
@@ -41,6 +38,51 @@ DTYPES = {
 }
 
 DAYS_PER_YEAR = 365.25
+
+# Fully synthetic, hand-picked stand-in for the FinnGen detailed longitudinal
+# register file, for --test. Nothing here is derived from or resembles real
+# data. Only the columns build_intervals.py actually reads (USECOLS) --
+# --test never touches a file on disk, so there's no need to mirror the full
+# 11-column real schema the way an on-disk fixture would.
+#
+# Covers, by synthetic patient:
+#   TEST0001 -- two well-separated, non-overlapping INPAT visits
+#   TEST0002 -- two INPAT visits that overlap (same-day transfer, distinct
+#               INDEX values) and must merge into one episode
+#   TEST0003 -- one INPAT visit split across several rows (multiple
+#               diagnosis codes sharing one INDEX)
+#   TEST0004 -- one zero-duration INPAT visit (CODE4 = 0), plus a later,
+#               disjoint visit with a missing CODE4 (NA duration)
+#   TEST0005 -- non-hospital rows only (PURCH, OUTPAT), to confirm the
+#               INPAT-only filter drops everything for this patient
+TEST_ROWS = [
+    # FINNGENID   SOURCE     EVENT_AGE  CODE4  INDEX
+    ("TEST0001", "INPAT",     40.100,   3,    "1"),
+    ("TEST0001", "INPAT",     45.500,   5,    "2"),
+    ("TEST0002", "INPAT",     30.000,   2,    "10"),
+    ("TEST0002", "INPAT",     30.005,   4,    "11"),
+    ("TEST0002", "INPAT",     50.000,   1,    "12"),
+    ("TEST0003", "INPAT",     60.200,   6,    "20"),
+    ("TEST0003", "INPAT",     60.200,   6,    "20"),
+    ("TEST0003", "INPAT",     60.200,   6,    "20"),
+    ("TEST0004", "INPAT",     25.000,   0,    "30"),
+    ("TEST0004", "INPAT",     70.000,   None, "31"),
+    ("TEST0005", "PURCH",     20.000,   1,    "40"),
+    ("TEST0005", "OUTPAT",    21.000,   None, "41"),
+]
+
+
+def build_test_dataframe() -> pd.DataFrame:
+    return pd.DataFrame(TEST_ROWS, columns=["FINNGENID", "SOURCE", "EVENT_AGE", "CODE4", "INDEX"]).astype(DTYPES)
+
+
+def dedupe_to_visits(df: pd.DataFrame) -> pd.DataFrame:
+    """Group rows sharing (FINNGENID, INDEX) into one visit row."""
+    return df.groupby(["FINNGENID", "INDEX"], as_index=False).agg(
+        EVENT_AGE=("EVENT_AGE", "first"),
+        CODE4=("CODE4", "first"),
+        N_ROWS=("EVENT_AGE", "size"),
+    )
 
 
 def filtered_path_for(input_path: Path, source: str) -> Path:
@@ -106,13 +148,7 @@ def stream_visits(input_path: Path, chunksize: int, source: str) -> pd.DataFrame
                 sub = chunk.loc[chunk["SOURCE"] == source]
                 if sub.empty:
                     continue
-                per_chunk.append(
-                    sub.groupby(["FINNGENID", "INDEX"], as_index=False).agg(
-                        EVENT_AGE=("EVENT_AGE", "first"),
-                        CODE4=("CODE4", "first"),
-                        N_ROWS=("EVENT_AGE", "size"),
-                    )
-                )
+                per_chunk.append(dedupe_to_visits(sub))
 
     if not per_chunk:
         return pd.DataFrame(columns=["FINNGENID", "INDEX", "EVENT_AGE", "CODE4", "N_ROWS"])
@@ -163,10 +199,9 @@ def merge_intervals(visits: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
     return episodes_df.reset_index(), visits
 
 
-def read_raw_rows(input_path: Path, source: str) -> pd.DataFrame:
-    """Read the full file (small --test fixtures only) and return the raw,
-    unaggregated rows for `source`, sorted by (FINNGENID, EVENT_AGE)."""
-    df = pd.read_csv(input_path, sep="\t", usecols=USECOLS, dtype=DTYPES, na_values="NA")
+def select_raw_rows(df: pd.DataFrame, source: str) -> pd.DataFrame:
+    """Raw, unaggregated rows for `source` (--test only, df is small), sorted
+    by (FINNGENID, EVENT_AGE)."""
     return (
         df.loc[df["SOURCE"] == source, ["FINNGENID", "INDEX", "EVENT_AGE", "CODE4"]]
         .sort_values(["FINNGENID", "EVENT_AGE"])
@@ -220,33 +255,28 @@ def print_trace(raw: pd.DataFrame, visits: pd.DataFrame, episodes: pd.DataFrame)
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input", type=Path, default=None,
-                         help=f"Detailed longitudinal file (.txt.gz). Default: {DEFAULT_INPUT} "
-                              f"(or {TEST_INPUT} with --test)")
+                         help=f"Detailed longitudinal file (.txt.gz). Default: {DEFAULT_INPUT}. "
+                              f"Ignored with --test.")
     parser.add_argument("--out", type=Path, default=None,
                          help=f"Output directory (ignored with --test, which prints to screen instead). "
                               f"Default: {DEFAULT_OUT_DIR}")
     parser.add_argument("--source", default="INPAT", help="Register SOURCE value to treat as hospitalization")
     parser.add_argument("--chunksize", type=int, default=2_000_000, help="Rows per read chunk")
     parser.add_argument("--test", action="store_true",
-                         help="Run against the synthetic fixture in test_data/ instead of real data")
+                         help="Run against the synthetic rows hardcoded in this script instead of real data")
     args = parser.parse_args()
 
-    input_path = args.input or (TEST_INPUT if args.test else DEFAULT_INPUT)
-
-    if args.test and not input_path.exists():
-        raise SystemExit(
-            f"test fixture not found at {input_path} -- run generate_test_data.py first"
-        )
-
     if args.test:
-        # --test never writes a file, and the fixture is tiny -- read it directly,
-        # no need for a cached SOURCE-only extract.
-        visits = stream_visits(input_path, args.chunksize, args.source)
+        # --test never touches disk or writes a file: build the tiny synthetic
+        # table in memory and print the raw-data -> interval trace instead.
+        df = build_test_dataframe()
+        visits = dedupe_to_visits(df.loc[df["SOURCE"] == args.source])
         episodes, visits = merge_intervals(visits)
-        raw = read_raw_rows(input_path, args.source)
+        raw = select_raw_rows(df, args.source)
         print_trace(raw, visits, episodes)
         return
 
+    input_path = args.input or DEFAULT_INPUT
     scan_path = ensure_filtered_file(input_path, args.source)
     visits = stream_visits(scan_path, args.chunksize, args.source)
     episodes, visits = merge_intervals(visits)
