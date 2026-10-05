@@ -41,8 +41,10 @@ COLUMN_ALIASES = {
     "viitevalialkuyksikko": "REFERENCE_RANGE_LOWER_UNIT",
     "viitevaliloppuarvo": "REFERENCE_RANGE_UPPER_VALUE",
     "viitevaliloppuyksikko": "REFERENCE_RANGE_UPPER_UNIT",
+    "viitevaliteksti": "REFERENCE_RANGE_TEXT",
     "tutkimuksentekotapa":"MEASUREMENT_METHOD",
     "tutkimustulosteksti": "MEASUREMENT_FREE_TEXT",
+    "palvelutuottaja_organisaatio": "SERVICE_PROVIDER",
     "_rowid": "ROWID",
 }
 
@@ -95,12 +97,14 @@ OUTPUT_COLUMNS = {
     "CODING_SYSTEM_MAP": (True, "CODING_SYSTEM_ORG", "string"),
     "MEASUREMENT_STATUS": (True, "MEASUREMENT_STATUS", "string"),
     "MEASUREMENT_METHOD": (True, "MEASUREMENT_METHOD", "string"),
+    "SERVICE_PROVIDER": (True, "SERVICE_PROVIDER_ID", "string"),
     # Reference ranges
     "REFERENCE_RANGE_GROUP": (True, "REFERENCE_RANGE_GROUP", "string"),
     "REFERENCE_RANGE_LOWER_VALUE": (True, "REFERENCE_RANGE_LOW_VALUE", "Float64"),
     "REFERENCE_RANGE_LOWER_UNIT": (True, "REFERENCE_RANGE_LOW_UNIT", "string"),
     "REFERENCE_RANGE_UPPER_VALUE": (True, "REFERENCE_RANGE_HIGH_VALUE", "Float64"),
     "REFERENCE_RANGE_UPPER_UNIT": (True, "REFERENCE_RANGE_HIGH_UNIT", "string"),
+    "REFERENCE_RANGE_TEXT": (True, "REFERENCE_RANGE_TEXT", "string"),
     # Sensitive data
     "MEASUREMENT_FREE_TEXT": (False, "MEASUREMENT_FREE_TEXT", "string"),
     # Dumps from source
@@ -137,7 +141,7 @@ UNIT_COLUMNS = ["ROWID", "_rowid_source", "TEST_NAME_ABBREVIATION", "ERR", "OLD_
 
 # Columns to leave untouched when stripping whitespace (e.g. free text, where spaces are
 # meaningful), using post-alias (renamed) column names.
-COLUMNS_WITH_SPACES = ["MEASUREMENT_FREE_TEXT"]
+COLUMNS_WITH_SPACES = ["MEASUREMENT_FREE_TEXT", "REFERENCE_RANGE_TEXT"]
 
 # Keyword tokens that mean "missing" and get normalized to the literal "NA" string.
 # Applies to all columns by default; see NA_KEYWORDS_OVERRIDES for column-specific lists.
@@ -320,6 +324,10 @@ STATUS_INDICATORS = ("<", ">", "yli", "alle")
 
 # Free-text -> pos/neg (extracted::IS_POS) mapping, e.g. "NEGAT" -> "0".
 POSNEG_MAP_FILE = DATA_DIR / "negpos_mapping.tsv"
+
+# (free text, OMOP_ID) -> pos/neg mapping for "+"-style results (e.g. "+", "++", "3+" on urine
+# test strips), where the meaning depends on the test. Only rows with IS_POS "0"/"1" are used.
+PLUS_AB_MAP_FILE = DATA_DIR / "kanta_plusplus_abnormality.tsv"
 
 # Per-OMOP_ID abnormality reference range: LOW_LIMIT/HIGH_LIMIT plus LOW_PROBLEM/HIGH_PROBLEM
 # flags (whether crossing that limit is itself a problem, e.g. "L*" vs "L").

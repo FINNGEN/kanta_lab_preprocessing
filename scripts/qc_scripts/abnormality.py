@@ -1,11 +1,21 @@
 #!/bin/python3
 import argparse
 import os
+from pathlib import Path
 import psutil
 import pandas as pd
 import numpy as np
 import duckdb
 from tqdm import tqdm
+
+# Usagi mapping table, relative to this script (scripts/qc_scripts/ -> repo root).
+DEFAULT_MAP = Path(__file__).resolve().parent.parent.parent / "src/kanta/engine/data/LABfi.tsv"
+
+def load_omop_names(map_file):
+    """OMOP_ID -> concept name from the Usagi mapping table (LABfi.tsv)."""
+    df = pd.read_csv(map_file, sep='\t', dtype=str, keep_default_na=False,
+                     usecols=['harmonization_omop::OMOP_ID', 'harmonization_omop::OMOP_NAME'])
+    return dict(zip(df['harmonization_omop::OMOP_ID'], df['harmonization_omop::OMOP_NAME']))
 
 def get_high_low_percentiles(df, percentile=5):
     high_keys, low_keys = ['H', 'HH'], ['L', 'LL']
@@ -81,6 +91,7 @@ def select_threshold(entries, thresholds):
 
 def main(args):
     # Get dynamic system configuration
+    omop_names = load_omop_names(args.map)
     threads, memory_limit_gb = get_system_config()
     print(f"System detected: {psutil.cpu_count()} CPUs, {psutil.virtual_memory().total / (1024**3):.1f}GB RAM")
     print(f"Allocating: {threads} threads, {memory_limit_gb}GB memory")
@@ -97,7 +108,8 @@ def main(args):
     con.execute(f"SET max_temp_directory_size='{available_gb}GB'")
     con.execute(f"SET temp_directory='{temp_dir}'")
     
-    print(f"Scanning Parquet to identify IDs with at least {args.min_count} entries...")
+    # Only rows that didn't fail QC (QC_PASS: 0 failed, 1 passed, 2 unchecked)
+    print(f"Scanning Parquet to identify IDs with at least {args.min_count} entries (QC_PASS > 0)...")
     
     t_filt = f"AND OMOP_CONCEPT_ID IN (3008486, 3009201, 3027238, 3032333, 3023199, 3020460, 3018572)" if args.test else ""
     
@@ -107,6 +119,7 @@ def main(args):
         FROM read_parquet('{args.parquet_file}')
         WHERE OMOP_CONCEPT_ID IS NOT NULL
           AND MEASUREMENT_VALUE_HARMONIZED IS NOT NULL
+          AND QC_PASS > 0
           {t_filt}
         GROUP BY OMOP_CONCEPT_ID
         HAVING COUNT(*) >= {args.min_count}
@@ -157,6 +170,7 @@ def main(args):
             FROM read_parquet('{args.parquet_file}')
             WHERE OMOP_CONCEPT_ID IN ({id_list})
               AND MEASUREMENT_VALUE_HARMONIZED IS NOT NULL
+              AND QC_PASS > 0
             ORDER BY OMOP_CONCEPT_ID, value
         """
         
@@ -168,6 +182,9 @@ def main(args):
             if res:
                 results.append(res)
     
+    # Most-measured OMOP IDs first (ties by numeric ID), so `head` shows the most relevant ones
+    results.sort(key=lambda r: (-r['ENTRIES'], int(r['ID'])))
+
     # --- SAVE DETAILED TSV (--ab_ranges) ---
     with open(args.ab_ranges, 'wt') as f:
         # Build header dynamically based on thresholds
@@ -177,7 +194,7 @@ def main(args):
         for t in sorted(args.thresholds):
             threshold_cols.append(f'UPPER_{t}')
         
-        header = ['ID'] + threshold_cols + ['LOW_5', 'HIGH_95', 'ENTRIES', 'COUNTS']
+        header = ['ID'] + threshold_cols + ['LOW_5', 'HIGH_95', 'ENTRIES', 'COUNTS', 'NAME']
         f.write('\t'.join(header) + '\n')
         
         for r in results:
@@ -210,13 +227,15 @@ def main(args):
             
             # Add counts dictionary as string
             row_data.append(str(r['COUNTS']))
+
+            row_data.append(omop_names.get(r['ID'], 'NA'))
             
             f.write('\t'.join(row_data) + '\n')
     
     # --- SAVE SIMPLIFIED TSV (--ab_table) ---
     with open(args.ab_table, 'wt') as f:
         # Write header
-        f.write('\t'.join(['ID', 'LOW_LIMIT', 'HIGH_LIMIT', 'LOW_PROBLEM', 'HIGH_PROBLEM']) + '\n')
+        f.write('\t'.join(['ID', 'LOW_LIMIT', 'HIGH_LIMIT', 'LOW_PROBLEM', 'HIGH_PROBLEM', 'NAME']) + '\n')
         
         for r in results:
             entries = r['ENTRIES']
@@ -249,7 +268,7 @@ def main(args):
             high_res = np.inf if high_col == "NA" else float(high_col.replace('*', ''))
             
             # Write results
-            row = [r['ID'], low_res, high_res, low_problem, high_problem]
+            row = [r['ID'], low_res, high_res, low_problem, high_problem, omop_names.get(r['ID'], 'NA')]
             f.write('\t'.join(map(str, row)) + '\n')
             
     print(f"\nDone. {len(results)} IDs processed.")
@@ -273,5 +292,7 @@ if __name__ == "__main__":
                         help="Max rows per batch in millions (default: 10M)")
     parser.add_argument('--thresholds', default=[0.9, 0.95, 0.99], nargs='*', type=float,
                         help="Thresholds for estimation (default: 0.9 0.95 0.99)")
+    parser.add_argument('--map', default=DEFAULT_MAP,
+                        help="Usagi mapping table for OMOP concept names (default: %(default)s)")
     parser.add_argument("--test", action='store_true', help="Run in test mode with limited IDs")
     main(parser.parse_args())

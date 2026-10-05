@@ -54,6 +54,9 @@ if __name__ == "__main__":
         args.output_dir
         / f"finngen_R14_kanta_laboratory_responses_internal_1.0_{today}.parquet"
     )
+    output.check_safe_write(
+        output_file_tidyup_stage.with_name(f"{output_file_tidyup_stage.stem}_duplicates.parquet")
+    )
 
     tmp_dir = output.create_tmp_dir()
 

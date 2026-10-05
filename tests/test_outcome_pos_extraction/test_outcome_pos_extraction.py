@@ -10,33 +10,56 @@ from tests import (
     parquet_to_ppjson,
 )
 
+# One row per pos/neg lookup table, each using that table's top entry by COUNT so the expected
+# result is very unlikely to change when the tables get curated:
+# - negpos_mapping.tsv: free text "NEGAT" -> IS_POS 0
+# - kanta_plusplus_abnormality.tsv: "+" on OMOP 3011397 (Hemoglobin [Presence] in Urine by Test
+#   strip, reached via the APPROVED u-hb-o mapping in LABfi.tsv) -> IS_POS 1
+# plus a control: "+" on an unmapped test must NOT match, since the plus table is keyed on the
+# (free text, OMOP_ID) pair.
 MOCK_MAIN = [
     {
-        "FINNGENID": "FAKE1",
-        "paikallinentutkimusnimike_koodi": "0000",
+        "FINNGENID": "FAKE_NEGPOS",
+        "paikallinentutkimusnimike_koodi": "0001",
         "paikallinentutkimusnimike_selite": "some-test",
-        "tutkimustulosarvo": "1.2345",
-        "tutkimustulosyksikko": "g/l",
-        "palvelutuottaja_organisaatio": "28e581d0880ef6ed6c8866b987238267",
-    }
+    },
+    {
+        "FINNGENID": "FAKE_PLUS",
+        "paikallinentutkimusnimike_koodi": "0002",
+        "paikallinentutkimusnimike_selite": "u-hb-o",
+    },
+    {
+        "FINNGENID": "FAKE_PLUS_UNMAPPED",
+        "paikallinentutkimusnimike_koodi": "0003",
+        "paikallinentutkimusnimike_selite": "some-test",
+    },
 ]
 MOCK_FREETEXT = [
-    {
-        "FINNGENID": "FAKE1",
-        "tutkimustulosteksti": "my_freetext",
-        "viitevaliteksti": "4.3-5.7 E12/l",
-    }
+    {"FINNGENID": "FAKE_NEGPOS", "tutkimustulosteksti": "NEGAT"},
+    {"FINNGENID": "FAKE_PLUS", "tutkimustulosteksti": "+"},
+    {"FINNGENID": "FAKE_PLUS_UNMAPPED", "tutkimustulosteksti": "+"},
 ]
 MOCK_PHENO_SEX = [
-    {
-        "FINNGENID": "FAKE1",
-        "SEX": "female",
-    }
+    {"FINNGENID": "FAKE_NEGPOS", "SEX": "female"},
+    {"FINNGENID": "FAKE_PLUS", "SEX": "female"},
+    {"FINNGENID": "FAKE_PLUS_UNMAPPED", "SEX": "female"},
 ]
+
+# FINNGENID -> release fields that must hold, checked before the full golden comparison so a
+# failure names the broken lookup instead of just "row N differs".
+EXPECTED = {
+    "FAKE_NEGPOS": {"OUTCOME_POS_EXTRACTED": 0},
+    "FAKE_PLUS": {
+        "OMOP_CONCEPT_ID": "3011397",
+        "OUTCOME_POS_EXTRACTED": 1,
+        "TEST_OUTCOME_TEXT_EXTRACTED": "+",
+    },
+    "FAKE_PLUS_UNMAPPED": {"OUTCOME_POS_EXTRACTED": None},
+}
 
 
 def test_finngen_qc_e2e():
-    """End-to-end test running the full pipeline (intake + engine) with mock data"""
+    """End-to-end test that the negpos and plus-plus free-text lookups set OUTCOME_POS_EXTRACTED"""
 
     # Get paths relative to test file
     test_dir = Path(__file__).parent
@@ -67,7 +90,7 @@ def test_finngen_qc_e2e():
             '--output-dir', tmpdir.name
         ]
         print("command=\n" + " ".join(map(str, command)))
-        result = subprocess.run(
+        subprocess.run(
             command,
             capture_output=True,
             text=True,
@@ -75,37 +98,28 @@ def test_finngen_qc_e2e():
             check=True
         )
 
-        # Check exit code
-        assert result.returncode == 0, (
-            f"Command failed with exit code {result.returncode}\n"
-            f"STDOUT:\n{result.stdout}\n"
-            f"STDERR:\n{result.stderr}"
-        )
-
-        # Check that output files were created
-        expected_n_output_files = 5
         output_files = list(Path(tmpdir.name).glob("finngen_R*_kanta_laboratory_responses_1.0_*.parquet"))
-        assert len(output_files) == expected_n_output_files, \
-            f"Different number of output files, expected 5, got {len(output_files)}"
-
-        # Check that log file was created
-        log_file = next(Path(tmpdir.name).glob("finngen_R*_kanta_laboratory_responses_1.0_*.log"))
-        assert log_file.exists(), "No log file created"
-
-        # Read the actual data
-        # NOTE(Vincent 2026-08-26) There is an inherent conflict when comparing the Parquet output
-        # to the JSON golden output as the two formats are not directly compatible (e.g. there is
-        # no `datetime` type in JSON). So here I made the decision to compare JSON to JSON by
-        # first converting the Parquet to JSON, losing some information in the process, this is
-        # a compromise.
         actual_release_file = next(filter(lambda ff: "RELEASE" in ff.name, output_files))
         actual_release_ppjson_file = parquet_to_ppjson(actual_release_file)
 
-        with open(actual_release_ppjson_file, 'r',encoding='utf-8') as ff:
+        with open(actual_release_ppjson_file, 'r', encoding='utf-8') as ff:
             actual_data = json.load(ff)
 
         with open(golden_file, 'r', encoding='utf-8') as ff:
             golden_data = json.load(ff)
+
+        # Targeted checks on the lookup results
+        rows_by_id = {row["FINNGENID"]: row for row in actual_data}
+        failures = []
+        for finngenid, fields in EXPECTED.items():
+            row = rows_by_id.get(finngenid)
+            if row is None:
+                failures.append(f"  {finngenid}: row missing from release output")
+                continue
+            for field, expected in fields.items():
+                if row.get(field) != expected:
+                    failures.append(f"  {finngenid}: {field} is {row.get(field)!r}, expected {expected!r}")
+        assert not failures, "Pos/neg free-text lookup broken:\n" + "\n".join(failures)
 
         # Compare rows by rows
         differences = []

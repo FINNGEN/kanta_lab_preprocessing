@@ -27,6 +27,7 @@ from argparse import ArgumentParser
 from pathlib import Path
 
 import polars as pl
+import pyarrow.parquet as pq
 
 from kanta import output
 
@@ -66,6 +67,9 @@ def main(
     tmp_dir_sort_dedup = tmp_dir / "sort_dedup"
     tmp_dir_sort_dedup.mkdir()
 
+    tmp_dir_duplicates = tmp_dir / "duplicates"
+    tmp_dir_duplicates.mkdir()
+
     print("# Consolidate")
     consolidated_file = consolidate_columns(assembled_file, tmp_file_consolidate)
 
@@ -74,11 +78,14 @@ def main(
 
     print("# Sort + Dedup")
     for bucket_file in tmp_dir_partition.glob("bucket_id__*.parquet"):
-        (
-            pl.scan_parquet(bucket_file)
-            .pipe(sort_dedup)
-            .sink_parquet(tmp_dir_sort_dedup / bucket_file.name)
-        )
+        kept, dropped = sort_dedup(pl.scan_parquet(bucket_file))
+        kept.sink_parquet(tmp_dir_sort_dedup / bucket_file.name)
+        dropped.sink_parquet(tmp_dir_duplicates / bucket_file.name)
+
+    duplicates_output_file = output_file.with_name(f"{output_file.stem}_duplicates.parquet")
+    print(f"# Writing duplicate rows to {duplicates_output_file}")
+    duplicate_bucket_files = sorted(tmp_dir_duplicates.glob("bucket_id__*.parquet"))
+    concatenate_parquet_files(duplicate_bucket_files, duplicates_output_file)
 
     print("# Concatenate + join SEX")
     bucket_files = []
@@ -114,11 +121,11 @@ def main(
         "EVENT_AGE",
         "APPROX_EVENT_DAY",
         "TIME",
-        "asiakirjaoid_pseudo",
-        "merkintaoid_pseudo",
-        "entryoid_pseudo",
-        "load_id_pseudo",
-        "file_name_pseudo",
+        "asiakirjaoid",
+        "merkintaoid",
+        "entryoid",
+        "load_id",
+        "file_name",
         "laboratoriotutkimusoid",
         "_rowid",
         "_rowid_source",
@@ -152,7 +159,9 @@ def main(
             "viitevalialkuyksikko",
             "viitevaliloppuarvo",
             "viitevaliloppuyksikko",
+            "viitevaliteksti",
             "tutkimustulosteksti",
+            "palvelutuottaja_organisaatio",
             "SEX",
         )
         .sink_parquet(output_file)
@@ -217,7 +226,9 @@ def consolidate_columns(assembled_file: Path, output_file: Path) -> Path:
         "main.viitevalialkuyksikko": "viitevalialkuyksikko",
         "main.viitevaliloppuarvo": "viitevaliloppuarvo",
         "main.viitevaliloppuyksikko": "viitevaliloppuyksikko",
+        "main.palvelutuottaja_organisaatio": "palvelutuottaja_organisaatio",
         "freetext.tutkimustulosteksti": "tutkimustulosteksti",
+        "freetext.viitevaliteksti": "viitevaliteksti",
     }
 
     out_columns = list(rename_columns.keys()) + ["_rowid_source"]
@@ -241,7 +252,29 @@ def partition(assembled_file: Path, tmp_dir: Path, n_buckets):
         )
 
 
+def concatenate_parquet_files(input_files: list[Path], output_file: Path) -> None:
+    """Concatenate parquet files by copying row batches directly, one at a time.
+
+    Polars' `sink_parquet` over a multi-file `scan_parquet` is not reliably
+    streaming in all versions/engines, and has been observed to materialize
+    the whole dataset in memory. Using pyarrow directly guarantees a bounded
+    memory footprint regardless of total row count.
+    """
+    writer = None
+    try:
+        for input_file in input_files:
+            reader = pq.ParquetFile(input_file)
+            if writer is None:
+                writer = pq.ParquetWriter(output_file, reader.schema_arrow, compression="zstd")
+            for batch in reader.iter_batches():
+                writer.write_batch(batch)
+    finally:
+        if writer is not None:
+            writer.close()
+
+
 def sort_dedup(frame: pl.LazyFrame | pl.DataFrame):
+    """Sort by the full column order, then split into kept rows (first per duplicate key) and dropped duplicates."""
     all_columns = frame.collect_schema().names()
     sort_subset_columns = set(COLUMNS_UNIQUENESS_SORT)
     other_columns = []
@@ -251,15 +284,19 @@ def sort_dedup(frame: pl.LazyFrame | pl.DataFrame):
 
     sort_full_columns = COLUMNS_UNIQUENESS_SORT + other_columns
 
-    return frame.sort(by=sort_full_columns).unique(
-        subset=COLUMNS_UNIQUENESS_SORT, keep="first", maintain_order=True
-    )
+    sorted_frame = frame.sort(by=sort_full_columns)
+    is_first = pl.struct(COLUMNS_UNIQUENESS_SORT).is_first_distinct()
+
+    kept = sorted_frame.filter(is_first)
+    dropped = sorted_frame.filter(~is_first)
+    return kept, dropped
 
 
 if __name__ == "__main__":
     args = init_cli()
 
     output.check_safe_write(args.output_file)
+    output.check_safe_write(args.output_file.with_name(f"{args.output_file.stem}_duplicates.parquet"))
     tmp_dir = output.create_tmp_dir()
 
     main(

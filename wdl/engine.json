@@ -1,0 +1,8 @@
+{
+    "engine.test": false,
+    "engine.tidied_parquet": "gs://fg-3/kanta_v4/dev/intake/finngen_R15_dev_kanta_laboratory_responses_internal_1.0.parquet",
+    "engine.docker": "europe-west1-docker.pkg.dev/finngen-refinery-dev/fg-refinery-registry/kanta:v4-engine.qc",
+    "engine.prefix": "finngen_R14_kanta_laboratory_responses_1.0",
+    "engine.chunk_size": 200000,
+    "engine.injection_branch": "injection-dev"
+}

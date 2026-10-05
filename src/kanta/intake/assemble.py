@@ -22,11 +22,11 @@ EXPECTED_COLUMNS_MAIN = [
     "EVENT_AGE",
     "APPROX_EVENT_DAY",
     "TIME",
-    "asiakirjaoid_pseudo",
-    "merkintaoid_pseudo",
-    "entryoid_pseudo",
-    "load_id_pseudo",
-    "file_name_pseudo",
+    "asiakirjaoid",
+    "merkintaoid",
+    "entryoid",
+    "load_id",
+    "file_name",
     "laboratoriotutkimusoid",
     "laboratoriotutkimusnimike",
     "paikallinentutkimusnimike_koodi",
@@ -44,6 +44,7 @@ EXPECTED_COLUMNS_MAIN = [
     "viitevalialkuyksikko",
     "viitevaliloppuarvo",
     "viitevaliloppuyksikko",
+    "palvelutuottaja_organisaatio",
 ]
 
 EXPECTED_COLUMNS_FREETEXT = [
@@ -51,12 +52,13 @@ EXPECTED_COLUMNS_FREETEXT = [
     "EVENT_AGE",
     "APPROX_EVENT_DAY",
     "TIME",
-    "asiakirjaoid_pseudo",
-    "merkintaoid_pseudo",
-    "entryoid_pseudo",
-    "load_id_pseudo",
-    "file_name_pseudo",
+    "asiakirjaoid",
+    "merkintaoid",
+    "entryoid",
+    "load_id",
+    "file_name",
     "tutkimustulosteksti",
+    "viitevaliteksti",
 ]
 
 COL_PREFIX_MAIN = "main."

@@ -469,6 +469,37 @@ def get_posneg_table(verbose: bool = False) -> dict[str, str]:
 
 
 @lru_cache(maxsize=1)
+def get_plus_ab_table(verbose: bool = False) -> pd.Series:
+    """(MEASUREMENT_FREE_TEXT, OMOP_ID) -> extracted::IS_POS ("0"/"1") lookup for "+"-style
+    results, indexed by the pair since the same text means different things per test.
+
+    MEASUREMENT_FREE_TEXT  OMOP_ID   ->  extracted::IS_POS
+    "+"                    3011397   ->  "1"
+    "++"                   3014051   ->  "1"
+
+    Rows whose IS_POS isn't "0"/"1" are dropped; duplicate keys keep the first entry so a
+    lookup can never fan out a row in df.
+    """
+
+    def compute():
+        df = pd.read_csv(
+            config.PLUS_AB_MAP_FILE,
+            sep="\t",
+            usecols=["MEASUREMENT_FREE_TEXT", "harmonization_omop::OMOP_ID", "extracted::IS_POS"],
+            dtype=str,
+            keep_default_na=False,
+        )
+        df = df[df["extracted::IS_POS"].isin(["0", "1"])]
+        df = df.drop_duplicates(subset=["MEASUREMENT_FREE_TEXT", "harmonization_omop::OMOP_ID"], keep="first")
+        return df.set_index(["MEASUREMENT_FREE_TEXT", "harmonization_omop::OMOP_ID"])["extracted::IS_POS"]
+
+    result = _cached("plus_ab_table", compute)
+    if verbose:
+        logger.info(f"[reference_data] plus_ab_table: {len(result)} (free text, OMOP_ID) entries loaded")
+    return result
+
+
+@lru_cache(maxsize=1)
 def get_ab_limits(verbose: bool = False) -> pd.DataFrame:
     """Per-OMOP_ID abnormality reference range: LOW_LIMIT/HIGH_LIMIT plus LOW_PROBLEM/HIGH_PROBLEM
     flags, indexed by OMOP_ID. See scripts/qc_scripts/abnormality.py for how it's built.
@@ -674,6 +705,7 @@ def warm_all(verbose: bool = True) -> None:
     get_usagi_mapping(verbose=verbose)
     get_conversion_table(verbose=verbose)
     get_posneg_table(verbose=verbose)
+    get_plus_ab_table(verbose=verbose)
     get_ab_limits(verbose=verbose)
     get_omop_qc(verbose=verbose)
     get_compiled_omop_qc(verbose=verbose)

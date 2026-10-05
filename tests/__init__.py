@@ -24,11 +24,11 @@ def fill_templates_with_mocks(
         "EVENT_AGE": default_age,
         "APPROX_EVENT_DAY": default_day,
         "TIME": default_time,
-        "asiakirjaoid_pseudo": "NA",
-        "merkintaoid_pseudo": "NA",
-        "entryoid_pseudo": "NA",
-        "load_id_pseudo": "NA",
-        "file_name_pseudo": "NA",
+        "asiakirjaoid": "NA",
+        "merkintaoid": "NA",
+        "entryoid": "NA",
+        "load_id": "NA",
+        "file_name": "NA",
         "laboratoriotutkimusoid": "NA",
         "laboratoriotutkimusnimike": "NA",
         "paikallinentutkimusnimike_koodi": "NA",
@@ -46,6 +46,7 @@ def fill_templates_with_mocks(
         "viitevalialkuyksikko": "NA",
         "viitevaliloppuarvo": "NA",
         "viitevaliloppuyksikko": "NA",
+        "palvelutuottaja_organisaatio": "NA",
     }
 
     template_freetext = {
@@ -53,12 +54,13 @@ def fill_templates_with_mocks(
         "EVENT_AGE": default_age,
         "APPROX_EVENT_DAY": default_day,
         "TIME": default_time,
-        "asiakirjaoid_pseudo": "NA",
-        "merkintaoid_pseudo": "NA",
-        "entryoid_pseudo": "NA",
-        "load_id_pseudo": "NA",
-        "file_name_pseudo": "NA",
+        "asiakirjaoid": "NA",
+        "merkintaoid": "NA",
+        "entryoid": "NA",
+        "load_id": "NA",
+        "file_name": "NA",
         "tutkimustulosteksti": None,
+        "viitevaliteksti": "NA",
     }
 
     # NOTE(Vincent 2026-08-14) Inputs are TSV files which are untyped strings, so make sure we are

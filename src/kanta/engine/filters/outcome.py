@@ -89,6 +89,27 @@ def extract_outcome(df: pd.DataFrame, verbose: bool = False) -> pd.DataFrame:
     return df
 
 
+def extract_plus_ab(df: pd.DataFrame, verbose: bool = False) -> pd.DataFrame:
+    """Override extracted::IS_POS and extracted::TEST_OUTCOME_TEXT for "+"-style results
+    (e.g. "+", "++", "3+") using the (free text, OMOP_ID)-keyed lookup table.
+
+    Matched rows get IS_POS from the table and the free text itself as TEST_OUTCOME_TEXT.
+    Must run after extract_positive/extract_outcome (it overrides them) and after
+    harmonization (it needs OMOP_ID).
+    """
+    plus_table = reference_data.get_plus_ab_table()
+    keys = pd.MultiIndex.from_frame(df[["MEASUREMENT_FREE_TEXT", "harmonization_omop::OMOP_ID"]])
+    matched = pd.Series(plus_table.reindex(keys).to_numpy(), index=df.index)
+    is_matched = matched.notna()
+
+    df.loc[is_matched, "extracted::IS_POS"] = matched.loc[is_matched]
+    df.loc[is_matched, "extracted::TEST_OUTCOME_TEXT"] = df.loc[is_matched, "MEASUREMENT_FREE_TEXT"]
+
+    if verbose:
+        print(f"[outcome] extract_plus_ab: {int(is_matched.sum())}/{len(df)} rows matched")
+    return df
+
+
 def impute_outcome(df: pd.DataFrame, verbose: bool = False) -> pd.DataFrame:
     """Assign imputed::TEST_OUTCOME (L/L*/H/H*/N) by comparing harmonization_omop::
     MEASUREMENT_VALUE against the (OMOP_ID-indexed) LOW_LIMIT/HIGH_LIMIT reference range.
@@ -126,6 +147,7 @@ def run(df: pd.DataFrame, verbose: bool = False) -> pd.DataFrame:
     df = (
         df.pipe(extract_positive, verbose)
         .pipe(extract_outcome, verbose)
+        .pipe(extract_plus_ab, verbose)
         .pipe(impute_outcome, verbose)
     )
     return df
