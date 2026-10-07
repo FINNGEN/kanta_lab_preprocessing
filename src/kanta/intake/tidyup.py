@@ -41,6 +41,11 @@ COLUMNS_UNIQUENESS_SORT = [
     "tutkimusvastauksentila",
     "tutkimustulosarvo",
     "tutkimustulosyksikko",
+    # Rows differing only in these were otherwise collapsed arbitrarily by sort order,
+    # e.g. text-only results (value/unit NA) or conflicting outcome flags. See docs/intake_dedup.md.
+    "tuloksenpoikkeavuus",
+    "palvelutuottaja_organisaatio",
+    "tutkimustulosteksti",
 ]
 
 

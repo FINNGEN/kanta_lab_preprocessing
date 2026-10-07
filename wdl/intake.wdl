@@ -30,17 +30,9 @@ workflow intake {
     prefix = prefix
   }
 
-  call export_tsv {
-    input:
-    docker = tidyup_docker,
-    tidied_parquet = tidyup.tidied_parquet,
-    prefix = prefix
-  }
-
   output {
     File assembled = assemble.assembled_file
     File tidied_parquet = tidyup.tidied_parquet
-    File tidied_tsv_gz = export_tsv.tidied_tsv_gz
     File tidied_duplicates_parquet = tidyup.tidied_duplicates_parquet
   }
 }
@@ -99,35 +91,5 @@ task tidyup {
     docker: docker
     predefinedMachineType: "n2d-highcpu-32"
     disks: "local-disk ~{ceil(size(assembled_file, 'GB')) * 3 + 1} SSD"
-  }
-}
-
-
-task export_tsv {
-  input {
-    File tidied_parquet
-    String prefix
-    String docker
-  }
-
-  Int disk_size = ceil(size(tidied_parquet, 'GB') * 2 + 10)
-  String out = prefix + ".txt.gz"
-  command <<<
-    set -euxo pipefail
-    clickhouse --query "SELECT * FROM '~{tidied_parquet}'" \
-      --format TSVWithNames \
-      --max_threads "$(nproc)" \
-      --input_format_parquet_preserve_order 1 \
-      | pigz > ~{out}
-  >>>
-
-  output {
-    File tidied_tsv_gz = out
-  }
-
-  runtime {
-    docker: docker
-    disks: "local-disk ~{disk_size} HDD"
-    cpu: 16
   }
 }
