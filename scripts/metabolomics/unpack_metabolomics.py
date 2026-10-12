@@ -106,10 +106,19 @@ TEST_NAME_EN = {
     "11282": "S-NGMuut",
 }
 
+# Read from the main engine output, not _RELEASE: the release drops MEASUREMENT_FREE_TEXT
+# (sensitive), which is where all the metabolomics results live. The main output keeps the
+# engine's internal names for two columns, renamed on read (SOURCE_RENAMES) to their release
+# names so the output tables stay consistent with the rest of the release.
 NEEDED_COLS = [
     "ROWID", "FINNGENID", "SEX", "APPROX_EVENT_DATETIME", "EVENT_AGE",
-    "TEST_ID", "TEST_NAME", "CODING_SYSTEM_ORG", "MEASUREMENT_FREE_TEXT",
+    "TEST_ID", "TEST_NAME_ABBREVIATION", "CODING_SYSTEM_MAP", "MEASUREMENT_FREE_TEXT",
 ]
+
+SOURCE_RENAMES = {
+    "TEST_NAME_ABBREVIATION": "TEST_NAME",
+    "CODING_SYSTEM_MAP": "CODING_SYSTEM_ORG",
+}
 
 METADATA_COLS = ["FINNGENID", "SEX", "APPROX_EVENT_DATETIME", "EVENT_AGE", "TEST_ID", "TEST_NAME", "CODING_SYSTEM_ORG"]
 
@@ -221,13 +230,30 @@ RISK_EQ_RE = re.compile(r"^Yhtä suuri riski kuin verrokkiryhmällä \((\d+-\d+)
 # matched" case below and is left in RAW_TEXT only.
 
 
+def unmask_risk_text(text: str) -> str:
+    """Undo THL's over-cautious name masking (scripts/THL/out.R) of risk-score free text.
+
+    THL replaces common Finnish first names, as whole words, with NNNNN; "Riski" and "Matala"
+    are on that list, so the plain words "riski" and "Matala"/"matala" get masked too ("Korkea",
+    "Kohonnut" etc. are not). In this text each NNNNN position has exactly one possible original,
+    validated against pre-masking data: "riski" right before "riskiluokassa"/"kuin", "Matala" as
+    the leading risk category, "matala" anywhere else ("riskisi on matala."). A no-op on unmasked
+    text -- remove once THL stops masking these words.
+    """
+    text = text.replace("NNNNN riskiluokassa", "riski riskiluokassa")
+    text = text.replace("NNNNN kuin", "riski kuin")
+    text = re.sub(r"^NNNNN", "Matala", text)
+    return text.replace("NNNNN", "matala")
+
+
 def parse_risk_text(text: str) -> dict:
     """Structured fields pulled from one risk-score free-text body, when
-    present -- always includes RAW_TEXT so nothing is lost. Returns {} for a
-    whole-panel "not done" note or a missing free text (skip -- same
-    convention as S-NGMuut)."""
+    present -- always includes RAW_TEXT (unmasked, see unmask_risk_text) so
+    nothing is lost. Returns {} for a whole-panel "not done" note or a missing
+    free text (skip -- same convention as S-NGMuut)."""
     if pd.isna(text) or text.startswith("Ei tehty"):
         return {}
+    text = unmask_risk_text(text)
 
     fields = {"RISK_CATEGORY": None, "RISK_PCT": None, "COMPARISON": None,
               "COMPARISON_PERCENTILE": None, "AGE_GROUP": None, "SEX_GROUP": None, "RAW_TEXT": text}
@@ -281,11 +307,16 @@ def unpack_risk_batch(batch: pd.DataFrame) -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 
 def resolve_kanta_input() -> Path:
-    """Default to the most recently modified *_RELEASE.parquet in the engine dir,
-    since the dated filename changes with every new engine run."""
-    candidates = sorted(DEFAULT_ENGINE_DIR.glob("*_RELEASE.parquet"), key=lambda p: p.stat().st_mtime)
+    """Default to the main engine output (<prefix>.parquet) of the most recent engine run in
+    the engine dir, since the dated prefix changes with every run. Found via its
+    <prefix>_RELEASE.parquet sibling, so the run's other companion files (_errors, _abbr,
+    _unit) and unrelated parquets in the same dir are never picked up."""
+    releases = sorted(DEFAULT_ENGINE_DIR.glob("*_RELEASE.parquet"), key=lambda p: p.stat().st_mtime)
+    candidates = [p.with_name(p.name.removesuffix("_RELEASE.parquet") + ".parquet") for p in releases]
+    candidates = [p for p in candidates if p.exists()]
     if not candidates:
-        raise SystemExit(f"no *_RELEASE.parquet found under {DEFAULT_ENGINE_DIR} -- pass --input")
+        raise SystemExit(f"no main engine output (<prefix>.parquet next to <prefix>_RELEASE.parquet) "
+                         f"found under {DEFAULT_ENGINE_DIR} -- pass --input")
     return candidates[-1]
 
 
@@ -314,7 +345,7 @@ def translate_risk_categories(risk: pd.DataFrame) -> pd.DataFrame:
     return risk
 
 
-# Fully synthetic, hand-picked stand-in for release-parquet rows, for --test.
+# Fully synthetic, hand-picked stand-in for main engine output rows, for --test.
 # Nothing here is derived from or resembles real data -- names/values are
 # made up, but the structures (incl. a censored value, a per-biomarker "Ei
 # tehty", a comparison-group risk, an equal-risk case with no percentile, a
@@ -324,7 +355,7 @@ TEST_ROWS = [
     {
         "ROWID": 1, "FINNGENID": "TEST0001", "SEX": "female",
         "APPROX_EVENT_DATETIME": "2020-01-01", "EVENT_AGE": 40.0,
-        "TEST_ID": NGMUUT_TEST_ID, "TEST_NAME": "s-ngmuut", "CODING_SYSTEM_ORG": "Test_Lab",
+        "TEST_ID": NGMUUT_TEST_ID, "TEST_NAME_ABBREVIATION": "s-ngmuut", "CODING_SYSTEM_MAP": "Test_Lab",
         "MEASUREMENT_FREE_TEXT": (
             "Tehty jotain tekstiä ennen tuloksia. " + NGMUUT_PREAMBLE_END +
             "Biomarkkeri A: 1.23 mmol/lBiomarkkeri B: >9.9 mmol/lBiomarkkeri C: Ei tehtyBiomarkkeri D: 4.56 %"
@@ -334,21 +365,21 @@ TEST_ROWS = [
         # whole panel not performed -- must yield zero extracted rows, not an error
         "ROWID": 2, "FINNGENID": "TEST0002", "SEX": "male",
         "APPROX_EVENT_DATETIME": "2021-02-02", "EVENT_AGE": 55.0,
-        "TEST_ID": NGMUUT_TEST_ID, "TEST_NAME": "s-ngmuut", "CODING_SYSTEM_ORG": "Test_Lab",
+        "TEST_ID": NGMUUT_TEST_ID, "TEST_NAME_ABBREVIATION": "s-ngmuut", "CODING_SYSTEM_MAP": "Test_Lab",
         "MEASUREMENT_FREE_TEXT": "Ei tehty. Näyte hylätty.",
     },
     {
         # a TEST_ID this script never touches -- must be filtered out entirely
         "ROWID": 3, "FINNGENID": "TEST0003", "SEX": "female",
         "APPROX_EVENT_DATETIME": "2022-03-03", "EVENT_AGE": 30.0,
-        "TEST_ID": "99999", "TEST_NAME": "some-other-test", "CODING_SYSTEM_ORG": "Test_Lab",
+        "TEST_ID": "99999", "TEST_NAME_ABBREVIATION": "some-other-test", "CODING_SYSTEM_MAP": "Test_Lab",
         "MEASUREMENT_FREE_TEXT": "Biomarkkeri A: 1.00 mmol/l",
     },
     {
         # comparison-group risk (Korkeampi)
         "ROWID": 4, "FINNGENID": "TEST0004", "SEX": "female",
         "APPROX_EVENT_DATETIME": "2020-05-05", "EVENT_AGE": 50.0,
-        "TEST_ID": "11274", "TEST_NAME": "sydaninfarktiriski", "CODING_SYSTEM_ORG": "Test_Lab",
+        "TEST_ID": "11274", "TEST_NAME_ABBREVIATION": "sydaninfarktiriski", "CODING_SYSTEM_MAP": "Test_Lab",
         "MEASUREMENT_FREE_TEXT": "Kohonnut 10v riski riskiluokassa: 6 %Korkeampi riski kuin 80 %:lla "
                                   "verrokkiryhmästä (45-54 -vuotiaat naiset)",
     },
@@ -356,15 +387,24 @@ TEST_ROWS = [
         # equal-risk case -- no percentile in the tail
         "ROWID": 5, "FINNGENID": "TEST0005", "SEX": "male",
         "APPROX_EVENT_DATETIME": "2020-06-06", "EVENT_AGE": 45.0,
-        "TEST_ID": "11275", "TEST_NAME": "sydan-javerisuonitautiriski", "CODING_SYSTEM_ORG": "Test_Lab",
+        "TEST_ID": "11275", "TEST_NAME_ABBREVIATION": "sydan-javerisuonitautiriski", "CODING_SYSTEM_MAP": "Test_Lab",
         "MEASUREMENT_FREE_TEXT": "Matala 10v riski riskiluokassa: 2 %Yhtä suuri riski kuin "
+                                  "verrokkiryhmällä (35-44 -vuotiaat miehet)",
+    },
+    {
+        # THL-name-masked twin of the equal-risk row above (see unmask_risk_text) -- must
+        # parse to the same fields
+        "ROWID": 9, "FINNGENID": "TEST0009", "SEX": "male",
+        "APPROX_EVENT_DATETIME": "2020-06-06", "EVENT_AGE": 45.0,
+        "TEST_ID": "11275", "TEST_NAME_ABBREVIATION": "sydan-javerisuonitautiriski", "CODING_SYSTEM_MAP": "Test_Lab",
+        "MEASUREMENT_FREE_TEXT": "NNNNN 10v NNNNN riskiluokassa: 2 %Yhtä suuri NNNNN kuin "
                                   "verrokkiryhmällä (35-44 -vuotiaat miehet)",
     },
     {
         # smoking-conditional risk, comma-style category label
         "ROWID": 6, "FINNGENID": "TEST0006", "SEX": "male",
         "APPROX_EVENT_DATETIME": "2020-07-07", "EVENT_AGE": 60.0,
-        "TEST_ID": "11279", "TEST_NAME": "keuhkoahtaumatautiriski", "CODING_SYSTEM_ORG": "Test_Lab",
+        "TEST_ID": "11279", "TEST_NAME_ABBREVIATION": "keuhkoahtaumatautiriski", "CODING_SYSTEM_MAP": "Test_Lab",
         "MEASUREMENT_FREE_TEXT": "Kohonnut, jos tupakoit10v riski riskiluokassa: 3 %Tupakoivilla on "
                                   "8-kertainen sairastumisriski tupakoimattomiin verrattuna. "
                                   "Jos et tupakoi, riskisi on matala.",
@@ -373,14 +413,14 @@ TEST_ROWS = [
         # category-only, no percentage/tail at all
         "ROWID": 7, "FINNGENID": "TEST0007", "SEX": "female",
         "APPROX_EVENT_DATETIME": "2020-08-08", "EVENT_AGE": 65.0,
-        "TEST_ID": "11276", "TEST_NAME": "tyypin2diabetesriski", "CODING_SYSTEM_ORG": "Test_Lab",
+        "TEST_ID": "11276", "TEST_NAME_ABBREVIATION": "tyypin2diabetesriski", "CODING_SYSTEM_MAP": "Test_Lab",
         "MEASUREMENT_FREE_TEXT": "Matala",
     },
     {
         # whole panel not performed
         "ROWID": 8, "FINNGENID": "TEST0008", "SEX": "male",
         "APPROX_EVENT_DATETIME": "2020-09-09", "EVENT_AGE": 70.0,
-        "TEST_ID": "11277", "TEST_NAME": "maksanfibroosijakirroosiriski", "CODING_SYSTEM_ORG": "Test_Lab",
+        "TEST_ID": "11277", "TEST_NAME_ABBREVIATION": "maksanfibroosijakirroosiriski", "CODING_SYSTEM_MAP": "Test_Lab",
         "MEASUREMENT_FREE_TEXT": "Ei tehty. Lipeeminen näyte.",
     },
 ]
@@ -432,8 +472,9 @@ def run(source_batches, source_desc: str, total: int | None = None):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input", type=Path, default=None,
-                         help=f"Kanta RELEASE parquet. Default: most recent *_RELEASE.parquet "
-                              f"under {DEFAULT_ENGINE_DIR}. Ignored with --test.")
+                         help=f"Main engine output parquet (<prefix>.parquet, not _RELEASE -- the "
+                              f"release has no free text). Default: the most recent run's under "
+                              f"{DEFAULT_ENGINE_DIR}. Ignored with --test.")
     parser.add_argument("--out", type=Path, default=None,
                          help=f"Output directory (ignored with --test, which prints to screen instead). "
                               f"Default: {DEFAULT_OUT_DIR}")
@@ -443,7 +484,7 @@ def main():
     args = parser.parse_args()
 
     if args.test:
-        df = pd.DataFrame(TEST_ROWS)
+        df = pd.DataFrame(TEST_ROWS).rename(columns=SOURCE_RENAMES)
         ngmuut, risk = run([(len(df), df)], source_desc="synthetic rows")
         print("\n-- S-NGMuut --")
         print(ngmuut.to_string(index=False))
@@ -454,10 +495,16 @@ def main():
     kanta_input = args.input or resolve_kanta_input()
     print(f"kanta input: {kanta_input}")
     pf = pq.ParquetFile(kanta_input)
+    # iter_batches(columns=...) silently skips columns the file doesn't have, so check upfront
+    # (e.g. a _RELEASE file passed by mistake has no MEASUREMENT_FREE_TEXT).
+    missing = set(NEEDED_COLS) - set(pf.schema_arrow.names)
+    if missing:
+        raise SystemExit(f"{kanta_input} is missing {sorted(missing)} -- pass the main engine "
+                         f"output (<prefix>.parquet), not <prefix>_RELEASE.parquet")
 
     def batches():
         for record_batch in pf.iter_batches(batch_size=args.chunksize, columns=NEEDED_COLS):
-            batch = record_batch.to_pandas()
+            batch = record_batch.to_pandas().rename(columns=SOURCE_RENAMES)
             yield len(batch), batch.loc[batch["TEST_ID"].isin(ALL_TEST_IDS)]
 
     ngmuut, risk = run(batches(), source_desc="scanning for metabolomics tests", total=pf.metadata.num_rows)

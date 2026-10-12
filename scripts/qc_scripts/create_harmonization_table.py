@@ -5,6 +5,8 @@ import argparse
 import subprocess
 from io import StringIO
 
+from kanta import config
+
 def get_mode_stats(group, col):
     """Calculates distribution and prioritizes real units over NA."""
     counts = group.groupby(col, dropna=False)['n'].sum()
@@ -34,12 +36,9 @@ def get_mode_stats(group, col):
 
 
 def main():
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    default_ref_path = os.path.abspath(os.path.join(script_dir, "..", "finngen_qc", "data", "harmonization_counts.tsv"))
-
     parser = argparse.ArgumentParser()
     parser.add_argument("--input", required=True, help="Input Parquet file")
-    parser.add_argument("--ref", default=default_ref_path)
+    parser.add_argument("--ref", default=config.HARMONIZATION_COUNTS_FILE)
     parser.add_argument("--out", default="harmonization_counts.tsv")
     parser.add_argument("--diff-out", default="harmonization_diffs.tsv")
     parser.add_argument("--min-count", type=int, default=1)

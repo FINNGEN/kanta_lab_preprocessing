@@ -12,11 +12,11 @@ Usage
   python3 scripts/qc_scripts/sort_omop_qc.py
 """
 
-from pathlib import Path
-
 import pandas as pd
 
-_QC_FILE = Path(__file__).resolve().parent.parent.parent / "src/kanta/engine/data/omop_qc.tsv"
+from kanta import config
+
+_QC_FILE = config.OMOP_QC_FILE
 
 
 def main():

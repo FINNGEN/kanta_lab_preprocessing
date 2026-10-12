@@ -3,17 +3,24 @@ version 1.0
 workflow engine {
   input {
     File tidied_parquet
-    String docker
+    # Separate images so a rebuild for the downstream tasks doesn't invalidate run_engine's call
+    # cache (the docker image is part of the cache key): keep engine_docker (and the other
+    # run_engine inputs, incl. prefix) unchanged and only the downstream tasks rerun.
+    # qc_docker defaults to engine_docker.
+    String engine_docker
+    String? qc_docker
     String prefix = "finngen_R14_kanta_laboratory_responses_1.0"
     Boolean test = false
     Int chunk_size = 200000
     String injection_branch = "master"
   }
 
+  String downstream_docker = select_first([qc_docker, engine_docker])
+
   call run_engine {
     input:
     tidied_parquet = tidied_parquet,
-    docker = docker,
+    docker = engine_docker,
     prefix = prefix,
     test = test,
     chunk_size = chunk_size,
@@ -24,13 +31,20 @@ workflow engine {
   call abnormality {
     input:
     release_parquet = run_engine.release_parquet,
-    docker = docker
+    docker = downstream_docker
   }
 
   call pos_tables {
     input:
     engine_parquet = run_engine.engine_parquet,
-    docker = docker
+    docker = downstream_docker
+  }
+
+  # Nightingale metabolomics panel + risk scores, unpacked from free text into their own tables
+  call metabolomics {
+    input:
+    engine_parquet = run_engine.engine_parquet,
+    docker = downstream_docker
   }
 
   output {
@@ -46,6 +60,8 @@ workflow engine {
     File pos_neg_summary_pasteable = pos_tables.pos_neg_summary_pasteable
     File plusplus_summary = pos_tables.plusplus_summary
     File plusplus_summary_pasteable = pos_tables.plusplus_summary_pasteable
+    File metabolomics_biomarkers = metabolomics.biomarkers
+    File metabolomics_risks = metabolomics.risks
   }
 }
 
@@ -145,5 +161,32 @@ task pos_tables {
     cpu: 8
     memory: "32 GB"
     disks: "local-disk ~{ceil(size(engine_parquet, 'GB') * 2) + 20} SSD"
+  }
+}
+
+
+task metabolomics {
+  input {
+    File engine_parquet
+    String docker
+  }
+
+  command <<<
+    set -euxo pipefail
+    # Nightingale panel (S-NGMuut) and the 8 disease-risk scores, parsed out of free text.
+    # Needs the main output: _RELEASE has no free text. Single-threaded, streams in batches.
+    python3 /scripts/metabolomics/unpack_metabolomics.py --input ~{engine_parquet} --out .
+  >>>
+
+  output {
+    File biomarkers = "nightingale_results_metabolomics.tsv.gz"
+    File risks = "nightingale_results_risks.tsv.gz"
+  }
+
+  runtime {
+    docker: docker
+    cpu: 2
+    memory: "16 GB"
+    disks: "local-disk ~{ceil(size(engine_parquet, 'GB') * 3 / 2) + 20} SSD"
   }
 }

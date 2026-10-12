@@ -16,5 +16,8 @@ ENV UV_PROJECT_ENVIRONMENT="/opt/kanta-venv"
 RUN uv sync --python 3.14 --locked
 ENV PATH="/opt/kanta-venv/bin:$PATH"
 
-# QC scripts, kept at scripts/qc_scripts so their relative defaults resolve to /src/kanta/engine/data
+# QC scripts (engine.wdl's abnormality/pos_tables tasks); reference-table defaults come from kanta.config
 ADD scripts/qc_scripts scripts/qc_scripts
+
+# Metabolomics unpacking (engine.wdl's metabolomics task); takes explicit --input/--out, no path defaults used
+ADD scripts/metabolomics scripts/metabolomics

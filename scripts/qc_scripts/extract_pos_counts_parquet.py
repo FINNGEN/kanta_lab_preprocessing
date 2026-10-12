@@ -13,8 +13,8 @@ Scanning, filtering and counting run in polars; the (small) aggregated tables th
 the same pandas post-processing as extract_pos_counts.py so row order, number formatting and
 notes match exactly.
 
---map/--pn_orig/--plus_orig default to the engine's own tables in src/kanta/engine/data/,
-located relative to this script, so they only need passing to compare against other versions.
+--map/--pn_orig/--plus_orig default to the engine's own tables (kanta.config), so they only
+need passing to compare against other versions.
 
 Usage
 -----
@@ -23,7 +23,6 @@ Usage
 import argparse
 import os
 import sys
-from pathlib import Path
 
 import pandas as pd
 import polars as pl
@@ -31,11 +30,12 @@ import polars as pl
 # Constants
 DEFAULT_TEST_LINES = 1_000_000
 
-# Engine reference tables, relative to this script (scripts/qc_scripts/ -> repo root).
-_DATA_DIR = Path(__file__).resolve().parent.parent.parent / "src/kanta/engine/data"
-DEFAULT_MAP = _DATA_DIR / "LABfi.tsv"
-DEFAULT_PN_ORIG = _DATA_DIR / "negpos_mapping.tsv"
-DEFAULT_PLUS_ORIG = _DATA_DIR / "kanta_plusplus_abnormality.tsv"
+from kanta import config
+
+# The engine's own reference tables.
+DEFAULT_MAP = config.USAGI_MAPPING_FILE
+DEFAULT_PN_ORIG = config.POSNEG_MAP_FILE
+DEFAULT_PLUS_ORIG = config.PLUS_AB_MAP_FILE
 
 # Tokens pandas.read_csv turns into NaN by default. extract_pos_counts.py read TSV with pandas
 # and then filled NaN back with "NA", so the same tokens are normalized to "NA" here.

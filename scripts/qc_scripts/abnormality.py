@@ -1,15 +1,16 @@
 #!/bin/python3
 import argparse
 import os
-from pathlib import Path
 import psutil
 import pandas as pd
 import numpy as np
 import duckdb
 from tqdm import tqdm
 
-# Usagi mapping table, relative to this script (scripts/qc_scripts/ -> repo root).
-DEFAULT_MAP = Path(__file__).resolve().parent.parent.parent / "src/kanta/engine/data/LABfi.tsv"
+from kanta import config
+
+# The engine's own Usagi mapping table.
+DEFAULT_MAP = config.USAGI_MAPPING_FILE
 
 def load_omop_names(map_file):
     """OMOP_ID -> concept name from the Usagi mapping table (LABfi.tsv)."""
