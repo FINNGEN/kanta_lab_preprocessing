@@ -4,6 +4,7 @@ workflow intake {
   input {
     File source_list_file
     File phenotype_file
+    File? include_ids_file
     String assemble_docker
     String tidyup_docker
     Int partition_n_buckets = 24
@@ -25,6 +26,7 @@ workflow intake {
     input:
     assembled_file = assemble.assembled_file,
     phenotype_file = phenotype_file,
+    include_ids_file = include_ids_file,
     docker = tidyup_docker,
     partition_n_buckets = partition_n_buckets,
     prefix = prefix
@@ -34,6 +36,7 @@ workflow intake {
     File assembled = assemble.assembled_file
     File tidied_parquet = tidyup.tidied_parquet
     File tidied_duplicates_parquet = tidyup.tidied_duplicates_parquet
+    File? include_filter_summary = tidyup.include_filter_summary
   }
 }
 
@@ -67,6 +70,7 @@ task tidyup {
   input {
     File assembled_file
     File phenotype_file
+    File? include_ids_file
     String docker
     Int partition_n_buckets
     String prefix
@@ -79,12 +83,14 @@ task tidyup {
       --assembled-file ~{assembled_file} \
       --phenotype-file ~{phenotype_file} \
       --output-file ~{prefix}.parquet \
-      --partition-n-buckets ~{partition_n_buckets}
+      --partition-n-buckets ~{partition_n_buckets} \
+      ~{"--include-ids-file " + include_ids_file}
   >>>
 
   output {
     File tidied_parquet = "~{prefix}.parquet"
     File tidied_duplicates_parquet = "~{prefix}_duplicates.parquet"
+    File? include_filter_summary = "~{prefix}_include_filter.tsv"
   }
 
   runtime {

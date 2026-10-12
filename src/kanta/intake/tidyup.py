@@ -56,6 +56,7 @@ def main(
     tmp_dir: Path,
     *,
     partition_n_buckets: int,
+    include_ids_file: Path | None = None,
 ):
     print()
     print("=== TIDY-UP STAGE ===")
@@ -63,6 +64,7 @@ def main(
     print(f"- Partition into N buckets: {partition_n_buckets}")
     print(f"- Directory for intermediate files: {tmp_dir}")
     print(f"- Output file: {output_file}")
+    print(f"- Include-IDs file: {include_ids_file}")
 
     tmp_file_consolidate = tmp_dir / "consolidated.parquet"
 
@@ -77,6 +79,16 @@ def main(
 
     print("# Consolidate")
     consolidated_file = consolidate_columns(assembled_file, tmp_file_consolidate)
+
+    if include_ids_file is not None:
+        print("# Filter to included FINNGENIDs")
+        tmp_file_filtered = tmp_dir / "filtered.parquet"
+        consolidated_file = filter_include_ids(
+            consolidated_file,
+            include_ids_file,
+            tmp_file_filtered,
+            summary_file=output_file.with_name(f"{output_file.stem}_include_filter.tsv"),
+        )
 
     print("# Partition")
     partition(consolidated_file, tmp_dir_partition, partition_n_buckets)
@@ -201,6 +213,13 @@ def init_cli():
         default=24,
     )
     parser.add_argument(
+        "--include-ids-file",
+        help="Only keep rows whose FINNGENID is in this file (one ID per line, optional FINNGENID header).",
+        required=False,
+        type=Path,
+        default=None,
+    )
+    parser.add_argument(
         "--keep-intermediate-files",
         help="Keep intermediate files, useful for debugging.",
         action="store_true",
@@ -244,6 +263,74 @@ def consolidate_columns(assembled_file: Path, output_file: Path) -> Path:
         .rename(rename_columns)
         .sink_parquet(output_file)
     )
+
+    return output_file
+
+
+def read_include_ids(include_ids_file: Path) -> pl.LazyFrame:
+    """Read a one-ID-per-line file into a unique FINNGENID frame. A FINNGENID header line is allowed."""
+    return (
+        pl.scan_csv(
+            include_ids_file,
+            has_header=False,
+            new_columns=["FINNGENID"],
+            infer_schema=False,
+            separator="\t",
+        )
+        .select(pl.col("FINNGENID").str.strip_chars())
+        .filter(pl.col("FINNGENID").is_not_null() & (pl.col("FINNGENID") != "") & (pl.col("FINNGENID") != "FINNGENID"))
+        .unique()
+    )
+
+
+def filter_include_ids(
+    consolidated_file: Path, include_ids_file: Path, output_file: Path, *, summary_file: Path
+) -> Path:
+    """Keep only rows whose FINNGENID is in the include list, and report what was excluded."""
+    df_ids = read_include_ids(include_ids_file)
+
+    (
+        pl.scan_parquet(consolidated_file)
+        .join(df_ids, on="FINNGENID", how="semi")
+        .sink_parquet(output_file)
+    )
+
+    n_list_ids = df_ids.select(pl.len()).collect().item()
+    if n_list_ids == 0:
+        raise ValueError(f"No FINNGENIDs found in include-IDs file: {include_ids_file}")
+
+    rows_before, ids_before = (
+        pl.scan_parquet(consolidated_file)
+        .select(pl.len(), pl.col("FINNGENID").n_unique())
+        .collect(engine="streaming")
+        .row(0)
+    )
+    rows_after, ids_after = (
+        pl.scan_parquet(output_file)
+        .select(pl.len(), pl.col("FINNGENID").n_unique())
+        .collect(engine="streaming")
+        .row(0)
+    )
+
+    summary = {
+        "rows_before": rows_before,
+        "rows_after": rows_after,
+        "rows_excluded": rows_before - rows_after,
+        "ids_before": ids_before,
+        "ids_after": ids_after,
+        "ids_excluded": ids_before - ids_after,
+        "ids_in_list": n_list_ids,
+        "ids_in_list_not_in_data": n_list_ids - ids_after,
+    }
+    for key, value in summary.items():
+        print(f"- {key}: {value:,}")
+    if rows_after == 0:
+        print("!!! No rows left after include-IDs filter !!!")
+
+    pl.DataFrame({"metric": list(summary), "value": list(summary.values())}).write_csv(
+        summary_file, separator="\t"
+    )
+    print(f"Wrote include-filter summary to {summary_file}")
 
     return output_file
 
@@ -310,6 +397,7 @@ if __name__ == "__main__":
         args.output_file,
         tmp_dir,
         partition_n_buckets=args.partition_n_buckets,
+        include_ids_file=args.include_ids_file,
     )
 
     if not args.keep_intermediate_files:

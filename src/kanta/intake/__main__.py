@@ -37,6 +37,13 @@ if __name__ == "__main__":
         default=24,
     )
     parser.add_argument(
+        "--include-ids-file",
+        help="Only keep rows whose FINNGENID is in this file (one ID per line, optional FINNGENID header).",
+        required=False,
+        type=Path,
+        default=None,
+    )
+    parser.add_argument(
         "--keep-intermediate-files",
         help="Keep intermediate files, useful for debugging.",
         action="store_true",
@@ -70,6 +77,7 @@ if __name__ == "__main__":
         output_file_tidyup_stage,
         tmp_dir=tmp_dir,
         partition_n_buckets=args.partition_n_buckets,
+        include_ids_file=args.include_ids_file,
     )
 
     if not args.keep_intermediate_files:
