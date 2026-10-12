@@ -4,5 +4,5 @@
     "engine.docker": "europe-west1-docker.pkg.dev/finngen-refinery-dev/fg-refinery-registry/kanta:v4-engine.qc",
     "engine.prefix": "kanta_dev_2026_10_06",
     "engine.chunk_size": 200000,
-    "engine.injection_branch": "injection-dev"
+    "engine.injection_branch": "master"
 }

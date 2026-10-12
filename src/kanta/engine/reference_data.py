@@ -40,10 +40,8 @@ _INJECTION_BRANCH: str = config.DEFAULT_INJECTION_BRANCH
 
 
 def set_injection_branch(branch: str) -> None:
-    """Point get_injection_results()'s remote fetch at this branch of THIS repo's own
-    scripts/injection/data/injection_results.tsv (not an external repo, unlike
-    HARMONIZATION_REPO_BRANCH) — switchable per run via --injection-branch since it's
-    this repo's own in-progress work, not a fixed external source."""
+    """Point get_injection_results()'s remote fetch at this branch of kanta_lab_injection
+    (switchable per run via --injection-branch, unlike the fixed HARMONIZATION_REPO_BRANCH)."""
     global _INJECTION_BRANCH
     _INJECTION_BRANCH = branch
 
@@ -199,14 +197,14 @@ def get_usagi_units(verbose: bool = False) -> set[str]:
 
 @lru_cache(maxsize=1)
 def get_injection_results(verbose: bool = False) -> pd.DataFrame:
-    """Unit-injection targets from scripts/injection/ (both PASS and FAIL rows kept).
+    """Unit-injection targets from kanta_lab_injection (both PASS and FAIL rows kept).
 
     Refreshed from INJECTION_REPO_URL_TEMPLATE (branch set via set_injection_branch(), default
     config.DEFAULT_INJECTION_BRANCH) on load; falls back to the local snapshot at
     config.INJECTION_RESULTS_FILE if offline — same fetch-with-fallback mechanism as
-    get_usagi_units()/get_usagi_mapping(), just pointed at this repo's own branch instead of an
-    external one. The local snapshot doubles as a record of which version was actually used for
-    a given run, the same way it already does for the harmonization tables.
+    get_usagi_units()/get_usagi_mapping(). The local snapshot doubles as a record of which
+    version was actually used for a given run, the same way it already does for the
+    harmonization tables.
 
     Kept because a bimodal split's low/high pair can have one side FAIL and the other PASS —
     the FAIL side's CUTOFF is still needed. Callers must check OUTCOME before using UNIT.

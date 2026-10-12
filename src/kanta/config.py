@@ -5,19 +5,18 @@ from pathlib import Path
 # Directory for static reference/mapping data files used by the engine's filters.
 DATA_DIR = Path(__file__).parent / "engine" / "data"
 
-# Output of the separate unit-injection pipeline (scripts/injection/). Refreshed from
-# INJECTION_REPO_URL_TEMPLATE (this repo's own scripts/injection/data/, not an external source)
-# on load, same fetch-with-local-fallback mechanism as HARMONIZATION_REPO_URL below; falls back
-# to this local snapshot if offline. The branch is a runtime parameter (--injection-branch), not
-# a fixed constant like HARMONIZATION_REPO_BRANCH, since it's this repo's own in-progress work
-# and needs to be switchable per run — see reference_data.set_injection_branch().
-REPO_ROOT = Path(__file__).parent.parent.parent
-INJECTION_RESULTS_FILE = REPO_ROOT / "scripts" / "injection" / "data" / "injection_results.tsv"
+# Unit-injection results released by FINNGEN/kanta_lab_injection (data/injection_results.tsv).
+# Refreshed from INJECTION_REPO_URL_TEMPLATE on load, overwriting the committed snapshot below,
+# same fetch-with-local-fallback mechanism as HARMONIZATION_REPO_URL; falls back to the snapshot
+# if offline. The branch is a runtime parameter (--injection-branch), not a fixed constant like
+# HARMONIZATION_REPO_BRANCH, so dev results can be tested per run — see
+# reference_data.set_injection_branch().
+INJECTION_RESULTS_FILE = DATA_DIR / "injection_results.tsv"
 INJECTION_REPO_URL_TEMPLATE = (
-    "https://raw.githubusercontent.com/FINNGEN/kanta_lab_preprocessing/"
-    "refs/heads/{branch}/scripts/injection/data/injection_results.tsv"
+    "https://raw.githubusercontent.com/FINNGEN/kanta_lab_injection/"
+    "refs/heads/{branch}/data/injection_results.tsv"
 )
-DEFAULT_INJECTION_BRANCH = "injection-dev"
+DEFAULT_INJECTION_BRANCH = "master"
 
 # Test-specific unit corrections (e.g. osuus -> ratio for b-hkr).
 OMOP_INJECTION_FILE = DATA_DIR / "omop_injection.tsv"

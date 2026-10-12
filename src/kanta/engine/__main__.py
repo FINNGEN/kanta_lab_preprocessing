@@ -54,7 +54,7 @@ def init_cli():
         type=str,
         default=config.DEFAULT_INJECTION_BRANCH,
         help=(
-            "Branch of this repo to fetch scripts/injection/data/injection_results.tsv from "
+            "Branch of FINNGEN/kanta_lab_injection to fetch data/injection_results.tsv from "
             f"(default: {config.DEFAULT_INJECTION_BRANCH}). Same fetch-with-local-fallback "
             "mechanism as the Usagi harmonization tables: falls back to whatever is already "
             "on disk if the fetch fails, and the local copy left behind after a run is a "

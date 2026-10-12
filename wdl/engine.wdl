@@ -7,7 +7,7 @@ workflow engine {
     String prefix = "finngen_R14_kanta_laboratory_responses_1.0"
     Boolean test = false
     Int chunk_size = 200000
-    String injection_branch = "injection-dev"
+    String injection_branch = "master"
   }
 
   call run_engine {

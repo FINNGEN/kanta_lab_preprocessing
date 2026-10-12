@@ -114,7 +114,7 @@ def inject_missing_unit(df: pd.DataFrame, unit_changes: UnitSink, verbose: bool 
     """Assign MEASUREMENT_UNIT to rows with a value but no unit.
 
     The unit is guessed by comparing a test's no-unit values against the value distributions
-    of other units seen for that same test name. See scripts/injection/README.md.
+    of other units seen for that same test name. See the FINNGEN/kanta_lab_injection README.
     """
     df["cleaned-pre-inj::MEASUREMENT_UNIT"] = df["MEASUREMENT_UNIT"]
 

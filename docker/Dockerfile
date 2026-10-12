@@ -18,8 +18,3 @@ ENV PATH="/opt/kanta-venv/bin:$PATH"
 
 # QC scripts, kept at scripts/qc_scripts so their relative defaults resolve to /src/kanta/engine/data
 ADD scripts/qc_scripts scripts/qc_scripts
-
-# The engine reads injection_results.tsv from <repo root>/scripts/injection/data/ (config.
-# INJECTION_RESULTS_FILE), refreshing it from GitHub into the same folder; without this the
-# refresh can't write there and there's no local fallback, so the engine crashes at startup.
-ADD scripts/injection/data/injection_results.tsv scripts/injection/data/injection_results.tsv
