@@ -1,16 +1,20 @@
-import pandas as pd
+import argparse
+import os
+
 import matplotlib.pyplot as plt
 import numpy as np
-import os
-import argparse
+import pandas as pd
+
+from kanta import config
+
 
 def main():
     parser = argparse.ArgumentParser(description="Analyze relative changes between two data versions.")
     # File Inputs
     parser.add_argument("--new", required=True, help="Path to the new version TSV file")
     parser.add_argument("--old", required=True, help="Path to the old version TSV file")
-    parser.add_argument("--names", default='/mnt/disks/data/kanta/meta/omop_name_table.tsv', 
-                        help="Path to the OMOP name table TSV")
+    parser.add_argument("--names", default=config.USAGI_MAPPING_FILE,
+                        help="Usagi mapping TSV providing OMOP_ID -> concept name")
     
     # Suffix/Naming Options
     parser.add_argument("--new_suffix", default='_new', help="Suffix for new version columns")
@@ -28,10 +32,14 @@ def main():
     print("Loading files...")
     new_ver = pd.read_csv(args.new, sep='\t')
     old_ver = pd.read_csv(args.old, sep='\t')
+    new_ver['NAME'] = new_ver['NAME'].astype(str)
+    old_ver['NAME'] = old_ver['NAME'].astype(str)
 
     if os.path.exists(args.names):
-        names = pd.read_csv(args.names, sep='\t')
-        names['NAME'] = names['conceptId'].astype(str)
+        names = pd.read_csv(args.names, sep='\t', dtype=str)
+        names = names.rename(columns={'harmonization_omop::OMOP_ID': 'NAME',
+                                      'harmonization_omop::OMOP_NAME': 'conceptName'})
+        names = names.dropna(subset=['NAME']).drop_duplicates('NAME')
     else:
         print(f"Warning: {args.names} not found. Proceeding without concept names.")
         names = pd.DataFrame(columns=['NAME', 'conceptName'])

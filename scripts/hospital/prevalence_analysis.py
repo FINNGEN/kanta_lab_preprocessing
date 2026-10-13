@@ -38,7 +38,7 @@ from tqdm import tqdm
 DEFAULT_ENGINE_DIR = Path("/mnt/disks/data/kanta/engine/")
 DEFAULT_INTERVALS_INPUT = Path("/mnt/disks/data/kanta/hospital/results/hospitalization_intervals_inpat.tsv")
 DEFAULT_OUT_DIR = Path("/mnt/disks/data/kanta/hospital/results/")
-DEFAULT_COLUMNS = ["TEST_NAME", "OMOP_CONCEPT_ID", "CODING_SYSTEM_ORG"]
+DEFAULT_COLUMNS = ["TEST_NAME", "OMOP_CONCEPT_ID", "CODING_SYSTEM_ORG","SERVICE_PROVIDER_ID"]
 DEFAULT_CHUNKSIZE = 2_000_000
 
 # Full Usagi export (conceptId/conceptName) -- unlike the engine's own trimmed
