@@ -228,6 +228,9 @@ MANUAL_NAMES_BY_CODE = {
     "1746664": "Jyväskylän_kaupunki",
     "1931691": "Sodankylän_kunta",
     "1914066": "Kittilän_kunta",
+    "1876901": "Oulun_kaupunki",  # PTV: Business_Oulu_-liikelaitos
+    "1651163": "Mikkelin_kaupunki",  # PTV: Mikkelin_kaupungin_vesiliikelaitos
+    "22295006": "Terveyden_ja_hyvinvoinnin_laitos",  # PTV: Findata (a THL unit)
     # CGI customers (see CGI_CODE_PATTERN) with no own coding system elsewhere; names from sote.txt.
     "1769751": "Saarijärven_kaupunki",
     "1265414": "Järvenpään_kaupunki",

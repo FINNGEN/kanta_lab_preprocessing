@@ -26,7 +26,7 @@ NA	NA	96029725	NA
 32213406	Keski-Uudenmaan_hyvinvointialue	777440	PTV
 19275565	Mehiläinen_Oy	724257	PRH
 32213043	Satakunta	699488	MANUAL
-1876901	Business_Oulu_-liikelaitos	627145	PTV
+1876901	Oulun_kaupunki	627145	MANUAL
 2430960	EPSHP	605428	MANUAL
 2116752	Tampereen_kaupunki	580303	PTV
 2048198	Turun_kaupunki	566148	PTV
@@ -160,7 +160,7 @@ NA	NA	96029725	NA
 2037624	Huittisten_kaupunki	16406	PTV
 1746664	Jyväskylän_kaupunki	16025	MANUAL
 2108269	Ylitornion_kunta	15924	PTV
-1651163	Mikkelin_kaupungin_vesiliikelaitos	15439	PTV
+1651163	Mikkelin_kaupunki	15439	MANUAL
 1311564	Siuntion_kunta	14991	PTV
 1931691	Sodankylän_kunta	14950	MANUAL
 2096026	Vaasan_kaupunki	13852	PTV
@@ -296,7 +296,7 @@ NA	NA	96029725	NA
 32024146	Lääkärikeskus_Nero_Oy	194	PRH
 20658256	Doctagon_Ab	194	MANUAL
 8780865	Linnan_Klinikka_Oy	174	PRH
-22295006	Findata_-_Sosiaali-_ja_terveysalan_tietolupaviranomainen	166	PTV
+22295006	Terveyden_ja_hyvinvoinnin_laitos	166	MANUAL
 8697906	LähiTapiola_Palvelut_Oy	156	PRH
 29066038	Välkky_HOIVA_Oy	154	PRH
 17917421	Savonlinnan_Seudun_Työterveys_ry	153	PRH
