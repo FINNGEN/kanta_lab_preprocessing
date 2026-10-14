@@ -111,16 +111,39 @@ def get_lab_abbrv(df: pd.DataFrame, abbr_changes: AbbrSink) -> pd.DataFrame:
     return df
 
 
+# Coding systems hosted by CGI (org code 3575029) embed the customer organization as "11" + its
+# Y-tunnus digits, usually zero-padded to 8, e.g. "...3575029.12.2.10.1102012566.6.17" -> "2012566"
+# (Helsinki). Values whose customer isn't in the manual map keep resolving to "3575029".
+CGI_CODING_SYSTEM_PREFIX = r"^1\.2\.246\.537\.10\.3575029\.12\.2\.10\.110?"
+CGI_CODING_SYSTEM_SUFFIX = r"\.6\.17$"
+
+
+def cgi_customer_pattern(manual_map: dict[str, str]) -> str:
+    """Regex capturing the embedded customer code of a CGI coding system, limited to the
+    numeric codes the manual map resolves to a real name."""
+    # "NA" codes/names come back from the CSV read as NaN
+    codes = sorted(
+        code
+        for code, name in manual_map.items()
+        if isinstance(code, str) and code.isdigit() and isinstance(name, str) and name != "NA"
+    )
+    return rf"{CGI_CODING_SYSTEM_PREFIX}({'|'.join(codes)}){CGI_CODING_SYSTEM_SUFFIX}"
+
+
 def get_coding_map(df: pd.DataFrame) -> pd.DataFrame:
     """Map CODING_SYSTEM via the THL organization map, then derive CODING_SYSTEM_MAP.
 
-    Only resolves values the org map left unchanged, e.g. "3575029" -> "CGI_Suomi_Oy".
+    Only resolves values the org map left unchanged, e.g. "3575029" -> "CGI_Suomi_Oy". CGI
+    values are resolved to the embedded customer organization when the manual map knows it,
+    otherwise they stay "CGI_Suomi_Oy".
     """
     col = "CODING_SYSTEM"
     df[col] = df[col].map(reference_data.get_thl_sote_map())
+    manual_map = reference_data.get_thl_manual_map()
 
     tmp_system = (
         df[col]
+        .str.replace(cgi_customer_pattern(manual_map), r"\1", regex=True)
         .str.replace("1.2.246.10.", "", regex=False)
         .str.replace("1.2.246.537.10.", "", regex=False)
         # NOTE(Vincent 2026-08-28) I changed this from `.str.split(".", n=1, expand=False).str[0]`
@@ -129,7 +152,7 @@ def get_coding_map(df: pd.DataFrame) -> pd.DataFrame:
         # The semantic is the same.
         .str.extract(r"^(?P<x>[^.]*)", expand=False)
     )
-    df["CODING_SYSTEM_MAP"] = tmp_system.map(reference_data.get_thl_manual_map()).fillna("NA")
+    df["CODING_SYSTEM_MAP"] = tmp_system.map(manual_map).fillna("NA")
     return df
 
 

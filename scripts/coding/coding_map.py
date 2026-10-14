@@ -43,6 +43,9 @@ COLUMN = "tutkimuskoodistonjarjestelma"
 # Y-tunnus) right after the root; the trailing arcs differ but aren't otherwise meaningful here.
 CODE_ROOTS = ["1.2.246.10.", "1.2.246.537.10."]
 CODE_PATTERNS = [re.compile(rf"^{re.escape(root)}(\d+)(?:\.|$)") for root in CODE_ROOTS]
+# CGI-hosted systems (org code 3575029) embed the customer organization as "11" + its zero-padded
+# Y-tunnus digits; same rule as cgi_customer_pattern in kanta.engine.filters.filter_minimal.
+CGI_CODE_PATTERN = re.compile(r"^1\.2\.246\.537\.10\.3575029\.12\.2\.10\.11(\d{7,8})\.6\.17$")
 MAX_HTTP_RETRIES = 5
 DEFAULT_RETRY_DELAY = 30
 ALL_COMPANIES_URL = "https://avoindata.prh.fi/opendata-ytj-api/v3/all_companies"
@@ -108,8 +111,12 @@ def get_value_counts(input_file: Path) -> pd.DataFrame:
 def extract_code(value: str) -> str | None:
     """Extract the digit segment right after any of CODE_ROOTS, e.g.
     "1.2.246.10.23925196.6.3.2016" -> "23925196",
-    "1.2.246.537.10.3575029.12.2.10.1102012566.6.17" -> "3575029", or a bare
+    "1.2.246.537.10.3575029.12.2.10.1102012566.6.17" -> "2012566" (CGI customer, see
+    CGI_CODE_PATTERN; CGI values without an embedded customer -> "3575029"), or a bare
     "1.2.246.10.24838684" (no trailing arc at all) -> "24838684"."""
+    cgi_match = CGI_CODE_PATTERN.match(value)
+    if cgi_match:
+        return cgi_match.group(1).lstrip("0")
     for pattern in CODE_PATTERNS:
         match = pattern.match(value)
         if match:
@@ -135,7 +142,7 @@ MANUAL_NAMES_BY_CODE = {
     "24838684": "NordLab",
     "2156068": "Päijät-Hämeen_hyvinvointikuntayhtymä",
     "8282559": "VSSHP_ky",
-    "1714953": "Äitiys-_ja_ehkäisyneuvola,_Juankosken_ta,_Kuopio_perusturva",
+    "1714953": "PSSHP",
     "2159787": "KSSHP",
     "8259156": "SATSHP",
     "8182355": "K-HSHP",
@@ -145,11 +152,11 @@ MANUAL_NAMES_BY_CODE = {
     "22810709": "Yhtyneet_Medix_Laboratoriot_Oy",
     "2142950": "FSHKY",
     "23388722": "Perusturvakuntayhtymä_Akseli",
-    "8196167": "Korvaushoitoklinikka,_Rovaniemen_kaupunki,_Perusturvapalv",
+    "8196167": "Lapin_sairaanhoitopiirin_ky",
     "8286189": "Länsi-Pohjan_sairaanhoitopiirin_kuntayhtymä",
     "21256902": "Kallio_PPKY",
     "22658751": "Ylä-Savon_SOTE_ky",
-    "2159250": "Hammashoitola,_Rantasalmi",
+    "2159250": "Itä-Savon_SHP",
     "2044111": "LOPETETTU_Yläneen_hammashoitola,_Pöytyän_ktt:n_ky",
     "2058097": "Riihimäen_seudun_terveyskeskuksen_kuntayhtymä",
     "24787186": "SYNLAB_Finland_Oy",
@@ -163,7 +170,7 @@ MANUAL_NAMES_BY_CODE = {
     "22042279": "Suupohjan_peruspalveluliikelaitoskuntayhtymä",
     "23065253": "Työterveys_Wellamo_Oy",
     "2085212": "Saarikka",
-    "22654152": "Äitiysneuvola_Kärsämäki,_Kärsämäki",
+    "22654152": "Ppky_Selänne",
     "2037384": "Keski-Satakunnan_thky",
     "20712777": "Ky_Kaksineuvoinen",
     "2149132": "Sisä-Savon_thky",
@@ -211,6 +218,25 @@ MANUAL_NAMES_BY_CODE = {
     "26121433": "Asemanpuiston_Lääkärikeskus_Oy",
     "26771567": "Negen_Oy",
     "3134717": "Helsingin_yliopisto",
+    # Municipalities PTV resolves to an unrelated sub-organization sharing their Y-tunnus
+    # (lookup_public_organization_name takes PTV's first hit); names checked against sote.txt.
+    "1338337": "Kemiönsaaren_kunta",
+    "1734161": "Varkauden_kaupunki",
+    "19287363": "Seinäjoen_kaupunki",
+    "19782831": "Rovaniemen_kaupunki",
+    "20489034": "Pieksämäen_kaupunki",
+    "1746664": "Jyväskylän_kaupunki",
+    "1931691": "Sodankylän_kunta",
+    "1914066": "Kittilän_kunta",
+    # CGI customers (see CGI_CODE_PATTERN) with no own coding system elsewhere; names from sote.txt.
+    "1769751": "Saarijärven_kaupunki",
+    "1265414": "Järvenpään_kaupunki",
+    "1292615": "Mäntsälän_kunta",
+    "2045755": "Säkylän_ja_Köyliön_terveydenhuollon_kuntayhtymä",
+    # dissolved joint authorities, in neither PRH's open data nor PTV; names from YTJ tietopalvelu
+    "1577530": "Etelä-Pirkanmaan_terveydenhuollon_kuntayhtymä",
+    "19025988": "Sastamalan_perusturvakuntayhtymä",
+    "9335990": "Sisä-Savon_seutuyhtymä",
 }
 
 
