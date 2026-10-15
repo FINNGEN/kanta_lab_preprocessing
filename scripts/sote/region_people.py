@@ -70,6 +70,9 @@ ap.add_argument('--exclude-cohorts', type=lambda s: sorted(c for c in s.split(',
                 help="Comma-separated cohorts left out of the disease comparison, e.g. ones recruited for a disease "
                      "(THL_BIOBANK_BOTNIA,THL_BIOBANK_FUSION,THL_BIOBANK_T1D,THL_BIOBANK_COROGENE,THL_BIOBANK_HHS); default: none")
 ap.add_argument('--disease-min-people', type=int, default=100, help="Leave out maakunta with fewer people with endpoint data than this (default: 100)")
+ap.add_argument('--min-cell', type=int, default=5,
+                help="Shareable tables show person counts from 1 to this minus 1 as '<N' and blank the values derived from "
+                     "them (default: 5, i.e. no counts under 5)")
 ap.add_argument('--force', action='store_true', help="Recompute and overwrite every output, ignoring existing files")
 args = ap.parse_args()
 pheno = args.pheno.expanduser()
@@ -89,6 +92,26 @@ out_file = args.out / f'person_maakunta_{TAG}.tsv'
 def cached(path):
     """True if `path` exists and may be reused (no --force)."""
     return path.exists() and not args.force
+
+
+def is_small(values):
+    """Person counts from 1 to --min-cell - 1 (0 is fine to show)."""
+    return pd.Series(values).between(1, args.min_cell - 1)
+
+
+def mask_small(df, count_cols, derived_cols=(), also_flag=None):
+    """Copy of df for sharing: person counts from 1 to --min-cell - 1 in count_cols become '<N', and on any row with
+    such a count, or flagged in also_flag (e.g. a small complement such as non-cases), the derived_cols (percentages,
+    indices, intervals) are blanked, since they would give the small count back."""
+    out = df.copy()
+    flagged = pd.Series(False, index=out.index) if also_flag is None else also_flag.reindex(out.index, fill_value=False)
+    for c in count_cols:
+        small = is_small(out[c])
+        flagged |= small
+        out[c] = out[c].astype(object).where(~small, f"<{args.min_cell}")
+    for c in derived_cols:
+        out[c] = out[c].astype(object).where(~flagged, None)
+    return out
 
 
 def write_tsv_once(df, path, fresh=False):
@@ -174,7 +197,7 @@ def compare(both, col, out_name, same=None):
                      'next3': json.dumps(dict(pct.iloc[1:4]), ensure_ascii=False)})
     print(pd.DataFrame(rows).sort_values('n', ascending=False).to_string(index=False, max_colwidth=90))
     ct = both.groupby([col, 'maakunta']).size().rename('n').reset_index().sort_values([col, 'n'], ascending=[True, False])
-    write_tsv_once(ct, args.out / out_name, fresh=person_fresh)
+    write_tsv_once(mask_small(ct, ['n']), args.out / out_name, fresh=person_fresh)
 
 
 # one read of the (wide) pheno file: only the columns used below
@@ -494,7 +517,7 @@ def plot_serology(usable, pooled, path, fresh=False):
     save_fig_once(fig, path / f'serology_maakunta_{TAG}.png', fresh)
 
 
-sero_file = args.out / f'serology_maakunta_{TAG}.tsv'
+sero_file = args.out / f'serology_counts_{TAG}.tsv'  # internal cache with exact counts: not for sharing
 need = {'harmonization_omop::OMOP_ID', 'MEASUREMENT_VALUE', 'QC_PASS', 'TEST_OUTCOME', 'extracted::IS_POS', 'REFERENCE_RANGE_UPPER_VALUE'}
 sero, sero_fresh = None, False
 if cached(sero_file) and not person_fresh:  # built from the per-person table: redo when that was recomputed
@@ -566,6 +589,18 @@ if sero is not None and len(sero):
     print("How positives were recognised, national (people; one person can be counted by several encodings):")
     print(sero[sero['maakunta'] == 'ALL'].set_index('test').reindex(order_tests)[
         ['n_pos', 'pos_by_outcome', 'pos_by_ispos', 'pos_by_value']].to_string())
+    # shareable table (serology_counts_* stays internal): per test x maakunta plus the pooled groups, % positive only
+    # with enough people with a result, small counts masked and the percentages derived from them blanked
+    share = pd.concat([sero.drop(columns=['pos_by_outcome', 'pos_by_ispos', 'pos_by_value']),
+                       pooled.rename(columns={'group': 'maakunta'}).assign(maakunta=lambda d: d['maakunta'] + ', pooled')],
+                      ignore_index=True)
+    share['pct_pos'] = (100 * share['n_pos'] / share['n_tested']).where(share['n_tested'] >= args.sero_min_people)
+    share['ci_low'], share['ci_high'] = wilson(share['n_pos'], share['n_tested'])
+    share[['ci_low', 'ci_high']] = share[['ci_low', 'ci_high']].where(share['pct_pos'].notna())
+    small_parts = is_small(share['n_neg']) | is_small(share['n_unknown'])  # these would give n_pos / pct_unknown back
+    share = share[['test', 'maakunta', 'n_people', 'n_tested', 'n_pos', 'pct_unknown', 'pct_pos', 'ci_low', 'ci_high']].round(2)
+    write_tsv_once(mask_small(share, ['n_people', 'n_tested', 'n_pos'], ['pct_unknown', 'pct_pos', 'ci_low', 'ci_high'], small_parts),
+                   args.out / f'serology_maakunta_{TAG}.tsv', fresh=sero_fresh)
     plot_serology(usable, pooled, args.out, fresh=sero_fresh)
 
 # --- Clinical check: FinnGen endpoint prevalence per assigned maakunta vs THL/Kela's regional disease indices
@@ -696,5 +731,8 @@ if counts is not None and len(counts):
         print(table.to_string())
     print("\nSummary:")
     print(pd.DataFrame(summary).to_string(index=False, na_rep=''))
-    write_tsv_once(cmp.round(2), args.out / f'disease_vs_thl_{DTAG}.tsv', fresh=disease_fresh)
+    # shareable: small case counts (or few non-cases) masked, with the prevalence and index derived from them blanked
+    write_tsv_once(mask_small(cmp.round(2), ['n_people', 'n_cases'], ['pct_crude', 'finngen_index'],
+                              is_small(cmp['n_people'] - cmp['n_cases'])),
+                   args.out / f'disease_vs_thl_{DTAG}.tsv', fresh=disease_fresh)
     plot_disease(cmp, args.out, fresh=disease_fresh)

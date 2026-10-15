@@ -169,12 +169,8 @@ MEASUREMENT_METHOD_MAP = {
     "3": "SELF",
 }
 
-# National (THL) organization id -> lab/organization name mapping (gzipped TSV with an
-# OrganizationId and a LAB_NAME column, among others).
-THL_SOTE_MAP_FILE = DATA_DIR / "thl_sote_map_named.tsv.gz"
-
-# Manual mapping from a short numeric code (derived from CODING_SYSTEM) to a coding system
-# name, for cases not covered by THL_SOTE_MAP_FILE. TSV with a CODE/NAME header (plus COUNT/
+# Manual mapping from the organization code embedded in CODING_SYSTEM (Y-tunnus digits) to an
+# organization name, used to derive CODING_SYSTEM_MAP. TSV with a CODE/NAME header (plus COUNT/
 # SOURCE columns from coding_map.py that this loader ignores).
 THL_CODING_MANUAL_MAP_FILE = DATA_DIR / "thl_coding_manual_mapping.txt"
 

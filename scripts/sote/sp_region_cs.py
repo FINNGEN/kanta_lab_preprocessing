@@ -16,9 +16,9 @@ import duckdb
 import pandas as pd
 
 REPO = Path(__file__).resolve().parents[2]
-SOTE = REPO / 'scripts/THL/data/sote.txt.gz'  # THL sote organization register (';'-delimited, ISO-8859-1)
-MUNI_REGION = REPO / 'scripts/THL/data/municipality_to_region.tsv'
-SOTE_NAMED = REPO / 'src/kanta/engine/data/thl_sote_map_named.tsv.gz'  # engine's OID -> LAB_NAME map
+DATA = Path(__file__).resolve().parent / 'data'
+SOTE = DATA / 'sote.txt.gz'  # THL sote organization register (';'-delimited, ISO-8859-1)
+MUNI_REGION = DATA / 'municipality_to_region.tsv'
 MULTI_REGION_PUBLIC_LABS = {'24838684': 'NordLab', '21261066': 'ISLAB'}
 LEVELS = {'maakunta': 'Maakunta', 'hva': 'Hyvinvointialue'}  # output prefix -> municipality_to_region.tsv column
 
@@ -73,23 +73,37 @@ for s, tot in n_total.items():
 sp_csm = pd.DataFrame(rows).astype({'n_top': 'Int64'}).sort_values(['n_total', 'pct_top'], ascending=False, na_position='last')
 write_tsv(sp_csm, args.out / 'sp_top_codingsystem_map.tsv')
 
+def ytunnus_check_digit(body):
+    """Check digit of a 7-digit Y-tunnus body (weights 7,9,10,5,8,4,2, mod 11); None if no valid one exists."""
+    remainder = sum(int(d) * w for d, w in zip(body, (7, 9, 10, 5, 8, 4, 2))) % 11
+    return None if remainder == 1 else (0 if remainder == 0 else 11 - remainder)
+
+
+def complete_old_form_code(code):
+    """Old-form OIDs embed the 7-digit Y-tunnus body without check digit, leading zero kept ("0132239" =
+    0132239-4): complete to the current form ("1322394"). Same rule as kanta.engine.filters.filter_minimal."""
+    if len(code) == 7 and code.startswith('0') and code.isdigit():
+        check = ytunnus_check_digit(code)
+        if check is not None:
+            return (code + str(check)).lstrip('0')
+    return code
+
+
 # --- Reference tables: org code -> (name, sector, municipality), municipality -> regions
 muni = {r['MunicipalityCode']: r for r in csv.DictReader(open(MUNI_REGION, encoding='utf-8'), delimiter='\t')}
 orgs = {}  # level-0 entry preferred
 sote_rows = csv.DictReader(gzip.open(SOTE, 'rt', encoding='iso-8859-1'), delimiter=';')
 for r in sorted(sote_rows, key=lambda r: r['HierarchyLevel'] != '0'):
-    m = re.match(r'1\.2\.246\.(?:537\.)?10\.0*(\d+)\.', r['OrganizationId'])
-    if m and m.group(1) not in orgs:
-        orgs[m.group(1)] = (r['Abbreviation'], r['A:Sektori'], r['A:Sijainti kunta'].split(' ')[0])
-# the engine replaces CODING_SYSTEM OIDs found in the sote map with their LAB_NAME (e.g. "Eura_1"): map those back
-labname = {r['LAB_NAME']: r['OrganizationId'] for r in csv.DictReader(gzip.open(SOTE_NAMED, 'rt', encoding='utf-8'), delimiter='\t')}
+    m = re.match(r'1\.2\.246\.(?:537\.)?10\.(\d+)\.', r['OrganizationId'])
+    code = complete_old_form_code(m.group(1)).lstrip('0') if m else None
+    if code and code not in orgs:
+        orgs[code] = (r['Abbreviation'], r['A:Sektori'], r['A:Sijainti kunta'].split(' ')[0])
 
 
 def org_code(cs):
     """Org code (Y-tunnus digits, no leading zeros) embedded in a CODING_SYSTEM value, or None."""
     if cs is None or pd.isna(cs) or cs in ('', 'NA'):
         return None
-    cs = labname.get(cs, cs)
     # CGI-hosted systems embed the customer's Y-tunnus ("11" + 8 digits); the engine decodes it only into
     # CODING_SYSTEM_MAP, CODING_SYSTEM keeps the raw OID
     m = re.match(r'^1\.2\.246\.537\.10\.3575029\.12\.2\.10\.110?(\d{7,8})\.6\.17$', cs)
@@ -97,8 +111,8 @@ def org_code(cs):
         return m.group(1).lstrip('0')
     if '.3575029.' in cs:
         return 'CGI'
-    m = re.match(r'1\.2\.246\.(?:537\.)?10\.0*(\d+)', cs)
-    return m.group(1) if m else None
+    m = re.match(r'1\.2\.246\.(?:537\.)?10\.(\d+)', cs)
+    return complete_old_form_code(m.group(1)).lstrip('0') if m else None
 
 
 def classify(cs):
