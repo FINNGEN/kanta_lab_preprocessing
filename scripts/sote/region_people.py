@@ -96,7 +96,7 @@ def cached(path):
 
 def is_small(values):
     """Person counts from 1 to --min-cell - 1 (0 is fine to show)."""
-    return pd.Series(values).between(1, args.min_cell - 1)
+    return pd.Series(values).between(1, args.min_cell - 1).fillna(False).astype(bool)
 
 
 def mask_small(df, count_cols, derived_cols=(), also_flag=None):
@@ -589,19 +589,35 @@ if sero is not None and len(sero):
     print("How positives were recognised, national (people; one person can be counted by several encodings):")
     print(sero[sero['maakunta'] == 'ALL'].set_index('test').reindex(order_tests)[
         ['n_pos', 'pos_by_outcome', 'pos_by_ispos', 'pos_by_value']].to_string())
-    # shareable table (serology_counts_* stays internal): per test x maakunta plus the pooled groups, % positive only
-    # with enough people with a result, small counts masked and the percentages derived from them blanked
-    share = pd.concat([sero.drop(columns=['pos_by_outcome', 'pos_by_ispos', 'pos_by_value']),
-                       pooled.rename(columns={'group': 'maakunta'}).assign(maakunta=lambda d: d['maakunta'] + ', pooled')],
-                      ignore_index=True)
+    # shareable table and figure (serology_counts_* stays internal): no count from 1 to --min-cell - 1 may be shown
+    # or be derivable by subtracting shown counts. So a maakunta is published only if its positives and negatives
+    # are both 0 or >= --min-cell, and the ALL and pooled coastal / inland rows sum the published maakunta only,
+    # which leaves nothing to subtract. People with no usable result are shown per published maakunta only (masked
+    # when small), not in the summed rows; n_people is left out, since with n_tested it would give them back.
+    regional = sero[sero['maakunta'] != 'ALL']
+    published = ~is_small(regional['n_pos']).values & ~is_small(regional['n_neg']).values
+    pub, suppressed = regional[published], regional[~published]
+    pub_pooled = pooled_by_coast(pub)
+    summed = pd.concat([pub.groupby('test', as_index=False)[['n_pos', 'n_tested']].sum().assign(maakunta='ALL'),
+                        pub_pooled[['test', 'group', 'n_pos', 'n_tested']].rename(columns={'group': 'maakunta'})
+                        .assign(maakunta=lambda d: d['maakunta'] + ', pooled')])
+    share = pd.concat([pub.assign(pct_unknown=100 * pub['n_unknown'] / pub['n_people']), summed,
+                       suppressed[['test', 'maakunta']].assign(note='left out: small count')], ignore_index=True)
     share['pct_pos'] = (100 * share['n_pos'] / share['n_tested']).where(share['n_tested'] >= args.sero_min_people)
     share['ci_low'], share['ci_high'] = wilson(share['n_pos'], share['n_tested'])
     share[['ci_low', 'ci_high']] = share[['ci_low', 'ci_high']].where(share['pct_pos'].notna())
-    small_parts = is_small(share['n_neg']) | is_small(share['n_unknown'])  # these would give n_pos / pct_unknown back
-    share = share[['test', 'maakunta', 'n_people', 'n_tested', 'n_pos', 'pct_unknown', 'pct_pos', 'ci_low', 'ci_high']].round(2)
-    write_tsv_once(mask_small(share, ['n_people', 'n_tested', 'n_pos'], ['pct_unknown', 'pct_pos', 'ci_low', 'ci_high'], small_parts),
+    rank = {r: i for i, r in enumerate(order + ['coastal, pooled', 'inland, pooled'])}
+    share = share.assign(_r=share['maakunta'].map(rank)).sort_values(['test', '_r'])
+    share = share[['test', 'maakunta', 'n_tested', 'n_pos', 'pct_pos', 'ci_low', 'ci_high', 'n_unknown', 'pct_unknown', 'note']]
+    for c in ['n_tested', 'n_pos', 'n_unknown']:
+        share[c] = share[c].astype('Int64')
+    write_tsv_once(mask_small(share.round(2), ['n_unknown'], ['pct_unknown']),
                    args.out / f'serology_maakunta_{TAG}.tsv', fresh=sero_fresh)
-    plot_serology(usable, pooled, args.out, fresh=sero_fresh)
+    if len(suppressed):
+        print(f"Shareable serology table and figure: left out for a small count (also from the ALL and pooled rows): "
+              f"{', '.join(suppressed['test'] + ' ' + suppressed['maakunta'])}")
+    plot_serology(share[share['pct_pos'].notna() & ~share['maakunta'].str.endswith(', pooled')], pub_pooled, args.out,
+                  fresh=sero_fresh)
 
 # --- Clinical check: FinnGen endpoint prevalence per assigned maakunta vs THL/Kela's regional disease indices
 # Endpoint status is 'ever diagnosed by death or end of follow-up', so prevalence depends on the age people have
@@ -633,7 +649,7 @@ def plot_disease(cmp, path, fresh=False):
     for ax in axes.flat[len(eps):]:
         ax.set_visible(False)
     for ax, ep in zip(axes.flat, eps):
-        d = cmp[cmp['endpoint'] == ep].dropna(subset=['finngen_index', 'thl_index'])
+        d = cmp[(cmp['endpoint'] == ep) & cmp['shareable']].dropna(subset=['finngen_index', 'thl_index'])
         ax.scatter(d['finngen_index'], d['thl_index'], s=36, color=BLUE, edgecolor=SURFACE, linewidth=1.5, zorder=3)
         for _, r in d.iterrows():
             ax.annotate(r['maakunta'], (r['finngen_index'], r['thl_index']), xytext=(4, 3), textcoords='offset points', fontsize=7, color=INK2)
@@ -703,6 +719,9 @@ if counts is not None and len(counts):
                                   if mk in thl.index and ENDPOINT_TO_INDEX[ep][0] in thl.columns else np.nan})
     cmp = pd.DataFrame(rows)
     cmp = cmp[cmp['n_people'] >= args.disease_min_people]
+    # a maakunta whose cases or non-cases are from 1 to --min-cell - 1 has its index blanked in the shareable table, so
+    # it is also left out of the correlations, the hotspot rank and the figure (all shared)
+    cmp['shareable'] = ~is_small(cmp['n_cases']).values & ~is_small(cmp['n_people'] - cmp['n_cases']).values
     if cmp['finngen_index'].isna().all():
         print("  (no age/sex available: no standardised index, comparing crude prevalence)")
         cmp['finngen_index'] = cmp['pct_crude']
@@ -711,17 +730,17 @@ if counts is not None and len(counts):
     for ep in [e for e in ENDPOINT_TO_INDEX if e in set(cmp['endpoint'])]:
         d = cmp[cmp['endpoint'] == ep]
         index_col, label = ENDPOINT_TO_INDEX[ep]
-        table = d.drop(columns='endpoint').set_index('maakunta').round({'pct_crude': 1, 'finngen_index': 1, 'thl_index': 1})
+        table = d.drop(columns=['endpoint', 'shareable']).set_index('maakunta').round({'pct_crude': 1, 'finngen_index': 1, 'thl_index': 1})
         if index_col:
-            ok = d.dropna(subset=['finngen_index', 'thl_index'])
+            ok = d[d['shareable']].dropna(subset=['finngen_index', 'thl_index'])
             rho = spearman(ok['finngen_index'], ok['thl_index']) if len(ok) >= 3 else np.nan
             print(f"\n{label} ({ep}): FinnGen age/sex-standardised index (observed / expected x 100) per assigned maakunta vs "
                   f"THL/Kela {index_col.replace('_', ' ')} — Spearman ρ {rho:+.2f} over {len(ok)} maakunta "
-                  f"(maakunta with < {args.disease_min_people} people left out)")
+                  f"(maakunta with < {args.disease_min_people} people, or < {args.min_cell} cases or non-cases, left out)")
             summary.append({'endpoint': ep, 'disease': label, 'compared with': index_col, 'maakunta': len(ok), 'spearman': round(rho, 2)})
         else:
             hot = HOTSPOTS.get(ep)
-            ranked = d.dropna(subset=['finngen_index']).sort_values('finngen_index', ascending=False)['maakunta'].tolist()
+            ranked = d[d['shareable']].dropna(subset=['finngen_index']).sort_values('finngen_index', ascending=False)['maakunta'].tolist()
             where = f"{hot} ranks {ranked.index(hot) + 1} of {len(ranked)}" if hot in ranked else f"{hot} not in the table"
             print(f"\n{label} ({ep}): FinnGen age/sex-standardised index per assigned maakunta (no THL/Kela index; "
                   f"expected hotspot {hot}: {where})")
@@ -731,8 +750,11 @@ if counts is not None and len(counts):
         print(table.to_string())
     print("\nSummary:")
     print(pd.DataFrame(summary).to_string(index=False, na_rep=''))
-    # shareable: small case counts (or few non-cases) masked, with the prevalence and index derived from them blanked
-    write_tsv_once(mask_small(cmp.round(2), ['n_people', 'n_cases'], ['pct_crude', 'finngen_index'],
-                              is_small(cmp['n_people'] - cmp['n_cases'])),
+    # shareable: small case counts masked, with the prevalence and index derived from them blanked; with few
+    # non-cases, n_cases is blanked too, since n_people - n_cases would give them back
+    few_noncases = pd.Series(is_small(cmp['n_people'] - cmp['n_cases']).values, index=cmp.index)
+    shared = mask_small(cmp.drop(columns='shareable').round(2), ['n_people', 'n_cases'], ['pct_crude', 'finngen_index'], few_noncases)
+    shared['n_cases'] = shared['n_cases'].where(~few_noncases, None)
+    write_tsv_once(shared,
                    args.out / f'disease_vs_thl_{DTAG}.tsv', fresh=disease_fresh)
     plot_disease(cmp, args.out, fresh=disease_fresh)
