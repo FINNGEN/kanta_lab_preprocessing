@@ -130,15 +130,35 @@ def cgi_customer_pattern(manual_map: dict[str, str]) -> str:
     return rf"{CGI_CODING_SYSTEM_PREFIX}({'|'.join(codes)}){CGI_CODING_SYSTEM_SUFFIX}"
 
 
-def get_coding_map(df: pd.DataFrame) -> pd.DataFrame:
-    """Map CODING_SYSTEM via the THL organization map, then derive CODING_SYSTEM_MAP.
+def ytunnus_check_digit(body: str) -> int | None:
+    """Check digit of a 7-digit Y-tunnus body (weights 7,9,10,5,8,4,2, mod 11); None if no valid one exists."""
+    remainder = sum(int(d) * w for d, w in zip(body, (7, 9, 10, 5, 8, 4, 2))) % 11
+    if remainder == 1:
+        return None
+    return 0 if remainder == 0 else 11 - remainder
 
-    Only resolves values the org map left unchanged, e.g. "3575029" -> "CGI_Suomi_Oy". CGI
-    values are resolved to the embedded customer organization when the manual map knows it,
-    otherwise they stay "CGI_Suomi_Oy".
+
+def complete_old_form_code(code: str) -> str:
+    """Old-form OIDs embed the 7-digit Y-tunnus body without its check digit, keeping the leading zero
+    (e.g. "1.2.246.10.0132239.10.0": 0132239 -> Y-tunnus 0132239-4). OID arcs normally have no leading
+    zeros, so a 7-digit code starting with 0 is completed to the current form used by the manual map:
+    body + check digit, leading zeros stripped ("0132239" -> "1322394"). Other codes are returned as is."""
+    if len(code) == 7 and code.startswith("0") and code.isdigit():
+        check = ytunnus_check_digit(code)
+        if check is not None:
+            return (code + str(check)).lstrip("0")
+    return code
+
+
+def get_coding_map(df: pd.DataFrame) -> pd.DataFrame:
+    """Derive CODING_SYSTEM_MAP (organization name) from the CODING_SYSTEM OID, which is kept as is.
+
+    The organization code embedded in the OID is looked up in the manual map, e.g. "3575029" ->
+    "CGI_Suomi_Oy". CGI values are resolved to the embedded customer organization when the manual map
+    knows it, otherwise they stay "CGI_Suomi_Oy". Old-form codes (Y-tunnus body without check digit)
+    are completed first, see complete_old_form_code().
     """
     col = "CODING_SYSTEM"
-    df[col] = df[col].map(reference_data.get_thl_sote_map())
     manual_map = reference_data.get_thl_manual_map()
 
     tmp_system = (
@@ -152,6 +172,14 @@ def get_coding_map(df: pd.DataFrame) -> pd.DataFrame:
         # The semantic is the same.
         .str.extract(r"^(?P<x>[^.]*)", expand=False)
     )
+    # complete old-form codes the manual map doesn't know as they are (few distinct values: map uniques)
+    # string codes only: "NA" codes come back from the CSV read as NaN, and a NaN among the isin() values
+    # makes Arrow-backed strings try to compare as doubles
+    known_codes = [code for code in manual_map if isinstance(code, str)]
+    is_old_form = tmp_system.str.fullmatch(r"0\d{6}").fillna(False).astype(bool) & ~tmp_system.isin(known_codes)
+    if is_old_form.any():
+        completed = {c: complete_old_form_code(c) for c in tmp_system[is_old_form].unique()}
+        tmp_system = tmp_system.where(~is_old_form, tmp_system.map(completed))
     df["CODING_SYSTEM_MAP"] = tmp_system.map(manual_map).fillna("NA")
     return df
 

@@ -108,19 +108,39 @@ def get_value_counts(input_file: Path) -> pd.DataFrame:
     return counts
 
 
+def ytunnus_check_digit(body: str) -> int | None:
+    """Check digit of a 7-digit Y-tunnus body (weights 7,9,10,5,8,4,2, mod 11); None if no valid one exists."""
+    remainder = sum(int(d) * w for d, w in zip(body, (7, 9, 10, 5, 8, 4, 2))) % 11
+    if remainder == 1:
+        return None
+    return 0 if remainder == 0 else 11 - remainder
+
+
+def complete_old_form_code(code: str) -> str:
+    """Old-form OIDs embed the 7-digit Y-tunnus body without its check digit, keeping the leading zero
+    ("0132239" = Y-tunnus 0132239-4): complete it to the current form, body + check digit with leading
+    zeros stripped ("1322394"). Same rule as complete_old_form_code in kanta.engine.filters.filter_minimal."""
+    if len(code) == 7 and code.startswith("0") and code.isdigit():
+        check = ytunnus_check_digit(code)
+        if check is not None:
+            return (code + str(check)).lstrip("0")
+    return code
+
+
 def extract_code(value: str) -> str | None:
     """Extract the digit segment right after any of CODE_ROOTS, e.g.
     "1.2.246.10.23925196.6.3.2016" -> "23925196",
     "1.2.246.537.10.3575029.12.2.10.1102012566.6.17" -> "2012566" (CGI customer, see
-    CGI_CODE_PATTERN; CGI values without an embedded customer -> "3575029"), or a bare
-    "1.2.246.10.24838684" (no trailing arc at all) -> "24838684"."""
+    CGI_CODE_PATTERN; CGI values without an embedded customer -> "3575029"), a bare
+    "1.2.246.10.24838684" (no trailing arc at all) -> "24838684", or an old-form
+    "1.2.246.10.0132239.10.0" -> "1322394" (see complete_old_form_code)."""
     cgi_match = CGI_CODE_PATTERN.match(value)
     if cgi_match:
         return cgi_match.group(1).lstrip("0")
     for pattern in CODE_PATTERNS:
         match = pattern.match(value)
         if match:
-            return match.group(1)
+            return complete_old_form_code(match.group(1))
     return None
 
 

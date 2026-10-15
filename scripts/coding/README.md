@@ -75,8 +75,8 @@ you need to delete the relevant `.pkl` to see it.
 
 `kanta.engine`'s `get_thl_manual_map()` (`src/kanta/engine/reference_data.py`) reads
 `src/kanta/engine/data/thl_coding_manual_mapping.txt` as a `CODE`/`NAME` TSV (with a header,
-`COUNT`/`SOURCE` ignored) to resolve `CODING_SYSTEM` values that the primary official THL
-mapping (`THL_SOTE_MAP_FILE`) doesn't cover. That file's format is exactly this script's output
+`COUNT`/`SOURCE` ignored) to derive `CODING_SYSTEM_MAP` from the organization code embedded in
+`CODING_SYSTEM`. That file's format is exactly this script's output
 format, so `coding_table.txt` can be copied over it directly to update the engine's mapping —
 just make sure the header is present and columns are named `CODE`/`NAME`/`COUNT`/`SOURCE`
 (older versions of that file were headerless 2-column `code`/`label` and are **not**

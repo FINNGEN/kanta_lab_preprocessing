@@ -118,25 +118,6 @@ def get_thl_lab_map(verbose: bool = False) -> FallbackToKeyDict:
 
 
 @lru_cache(maxsize=1)
-def get_thl_sote_map(verbose: bool = False) -> FallbackToKeyDict:
-    """National (THL) organization id -> lab/organization name mapping."""
-
-    def compute():
-        df = pd.read_csv(
-            config.THL_SOTE_MAP_FILE,
-            sep="\t",
-            usecols=["OrganizationId", "LAB_NAME"],
-            dtype=str,
-        )
-        return FallbackToKeyDict(zip(df["OrganizationId"], df["LAB_NAME"]))
-
-    result = _cached("thl_sote_map", compute)
-    if verbose:
-        logger.info(f"[reference_data] thl_sote_map: {len(result)} entries loaded, sample {_sample_dict(result)}")
-    return result
-
-
-@lru_cache(maxsize=1)
 def get_thl_manual_map(verbose: bool = False) -> dict[str, str]:
     """Manual mapping from a short numeric code (derived from CODING_SYSTEM) to a coding system name."""
 
@@ -694,7 +675,6 @@ def warm_all(verbose: bool = True) -> None:
     startup and the per-run pickle cache is populated before any worker process starts.
     """
     get_thl_lab_map(verbose=verbose)
-    get_thl_sote_map(verbose=verbose)
     get_thl_manual_map(verbose=verbose)
     get_unit_map(verbose=verbose)
     get_usagi_units(verbose=verbose)
