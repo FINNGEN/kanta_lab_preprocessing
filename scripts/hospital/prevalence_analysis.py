@@ -4,10 +4,16 @@ prevalence_analysis.py
 
 For each of a set of Kanta lab columns (e.g. TEST_NAME), compare how often
 each category value appears among lab rows drawn during a hospitalization
-episode vs. outside one. For every category value: an odds ratio, a
-Fisher's-exact p-value (Benjamini-Hochberg FDR-corrected across all values
-tested for that column), and a saved TSV + a histogram of log2(OR) across
-all values.
+episode vs. outside one. For every category value: the fraction of its rows
+drawn in-hospital, an odds ratio with a 95% CI (Woolf, +0.5 on every cell so
+zero counts give finite ORs), a G-test log10 p-value (Benjamini-Hochberg
+FDR-corrected across all values tested for that column), and a saved TSV +
+a histogram of log2(OR) across all values.
+
+p-values are kept on the log10 scale throughout: with hundreds of millions of
+rows they routinely fall below float64's ~1e-308 and would underflow to 0.
+Even so, rows from the same patient are not independent, so treat them as a
+coarse gate only -- rank and filter on the OR / its CI / FRAC_IN instead.
 
 The Kanta release file is scanned in row-group batches (never fully loaded),
 each batch immediately collapsed to running per-category counts -- only
@@ -18,6 +24,7 @@ Usage:
   python3 prevalence_analysis.py [--kanta-input PATH] [--intervals-input PATH]
                                   [--columns TEST_NAME,OMOP_CONCEPT_ID,CODING_SYSTEM_ORG]
                                   [--min-count 30] [--chunksize 2000000] [--out PATH]
+                                  [--provider-orgs PATH]
   python3 prevalence_analysis.py --test [--test-chunks 10]   # stop early, for fast iteration
 """
 
@@ -30,9 +37,10 @@ from pathlib import Path
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 import pyarrow.parquet as pq
-from scipy.stats import fisher_exact
+from scipy.stats import norm
 from tqdm import tqdm
 
 DEFAULT_ENGINE_DIR = Path("/mnt/disks/data/kanta/engine/")
@@ -58,6 +66,13 @@ def fetch_omop_concept_names() -> dict[str, str]:
         urllib.request.urlretrieve(OMOP_CONCEPT_NAMES_URL, tmp.name)
         df = pd.read_csv(tmp.name, dtype=str, usecols=["conceptId", "conceptName"])
     return dict(zip(df["conceptId"], df["conceptName"]))
+
+
+def load_provider_orgs(path: Path) -> dict[str, str]:
+    """SERVICE_PROVIDER_ID -> best-matching organization name, from a TSV with at
+    least columns `s` (provider id) and `orgname`. Only used to label results."""
+    orgs = pd.read_csv(path, sep="\t", dtype=str, usecols=["s", "orgname"])
+    return dict(zip(orgs["s"], orgs["orgname"]))
 
 
 def resolve_kanta_input() -> Path:
@@ -101,41 +116,65 @@ def tag_in_hospital(batch: pd.DataFrame, intervals: pd.DataFrame) -> pd.DataFram
     return merged
 
 
-def benjamini_hochberg(p_values: pd.Series) -> pd.Series:
-    """Benjamini-Hochberg FDR correction (no statsmodels dependency for one function)."""
-    n = len(p_values)
-    order = p_values.argsort()
-    ranks = pd.Series(range(1, n + 1), index=p_values.index[order])
-    adjusted = (p_values.iloc[order].values * n / ranks.values)
-    # enforce monotonicity (BH step-up), then clip to [0, 1]
-    adjusted = pd.Series(adjusted, index=p_values.index[order]).iloc[::-1].cummin().iloc[::-1]
-    return adjusted.clip(upper=1.0).reindex(p_values.index)
+def benjamini_hochberg_log10(log10_p: pd.Series) -> pd.Series:
+    """Benjamini-Hochberg FDR correction done in log10 space, so p-values far
+    below float64's range stay distinguishable (no statsmodels dependency)."""
+    n = len(log10_p)
+    order = log10_p.argsort()
+    ranks = np.arange(1, n + 1)
+    adjusted = log10_p.iloc[order].values + np.log10(n) - np.log10(ranks)
+    # enforce monotonicity (BH step-up), then clip to p <= 1
+    adjusted = pd.Series(adjusted, index=log10_p.index[order]).iloc[::-1].cummin().iloc[::-1]
+    return adjusted.clip(upper=0.0).reindex(log10_p.index)
+
+
+def g_test_log10_p(a, b, c, d) -> np.ndarray:
+    """Log-likelihood-ratio (G) test on 2x2 tables [[a, b], [c, d]], vectorized,
+    returning log10 p directly so it never underflows. At these sample sizes it
+    agrees with Fisher's exact test and is far cheaper."""
+    obs = np.stack([a, b, c, d]).astype("float64")
+    row1, row2 = a + b, c + d
+    col1, col2 = a + c, b + d
+    total = row1 + row2
+    exp = np.stack([row1 * col1, row1 * col2, row2 * col1, row2 * col2]) / total
+    with np.errstate(divide="ignore", invalid="ignore"):
+        terms = np.where(obs > 0, obs * np.log(obs / exp), 0.0)  # 0 * log 0 := 0
+    g = np.clip(2 * terms.sum(axis=0), 0, None)
+    # chi2(df=1).sf(g) == 2 * norm.sf(sqrt(g)); unlike chi2.logsf, norm.logsf
+    # uses an asymptotic expansion in the far tail and stays finite
+    return (np.log(2) + norm.logsf(np.sqrt(g))) / np.log(10)
 
 
 def summarize_column(counts_in: Counter, counts_out: Counter, n_in: int, n_out: int, min_count: int) -> pd.DataFrame:
     values = set(counts_in) | set(counts_out)
-    rows = []
-    for v in values:
-        c_in = counts_in.get(v, 0)
-        c_out = counts_out.get(v, 0)
-        if c_in + c_out < min_count:
-            continue
-        table = [[c_in, n_in - c_in], [c_out, n_out - c_out]]
-        odds_ratio, p_value = fisher_exact(table)
-        rows.append((v, c_in, c_out, c_in + c_out, c_in / n_in, c_out / n_out, odds_ratio, p_value))
-
-    result = pd.DataFrame(
-        rows, columns=["VALUE", "N_IN", "N_OUT", "N_TOTAL", "PREV_IN", "PREV_OUT", "ODDS_RATIO", "P_VALUE"]
-    )
+    rows = [(v, counts_in.get(v, 0), counts_out.get(v, 0)) for v in values]
+    result = pd.DataFrame(rows, columns=["VALUE", "N_IN", "N_OUT"])
+    result["N_TOTAL"] = result["N_IN"] + result["N_OUT"]
+    result = result[result["N_TOTAL"] >= min_count].reset_index(drop=True)
     if result.empty:
         return result
-    result["P_ADJ_FDR"] = benjamini_hochberg(result["P_VALUE"])
-    result["LOG2_OR"] = pd.Series(
-        [float("inf") if pd.isna(o) or o in (float("inf"),) else
-         float("-inf") if o == 0 else
-         __import__("math").log2(o) for o in result["ODDS_RATIO"]]
-    )
-    return result.sort_values("ODDS_RATIO", ascending=False).reset_index(drop=True)
+
+    a = result["N_IN"].to_numpy("float64")
+    c = result["N_OUT"].to_numpy("float64")
+    b, d = n_in - a, n_out - c
+
+    result["FRAC_IN"] = a / (a + c)
+    result["PREV_IN"] = a / n_in
+    result["PREV_OUT"] = c / n_out
+    # +0.5 on every cell (Haldane-Anscombe) keeps the OR and its SE finite when a
+    # value never occurs on one side; negligible for anything with real counts.
+    ln_or = np.log((a + 0.5) * (d + 0.5) / ((b + 0.5) * (c + 0.5)))
+    se = np.sqrt(1 / (a + 0.5) + 1 / (b + 0.5) + 1 / (c + 0.5) + 1 / (d + 0.5))
+    z = norm.ppf(0.975)
+    result["ODDS_RATIO"] = np.exp(ln_or)
+    result["OR_CI_LOW"] = np.exp(ln_or - z * se)
+    result["OR_CI_HIGH"] = np.exp(ln_or + z * se)
+    result["LOG2_OR"] = ln_or / np.log(2)
+    result["LOG10_P"] = g_test_log10_p(a, b, c, d)
+    result["LOG10_P_ADJ_FDR"] = benjamini_hochberg_log10(result["LOG10_P"])
+    # rank by the conservative end of the CI: a huge point OR built on a handful
+    # of rows has a wide CI and sinks, a large well-supported OR rises
+    return result.sort_values("OR_CI_LOW", ascending=False).reset_index(drop=True)
 
 
 def plot_histogram(result: pd.DataFrame, column: str, out_path: Path) -> None:
@@ -172,6 +211,10 @@ def main():
                          help="Ignore category values with fewer than this many total rows (in+out)")
     parser.add_argument("--chunksize", type=int, default=DEFAULT_CHUNKSIZE, help="Rows per read batch")
     parser.add_argument("--out", type=Path, default=DEFAULT_OUT_DIR, help="Output directory")
+    parser.add_argument("--provider-orgs", type=Path, default=None,
+                         help="Optional TSV mapping SERVICE_PROVIDER_ID (column `s`) to an organization "
+                              "name (column `orgname`); appended as a final BEST_ORG column to the "
+                              "SERVICE_PROVIDER_ID results")
     parser.add_argument("--test", action="store_true",
                          help="Stop after --test-chunks batches, for fast iteration on real data")
     parser.add_argument("--test-chunks", type=int, default=10,
@@ -182,6 +225,8 @@ def main():
     columns = [c.strip() for c in args.columns.split(",") if c.strip()]
     kanta_input = args.kanta_input or resolve_kanta_input()
 
+    if args.provider_orgs is not None and not args.provider_orgs.exists():
+        raise SystemExit(f"provider orgs file not found at {args.provider_orgs}")
     if not args.intervals_input.exists():
         raise SystemExit(
             f"intervals file not found at {args.intervals_input} -- run build_intervals.py first"
@@ -195,6 +240,12 @@ def main():
 
     needed_cols = ["FINNGENID", "EVENT_AGE"] + columns
     pf = pq.ParquetFile(kanta_input)
+    # iter_batches silently skips unknown columns, which would only surface later as a
+    # KeyError mid-scan -- check up front (e.g. engine-internal names vs. release names)
+    missing = [c for c in needed_cols if c not in pf.schema_arrow.names]
+    if missing:
+        raise SystemExit(f"columns not in {kanta_input.name}: {missing}\n"
+                         f"available: {pf.schema_arrow.names}")
     total_rows = pf.metadata.num_rows
     n_batches = args.test_chunks if args.test else None
 
@@ -223,6 +274,7 @@ def main():
     print(f"\n{n_in:,} rows in-hospital, {n_out:,} rows outside ({100 * n_in / (n_in + n_out):.1f}% in-hospital)")
 
     concept_names = fetch_omop_concept_names() if "OMOP_CONCEPT_ID" in columns else {}
+    provider_orgs = load_provider_orgs(args.provider_orgs) if args.provider_orgs else None
 
     args.out.mkdir(parents=True, exist_ok=True)
     for c in columns:
@@ -232,15 +284,24 @@ def main():
             continue
         if c == "OMOP_CONCEPT_ID":
             result.insert(1, "OMOP_CONCEPT_NAME", result["VALUE"].map(concept_names))
+        if c == "SERVICE_PROVIDER_ID" and provider_orgs is not None:
+            # last column on purpose: org names contain spaces, so keeping them at
+            # the end leaves every numeric column's position unchanged
+            result["BEST_ORG"] = result["VALUE"].map(provider_orgs)
         out_tsv = args.out / f"prevalence_{c.lower()}.tsv"
         # scientific notation for every float column (N_IN/N_OUT/N_TOTAL stay
-        # plain integers -- they're counts, not measured quantities)
-        sci_cols = ["PREV_IN", "PREV_OUT", "ODDS_RATIO", "P_VALUE", "P_ADJ_FDR", "LOG2_OR"]
-        formatted = result.assign(**{col: result[col].map(lambda x: f"{x:.3e}") for col in sci_cols})
+        # plain integers -- they're counts, not measured quantities); FRAC_IN and
+        # the log-scale columns are already human-scale, so plain decimals
+        sci_cols = ["PREV_IN", "PREV_OUT", "ODDS_RATIO", "OR_CI_LOW", "OR_CI_HIGH"]
+        fixed_cols = ["FRAC_IN", "LOG2_OR", "LOG10_P", "LOG10_P_ADJ_FDR"]
+        formatted = result.assign(
+            **{col: result[col].map(lambda x: f"{x:.3e}") for col in sci_cols},
+            **{col: result[col].map(lambda x: f"{x:.3f}") for col in fixed_cols},
+        )
         formatted.to_csv(out_tsv, sep="\t", index=False)
         out_png = args.out / f"prevalence_{c.lower()}_hist.png"
         plot_histogram(result, c, out_png)
-        n_sig = int((result["P_ADJ_FDR"] < 0.05).sum())
+        n_sig = int((result["LOG10_P_ADJ_FDR"] < np.log10(0.05)).sum())
         print(f"{c}: {len(result)} values (n_total>={args.min_count}), {n_sig} significant at FDR<0.05 "
               f"-> {out_tsv}, {out_png}")
 

@@ -1,0 +1,24 @@
+hyvinvointialue	maakunta	person_years	lyme_cases	lyme_expected	lyme_incidence_index	lyme_crude_index	tularemia_cases	tularemia_expected	tularemia_incidence_index	tularemia_crude_index
+Ahvenanmaa	Ahvenanmaa	299386	4796	122.5	3913.5	4020.7	1	7.6	13.2	13.4
+Etelä-Karjalan hyvinvointialue	Etelä-Karjala	1276665	562	549.3	102.3	110.5	3	33.0	9.1	9.4
+Etelä-Pohjanmaan hyvinvointialue	Etelä-Pohjanmaa	1932203	61	802.3	7.6	7.9	288	48.7	591.3	597.9
+Etelä-Savon hyvinvointialue	Etelä-Savo	1345784	196	609.9	32.1	36.6	1	35.7	2.8	3.0
+Kainuun hyvinvointialue	Kainuu	722696	30	318.9	9.4	10.4	3	19.1	15.7	16.7
+Kanta-Hämeen hyvinvointialue	Kanta-Häme	1712829	210	722.5	29.1	30.8	1	44.0	2.3	2.3
+Keski-Pohjanmaan hyvinvointialue	Keski-Pohjanmaa	682601	63	272.8	23.1	23.2	98	16.7	585.3	575.9
+Keski-Suomen hyvinvointialue	Keski-Suomi	2732436	457	1093.1	41.8	42.0	135	67.8	199.3	198.2
+Kymenlaakson hyvinvointialue	Kymenlaakso	1642109	852	719.7	118.4	130.2	90	43.0	209.4	219.8
+Lapin hyvinvointialue	Lappi	1777226	76	750.8	10.1	10.7	13	46.0	28.3	29.3
+Pirkanmaan hyvinvointialue	Pirkanmaa	5239344	341	2040.4	16.7	16.3	39	128.4	30.4	29.9
+Pohjanmaan hyvinvointialue	Pohjanmaa	1766542	541	693.6	78.0	76.9	88	42.8	205.6	199.8
+Pohjois-Karjalan hyvinvointialue	Pohjois-Karjala	1646173	381	699.7	54.5	58.1	4	42.4	9.4	9.7
+Pohjois-Pohjanmaan hyvinvointialue	Pohjois-Pohjanmaa	4140563	252	1567.1	16.1	15.3	480	99.9	480.5	465.0
+Pohjois-Savon hyvinvointialue	Pohjois-Savo	2498363	509	1044.4	48.7	51.1	2	63.9	3.1	3.2
+Päijät-Hämeen hyvinvointialue	Päijät-Häme	2063393	271	880.6	30.8	33.0	2	53.0	3.8	3.9
+Satakunnan hyvinvointialue	Satakunta	2165725	717	925.4	77.5	83.1	32	55.5	57.7	59.3
+Helsingin kaupunki	Uusimaa	6546461	2892	2375.8	121.7	110.9	37	157.6	23.5	22.7
+Itä-Uudenmaan hyvinvointialue	Uusimaa	980225	354	403.2	87.8	90.6	9	25.1	35.9	36.8
+Keski-Uudenmaan hyvinvointialue	Uusimaa	1995669	422	781.8	54.0	53.1	7	50.2	14.0	14.1
+Länsi-Uudenmaan hyvinvointialue	Uusimaa	4739926	3543	1791.6	197.8	187.6	13	116.3	11.2	11.0
+Vantaan ja Keravan hyvinvointialue	Uusimaa	2704935	681	986.4	69.0	63.2	9	65.6	13.7	13.3
+Varsinais-Suomen hyvinvointialue	Varsinais-Suomi	4821518	3879	1934.2	200.5	201.9	27	119.9	22.5	22.5

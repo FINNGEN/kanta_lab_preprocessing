@@ -8,12 +8,13 @@ of the person's top 3 maakunta with their shares.
 
 Last, the assigned maakunta is compared with region of birth and with cohort (regionofbirthname, cohort in --pheno),
 and as clinical checks, vitamin D by month is summarised per assigned maakunta with a fitted annual cycle (level,
-peak month) and compared with latitude, and the % of tested people positive for Puumala hantavirus (known east/central
-vs west-coast pattern) is computed per maakunta; and FinnGen endpoint prevalence (type 2 diabetes, coronary heart
-disease; age-standardised) per assigned maakunta is compared with THL/Kela's age-standardised disease indices per
-region (data/sotkanet_health_index_<year>.tsv, written by fetch_sotkanet.py). Figures are written next to the tables.
+peak month) and compared with latitude, and FinnGen endpoint prevalence (age- and sex-standardised) per assigned
+maakunta is compared with THL's regional references: THL/Kela's age-standardised disease indices (type 2 diabetes,
+asthma, dementia, coronary heart disease, alcohol use disorder; data/sotkanet_health_index_<year>.tsv) and THL's
+age- and sex-standardised infectious disease register incidence (tularaemia, Lyme disease; data/thl_ttr_incidence_<years>.tsv), both written
+by fetch_thl_reference.py; Lyme disease gets a figure of its own. Figures are written next to the tables.
 
-Caching: the steps that scan the engine parquet (per-person table, vitamin D and serology aggregations) are skipped
+Caching: the steps that scan the engine parquet (per-person table, vitamin D aggregation) are skipped
 when their output file already exists, and that file is loaded instead, so an interrupted run picks up where it was.
 Derived tables and figures are kept when their source table was loaded from cache, and rewritten when it was just
 recomputed (they would be stale otherwise). --force recomputes and overwrites everything.
@@ -34,11 +35,6 @@ BIRTH_TO_MAAKUNTA = {
 BIRTH_OUTSIDE_FINLAND = {'Abroad', 'Region_ceded_to_Soviet'}
 
 # approximate latitude of each maakunta's main town, to order regions south -> north in the vitamin D check
-# maakunta with a sea coast; the rest are inland. Pohjois-Pohjanmaa and Lappi touch the sea but are mostly inland:
-# kept as coastal (fixed rule, not adjusted to the data), which blurs the coastal/inland contrast somewhat
-COASTAL = {'Ahvenanmaa', 'Uusimaa', 'Varsinais-Suomi', 'Satakunta', 'Pohjanmaa', 'Keski-Pohjanmaa', 'Pohjois-Pohjanmaa',
-           'Lappi', 'Kymenlaakso'}
-
 MAAKUNTA_LAT = {
     'Ahvenanmaa': 60.1, 'Uusimaa': 60.2, 'Varsinais-Suomi': 60.5, 'Kymenlaakso': 60.7, 'Päijät-Häme': 61.0,
     'Kanta-Häme': 61.0, 'Etelä-Karjala': 61.1, 'Satakunta': 61.5, 'Pirkanmaa': 61.5, 'Etelä-Savo': 61.7,
@@ -59,13 +55,14 @@ ap.add_argument('--pheno', type=Path, default=Path('~/r14/pheno/R14_COV_PHENO_V0
                      "(default: ~/r14/pheno/R14_COV_PHENO_V0.FID.txt.gz)")
 ap.add_argument('--vitd-omop', default='40771025', help="OMOP concept of 25-OH vitamin D (default: 40771025)")
 ap.add_argument('--vitd-min-people', type=int, default=50, help="Hide maakunta x month cells with fewer person-months than this (default: 50)")
-ap.add_argument('--sero-min-people', type=int, default=30, help="Hide maakunta x serology cells with fewer tested people than this (default: 30)")
 ap.add_argument('--age-col', default='AGE_AT_DEATH_OR_END_OF_FOLLOWUP',
                 help="Age in --pheno used to standardise endpoint prevalence: age reached by death or end of follow-up, since "
                      "endpoint status is 'ever by end of follow-up' (default: AGE_AT_DEATH_OR_END_OF_FOLLOWUP)")
 ap.add_argument('--sex-col', default='SEX', help="Sex column in --pheno, also used to standardise endpoint prevalence (default: SEX)")
 ap.add_argument('--sotkanet', type=Path, default=Path(__file__).resolve().parent / 'data' / 'sotkanet_health_index_2024.tsv',
-                help="Reference disease indices per hyvinvointialue from fetch_sotkanet.py (default: data/sotkanet_health_index_2024.tsv next to this script)")
+                help="Reference disease indices per hyvinvointialue from fetch_thl_reference.py (default: data/sotkanet_health_index_2024.tsv next to this script)")
+ap.add_argument('--thl-ttr', type=Path, default=Path(__file__).resolve().parent / 'data' / 'thl_ttr_incidence_2015_2024.tsv',
+                help="Infectious disease incidence per hyvinvointialue from fetch_thl_reference.py (default: data/thl_ttr_incidence_2015_2024.tsv next to this script)")
 ap.add_argument('--exclude-cohorts', type=lambda s: sorted(c for c in s.split(',') if c), default=[],
                 help="Comma-separated cohorts left out of the disease comparison, e.g. ones recruited for a disease "
                      "(THL_BIOBANK_BOTNIA,THL_BIOBANK_FUSION,THL_BIOBANK_T1D,THL_BIOBANK_COROGENE,THL_BIOBANK_HHS); default: none")
@@ -201,17 +198,25 @@ def compare(both, col, out_name, same=None):
 
 
 # one read of the (wide) pheno file: only the columns used below
-# FinnGen endpoint -> (THL/Kela index column in --sotkanet, or None if there is none, label)
+# FinnGen endpoint -> (reference index column in --sotkanet or --thl-ttr, or None if there is none, label)
 ENDPOINT_TO_INDEX = {
     'T2D': ('diabetes_index', 'type 2 diabetes'),
-    'I9_CHD': ('coronary_index', 'coronary heart disease'),
-    'I9_STR': ('cerebrovascular_index', 'stroke'),
-    'J10_COPD': ('lung_index', 'COPD'),
     'J10_ASTHMA': ('lung_index', 'asthma'),
     'F5_DEMENTIA': ('memory_index', 'dementia'),
+    'I9_CHD': ('coronary_index', 'coronary heart disease'),
+    'AUD': ('alcohol_index', 'alcohol use disorder'),
+    'AB1_TULARAEMIA_WIDE': ('tularemia_incidence_index', 'tularaemia'),
+    'AB1_LYME': ('lyme_incidence_index', 'Lyme disease'),
     'G6_MS': (None, 'multiple sclerosis'),
 }
-# endpoints with no THL/Kela index but a well-documented regional hotspot: is that maakunta the highest?
+# endpoints plotted in a figure of their own (file name stem) instead of the disease panel figure
+OWN_FIGURE = {'AB1_LYME': 'lyme_vs_thl'}
+# how each reference index is named in output; THL/Kela's are age-standardised by THL, the register incidence is
+# indirectly age- and sex-standardised by fetch_thl_reference.py
+INDEX_LABELS = {'lyme_incidence_index': 'THL register Lyme incidence index (age/sex-standardised)',
+                'tularemia_incidence_index': 'THL register tularaemia incidence index (age/sex-standardised)'}
+index_label = lambda col: INDEX_LABELS.get(col, f"THL/Kela {col.replace('_', ' ')} (age-standardised)")
+# endpoints with no reference index but a well-documented regional hotspot: is that maakunta the highest?
 HOTSPOTS = {'G6_MS': 'Etelä-Pohjanmaa'}
 PH = f"read_csv('{pheno}', delim='\t', header=true, all_varchar=true)"
 pcols = set(con.sql(f"select * from {PH} limit 0").columns)
@@ -418,207 +423,6 @@ if monthly is not None and len(monthly):
     write_tsv_once(season.reset_index(names='maakunta'), season_file, fresh=vitd_fresh)
     plot_vitd(med, season, args.out, fresh=vitd_fresh)
 
-# --- Clinical check: % of tested people positive for Puumala hantavirus, per assigned maakunta
-# Risk depends on where people live (high in east/central Finland, low on the west and south-west coast), the result
-# is positive/negative so lab calibration barely matters, and using % of tested people (not counts) removes how often
-# each region tests. Only Puumala IgM is kept: Borrelia and TBE tests had too many results with no usable encoding,
-# or too few people tested, to be read per region.
-#
-# Each test row is classified as positive, negative or unknown (no usable result), by any of three encodings:
-#   TEST_OUTCOME (abnormality flag), extracted::IS_POS (free-text pos/neg mapping), or the source-unit value
-#   MEASUREMENT_VALUE against REFERENCE_RANGE_UPPER_VALUE (same unit as the value; the harmonized value may not be).
-# A row is positive if any encoding says positive, else negative if any says negative, else unknown. Per person and
-# test: positive if any row is, else negative if any row is, else unknown. % positive is over people with a usable
-# result (positive + negative); unknowns are reported per cell so encoding gaps don't masquerade as negatives.
-SEROLOGY = {  # test label -> OMOP concepts (see LABfi.tsv)
-    'Puumala IgM': ['42868544'],
-}
-POSITIVE_OUTCOMES = ('A', 'AA', 'H', 'HH', 'POS', '+')
-NEGATIVE_OUTCOMES = ('N', 'NEG', '-', 'L', 'LL')
-SERO_COLUMNS = ['test', 'maakunta', 'n_people', 'n_pos', 'n_neg', 'n_unknown', 'pos_by_outcome', 'pos_by_ispos', 'pos_by_value']
-
-
-def wilson(k, n, z=1.96):
-    """95% Wilson interval for a proportion, in %."""
-    p = k / n
-    centre = (p + z * z / (2 * n)) / (1 + z * z / n)
-    half = z * np.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / (1 + z * z / n)
-    return 100 * (centre - half), 100 * (centre + half)
-
-
-def coast_group(maakunta):
-    return 'coastal' if maakunta in COASTAL else 'inland'
-
-
-def pooled_by_coast(sero):
-    """Per test: people tested / with a usable result / positive summed over the coastal and the inland maakunta."""
-    d = sero[sero['maakunta'] != 'ALL'].assign(group=lambda x: x['maakunta'].map(coast_group))
-    g = d.groupby(['test', 'group'], as_index=False)[['n_people', 'n_pos', 'n_neg', 'n_unknown']].sum()
-    g['n_tested'] = g['n_pos'] + g['n_neg']
-    g['pct_unknown'] = 100 * g['n_unknown'] / g['n_people']
-    g['pct_pos'] = 100 * g['n_pos'] / g['n_tested']
-    g['ci_low'], g['ci_high'] = wilson(g['n_pos'], g['n_tested'])
-    return g
-
-
-def plot_serology(usable, pooled, path, fresh=False):
-    """One panel per test: maakunta grouped coastal / inland (south -> north within each group), % positive per
-    maakunta (dot) with 95% CI (line), the pooled group % (diamond), national % as a dashed reference."""
-    plt = setup_matplotlib()
-    tests = [t for t in SEROLOGY if t in set(usable['test'])]
-    if not tests:
-        return
-    # rows: pooled group row, then its maakunta; a blank row between the groups
-    rows = []
-    for group in ('coastal', 'inland'):
-        members = sorted({r for r in usable['maakunta'] if r != 'ALL' and coast_group(r) == group}, key=lambda r: MAAKUNTA_LAT.get(r, 99))
-        if rows:
-            rows.append(None)
-        rows.append(('pooled', group))
-        rows += [('maakunta', r) for r in members]
-    y = np.arange(len(rows))
-    fig, axes = plt.subplots(1, len(tests), figsize=(3.2 * len(tests) + 2.4, 0.32 * len(rows) + 1.8), sharey=True, squeeze=False)
-    for ax, test in zip(axes[0], tests):
-        d = usable[usable['test'] == test].set_index('maakunta')
-        pg = pooled[pooled['test'] == test].set_index('group')
-        for yi, row in zip(y, rows):
-            if row is None:
-                continue
-            kind, name = row
-            src = pg if kind == 'pooled' else d
-            if name not in src.index or pd.isna(src.loc[name, 'pct_pos']):
-                continue
-            r = src.loc[name]
-            ax.hlines(yi, r['ci_low'], r['ci_high'], color=INK2 if kind == 'pooled' else GRID, lw=2, zorder=1)
-            ax.scatter(r['pct_pos'], yi, s=60 if kind == 'pooled' else 36, marker='D' if kind == 'pooled' else 'o',
-                       color=INK if kind == 'pooled' else BLUE, edgecolor=SURFACE, linewidth=1.5, zorder=3)
-        if 'ALL' in d.index:
-            ax.axvline(d.loc['ALL', 'pct_pos'], color=REF, lw=1.5, ls='--', zorder=0)
-        n = int(d.loc['ALL', 'n_tested']) if 'ALL' in d.index else int(pg['n_tested'].sum())
-        ax.set_title(f"{test}\n{n:,} people with a result", fontsize=9, loc='left')
-        ax.set_xlabel('% positive')
-        ax.set_xlim(left=0)
-        ax.grid(axis='x', color=GRID, lw=0.8)
-        ax.tick_params(length=0)
-        for side in ('top', 'right', 'left'):
-            ax.spines[side].set_visible(False)
-    labels = ['' if row is None else (f"{row[1]}, pooled" if row[0] == 'pooled' else f"{row[1]} ({MAAKUNTA_LAT.get(row[1], float('nan')):.1f}°N)")
-              for row in rows]
-    axes[0][0].set_yticks(y, labels)
-    for tick, row in zip(axes[0][0].get_yticklabels(), rows):
-        if row is not None and row[0] == 'pooled':
-            tick.set_fontweight('bold')
-            tick.set_color(INK)
-    axes[0][0].invert_yaxis()
-    fig.suptitle(f"% positive among people with a usable result,\ncoastal vs inland maakunta\n{THRESHOLD_DESC}", color=INK, fontsize=11)
-    fig.text(0.5, -0.01, "dot: maakunta · diamond: pooled group · line: 95% CI · dashed: national",
-             ha='center', va='top', color=INK2, fontsize=8)
-    fig.tight_layout()
-    save_fig_once(fig, path / f'serology_maakunta_{TAG}.png', fresh)
-
-
-sero_file = args.out / f'serology_counts_{TAG}.tsv'  # internal cache with exact counts: not for sharing
-need = {'harmonization_omop::OMOP_ID', 'MEASUREMENT_VALUE', 'QC_PASS', 'TEST_OUTCOME', 'extracted::IS_POS', 'REFERENCE_RANGE_UPPER_VALUE'}
-sero, sero_fresh = None, False
-if cached(sero_file) and not person_fresh:  # built from the per-person table: redo when that was recomputed
-    sero = pd.read_csv(sero_file, sep='\t')
-    print(f"\nSerology: loaded existing {sero_file} (--force to recompute)")
-elif need - cols:
-    print(f"\nSerology: skipped, input lacks {sorted(need - cols)}")
-else:
-    omop_to_test = " ".join(f"when '{o}' then '{t}'" for t, os_ in SEROLOGY.items() for o in os_)
-    omops = ", ".join(f"'{o}'" for os_ in SEROLOGY.values() for o in os_)
-    pos_out = ", ".join(f"'{o}'" for o in POSITIVE_OUTCOMES)
-    neg_out = ", ".join(f"'{o}'" for o in NEGATIVE_OUTCOMES)
-    con.sql(f"""create table sero_rows as
-      select r.FINNGENID f, p.maakunta, case r.{OMOP} {omop_to_test} end test,
-             coalesce(r.TEST_OUTCOME in ({pos_out}), false) pos_outcome,
-             coalesce(r.TEST_OUTCOME in ({neg_out}), false) neg_outcome,
-             coalesce(r."extracted::IS_POS" = '1', false) pos_ispos,
-             coalesce(r."extracted::IS_POS" = '0', false) neg_ispos,
-             coalesce(try_cast(r.MEASUREMENT_VALUE as double) > try_cast(r.REFERENCE_RANGE_UPPER_VALUE as double), false) pos_value,
-             coalesce(try_cast(r.MEASUREMENT_VALUE as double) <= try_cast(r.REFERENCE_RANGE_UPPER_VALUE as double), false) neg_value
-      from {P} r join person p on p.FINNGENID = r.FINNGENID
-      where r.{OMOP} in ({omops}) and r.QC_PASS <> '0' and p.maakunta is not null""")
-    con.sql("""create table sero_people as
-      select f, maakunta, test,
-             case when bool_or(pos_outcome or pos_ispos or pos_value) then 'pos'
-                  when bool_or(neg_outcome or neg_ispos or neg_value) then 'neg' else 'unknown' end result,
-             bool_or(pos_outcome) by_outcome, bool_or(pos_ispos) by_ispos, bool_or(pos_value) by_value
-      from sero_rows group by all""")
-    agg = """count(*) n_people, count(*) filter (result = 'pos') n_pos, count(*) filter (result = 'neg') n_neg,
-             count(*) filter (result = 'unknown') n_unknown, count(*) filter (by_outcome) pos_by_outcome,
-             count(*) filter (by_ispos) pos_by_ispos, count(*) filter (by_value) pos_by_value"""
-    sero = con.sql(f"""
-      select test, maakunta, {agg} from sero_people group by all
-      union all
-      select test, 'ALL', {agg} from sero_people group by all
-      order by 1, 2""").df()
-    sero[SERO_COLUMNS].to_csv(sero_file, sep='\t', index=False)
-    sero_fresh = True
-    print(f"\nSerology: wrote {sero_file}")
-
-if sero is not None and len(sero):
-    sero['n_tested'] = sero['n_pos'] + sero['n_neg']  # people with a usable result
-    sero['pct_unknown'] = 100 * sero['n_unknown'] / sero['n_people']
-    order_tests = [t for t in SEROLOGY if t in set(sero['test'])]
-    order = sorted([r for r in set(sero['maakunta']) if r != 'ALL'], key=lambda r: (coast_group(r), MAAKUNTA_LAT.get(r, 99))) + ['ALL']
-    pooled = pooled_by_coast(sero)
-    usable = sero[sero['n_tested'] >= args.sero_min_people].copy()
-    usable['pct_pos'] = 100 * usable['n_pos'] / usable['n_tested']
-    usable['ci_low'], usable['ci_high'] = wilson(usable['n_pos'], usable['n_tested'])
-    # one table per test, one row per maakunta: % positive (with 95% CI) shown only with enough people with a result
-    for test in order_tests:
-        t = sero[sero['test'] == test].set_index('maakunta').reindex(order)
-        u = usable[usable['test'] == test].set_index('maakunta').reindex(order)
-        # pooled coastal / inland rows go after the maakunta rows
-        pg = pooled[pooled['test'] == test].set_index('group').rename(index=lambda g: f"{g}, pooled")
-        t = pd.concat([t, pg])
-        u = pd.concat([u, pg])
-        table = pd.DataFrame({
-            'group': [coast_group(r) if r != 'ALL' and not r.endswith(', pooled') else '' for r in t.index],
-            'tested': t['n_people'].astype('Int64'),
-            '% no usable result': t['pct_unknown'].round(1),
-            'with result': t['n_tested'].astype('Int64'),
-            '% positive': u['pct_pos'].round(1),
-            '95% CI': [f"{lo:.1f}-{hi:.1f}" if pd.notna(lo) else '' for lo, hi in zip(u['ci_low'], u['ci_high'])],
-        })
-        print(f"{test}: % positive among people with a usable result (no outcome flag, pos/neg text or value + reference "
-              f"limit = no usable result; % positive hidden with < {args.sero_min_people} people with a result)")
-        print(table.to_string(na_rep=''))
-    print("How positives were recognised, national (people; one person can be counted by several encodings):")
-    print(sero[sero['maakunta'] == 'ALL'].set_index('test').reindex(order_tests)[
-        ['n_pos', 'pos_by_outcome', 'pos_by_ispos', 'pos_by_value']].to_string())
-    # shareable table and figure (serology_counts_* stays internal): no count from 1 to --min-cell - 1 may be shown
-    # or be derivable by subtracting shown counts. So a maakunta is published only if its positives and negatives
-    # are both 0 or >= --min-cell, and the ALL and pooled coastal / inland rows sum the published maakunta only,
-    # which leaves nothing to subtract. People with no usable result are shown per published maakunta only (masked
-    # when small), not in the summed rows; n_people is left out, since with n_tested it would give them back.
-    regional = sero[sero['maakunta'] != 'ALL']
-    published = ~is_small(regional['n_pos']).values & ~is_small(regional['n_neg']).values
-    pub, suppressed = regional[published], regional[~published]
-    pub_pooled = pooled_by_coast(pub)
-    summed = pd.concat([pub.groupby('test', as_index=False)[['n_pos', 'n_tested']].sum().assign(maakunta='ALL'),
-                        pub_pooled[['test', 'group', 'n_pos', 'n_tested']].rename(columns={'group': 'maakunta'})
-                        .assign(maakunta=lambda d: d['maakunta'] + ', pooled')])
-    share = pd.concat([pub.assign(pct_unknown=100 * pub['n_unknown'] / pub['n_people']), summed,
-                       suppressed[['test', 'maakunta']].assign(note='left out: small count')], ignore_index=True)
-    share['pct_pos'] = (100 * share['n_pos'] / share['n_tested']).where(share['n_tested'] >= args.sero_min_people)
-    share['ci_low'], share['ci_high'] = wilson(share['n_pos'], share['n_tested'])
-    share[['ci_low', 'ci_high']] = share[['ci_low', 'ci_high']].where(share['pct_pos'].notna())
-    rank = {r: i for i, r in enumerate(order + ['coastal, pooled', 'inland, pooled'])}
-    share = share.assign(_r=share['maakunta'].map(rank)).sort_values(['test', '_r'])
-    share = share[['test', 'maakunta', 'n_tested', 'n_pos', 'pct_pos', 'ci_low', 'ci_high', 'n_unknown', 'pct_unknown', 'note']]
-    for c in ['n_tested', 'n_pos', 'n_unknown']:
-        share[c] = share[c].astype('Int64')
-    write_tsv_once(mask_small(share.round(2), ['n_unknown'], ['pct_unknown']),
-                   args.out / f'serology_maakunta_{TAG}.tsv', fresh=sero_fresh)
-    if len(suppressed):
-        print(f"Shareable serology table and figure: left out for a small count (also from the ALL and pooled rows): "
-              f"{', '.join(suppressed['test'] + ' ' + suppressed['maakunta'])}")
-    plot_serology(share[share['pct_pos'].notna() & ~share['maakunta'].str.endswith(', pooled')], pub_pooled, args.out,
-                  fresh=sero_fresh)
-
 # --- Clinical check: FinnGen endpoint prevalence per assigned maakunta vs THL/Kela's regional disease indices
 # Endpoint status is 'ever diagnosed by death or end of follow-up', so prevalence depends on the age people have
 # reached (not age at diagnosis, which controls don't have): FinnGen's age and sex mix differ by region (they depend
@@ -630,17 +434,24 @@ if sero is not None and len(sero):
 AGE_BANDS = list(range(20, 100, 10))  # lower edges; < 20 joins the first band, >= 90 the last
 
 
-def thl_index_by_maakunta(path):
+def thl_index_by_maakunta(path, weight='population'):
+    """Reference indices per maakunta from the hyvinvointialue values (Uusimaa has five): weighted by `weight`, or for
+    a register index <d>_incidence_index by its expected cases <d>_expected, i.e. total observed / total expected."""
     t = pd.read_csv(path, sep='\t')
     cols = sorted({c for c, _ in ENDPOINT_TO_INDEX.values() if c and c in t.columns})
-    weighted = t[cols].mul(t['population'], axis=0).groupby(t['maakunta']).sum()
-    return weighted.div(t.groupby('maakunta')['population'].sum(), axis=0)
+    out = {}
+    for c in cols:
+        w = t[c.replace('_incidence_index', '_expected')] if c.endswith('_incidence_index') and \
+            c.replace('_incidence_index', '_expected') in t.columns else t[weight]
+        out[c] = (t[c] * w).groupby(t['maakunta']).sum() / w.groupby(t['maakunta']).sum()
+    return pd.DataFrame(out)
 
 
-def plot_disease(cmp, path, fresh=False):
-    """One panel per endpoint: FinnGen age/sex-standardised index (x) vs THL/Kela index (y), one labelled dot per maakunta."""
+def plot_disease(cmp, path, eps, stem, fresh=False):
+    """One panel per endpoint in `eps`: FinnGen age/sex-standardised index (x) vs THL reference index (y), one labelled
+    dot per maakunta; saved as <stem>_<DTAG>.png."""
     plt = setup_matplotlib()
-    eps = [e for e in ENDPOINT_TO_INDEX if e in set(cmp['endpoint']) and ENDPOINT_TO_INDEX[e][0]]
+    eps = [e for e in eps if e in set(cmp['endpoint']) and ENDPOINT_TO_INDEX[e][0]]
     if not eps:
         return
     ncol = min(3, len(eps))
@@ -658,14 +469,24 @@ def plot_disease(cmp, path, fresh=False):
         ax.set_xlabel('FinnGen index, age- and sex-standardised (all assigned people = 100)')
         ax.axvline(100, color=REF, lw=1, ls='--', zorder=0)
         ax.axhline(100, color=REF, lw=1, ls='--', zorder=0)
-        ax.set_ylabel(f"THL/Kela {ENDPOINT_TO_INDEX[ep][0].replace('_', ' ')} (country = 100)")
+        # a reference spanning more than 20x (Lyme: Ahvenanmaa ~40x the country) would squash the other regions
+        if len(d) and (d[['finngen_index', 'thl_index']] > 0).all().all() and d['thl_index'].max() > 20 * d['thl_index'].min():
+            from matplotlib.ticker import FuncFormatter
+            ax.set_xscale('log')
+            ax.set_yscale('log')
+            plain = FuncFormatter(lambda v, _: f'{v:g}')
+            minor = FuncFormatter(lambda v, _: f'{v:g}' if f'{v:g}'[0] in '25' else '')  # 20, 50, 200, ...
+            for axis in (ax.xaxis, ax.yaxis):
+                axis.set_major_formatter(plain)
+                axis.set_minor_formatter(minor)
+        ax.set_ylabel(f"{index_label(ENDPOINT_TO_INDEX[ep][0])}\n(country = 100)")
         ax.grid(color=GRID, lw=0.8)
         ax.tick_params(length=0)
         for side in ('top', 'right'):
             ax.spines[side].set_visible(False)
-    fig.suptitle(f"FinnGen endpoint index per assigned maakunta vs THL/Kela regional index (both age-standardised)\n{THRESHOLD_DESC}", color=INK, fontsize=11)
+    fig.suptitle(f"FinnGen endpoint index per assigned maakunta vs THL regional reference\n{THRESHOLD_DESC}", color=INK, fontsize=11)
     fig.tight_layout()
-    save_fig_once(fig, path / f'disease_vs_thl_{DTAG}.png', fresh)
+    save_fig_once(fig, path / f'{stem}_{DTAG}.png', fresh)
 
 
 # leaving cohorts out changes the counts, so it goes into the file names (short hash of the sorted list)
@@ -678,7 +499,7 @@ if cached(disease_file) and not person_fresh:  # built from the per-person table
 elif not ph_endpoints:
     print(f"\nDisease prevalence: skipped, none of {sorted(ENDPOINT_TO_INDEX)} in {pheno.name}")
 elif not args.sotkanet.exists():
-    print(f"\nDisease prevalence: skipped, {args.sotkanet} not found (run fetch_sotkanet.py)")
+    print(f"\nDisease prevalence: skipped, {args.sotkanet} not found (run fetch_thl_reference.py)")
 else:
     if set(ENDPOINT_TO_INDEX) - set(ph_endpoints):
         print(f"\nDisease prevalence: endpoints not in {pheno.name}, left out: {sorted(set(ENDPOINT_TO_INDEX) - set(ph_endpoints))}")
@@ -701,6 +522,10 @@ else:
 
 if counts is not None and len(counts):
     thl = thl_index_by_maakunta(args.sotkanet)
+    if args.thl_ttr.exists():
+        thl = thl.join(thl_index_by_maakunta(args.thl_ttr, weight='person_years'), how='outer')
+    else:
+        print(f"  {args.thl_ttr} not found (run fetch_thl_reference.py): endpoints compared with it have no reference")
     # indirect standardisation: expected cases = each stratum's people x the national (all assigned people) rate in
     # that stratum; index = 100 x observed / expected, on the same scale as THL/Kela's (country = 100). Stabler than
     # direct standardisation when a maakunta has few people in some strata. Strata with unknown age or sex left out.
@@ -735,14 +560,14 @@ if counts is not None and len(counts):
             ok = d[d['shareable']].dropna(subset=['finngen_index', 'thl_index'])
             rho = spearman(ok['finngen_index'], ok['thl_index']) if len(ok) >= 3 else np.nan
             print(f"\n{label} ({ep}): FinnGen age/sex-standardised index (observed / expected x 100) per assigned maakunta vs "
-                  f"THL/Kela {index_col.replace('_', ' ')} — Spearman ρ {rho:+.2f} over {len(ok)} maakunta "
+                  f"{index_label(index_col)} — Spearman ρ {rho:+.2f} over {len(ok)} maakunta "
                   f"(maakunta with < {args.disease_min_people} people, or < {args.min_cell} cases or non-cases, left out)")
             summary.append({'endpoint': ep, 'disease': label, 'compared with': index_col, 'maakunta': len(ok), 'spearman': round(rho, 2)})
         else:
             hot = HOTSPOTS.get(ep)
             ranked = d[d['shareable']].dropna(subset=['finngen_index']).sort_values('finngen_index', ascending=False)['maakunta'].tolist()
             where = f"{hot} ranks {ranked.index(hot) + 1} of {len(ranked)}" if hot in ranked else f"{hot} not in the table"
-            print(f"\n{label} ({ep}): FinnGen age/sex-standardised index per assigned maakunta (no THL/Kela index; "
+            print(f"\n{label} ({ep}): FinnGen age/sex-standardised index per assigned maakunta (no reference index; "
                   f"expected hotspot {hot}: {where})")
             table = table.drop(columns='thl_index')
             summary.append({'endpoint': ep, 'disease': label, 'compared with': f'hotspot {hot}', 'maakunta': len(ranked),
@@ -757,4 +582,6 @@ if counts is not None and len(counts):
     shared['n_cases'] = shared['n_cases'].where(~few_noncases, None)
     write_tsv_once(shared,
                    args.out / f'disease_vs_thl_{DTAG}.tsv', fresh=disease_fresh)
-    plot_disease(cmp, args.out, fresh=disease_fresh)
+    plot_disease(cmp, args.out, [e for e in ENDPOINT_TO_INDEX if e not in OWN_FIGURE], 'disease_vs_thl', fresh=disease_fresh)
+    for ep, stem in OWN_FIGURE.items():
+        plot_disease(cmp, args.out, [ep], stem, fresh=disease_fresh)

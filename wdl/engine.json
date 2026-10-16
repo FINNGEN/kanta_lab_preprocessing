@@ -3,7 +3,7 @@
     "engine.tidied_parquet": "gs://fg-3/kanta_v4/dev/intake/finngen_R15_dev_kanta_laboratory_responses_internal_1.0.parquet",
     "engine.engine_docker": "europe-west1-docker.pkg.dev/finngen-refinery-dev/fg-refinery-registry/kanta:v4-engine.CGI",
     "engine.qc_docker": "europe-west1-docker.pkg.dev/finngen-refinery-dev/fg-refinery-registry/kanta:v4-engine.metabolomics",
-    "engine.prefix": "kanta_dev_2026_10_14",
+    "engine.prefix": "kanta_dev_2026_10_15",
     "engine.chunk_size": 200000,
     "engine.injection_branch": "master"
 }
