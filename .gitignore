@@ -186,3 +186,6 @@ cython_debug/
 # Local planning notes
 plans/
 scripts/THL/
+
+# Local venv build helper
+scripts/setup/

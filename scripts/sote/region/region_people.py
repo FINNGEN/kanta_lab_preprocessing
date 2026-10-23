@@ -44,7 +44,7 @@ MAAKUNTA_LAT = {
 
 ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
 ap.add_argument('--input', required=True, type=Path, help="Engine output parquet (needs FINNGENID, SERVICE_PROVIDER)")
-ap.add_argument('--out', type=Path, default=Path('/mnt/disks/data/kanta/service-provider'), help="Output directory; writes person_maakunta_t<threshold>.tsv and the other t<threshold>-tagged outputs there")
+ap.add_argument('--out', type=Path, default=Path('/mnt/disks/data/kanta/service-provider/region'), help="Output directory; writes person_maakunta_t<threshold>.tsv and the other t<threshold>-tagged outputs there")
 ap.add_argument('--sp-region', type=Path, default=None, help="sp_region.tsv from sp_region_cs.py (default: <out>/sp_region.tsv)")
 ap.add_argument('--sp-min-pct', type=float, default=0, help="Only use SPs whose own maakunta purity (pct_maakunta) is at least this (default: 0, all SPs with a maakunta)")
 ap.add_argument('--threshold', type=float, default=50,

@@ -15,7 +15,7 @@ from pathlib import Path
 import duckdb
 import pandas as pd
 
-REPO = Path(__file__).resolve().parents[2]
+REPO = Path(__file__).resolve().parents[3]
 DATA = Path(__file__).resolve().parent / 'data'
 SOTE = DATA / 'sote.txt.gz'  # THL sote organization register (';'-delimited, ISO-8859-1)
 MUNI_REGION = DATA / 'municipality_to_region.tsv'
@@ -24,7 +24,7 @@ LEVELS = {'maakunta': 'Maakunta', 'hva': 'Hyvinvointialue'}  # output prefix -> 
 
 ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
 ap.add_argument('--input', required=True, type=Path, help="Engine output parquet (needs SERVICE_PROVIDER, CODING_SYSTEM, CODING_SYSTEM_MAP)")
-ap.add_argument('--out', type=Path, default=Path('/mnt/disks/data/kanta/service-provider'), help="Output directory")
+ap.add_argument('--out', type=Path, default=Path('/mnt/disks/data/kanta/service-provider/region'), help="Output directory")
 args = ap.parse_args()
 args.out.mkdir(parents=True, exist_ok=True)
 

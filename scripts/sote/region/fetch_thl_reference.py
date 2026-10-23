@@ -40,7 +40,7 @@ ap.add_argument('--first-year', type=int, default=2015, help="First year of regi
 ap.add_argument('--last-year', type=int, default=2024, help="Last year of register cases summed (default: 2024)")
 args = ap.parse_args()
 
-# hyvinvointialue -> maakunta, from the municipality table used everywhere in scripts/sote (one-to-one except
+# hyvinvointialue -> maakunta, from the municipality table used everywhere in scripts/sote/region (one-to-one except
 # Uusimaa, split into Helsinki and four counties)
 with open(HERE / 'data' / 'municipality_to_region.tsv', encoding='utf-8') as f:
     HVA_TO_MAAKUNTA = {r['Hyvinvointialue']: r['Maakunta'] for r in csv.DictReader(f, delimiter='\t')}
