@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Build the QC-by-service-provider datasets: a slim row-level base plus aggregates, all tests in one pass.
 
---out holds only exportable aggregates: every row stands for at least --min-people (default 5) distinct people and
-carries a `people` column (rows below are dropped, not masked). Everything row-level or unmasked goes to --out-cache.
+Only test names with at least --min-test-people (default 20) distinct people are aggregated; within those, rows are
+not masked further. --out holds the exportable aggregates; everything row-level goes to --out-cache.
 
 Chain of cached files (each rebuilt when missing or older than what it is built from, or with --force;
 written under a temporary name and renamed when complete; --test uses the first 10M input rows, *_test names):
@@ -14,16 +14,17 @@ written under a temporary name and renamed when complete; --test uses the first 
                              (cleaned value before harmonization), extracted, unit_missing (no unit before
                              injection), decimals, qc_pass, outcome, ref_low/ref_high (numeric limits)
   [cache] qc_lookup_full     kind (test, sp, unit, note, ref) x key -> value (the original string), all strings
-  [cache] qc_hist_full       histogram below without the people filter (input of the national limits)
-  [cache] qc_national_full   per OMOP: n, p0.1 .. p99.9, Tukey fences (k = --fence-k) on log10, from qc_hist_full
-  [cache] qc_extremes        every base row below p0.1 / above p99.9 or outside the fences, with flags and limits
+  [cache] qc_mix_<dim>       the pieces of qc_mix, one per dim (a crash keeps the finished ones)
+  [cache] qc_extremes        every row of the kept tests below p0.1 / above p99.9 or outside the fences, with flags
+                             and the national limits
 
-  [out] qc_lookup     the qc_lookup_full rows whose key is used by >= --min-people people
-  [out] qc_hist       OMOP x k_test x k_sp x year x extracted x sign x bin -> n, people (harmonized values);
+  [out] qc_tests      per test name: OMOP, n, people; only test names with >= --min-test-people people, which are
+                      the only ones in the files below
+  [out] qc_lookup     the qc_lookup_full strings used by the kept tests
+  [out] qc_hist       OMOP x k_test x k_sp x year x extracted x sign x bin -> n (harmonized values);
                       bin = floor(100 * log10(|v|)), 0.01 log10 (~2.3%) wide, lower edge sign * 10^(bin/100); sign 0 = zero
-  [out] qc_national   qc_national_full for OMOPs with >= --min-people people; a tail quantile q is left empty
-                      when fewer than --min-people rows lie beyond it (n * min(q, 1 - q) < --min-people)
-  [out] qc_mix        OMOP x k_test x k_sp x year x extracted x dim x cat -> n, people; dim = unit, qc_note, outcome,
+  [out] qc_national   per OMOP: n, p0.1 .. p99.9, Tukey fences (k = --fence-k) on log10, from qc_hist (bin midpoints)
+  [out] qc_mix        OMOP x k_test x k_sp x year x extracted x dim x cat -> n; dim = unit, qc_note, outcome,
                       decimals (category mix) and has_value, qc_fail, unit_missing, has_ref_text, has_ref_num
                       (cat true/false); for unit and qc_note cat is the qc_lookup key as text
 
@@ -53,11 +54,11 @@ RAM_GB = os.sysconf('SC_PAGE_SIZE') * os.sysconf('SC_PHYS_PAGES') / 2**30
 ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
 ap.add_argument('--input', required=True, type=Path, help="Engine output (or release) parquet")
 ap.add_argument('--out', type=Path, default=Path('/mnt/disks/data/kanta/service-provider/qc_values'),
-                help="Exportable aggregates, every row >= --min-people people (default: /mnt/disks/data/kanta/service-provider/qc_values)")
+                help="Exportable aggregates, of the kept tests only (default: /mnt/disks/data/kanta/service-provider/qc_values)")
 ap.add_argument('--out-cache', type=Path, default=Path('/mnt/disks/data/kanta/tmp/qc_values'),
-                help="Row-level and unmasked files, not for export; duckdb spills to <out-cache>/duckdb "
+                help="Row-level and intermediate files, not for export; duckdb spills to <out-cache>/duckdb "
                      "(default: /mnt/disks/data/kanta/tmp/qc_values)")
-ap.add_argument('--min-people', type=int, default=5, help="Exported rows need at least this many distinct people (default: 5)")
+ap.add_argument('--min-test-people', type=int, default=20, help="Aggregate only test names with at least this many distinct people (default: 20)")
 ap.add_argument('--fence-k', type=float, default=3.0, help="Tukey fence multiplier on log10 values (default: 3)")
 ap.add_argument('--force', action='store_true', help="Rebuild every cached file")
 ap.add_argument('--memory-limit', default=f"{int(RAM_GB * 0.5)}GB",
@@ -81,9 +82,8 @@ log(f"exportable aggregates -> {args.out}; row-level files -> {args.out_cache}")
 
 sfx = '_test' if args.test else ''
 BASE = args.out_cache / f"base{sfx}"
-F = {name: args.out / f"qc_{name}{sfx}.parquet" for name in ('lookup', 'hist', 'national', 'mix')}
-F |= {name: args.out_cache / f"qc_{name}{sfx}.parquet" for name in ('lookup_full', 'hist_full', 'national_full', 'extremes')}
-MIN = args.min_people
+F = {name: args.out / f"qc_{name}{sfx}.parquet" for name in ('tests', 'lookup', 'hist', 'national', 'mix')}
+F |= {name: args.out_cache / f"qc_{name}{sfx}.parquet" for name in ('lookup_full', 'extremes')}
 
 
 def stale(out, deps):
@@ -153,59 +153,56 @@ build(F['lookup_full'], [args.input], ' union all '.join(
 B = f"read_parquet('{BASE}/*/*.parquet', hive_partitioning = true)"
 deps_base = [BASE]
 
-# --- Unmasked aggregates (cache): histogram -> national limits -> extremes
-build(F['hist_full'], deps_base, f"""
-    select omop, sign(v)::tinyint as sign, case when v <> 0 then floor(100 * log10(abs(v)))::smallint end as bin, count(*) n
-    from {B} where v is not null group by all order by omop""")
+# --- Tests kept: >= --min-test-people people per test name (people counted in two plain group-bys, which spill)
+build(F['tests'], deps_base, f"""
+    with tf as (select k_test, f, any_value(omop) omop, count(*) n from {B} where f is not null group by k_test, f)
+    select k_test, any_value(omop) omop, sum(n)::bigint n, count(*) people
+    from tf group by k_test having count(*) >= {args.min_test_people} order by n desc""")
+deps = [BASE, F['tests']]
+BK = f"(select b.* from {B} b semi join read_parquet('{F['tests']}') t using (k_test))"
+
+build(F['lookup'], [F['lookup_full'], *deps], f"""
+    with used as ({' union all '.join(f"select distinct '{kind}' as kind, {col} as key from {BK} where {col} is not null"
+                                      for kind, col in (('test', 'k_test'), ('sp', 'k_sp'), ('unit', 'k_unit'), ('note', 'k_note'), ('ref', 'k_ref')))})
+    select l.* from read_parquet('{F['lookup_full']}') l semi join used using (kind, key)""")
+
+build(F['hist'], deps, f"""
+    select omop, k_test, k_sp, year, extracted, sign(v)::tinyint as sign,
+           case when v <> 0 then floor(100 * log10(abs(v)))::smallint end as bin, count(*) n
+    from {BK} where v is not null group by all order by omop""")
 
 ord_ = "sign, sign * coalesce(bin, 0)"
 mid = "case sign when 0 then 0 else sign * pow(10, (bin + 0.5) / 100) end"
 qcols = ', '.join(f"min({mid}) filter (where cum >= {q} * tot) {name}" for name, q in QUANTILES.items())
-build(F['national_full'], [F['hist_full']], f"""
-    with c as (select *, sum(n) over (partition by omop order by {ord_} rows unbounded preceding) cum,
-                         sum(n) over (partition by omop) tot from read_parquet('{F['hist_full']}')),
+build(F['national'], [F['hist']], f"""
+    with h as (select omop, sign, bin, sum(n) n from read_parquet('{F['hist']}') group by all),
+         c as (select *, sum(n) over (partition by omop order by {ord_} rows unbounded preceding) cum,
+                         sum(n) over (partition by omop) tot from h),
          q as (select omop, any_value(tot)::bigint n, {qcols} from c group by omop)
     select *, case when p25 > 0 then pow(10, log10(p25) - {args.fence_k} * (log10(p75) - log10(p25))) end fence_lo,
               case when p25 > 0 then pow(10, log10(p75) + {args.fence_k} * (log10(p75) - log10(p25))) end fence_hi
     from q order by omop""")
 
-N = f"read_parquet('{F['national_full']}')"
+N = f"read_parquet('{F['national']}')"
 out_fence = "(b.v < nat.fence_lo or b.v > nat.fence_hi)"
-build(F['extremes'], [BASE, F['national_full']], f"""
+build(F['extremes'], [*deps, F['national']], f"""
     select b.*, b.v < nat.p001 below_p001, b.v > nat.p999 above_p999, coalesce({out_fence}, false) out_fence,
            nat.p001, nat.p50, nat.p999, nat.fence_lo, nat.fence_hi
-    from {B} b join {N} nat using (omop)
+    from {BK} b join {N} nat using (omop)
     where b.v < nat.p001 or b.v > nat.p999 or {out_fence} order by omop""")
 
-# --- Exported aggregates: every row has >= MIN people
-build(F['lookup'], [BASE, F['lookup_full']], f"""
-    with used as ({' union all '.join(f"select '{kind}' as kind, {col} as key from {B} where {col} is not null group by all having count(distinct f) >= {MIN}"
-                                      for kind, col in (('test', 'k_test'), ('sp', 'k_sp'), ('unit', 'k_unit'), ('note', 'k_note'), ('ref', 'k_ref')))})
-    select l.* from read_parquet('{F['lookup_full']}') l semi join used using (kind, key)""")
-
-build(F['hist'], deps_base, f"""
-    select omop, k_test, k_sp, year, extracted, sign(v)::tinyint as sign,
-           case when v <> 0 then floor(100 * log10(abs(v)))::smallint end as bin, count(*) n, count(distinct f) people
-    from {B} where v is not null group by all having people >= {MIN} order by omop""")
-
-tail = ', '.join(f"case when n * {min(q, 1 - q)} >= {MIN} then {name} end {name}" for name, q in QUANTILES.items())
-build(F['national'], [BASE, F['national_full']], f"""
-    with p as (select omop, count(distinct f) people from {B} where v is not null group by all having people >= {MIN})
-    select omop, n, people, {tail}, fence_lo, fence_hi from {N} join p using (omop) order by omop""")
-
+# --- qc_mix: one cached piece per dim (plain counts), then stacked
 K = 'omop, k_test, k_sp, year, extracted'
 DIMS = {'unit': 'cast(k_unit as varchar)', 'qc_note': 'cast(k_note as varchar)', 'outcome': 'outcome',
         'decimals': 'cast(decimals as varchar)', 'has_value': 'cast(v is not null as varchar)',
         'qc_fail': 'cast(coalesce(qc_pass = 0, false) as varchar)', 'unit_missing': 'cast(unit_missing as varchar)',
         'has_ref_text': 'cast(k_ref is not null as varchar)', 'has_ref_num': 'cast(ref_low is not null or ref_high is not null as varchar)'}
-build(F['mix'], deps_base, f"""
-    with x as (select {K}, {', '.join(f"{e} as d_{d}" for d, e in DIMS.items())}, f from {B}),
-         g as (select {K}, {', '.join(f'd_{d}' for d in DIMS)}, {', '.join(f'grouping(d_{d}) as g_{d}' for d in DIMS)},
-                      count(*) n, count(distinct f) people
-               from x group by grouping sets ({', '.join(f'({K}, d_{d})' for d in DIMS)}) having people >= {MIN})
-    select {K}, case {' '.join(f"when g_{d} = 0 then '{d}'" for d in DIMS)} end dim,
-           case {' '.join(f"when g_{d} = 0 then d_{d}" for d in DIMS)} end cat, n, people
-    from g order by omop""")
+pieces = []
+for d, e in DIMS.items():
+    piece = args.out_cache / f"qc_mix_{d}{sfx}.parquet"
+    build(piece, deps, f"select {K}, '{d}' dim, {e} cat, count(*) n from {BK} group by all")
+    pieces.append(piece)
+build(F['mix'], pieces, f"select * from read_parquet([{', '.join(repr(str(p)) for p in pieces)}]) order by omop")
 
 for name, path in [('base', BASE), *F.items()]:
     size = sum(p.stat().st_size for p in path.rglob('*') if p.is_file()) if path.is_dir() else path.stat().st_size
