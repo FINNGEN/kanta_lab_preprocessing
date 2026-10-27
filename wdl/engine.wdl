@@ -40,6 +40,14 @@ workflow engine {
     docker = downstream_docker
   }
 
+  # Reference-range texts -> numeric limits, checked against the rows; LIMITS feeds the next run's
+  # reference extraction, FLAGGED is for the manual review
+  call ref_limits {
+    input:
+    engine_parquet = run_engine.engine_parquet,
+    docker = downstream_docker
+  }
+
   # Nightingale metabolomics panel + risk scores, unpacked from free text into their own tables
   call metabolomics {
     input:
@@ -60,6 +68,9 @@ workflow engine {
     File pos_neg_summary_pasteable = pos_tables.pos_neg_summary_pasteable
     File plusplus_summary = pos_tables.plusplus_summary
     File plusplus_summary_pasteable = pos_tables.plusplus_summary_pasteable
+    File ref_text_table = ref_limits.table
+    File ref_text_limits = ref_limits.limits
+    File ref_text_flagged = ref_limits.flagged
     File metabolomics_biomarkers = metabolomics.biomarkers
     File metabolomics_risks = metabolomics.risks
   }
@@ -154,6 +165,34 @@ task pos_tables {
     File pos_neg_summary_pasteable = "pos_neg_summary_pasteable.tsv"
     File plusplus_summary = "plusplus_summary.tsv"
     File plusplus_summary_pasteable = "plusplus_summary_pasteable.tsv"
+  }
+
+  runtime {
+    docker: docker
+    cpu: 8
+    memory: "32 GB"
+    disks: "local-disk ~{ceil(size(engine_parquet, 'GB') * 2) + 20} SSD"
+  }
+}
+
+
+task ref_limits {
+  input {
+    File engine_parquet
+    String docker
+  }
+
+  command <<<
+    set -euxo pipefail
+    # Rows per test name x reference text, the limits parsed from each text, and the value/sex/age checks.
+    # Step 1 is one duckdb pass; its cache and spill files go to ./tmp on the local disk.
+    python3 /scripts/ref_ranges/ref_text_limits.py --input ~{engine_parquet} --out . --tmp tmp
+  >>>
+
+  output {
+    File table = "ref_text_table.tsv"
+    File limits = "ref_text_table_LIMITS.tsv"
+    File flagged = "ref_text_table_FLAGGED.tsv"
   }
 
   runtime {
