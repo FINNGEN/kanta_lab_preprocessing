@@ -9,7 +9,7 @@ ordering at load time and doesn't depend on the file's row order for correctness
 
 Usage
 -----
-  python3 scripts/qc_scripts/sort_omop_qc.py
+  python3 scripts/omop_qc/sort_omop_qc.py
 """
 
 import pandas as pd

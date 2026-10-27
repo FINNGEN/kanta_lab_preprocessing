@@ -11,7 +11,7 @@ def test_omop_qc_sorted_by_omop_id_then_threshold():
 
     Execution itself doesn't depend on this order -- reference_data.get_compiled_omop_qc()
     re-derives its own ordering at load time -- this is purely enforcing legibility on a
-    hand-edited, ever-growing rules file. Re-sort with scripts/qc_scripts/sort_omop_qc.py.
+    hand-edited, ever-growing rules file. Re-sort with scripts/omop_qc/sort_omop_qc.py.
     """
     df = pd.read_csv(config.OMOP_QC_FILE, sep="\t", dtype=str)
 
@@ -29,5 +29,5 @@ def test_omop_qc_sorted_by_omop_id_then_threshold():
         f"placeholder rows by OMOP_ID) -- {len(out_of_order)} row(s) out of place, first "
         f"offender at row {out_of_order[0]} (0-indexed, TSV line {out_of_order[0] + 2}): "
         f"OMOP_ID={df.loc[out_of_order[0], 'harmonization_omop::OMOP_ID']}. "
-        f"Run scripts/qc_scripts/sort_omop_qc.py and commit the result."
+        f"Run scripts/omop_qc/sort_omop_qc.py and commit the result."
     )

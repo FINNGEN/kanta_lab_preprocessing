@@ -119,7 +119,7 @@ task abnormality {
     set -euxo pipefail
     # Per-OMOP_ID abnormality limits (engine's abnormality_estimation.table.tsv), estimated
     # from TEST_OUTCOME on QC_PASS > 0 rows. DuckDB spills to the working directory.
-    python3 /scripts/qc_scripts/abnormality.py --parquet_file ~{release_parquet}
+    python3 /scripts/abnormality/abnormality.py --parquet_file ~{release_parquet}
   >>>
 
   output {
@@ -146,7 +146,7 @@ task pos_tables {
     set -euxo pipefail
     # Free-text pos/neg and "+" summaries vs. the engine's negpos_mapping.tsv /
     # kanta_plusplus_abnormality.tsv. Needs the main output: _RELEASE has no free text.
-    python3 /scripts/qc_scripts/extract_pos_counts_parquet.py ~{engine_parquet}
+    python3 /scripts/counts/extract_pos_counts_parquet.py ~{engine_parquet}
   >>>
 
   output {

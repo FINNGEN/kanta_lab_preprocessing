@@ -31,8 +31,8 @@ brings the value closer to the median; for a unit not harmonized now, when corre
 median. Otherwise the status becomes value_range_conflict (the range points to another unit, the value doesn't: e.g. a
 41 % hematocrit with a 0.35-0.46 range), and suggested_unit is left empty (range_suggested keeps the range's unit).
 
-Outputs to the test folder, next to metadata.json (with --test the names end in _test); the run's settings are
-added to metadata.json under "flags":
+Outputs to the test folder, next to the metadata, each named <test>_<OMOP id>_<file> like ref_unit_sets.py's (with
+--test the names end in _test); the run's settings are added to the metadata under "flags":
 - ref_unit_flags_rows.parquet  row level (stays on the data side): ROWID, TEST_NAME, OMOP_CONCEPT_ID, sex, age, unit, lower, upper,
                                REFERENCE_RANGE_SOURCE, status, suggested_unit, range_suggested, x_claimed, x_suggested
                                (distances as factors, e.g. 100 = a hundred times off), stratum_used; only the rows with a
@@ -90,14 +90,19 @@ con.sql(f"set threads = {args.threads}")
 log(f"duckdb: memory limit {args.memory_limit} (machine has {RAM_GB:.0f}GB), {args.threads} threads, spilling to {args.tmp / 'duckdb'}")
 
 # --- 0. The test folder: metadata (test name, injected rows file) and learned ranges
-META, SETS = args.dir / f"metadata{sfx}.json", args.dir / f"ref_unit_sets{sfx}.tsv"
-for f in (META, SETS):
-    if not f.exists():
-        raise SystemExit(f"{f}: not found; dir must be a test x OMOP folder written by ref_unit_sets.py")
+found = sorted(args.dir.glob(f"*_metadata{sfx}.json")) or sorted(args.dir.glob(f"metadata{sfx}.json"))  # old runs: no prefix
+if not found:
+    raise SystemExit(f"{args.dir}: no metadata{sfx}.json; dir must be a test x OMOP folder written by ref_unit_sets.py")
+META = found[0]
 meta = json.loads(META.read_text())
 test, omop = meta['test_name'], meta.get('omop_id')
 if omop is None:
     raise SystemExit(f"{META}: no omop_id; rerun ref_unit_sets.py")
+pre = META.name[:-len(f"metadata{sfx}.json")]  # '<test>_<omop>_', or '' for an old-style folder
+OUTPRE = f"{test.replace('/', '_')}_{omop}_"  # outputs always get the prefix
+SETS = args.dir / f"{pre}ref_unit_sets{sfx}.tsv"
+if not SETS.exists():
+    raise SystemExit(f"{SETS}: not found; rerun ref_unit_sets.py")
 inj = args.input or Path(meta['injected_rows'])
 if not inj.exists():
     raise SystemExit(f"{inj}: injected rows file not found (rerun ref_unit_sets.py)")
@@ -170,6 +175,10 @@ def verdict(s):
 
 sig[['status', 'suggested_unit', 'x_claimed', 'x_suggested', 'stratum_used']] = pd.DataFrame(
     [verdict(s) for s in sig.itertuples()], index=sig.index, columns=['status', 'suggested_unit', 'x_claimed', 'x_suggested', 'stratum_used'])
+for c in ('status', 'suggested_unit', 'stratum_used'):  # text even when all empty (else duckdb reads an all-null column as a number)
+    sig[c] = sig[c].astype('string')
+for c in ('x_claimed', 'x_suggested'):
+    sig[c] = sig[c].astype('float64')
 con.register('verdict_df', sig[['k', 'status', 'suggested_unit', 'x_claimed', 'x_suggested', 'stratum_used']])
 
 # --- 3. Confirm each suggestion with the row's own value (pass 2): the corrected harmonized value must be closer to
@@ -177,7 +186,7 @@ con.register('verdict_df', sig[['k', 'status', 'suggested_unit', 'x_claimed', 'x
 fac = dict(con.sql(f"""select r.unit, median(r.h / r.v) from {R} r join verdict_df v using (k)
                        where v.status = 'ok' and r.v > 0 and r.h > 0 group by all""").fetchall())
 con.register('fac_df', pd.DataFrame({'unit': list(fac), 'f': list(fac.values())}))
-core = pd.read_csv(SETS.with_name(f"ref_unit_core{sfx}.tsv"), sep='\t', keep_default_na=False, na_values=[''])
+core = pd.read_csv(args.dir / f"{pre}ref_unit_core{sfx}.tsv", sep='\t', keep_default_na=False, na_values=[''])
 core = core[(core['sex'] == 'all') & (core['age'] == 'all')].iloc[0]
 med_c, lo_c, hi_c = float(core['median']), float(core['core_lo']), float(core['core_hi'])
 m, sd = math.log10(med_c), math.log10(hi_c / med_c) / args.core_sd  # median and one robust SD, log10
@@ -199,7 +208,7 @@ by_status = dict(con.sql("select status, count(*) from rv2 group by all").fetcha
 log("Rows by status: " + ', '.join(f"{k} {v:,}" for k, v in sorted(by_status.items(), key=lambda kv: -kv[1])))
 
 # --- 4. Row-level flags
-path = args.dir / f"ref_unit_flags_rows{sfx}.parquet"
+path = args.dir / f"{OUTPRE}ref_unit_flags_rows{sfx}.parquet"
 part = path.with_name(path.name + '.part')
 keep = '' if args.all_rows else f"where status in {FLAG}"
 con.sql(f"""copy (
@@ -216,14 +225,14 @@ conf = con.sql(f"""select k, count(*) filter (where status in {FLAG}) n_confirme
                    from rv2 group by all""").df()
 out = (sig.merge(conf, on='k', how='left').rename(columns={'status': 'range_status', 'suggested_unit': 'range_suggested'})
        .drop(columns='k').sort_values(['test', 'n'], ascending=[True, False]))
-p = args.dir / f"ref_unit_flags{sfx}.tsv"
+p = args.dir / f"{OUTPRE}ref_unit_flags{sfx}.tsv"
 out[out['n'] >= args.min_n].to_csv(p, sep='\t', index=False)
 log(f"Wrote {p} ({(out['n'] >= args.min_n).sum():,} signatures)")
 summ = con.sql("""select test, coalesce(unit, 'NA') unit, status, coalesce(suggested_unit, coalesce(range_suggested, '')) suggested_unit,
                          count(*) n from rv2 group by all""").df()
 summ['pct'] = (100 * summ['n'] / summ.groupby(['test', 'unit'])['n'].transform('sum')).round(2)
 summ = summ[summ['n'] >= args.min_n].sort_values(['test', 'unit', 'n'], ascending=[True, True, False])
-p = args.dir / f"ref_unit_flags_summary{sfx}.tsv"
+p = args.dir / f"{OUTPRE}ref_unit_flags_summary{sfx}.tsv"
 summ.to_csv(p, sep='\t', index=False)
 log(f"Wrote {p} ({len(summ):,} rows)")
 
@@ -249,7 +258,7 @@ rng = con.sql(f"""
            round(100 * avg(case when hc is null then null when hc between {lo_c} and {hi_c} then 1 else 0 end), 2) pct_corrected_in_core
     from chk2 join top using (status, unit, suggested_unit) group by status, unit, suggested_unit having count(*) >= {args.min_n}
     order by status != 'ok', status not in {FLAG}, rows desc""").df()
-p = args.dir / f"ref_unit_check_ranges{sfx}.tsv"
+p = args.dir / f"{OUTPRE}ref_unit_check_ranges{sfx}.tsv"
 rng.to_csv(p, sep='\t', index=False, float_format='%.6g')
 log(f"Wrote {p} ({len(rng)} groups; unit factors {fac}; core median {med_c:g}, {lo_c:g}-{hi_c:g})")
 W = 0.02
@@ -264,7 +273,7 @@ hist = con.sql(f"""
         select 'corrected', status, unit, suggested_unit, floor(log10(hc) / {W}) * {W}, count(*) from chk2
         where status != 'ok' and hc > 0 group by all)
     where n >= {args.min_n} order by grp, status, unit, suggested_unit, bin""").df()
-p = args.dir / f"ref_unit_check_hist{sfx}.tsv"
+p = args.dir / f"{OUTPRE}ref_unit_check_hist{sfx}.tsv"
 hist.to_csv(p, sep='\t', index=False, float_format='%.4g')
 log(f"Wrote {p} ({len(hist):,} bins)")
 
@@ -339,9 +348,9 @@ def plot(path):
         tx = fig.add_subplot(gs[i, 1])
         tx.axis('off')
         tb = tx.table(cellText=rows, colLabels=['', 'rows', 'lower', 'upper', 'most common ranges'], loc='center',
-                      cellLoc='left', colLoc='left', colWidths=[0.25, 0.12, 0.09, 0.09, 0.45])
+                      cellLoc='left', colLoc='left', colWidths=[0.2, 0.12, 0.08, 0.08, 0.52])
         tb.auto_set_font_size(False)
-        tb.set_fontsize(8)
+        tb.set_fontsize(7.5)
         tb.scale(1, 1.5)
         for (r, c), cell in tb.get_celld().items():
             cell.set_edgecolor(LINE)
@@ -368,7 +377,7 @@ def plot(path):
     log(f"Wrote {path}")
 
 
-plot(args.dir / f"ref_unit_check{sfx}.png")
+plot(args.dir / f"{OUTPRE}ref_unit_check{sfx}.png")
 meta['flags'] = {'created': datetime.now().isoformat(timespec='seconds'), 'script': str(Path(__file__).resolve()),
                  'injected_rows': str(inj.resolve()), 'margin': args.margin, 'all_rows': args.all_rows, 'min_n': args.min_n,
                  'core_sd': args.core_sd, 'far': args.far, 'rows_by_status': {k: int(v) for k, v in by_status.items()},

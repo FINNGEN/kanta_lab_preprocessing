@@ -114,7 +114,7 @@ def impute_outcome(df: pd.DataFrame, verbose: bool = False) -> pd.DataFrame:
     """Assign imputed::TEST_OUTCOME (L/L*/H/H*/N) by comparing harmonization_omop::
     MEASUREMENT_VALUE against the (OMOP_ID-indexed) LOW_LIMIT/HIGH_LIMIT reference range.
 
-    See scripts/qc_scripts/abnormality.py for how that table is built.
+    See scripts/abnormality/abnormality.py for how that table is built.
     """
     limits = reference_data.get_ab_limits()
     matched = limits.reindex(df["harmonization_omop::OMOP_ID"]).set_axis(df.index)

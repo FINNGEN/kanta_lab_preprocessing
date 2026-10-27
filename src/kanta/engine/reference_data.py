@@ -481,7 +481,7 @@ def get_plus_ab_table(verbose: bool = False) -> pd.Series:
 @lru_cache(maxsize=1)
 def get_ab_limits(verbose: bool = False) -> pd.DataFrame:
     """Per-OMOP_ID abnormality reference range: LOW_LIMIT/HIGH_LIMIT plus LOW_PROBLEM/HIGH_PROBLEM
-    flags, indexed by OMOP_ID. See scripts/qc_scripts/abnormality.py for how it's built.
+    flags, indexed by OMOP_ID. See scripts/abnormality/abnormality.py for how it's built.
 
     OMOP_ID   LOW_LIMIT  HIGH_LIMIT  LOW_PROBLEM  HIGH_PROBLEM
     1002102   -inf       inf         0            0

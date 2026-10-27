@@ -25,8 +25,9 @@ or with --force), so runs on different tests or pairs reuse them; steps 3-4 take
             >= --min-pct % of the stratum's core rows with a range, and neither limit spans >= 10x between its
             percentiles (mixed_scale: the core let rows of another scale in).
 
-Outputs, one folder per test name x OMOP in --out (--out/<test name>/<OMOP id>/, '/' in a name becomes '_';
-aggregates only, groups of >= --min-n rows; with --test the file names end in _test):
+Outputs, one folder per test name x OMOP in --out (--out/<test name>/<OMOP id>/, '/' in a name becomes '_'), each
+file named <test>_<OMOP id>_<file> so copies from different folders don't collide (aggregates only, groups of
+>= --min-n rows; with --test the file names end in _test):
 - ref_unit_core.tsv  test, omop, sex, age, rows, median, core_lo, core_hi (harmonized), core_rows, core_rows_with_range
 - ref_unit_sets.tsv  test, omop, sex, age, unit, rows, pct_of_core, n_lower, lower, lower_p05, lower_p95, n_upper, upper,
                      upper_p05, upper_p95, use, note
@@ -287,8 +288,9 @@ by_src = lambda df: {k: int(v) for k, v in df.groupby('src')['n'].sum().items()}
 for test, omop in sorted(set(zip(core_out['test'], core_out['omop'])) | set(zip(sets['test'], sets['omop']))):
     d = args.out / test.replace('/', '_') / str(omop)
     d.mkdir(parents=True, exist_ok=True)
+    pre = f"{test.replace('/', '_')}_{omop}_"
     for df, name in ((core_out, 'ref_unit_core'), (sets, 'ref_unit_sets')):
-        df[(df['test'] == test) & (df['omop'] == omop)].to_csv(d / f"{name}{sfx}.tsv", sep='\t', index=False)
+        df[(df['test'] == test) & (df['omop'] == omop)].to_csv(d / f"{pre}{name}{sfx}.tsv", sep='\t', index=False)
     t_sets = sets[(sets['test'] == test) & (sets['omop'] == omop)]
     t_src = src_rows[src_rows['TEST_NAME'] == test]
     oi = omop_info[(omop_info['test'] == test) & (omop_info['omop'] == omop)].iloc[0]
@@ -299,7 +301,7 @@ for test, omop in sorted(set(zip(core_out['test'], core_out['omop'])) | set(zip(
             'other_omop_ids': {o: int(n) for o, n in t_src[t_src['omop'].notna() & (t_src['omop'] != omop)].groupby('omop')['n'].sum().items()},
             'learned_units': sorted(t_sets.loc[t_sets['use'], 'unit'].unique().tolist()),
             'unused_units': sorted(set(t_sets['unit']) - set(t_sets.loc[t_sets['use'], 'unit']))}
-    (d / f"metadata{sfx}.json").write_text(json.dumps(meta, indent=2, ensure_ascii=False, default=str) + '\n')
+    (d / f"{pre}metadata{sfx}.json").write_text(json.dumps(meta, indent=2, ensure_ascii=False, default=str) + '\n')
     log(f"Wrote {d}/ (core {len(core_out[(core_out['test'] == test) & (core_out['omop'] == omop)])} rows, sets {len(t_sets)} rows, metadata)")
 log(f"Injected rows for ref_unit_flag.py: {INJ}")
 
