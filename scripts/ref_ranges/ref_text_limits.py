@@ -9,8 +9,11 @@ REFERENCE_RANGE_GROUP (the same text with its spaces removed; it is filled on so
                                      from the group), people, pct_f (% women of the rows with a sex), n_value, v_mean,
                                      v_p05/p25/p50/p75/p95 (MEASUREMENT_VALUE: the unit the text is written in), age_p05/p50/p95
 and the cache, in --tmp, named after the input file (<input>):
-  ref_text_<input>_value_hist.parquet  pair_id, value (rounded to 3 significant figures), n
-  ref_text_<input>_age_hist.parquet    pair_id, age (whole years; whole months under 2), n
+  ref_text_<input>_value_hist.parquet    pair_id, value (rounded to 3 significant figures), n
+  ref_text_<input>_outcome_hist.parquet  pair_id, side (< or >), bound (3 significant figures), n: rows without a numeric
+                                         value whose extracted::TEST_OUTCOME_TEXT reads '<x' / '>x' (e.g. '<4mg/l'), i.e.
+                                         results reported as text beyond a limit; empty when the input has no such column
+  ref_text_<input>_age_hist.parquet      pair_id, age (whole years; whole months under 2), n
   ref_text_<input>.json                what the cache was built from (input, --min-n, --min-people, --test, the table it goes with)
 Step 1 is rerun only when any of those change (or the table is missing), or with --force. People are counted in
 two plain group-bys (pair x person, then pair) and quantiles come from the histograms, so duckdb can spill to disk throughout.
@@ -32,16 +35,20 @@ Texts that are not a reference range are skipped before parsing, with the reason
 
 Then the checks, from the step 1 histograms:
   value_check  value_ok when >= --value-min-pct of the values are inside the limits (patients sit partly outside a healthy
-               range, so the median may too: med_in says whether it is); else scale_mismatch (lower > 0 and upper given: the
-               middle half of the values, p25-p75, lands inside after x10^k, k = -3..3: probably a unit problem, factor in
-               'scale'), else value_off; with pct_below/pct_in/pct_above
+               range, so the median may too: med_in says whether it is), else value_off; with pct_below/pct_in/pct_above.
+               Rows with an outcome '<x' / '>x' instead of a number count only when x settles it: '<x' is inside when
+               x <= upper and there is no lower limit above 0, below when x <= lower; '>x' is inside when x >= lower and
+               there is no upper limit, above when x >= upper; otherwise left out. n_outcome: rows counted this way;
+               pct_in_numeric: the share inside from the numeric values alone. value_unchecked when fewer than
+               --value-min-rows rows can be counted (numbers + outcomes): nothing to compare the limits with (e.g. rows
+               without a result, or cancelled tests); not a flag
   sex_check    sex_ok when the text says F and >= --sex-min-pct of the rows are women (M: men), else sex_mismatch
   age_check    age_ok when >= --age-min-pct of the rows fall in [age_lo, age_hi) (an age bin counts when it overlaps it)
                and so does the median age (the bulk of the rows, not the tail), else age_mismatch; pct_age_in
 
 Writes --out/ref_text_table_LIMITS.tsv: the table plus lower, upper, status (range / upper / lower / skip_* / unparsed /
 bad_order when lower > upper), rest (what was not read, for unparsed texts), sex_text, age_lo, age_hi, the checks, and
-flags (the failed ones: unparsed, bad_order, value_off, scale_mismatch, sex_mismatch, age_mismatch). The pairs with a
+flags (the failed ones: unparsed, bad_order, value_off, sex_mismatch, age_mismatch). The pairs with a
 flag also go to --out/ref_text_table_FLAGGED.tsv (largest first, the columns needed to review them).
 Prints the rows by status and check, and the top unparsed texts and failed checks.
 """
@@ -82,9 +89,9 @@ AGE_PATTERNS = [  # (kind, regex); a is the lower age, b the upper
 ]
 AGE_WORDS = [(re.compile(r'(?<!\w)aik\w*'), 16, None), (re.compile(r'(?<!\w)laps\w*'), None, 16)]
 OK = ['range', 'upper', 'lower']
-FLAGS = ('unparsed', 'bad_order', 'value_off', 'scale_mismatch', 'sex_mismatch', 'age_mismatch')  # what puts a pair in _FLAGGED.tsv
-FLAGGED_COLS = ['test_name', 'ref_text', 'n', 'flags', 'status', 'lower', 'upper', 'v_p05', 'v_p25', 'v_p50', 'v_p75', 'v_p95', 'pct_below', 'pct_in',
-                'pct_above', 'scale', 'sex_text', 'pct_f', 'age_lo', 'age_hi', 'age_p05', 'age_p50', 'age_p95', 'pct_age_in', 'rest']
+FLAGS = ('unparsed', 'bad_order', 'value_off', 'sex_mismatch', 'age_mismatch')  # what puts a pair in _FLAGGED.tsv
+FLAGGED_COLS = ['test_name', 'ref_text', 'n', 'n_value', 'n_outcome', 'flags', 'status', 'lower', 'upper', 'v_p05', 'v_p25', 'v_p50', 'v_p75', 'v_p95',
+                'pct_below', 'pct_in', 'pct_above', 'pct_in_numeric', 'sex_text', 'pct_f', 'age_lo', 'age_hi', 'age_p05', 'age_p50', 'age_p95', 'pct_age_in', 'rest']
 
 # short name -> (engine output column, release column)
 COLUMNS = {
@@ -95,7 +102,10 @@ COLUMNS = {
     'sex': ('SEX', 'SEX'),
     'age': ('EVENT_AGE', 'EVENT_AGE'),
     'v': ('MEASUREMENT_VALUE', 'MEASUREMENT_VALUE_CLEANED'),
+    'outcome': ('extracted::TEST_OUTCOME_TEXT', 'TEST_OUTCOME_TEXT'),
 }
+OPTIONAL = {'outcome'}  # left null when the input lacks it
+CACHE_VERSION = 3  # bump when step 1's outputs change, so old caches are rebuilt
 TEST_ROWS = 10_000_000
 V_PROBS = {'v_p05': .05, 'v_p25': .25, 'v_p50': .5, 'v_p75': .75, 'v_p95': .95}
 AGE_PROBS = {'age_p05': .05, 'age_p50': .5, 'age_p95': .95}
@@ -195,24 +205,34 @@ def build_table(con, args, files, log):
     def name(short):
         c = next((c for c in COLUMNS[short] if c in cols), None)
         if c is None:
+            if short in OPTIONAL:
+                return None
             raise SystemExit(f"{args.input}: missing column {COLUMNS[short][0]} / {COLUMNS[short][1]}")
         return f'"{c}"'
 
     def col(short):
         """The input's column as a cleaned string ("NA"/'' -> null)."""
-        return f"nullif(nullif(trim(cast({name(short)} as varchar)), ''), 'NA')"
+        return 'null' if name(short) is None else f"nullif(nullif(trim(cast({name(short)} as varchar)), ''), 'NA')"
 
     def num(short):
-        return f"try_cast({name(short)} as double)"
+        """The input's column as a number; text values are trimmed and a decimal comma is read as a point ('35,0' -> 35)."""
+        return f"try_cast(replace({col(short)}, ',', '.') as double)"
 
     text = f"coalesce({col('ref_text')}, {col('ref_group')})"
+    if name('outcome') is None:
+        log("no extracted::TEST_OUTCOME_TEXT column: outcomes '<x' / '>x' not used")
+    # outcome: for rows without a numeric value, '<4mg/l' -> side '<', bound 4 (a result reported as text beyond a limit)
+    out_re = "'^\\s*([<>])=?\\s*([0-9]+(?:[.,][0-9]+)?)'"
     con.sql(f"""create or replace temp view rows_ as
-        select coalesce({col('test_name')}, 'NA') as test_name, regexp_replace({text}, '[\\t\\r\\n]+', ' ', 'g') as ref_text,
-               {col('ref_text')} is null as from_group, {col('f')} as f,
-               case when lower({col('sex')}) in ('female', 'f') then 'F' when lower({col('sex')}) in ('male', 'm') then 'M' end as sex,
-               case when isfinite({num('v')}) then {num('v')} end as v,
-               case when {num('age')} >= 0 then {num('age')} end as age
-        from {src} where {text} is not null""")
+        select *, case when v is null and o is not null then nullif(regexp_extract(o, {out_re}, 1), '') end as side,
+               case when v is null and o is not null then try_cast(replace(regexp_extract(o, {out_re}, 2), ',', '.') as double) end as bound
+        from (select coalesce({col('test_name')}, 'NA') as test_name, regexp_replace({text}, '[\\t\\r\\n]+', ' ', 'g') as ref_text,
+                     {col('ref_text')} is null as from_group, {col('f')} as f,
+                     case when lower({col('sex')}) in ('female', 'f') then 'F' when lower({col('sex')}) in ('male', 'm') then 'M' end as sex,
+                     case when isfinite({num('v')}) then {num('v')} end as v,
+                     case when {num('age')} >= 0 then {num('age')} end as age,
+                     lower({col('outcome')}) as o
+              from {src} where {text} is not null)""")
 
     log("pairs: rows and people per test name x text")
     con.sql(f"""create or replace temp table pairs as
@@ -227,14 +247,16 @@ def build_table(con, args, files, log):
         select row_number() over (order by n desc, test_name, ref_text) pair_id, hash(test_name, ref_text) k, * from kept""")
     log(f"{con.sql('select count(*) from pairs').fetchone()[0]:,} pairs kept")
 
-    for kind, expr, where in (('value', 'case when v = 0 then 0 else round(v, 2 - floor(log10(abs(v)))::int) end', 'v is not null'),
-                              ('age', 'case when age < 2 then floor(age * 12) / 12 else floor(age) end', 'age is not null')):
+    sig3 = lambda x: f"case when {x} = 0 then 0 else round({x}, 2 - floor(log10(abs({x})))::int) end"
+    for kind, expr, where in (('value', f"{sig3('v')} as value", 'v is not null'),
+                              ('outcome', f"side, {sig3('bound')} as bound", 'side is not null and bound is not null'),
+                              ('age', 'case when age < 2 then floor(age * 12) / 12 else floor(age) end as age', 'age is not null')):
         log(f"{kind} histogram")
         part = files[kind].with_name(files[kind].name + '.part')
         con.sql(f"""copy (
-            select p.pair_id, h.{kind}, h.n
-            from (select hash(test_name, ref_text) k, {expr} as {kind}, count(*) n from rows_ where {where} group by all) h
-            join pairs p using (k) order by 1, 2
+            select p.pair_id, h.* exclude (k)
+            from (select hash(test_name, ref_text) k, {expr}, count(*) n from rows_ where {where} group by all) h
+            join pairs p using (k) order by all
         ) to '{part}' (format parquet)""")
         os.replace(part, files[kind])
 
@@ -266,26 +288,33 @@ def check(con, df, files, args):
     v = con.sql(f"""select pair_id, sum(n) tot, coalesce(sum(n) filter (where value < lower), 0) below,
                            coalesce(sum(n) filter (where value > upper), 0) above
                     from read_parquet('{files['value']}') join lim using (pair_id) group by 1""").df()
-    v['pct_below'] = (100 * v['below'] / v['tot']).round(1)
-    v['pct_above'] = (100 * v['above'] / v['tot']).round(1)
+    # rows reported as '<x' / '>x' instead of a number count where x settles which side of the limits they are on
+    o = con.sql(f"""select pair_id,
+            coalesce(sum(n) filter (where side = '<' and lower is not null and bound <= lower), 0) o_below,
+            coalesce(sum(n) filter (where side = '<' and not (lower is not null and bound <= lower)
+                                     and (upper is null or bound <= upper) and (lower is null or lower <= 0)), 0) o_in_lt,
+            coalesce(sum(n) filter (where side = '>' and upper is not null and bound >= upper), 0) o_above,
+            coalesce(sum(n) filter (where side = '>' and upper is null and (lower is null or bound >= lower)), 0) o_in_gt
+        from read_parquet('{files['outcome']}') join lim using (pair_id) group by 1""").df()
+    v = v.merge(o, on='pair_id', how='outer').fillna(0)
+    v['n_outcome'] = (v['o_below'] + v['o_in_lt'] + v['o_above'] + v['o_in_gt']).astype('int64')
+    tot = v['tot'] + v['n_outcome']
+    v['pct_in_numeric'] = (100 * (v['tot'] - v['below'] - v['above']) / v['tot'].where(v['tot'] > 0)).round(1)
+    v['pct_below'] = (100 * (v['below'] + v['o_below']) / tot).round(1)
+    v['pct_above'] = (100 * (v['above'] + v['o_above']) / tot).round(1)
     v['pct_in'] = (100 - v['pct_below'] - v['pct_above']).round(1)
-    df = df.merge(v[['pair_id', 'pct_below', 'pct_in', 'pct_above']], on='pair_id', how='left')
+    v['n_counted'] = (tot).astype('int64')
+    df = df.merge(v[['pair_id', 'n_outcome', 'n_counted', 'pct_below', 'pct_in', 'pct_above', 'pct_in_numeric']], on='pair_id', how='left')
 
-    def value_check(r):
-        lo, hi = r['lower'], r['upper']
-        if r['status'] not in OK or pd.isna(r['pct_in']):
-            return None, None
-        if r['pct_in'] >= args.value_min_pct:  # patients sit partly outside a healthy range; only a range that misses them is off
-            return 'value_ok', None
-        inside = lambda x: (pd.isna(lo) or x >= lo) and (pd.isna(hi) or x <= hi)
-        if pd.notna(lo) and lo > 0 and pd.notna(hi) and pd.notna(r['v_p25']) and pd.notna(r['v_p75']):  # 0-x is one-sided
-            for k in (1, -1, 2, -2, 3, -3):
-                if inside(r['v_p25'] * 10 ** k) and inside(r['v_p75'] * 10 ** k):
-                    return 'scale_mismatch', 10.0 ** k
-        return 'value_off', None
     df['med_in'] = [None if pd.isna(m) or s not in OK else bool((pd.isna(lo) or m >= lo) and (pd.isna(hi) or m <= hi))
                     for m, lo, hi, s in zip(df['v_p50'], df['lower'], df['upper'], df['status'])]
-    df[['value_check', 'scale']] = pd.DataFrame([value_check(r) for _, r in df.iterrows()], index=df.index)
+    # patients sit partly outside a healthy range; only a range that misses them is off
+    df['value_check'] = None
+    has = df['status'].isin(OK) & df['pct_in'].notna()
+    df.loc[has, 'value_check'] = df.loc[has, 'pct_in'].ge(args.value_min_pct).map({True: 'value_ok', False: 'value_off'})
+    # too few rows with a number or an outcome to judge the limits either way
+    few = df['status'].isin(OK) & df['n_counted'].fillna(0).lt(args.value_min_rows)
+    df.loc[few, 'value_check'] = 'value_unchecked'
 
     ages = df.loc[df['age_lo'].notna() | df['age_hi'].notna(), ['pair_id', 'age_lo', 'age_hi']]
     con.register('ages', ages.astype({'age_lo': 'Float64', 'age_hi': 'Float64'}))
@@ -323,6 +352,7 @@ if __name__ == '__main__':
     ap.add_argument('--force', action='store_true', help="Rebuild the step 1 cache even if it matches the input")
     ap.add_argument('--test', action='store_true', help=f"Read only the first {TEST_ROWS:,} input rows; the files get a _test suffix")
     ap.add_argument('--value-min-pct', type=float, default=10, help="value_ok when at least this %% of values are inside the limits (default: 10)")
+    ap.add_argument('--value-min-rows', type=int, default=100, help="value_unchecked when fewer rows than this have a number or an outcome (default: 100)")
     ap.add_argument('--age-min-pct', type=float, default=50, help="age_ok when at least this %% of rows, and the median age, are in the text's ages (default: 50)")
     ap.add_argument('--sex-min-pct', type=float, default=90, help="sex_ok when at least this %% of rows are of the text's sex (default: 90)")
     ap.add_argument('--show', type=int, default=30, help="Unparsed texts and failed checks shown (default: 30)")
@@ -338,7 +368,7 @@ if __name__ == '__main__':
     stem = args.out / f"ref_text_table{sfx}"
     cstem = args.tmp / f"ref_text_{args.input.stem}{sfx}"
     files = {'table': stem.with_suffix('.tsv'), 'value': Path(f"{cstem}_value_hist.parquet"),
-             'age': Path(f"{cstem}_age_hist.parquet"), 'meta': Path(f"{cstem}.json")}
+             'outcome': Path(f"{cstem}_outcome_hist.parquet"), 'age': Path(f"{cstem}_age_hist.parquet"), 'meta': Path(f"{cstem}.json")}
     out = Path(f"{stem}_LIMITS.tsv")
     out_flagged = Path(f"{stem}_FLAGGED.tsv")
     t0 = time.time()
@@ -353,7 +383,7 @@ if __name__ == '__main__':
     st = args.input.stat()
     meta = {'input': str(args.input.resolve()), 'input_mtime': st.st_mtime, 'input_size': st.st_size,
             'min_n': args.min_n, 'min_people': args.min_people, 'test': args.test,
-            'table': str(files['table'].resolve())}
+            'table': str(files['table'].resolve()), 'version': CACHE_VERSION}
     cached = all(f.exists() for f in files.values()) and json.loads(files['meta'].read_text()) == meta
     if cached and not args.force:
         log(f"Step 1: cache matches {args.input.name}, reusing {files['table']} (--force to rebuild)")
@@ -366,7 +396,7 @@ if __name__ == '__main__':
 
     log("Step 2: parsing and checking the texts")
     df = pd.read_csv(files['table'], sep='\t', dtype=str, keep_default_na=False, quoting=3)
-    num_cols = ['pair_id', 'n', 'pct_f', 'v_p25', 'v_p50', 'v_p75', 'age_p50']
+    num_cols = ['pair_id', 'n', 'pct_f', 'v_p50', 'age_p50']
     df[num_cols] = df[num_cols].apply(pd.to_numeric, errors='coerce')
     parsed = {t: parse(t) for t in df['ref_text'].unique()}  # a text repeats across test names
     new = ['lower', 'upper', 'status', 'rest', 'sex_text', 'age_lo', 'age_hi']
@@ -392,7 +422,6 @@ if __name__ == '__main__':
     print(f"with limits: {100 * df.loc[ok, 'n'].sum() / tot:.2f}% of rows; "
           f"{100 * df.loc[ok, 'n'].sum() / df.loc[ranged, 'n'].sum():.2f}% of the rows not skipped")
     shows = [('unparsed', df['status'] == 'unparsed', ['test_name', 'ref_text', 'n']),
-             ('scale_mismatch', df['value_check'] == 'scale_mismatch', ['test_name', 'ref_text', 'n', 'lower', 'upper', 'v_p05', 'v_p50', 'v_p95', 'scale']),
              ('value_off', df['value_check'] == 'value_off', ['test_name', 'ref_text', 'n', 'lower', 'upper', 'v_p05', 'v_p50', 'v_p95', 'pct_in']),
              ('sex_mismatch', df['sex_check'] == 'sex_mismatch', ['test_name', 'ref_text', 'n', 'sex_text', 'pct_f']),
              ('age_mismatch', df['age_check'] == 'age_mismatch', ['test_name', 'ref_text', 'n', 'age_lo', 'age_hi', 'age_p05', 'age_p50', 'age_p95', 'pct_age_in'])]
