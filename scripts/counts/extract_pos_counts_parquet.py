@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Polars/parquet port of extract_pos_counts.py, producing identical output files.
+"""Free-text pos/neg and "+" summaries from the engine output parquet.
 
 Reads the engine's main output parquet (not _RELEASE, which has no MEASUREMENT_FREE_TEXT) and
 writes, in the current directory:
@@ -10,8 +10,7 @@ flagged), so the results can be curated and dropped back in as negpos_mapping.ts
 kanta_plusplus_abnormality.tsv.
 
 Scanning, filtering and counting run in polars; the (small) aggregated tables then go through
-the same pandas post-processing as extract_pos_counts.py so row order, number formatting and
-notes match exactly.
+pandas post-processing (reconciliation against the mapping tables, number formatting, notes).
 
 --map/--pn_orig/--plus_orig default to the engine's own tables (kanta.config), so they only
 need passing to compare against other versions.
@@ -37,8 +36,8 @@ DEFAULT_MAP = config.USAGI_MAPPING_FILE
 DEFAULT_PN_ORIG = config.POSNEG_MAP_FILE
 DEFAULT_PLUS_ORIG = config.PLUS_AB_MAP_FILE
 
-# Tokens pandas.read_csv turns into NaN by default. extract_pos_counts.py read TSV with pandas
-# and then filled NaN back with "NA", so the same tokens are normalized to "NA" here.
+# Tokens pandas.read_csv turns into NaN by default. The original TSV version of this script read
+# with pandas and then filled NaN back with "NA", so the same tokens are normalized to "NA" here.
 PANDAS_NA_TOKENS = [
     "", "#N/A", "#N/A N/A", "#NA", "-1.#IND", "-1.#QNAN", "-NaN", "-nan", "1.#IND", "1.#QNAN",
     "<NA>", "N/A", "NA", "NULL", "NaN", "None", "n/a", "nan", "null",
