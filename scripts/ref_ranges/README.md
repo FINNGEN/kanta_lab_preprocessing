@@ -8,7 +8,7 @@ Turns reference-range texts into numeric limits, then uses those ranges to flag 
    ```
    python3 ref_text_limits.py --input <engine_output>.parquet [--out DIR] [--min-n 1000] [--test]
    ```
-   Writes `ref_text_table.tsv`, `ref_text_table_LIMITS.tsv` and `ref_text_table_FLAGGED.tsv`:
+   Writes `ref_text_table.tsv`, `ref_text_table_LIMITS.tsv` (every pair, with `approved` and the limits in use) `ref_text_table_UNDECIDED.tsv` (not approved, a decision could bring them in) and `ref_text_table_REJECTED.tsv` (out for good: `use` = no, or no limit in the text):
    ```
    test_name  ref_text     n       lower  upper  status  sex_text  value_check  flags
    p-krea     50-90 umol/l 120000  50     90     range   F         value_ok

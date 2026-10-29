@@ -41,7 +41,7 @@ workflow engine {
   }
 
   # Reference-range texts -> numeric limits, checked against the rows; LIMITS feeds the next run's
-  # reference extraction, FLAGGED is for the manual review
+  # reference extraction (approved + final limits), UNDECIDED (still to decide on) and REJECTED (out for good) split the pairs not approved
   call ref_limits {
     input:
     engine_parquet = run_engine.engine_parquet,
@@ -70,7 +70,8 @@ workflow engine {
     File plusplus_summary_pasteable = pos_tables.plusplus_summary_pasteable
     File ref_text_table = ref_limits.table
     File ref_text_limits = ref_limits.limits
-    File ref_text_flagged = ref_limits.flagged
+    File ref_text_undecided = ref_limits.undecided
+    File ref_text_rejected = ref_limits.rejected
     File metabolomics_biomarkers = metabolomics.biomarkers
     File metabolomics_risks = metabolomics.risks
   }
@@ -192,7 +193,8 @@ task ref_limits {
   output {
     File table = "ref_text_table.tsv"
     File limits = "ref_text_table_LIMITS.tsv"
-    File flagged = "ref_text_table_FLAGGED.tsv"
+    File undecided = "ref_text_table_UNDECIDED.tsv"
+    File rejected = "ref_text_table_REJECTED.tsv"
   }
 
   runtime {
