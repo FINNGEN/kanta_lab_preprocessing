@@ -1,6 +1,7 @@
 finngen_qc/test/
 /scripts/**/test/
 /scripts/**/tests/
+scripts/summaries/old/
 
 # injection site — generated HTML (rebuilt by CI)
 scripts/injection/html/

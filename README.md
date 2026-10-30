@@ -41,8 +41,9 @@ This is the file that contains all columns, including mostly empty and/or uninfo
 | `MEASUREMENT_VALUE_SOURCE` | Original measurement value |  |
 | `MEASUREMENT_UNIT_SOURCE` | Original measurement unit |  |
 | `MEASUREMENT_STATUS` | The measurement status | The final data contains only `C` \- corrected results or `F` \- final result \| See [Koodistopalvelu - AR/LABRA - Tutkimusvastauksien tulkintakoodit 1997](https://koodistopalvelu.kanta.fi/codeserver/pages/publication-view-page.xhtml?distributionKey=2637&versionKey=321&returnLink=fromVersionPublicationList) |
-| `REFERENCE_RANGE_GROUP` | The reference values for the measurement in text form | This can be used to define the lab abnormality with better coverage using regex expressions (-to be implemented for the whole data). |
-| `REFERENCE_RANGE_[LOWER\|UPPER]_[VALUE\|UNIT]` | Reference lower\|upper value\|unit \| Mostly mutually exclusive with `REFERENCE_RANGE_GROUP` |  |
+| `REFERENCE_RANGE_GROUP` | The reference values for the measurement in text form | Used, with `REFERENCE_RANGE_TEXT`, to fill the numeric limits (see [Reference ranges](#reference-ranges)). |
+| `REFERENCE_RANGE_[LOW\|HIGH]_[VALUE\|UNIT]` | Reference lower\|upper value\|unit | Sent by the lab, or filled from the reference text when the lab sent none (`REFERENCE_RANGE_SOURCE`). The values are on the scale the lab reported (not harmonized); filled limits leave the unit columns empty. |
+| `REFERENCE_RANGE_SOURCE` | Where the row's reference limits come from | `num`: sent by the lab as numbers; `text`: parsed from the reference text and approved in the curated table; empty: no limits. |
 | `CODING_SYSTEM_ORG` | Name (if present) of the uploading org, mapped via Business Identity Code | From a table in the [data folder](/src/kanta/engine/data/thl_coding_manual_mapping.txt). The central digits of the OID are the org's Business Identity Code (Y-tunnus), which is looked up in that table; for CGI-hosted systems the customer org embedded in the OID is used. |
 | `CODING_SYSTEM_OID` | ID of what is probably the org that logged the data in the system. |  |
 
@@ -104,6 +105,15 @@ The code performs the following actions:
 - CODING_SYSTEM_MAP is created from y-tunnukset in table
 - ~~SERVICE_PROVIDER_ID is updated where the mapping can happen~~ --> scrapped in v3
 - TEST_NAME_ABBREVIATIONs with problematic characters are edited (see `abbreviation_replacements` in the config)
+
+## [REFERENCE RANGES](/src/kanta/engine/filters/ref_range.py)
+<a name="reference-ranges"></a>
+Labs send numeric reference limits for only ~13% of rows, but most rows carry the range as text (`REFERENCE_RANGE_TEXT`, else `REFERENCE_RANGE_GROUP`, e.g. `117-155`, `<4`, `tavoite <3`). Right after the minimal step (test name and texts are final there):
+- each row's text is cleaned into a key (`ref_key()` in [reference_data.py](/src/kanta/engine/reference_data.py)) and looked up with its test name in the curated table [`ref_text_limits.tsv`](/src/kanta/engine/data/ref_text_limits.tsv);
+- rows without numeric limits from the lab get the table's limits when the pair is approved (one-sided texts fill one side); lab-sent limits are never changed;
+- `REFERENCE_RANGE_SOURCE` records `num` / `text`. Coverage goes from ~13% to ~77% of rows.
+
+The table has one row per test name × text, built by [`scripts/ref_ranges/ref_text_limits.py`](/scripts/ref_ranges/) from an engine run: the limits parsed from the text (plus sex/age written in it), checked against the rows (values mostly inside, ages and sexes as written), and manual decisions (`use` yes/no, `lower_override`/`upper_override`, `NOTES`). A pair is approved when it parsed and passed the checks, or was whitelisted/overridden by hand; therapeutic ranges (e.g. INR 2-3 on warfarin), labels and texts without a number are not used. Each WDL run reconciles the table with the new data and lists the undecided and rejected pairs for review; the engine recomputes the approval from the manual columns when it loads the table.
 
 ## [UNIT](/finngen_qc/filters/fix_unit.py)
 - Fixes strange characters in the lab unit field. Also moves to lower case for non NA values.

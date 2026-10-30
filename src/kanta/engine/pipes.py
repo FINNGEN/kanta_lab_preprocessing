@@ -2,7 +2,7 @@ import pandas as pd
 
 from kanta import config
 from kanta.engine.errors import AbbrSink, ErrorSink, UnitSink
-from kanta.engine.filters import filter_minimal, fix_unit, harmonization, outcome, qc
+from kanta.engine.filters import filter_minimal, fix_unit, harmonization, outcome, qc, ref_range
 
 
 def rename_cols(df: pd.DataFrame) -> pd.DataFrame:
@@ -33,6 +33,8 @@ def run_all(
         df.pipe(rename_cols)
         .pipe(snapshot_source_cols)
         .pipe(filter_minimal.run, errors, abbr_changes, verbose)
+        # right after the test name and reference texts are final, so unit fixes and outcomes can use the ranges
+        .pipe(ref_range.run, verbose)
         .pipe(fix_unit.run, unit_changes, verbose)
         .pipe(harmonization.run, unit_changes, verbose)
         .pipe(outcome.run, verbose)

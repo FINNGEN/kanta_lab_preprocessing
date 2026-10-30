@@ -44,6 +44,11 @@ if __name__ == "__main__":
         ),
     )
     parser.add_argument(
+        "--prefix",
+        default=config.DEFAULT_FILE_PREFIX,
+        help=f"Start of the output file names, e.g. finngen_R15 (default: {config.DEFAULT_FILE_PREFIX})",
+    )
+    parser.add_argument(
         "--partition-n-buckets",
         help="How many buckets to partition the data into to spread the sort+dedup computations.",
         required=False,
@@ -122,39 +127,39 @@ if __name__ == "__main__":
     # Setup
     output_file_assemble_stage = output.check_safe_write(
         args.output_dir
-        / f"finngen_R14_kanta_laboratory_responses.assemble-stage.{today}.parquet"
+        / f"{args.prefix}_kanta_laboratory_responses.assemble-stage.{today}.parquet"
     )
     output_file_tidyup_stage = output.check_safe_write(
         args.output_dir
-        / f"finngen_R14_kanta_laboratory_responses_internal_1.0_{today}.parquet"
+        / f"{args.prefix}_kanta_laboratory_responses_internal_1.0_{today}.parquet"
     )
     output.check_safe_write(
         output_file_tidyup_stage.with_name(f"{output_file_tidyup_stage.stem}_duplicates.parquet")
     )
     output_file_engine = output.check_safe_write(
         args.output_dir
-        / f"finngen_R14_kanta_laboratory_responses_1.0_{today}.parquet"
+        / f"{args.prefix}_kanta_laboratory_responses_1.0_{today}.parquet"
     )
     output_file_engine_errors = output.check_safe_write(
         args.output_dir
-        / f"finngen_R14_kanta_laboratory_responses_1.0_{today}_errors.parquet"
+        / f"{args.prefix}_kanta_laboratory_responses_1.0_{today}_errors.parquet"
     )
     output_file_engine_abbr = output.check_safe_write(
         args.output_dir
-        / f"finngen_R14_kanta_laboratory_responses_1.0_{today}_abbr.parquet"
+        / f"{args.prefix}_kanta_laboratory_responses_1.0_{today}_abbr.parquet"
     )
     output_file_engine_unit = output.check_safe_write(
         args.output_dir
-        / f"finngen_R14_kanta_laboratory_responses_1.0_{today}_unit.parquet"
+        / f"{args.prefix}_kanta_laboratory_responses_1.0_{today}_unit.parquet"
     )
     output_file_engine_release = output.check_safe_write(
         args.output_dir
-        / f"finngen_R14_kanta_laboratory_responses_1.0_{today}_RELEASE.parquet"
+        / f"{args.prefix}_kanta_laboratory_responses_1.0_{today}_RELEASE.parquet"
     )
 
     log_file_engine = output.check_safe_write(
         args.output_dir
-        / f"finngen_R14_kanta_laboratory_responses_1.0_{today}.log"
+        / f"{args.prefix}_kanta_laboratory_responses_1.0_{today}.log"
     )
     log_utils.configure_logging(log_file_engine)
 

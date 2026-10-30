@@ -21,6 +21,10 @@ DEFAULT_INJECTION_BRANCH = "master"
 # Test-specific unit corrections (e.g. osuus -> ratio for b-hkr).
 OMOP_INJECTION_FILE = DATA_DIR / "omop_injection.tsv"
 
+# Start of the local CLIs' output file names (python -m kanta / kanta.intake), e.g. <prefix>_kanta_laboratory_responses_1.0_<date>.parquet;
+# --prefix sets it per run (e.g. finngen_R15). The WDL names its files with its own prefix inputs.
+DEFAULT_FILE_PREFIX = "finngen_R14"
+
 # Which columns to read from the input file, using the original (pre-alias) column names.
 # An empty list means all columns are read.
 READ_COLUMNS = []
@@ -46,6 +50,11 @@ COLUMN_ALIASES = {
     "palvelutuottaja_organisaatio": "SERVICE_PROVIDER",
     "_rowid": "ROWID",
 }
+
+# Curated reference-limits table: one row per test name x cleaned reference text (kanta.engine.reference_data.ref_key),
+# with the limits parsed from the text, their checks against the rows and the manual decisions (use, lower_override,
+# upper_override, NOTES). Built and reconciled by scripts/ref_ranges/ref_text_limits.py (its --curated default).
+REF_TEXT_LIMITS_FILE = DATA_DIR / "ref_text_limits.tsv"
 
 # Which columns the engine keeps in its own output, and how the release step selects/
 # renames/types a curated subset of them for the final release file -- one source of
@@ -104,6 +113,8 @@ OUTPUT_COLUMNS = {
     "REFERENCE_RANGE_UPPER_VALUE": (True, "REFERENCE_RANGE_HIGH_VALUE", "Float64"),
     "REFERENCE_RANGE_UPPER_UNIT": (True, "REFERENCE_RANGE_HIGH_UNIT", "string"),
     "REFERENCE_RANGE_TEXT": (True, "REFERENCE_RANGE_TEXT", "string"),
+    # where the limits come from: "num" (sent by the lab), "text" (filled from the reference text), "NA" (none)
+    "REFERENCE_RANGE_SOURCE": (True, "REFERENCE_RANGE_SOURCE", "string"),
     # Sensitive data
     "MEASUREMENT_FREE_TEXT": (False, "MEASUREMENT_FREE_TEXT", "string"),
     # Dumps from source
