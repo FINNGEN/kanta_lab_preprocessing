@@ -20,7 +20,10 @@ ALL      450000     250000000
 
 ## Utils
 
-- **`count_plot.py`**: compares two releases' counts. `--new` / `--old` take `counts.py` TSVs, or the `_RELEASE.parquet` files themselves: each is then counted first (values, outcomes, failed QC, rows with a reference limit) into `new_`/`old_<parquet name>_omop_analysis.tsv` in the current folder, reused while newer than the parquet (`--force` to recount). The WDL's `release_counts` task runs it when `engine.old_release_parquet` is given. It writes `relative_change.tsv`, a histogram PNG, and `appeared_omop_ids.tsv` / `disappeared_omop_ids.tsv`.
+- **`count_plot.py`**: compares two releases' counts. `--new` / `--old` take `counts.py` TSVs, or the `_RELEASE.parquet` files themselves: each is then counted first (values, outcomes, failed QC, rows with a reference limit) into `new_`/`old_<parquet name>_omop_analysis.tsv` in the current folder, reused while newer than the parquet (`--force` to recount). The WDL's `release_counts` task runs it when `engine.old_release_parquet` is given. It writes:
+  - `relative_change.tsv`: per OMOP ID (new release's IDs) and column, the new count (`_COUNT`) and new / old (`_RATIO`);
+  - `relative_change_histograms.png`: per column, the ratios (histogram, with mean/median and `from 0` / `to 0`: the OMOP IDs whose count went from 0 to > 0, or the other way) and old vs new counts (scatter; `from 0` orange on the left edge, `to 0` purple on the bottom edge); a box at the top gives the OMOP IDs that appeared / disappeared;
+  - `appeared_omop_ids.tsv` / `disappeared_omop_ids.tsv`.
   ```
   python3 count_plot.py --new <new>_RELEASE.parquet --old <old>_RELEASE.parquet
   ```

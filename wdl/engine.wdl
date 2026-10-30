@@ -13,8 +13,8 @@ workflow engine {
     Boolean test = false
     Int chunk_size = 200000
     String injection_branch = "master"
-    # an earlier release (its _RELEASE.parquet) to compare this run's per-OMOP counts with; no comparison without it
-    File? old_release_parquet
+    # an earlier release (its _RELEASE.parquet) to compare this run's per-OMOP counts with
+    File old_release_parquet
   }
 
   String downstream_docker = select_first([qc_docker, engine_docker])
@@ -58,13 +58,18 @@ workflow engine {
   }
 
   # Per-OMOP counts of this release and of an earlier one, and how they changed (incl. the rows with a reference limit)
-  if (defined(old_release_parquet)) {
-    call release_counts {
-      input:
-      release_parquet = run_engine.release_parquet,
-      old_release_parquet = select_first([old_release_parquet]),
-      docker = downstream_docker
-    }
+  call release_counts {
+    input:
+    release_parquet = run_engine.release_parquet,
+    old_release_parquet = old_release_parquet,
+    docker = downstream_docker
+  }
+
+  # Javier's summary tables per test name x unit (for the OMOP mapping), every row > 5 people
+  call summaries {
+    input:
+    engine_parquet = run_engine.engine_parquet,
+    docker = downstream_docker
   }
 
   output {
@@ -86,12 +91,18 @@ workflow engine {
     File ref_text_rejected = ref_limits.rejected
     File metabolomics_biomarkers = metabolomics.biomarkers
     File metabolomics_risks = metabolomics.risks
-    File? counts_new = release_counts.counts_new
-    File? counts_old = release_counts.counts_old
-    File? counts_change = release_counts.change
-    File? counts_change_plot = release_counts.change_plot
-    File? counts_appeared = release_counts.appeared
-    File? counts_disappeared = release_counts.disappeared
+    File counts_new = release_counts.counts_new
+    File counts_old = release_counts.counts_old
+    File counts_change = release_counts.change
+    File counts_change_plot = release_counts.change_plot
+    File counts_appeared = release_counts.appeared
+    File counts_disappeared = release_counts.disappeared
+    File summary_test = summaries.test
+    File summary_unit_source = summaries.unit_source
+    File summary_values_source = summaries.values_source
+    File summary_values = summaries.values
+    File summary_outcomes = summaries.outcomes
+    File summary_reference = summaries.reference
   }
 }
 
@@ -280,5 +291,36 @@ task release_counts {
     cpu: 8
     memory: "32 GB"
     disks: "local-disk ~{ceil(size(release_parquet, 'GB') + size(old_release_parquet, 'GB')) + 20} SSD"
+  }
+}
+
+
+task summaries {
+  input {
+    File engine_parquet
+    String docker
+  }
+
+  command <<<
+    set -euxo pipefail
+    # Per test name x unit: counts, unit and value sources, value deciles, outcomes, mean reference limits per sex x
+    # age (summaryReference, now with the limits filled from text). Needs the main output (post-injection unit).
+    python3 /scripts/summaries/summaries.py --input ~{engine_parquet} --out . --out-cache cache
+  >>>
+
+  output {
+    File test = "summaryTest.tsv"
+    File unit_source = "summaryUnitSource.tsv"
+    File values_source = "summaryValuesSource.tsv"
+    File values = "summaryValues.tsv"
+    File outcomes = "summaryOutcomes.tsv"
+    File reference = "summaryReference.tsv"
+  }
+
+  runtime {
+    docker: docker
+    cpu: 8
+    memory: "32 GB"
+    disks: "local-disk ~{ceil(size(engine_parquet, 'GB') * 2) + 20} SSD"
   }
 }

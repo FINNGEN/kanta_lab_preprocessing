@@ -23,3 +23,4 @@ ADD scripts/counts scripts/counts
 ADD scripts/posneg scripts/posneg
 ADD scripts/metabolomics scripts/metabolomics
 ADD scripts/ref_ranges scripts/ref_ranges
+ADD scripts/summaries/summaries.py scripts/summaries/summaries.py
