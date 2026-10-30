@@ -2,7 +2,7 @@
 """Learn each unit's reference range per test name x OMOP, and flag the rows whose range belongs to another unit.
 
 Modes:
-  cache   the global build, every test; rebuilt only when missing or older than --input / --limits, or with --force
+  cache   the global build, every test; rebuilt only when missing or older than --input, or with --force
   sets    cache (if not up to date), then learn each pair's core and unit ranges -> its folder (skipped when the folder
           is up to date with the cache and the parameters; --force to relearn)
   flag    cache and sets (each only if not up to date), then flag each pair's rows
@@ -15,7 +15,7 @@ pair's metadata. The pairs, at most one of:
   --top N, --random N               the N largest / N random pairs of those with >= --min-count rows (default 1000)
   --pairs FILE                      the pairs listed in FILE (TEST_NAME, OMOP_CONCEPT_ID), whatever their rows
   (none)                            every pair with >= --min-count rows; or, when --out is a pair's folder, that pair:
-                                    its test, OMOP id, and unless given --input, --limits and --sample come from its metadata
+                                    its test, OMOP id, and unless given --input and --sample come from its metadata
 e.g. flag results --top 2; flag results --test b-hkr --omop 3009542; flag results/b-hkr/3009542 (rerun).
 One pair runs in this process and exits with code 3 when it has no rows with a harmonized value (nothing to learn or
 flag). Several pairs: the cache, then each pair in its own process, --jobs at a time (each gets --memory-limit / --jobs
@@ -29,10 +29,10 @@ distribution has the right MEASUREMENT_UNIT_CLEANED; (2) a row's reference range
 even when the declared unit is wrong (in the unit and in the reference-range unit alike).
 
 cache (in --tmp, named after the input file; with --sample the first 10M input rows and a _sample suffix):
-1. inject   A slim copy of the input rows (every test), as if the engine had already filled the reference-range columns: rows
-            without numeric limits get lower/upper from --limits (*_LIMITS.tsv from ref_text_limits.py, statuses
-            range/upper/lower), matched on test name + REFERENCE_RANGE_TEXT (else REFERENCE_RANGE_GROUP), as in
-            ref_text_limits.py. Release column names: ROWID, TEST_NAME, OMOP_CONCEPT_ID (null when unmapped or 0),
+1. rows     A slim copy of the input rows (every test) with their reference limits as the engine filled them: sent by the
+            lab, else from the curated text-limits table (REFERENCE_RANGE_SOURCE num / text, read from the input; an input
+            from before the engine filled text limits has no such column: its numeric limits count as num). Release
+            column names: ROWID, TEST_NAME, OMOP_CONCEPT_ID (null when unmapped or 0),
             OMOP_QUANTITY, SEX, EVENT_AGE, MEASUREMENT_VALUE_CLEANED, MEASUREMENT_UNIT_CLEANED, MEASUREMENT_VALUE_HARMONIZED,
             MEASUREMENT_UNIT_HARMONIZED, REFERENCE_RANGE_LOW_VALUE, REFERENCE_RANGE_HIGH_VALUE, REFERENCE_RANGE_SOURCE
             (num / text / null). A folder split into 64 buckets by test name (bucket=hash(TEST_NAME) % 64), so a pair
@@ -82,7 +82,7 @@ from sets
 - ref_unit_core.tsv            test, omop, sex, age, rows, median, core_lo, core_hi (harmonized), core_rows, core_rows_with_range
 - ref_unit_sets.tsv            test, omop, sex, age, unit, rows, pct_of_core, n_lower, lower, lower_p05, lower_p95, n_upper,
                                upper, upper_p05, upper_p95, use, note
-- metadata.json                the pair, quantity and harmonized unit, the cache it was learned from (input, limits,
+- metadata.json                the pair, quantity and harmonized unit, the cache it was learned from (input,
                                modification times), parameters, strata, rows by range source (of the OMOP, and of the
                                test's unmapped rows), the test's other OMOP ids, learned units; flag adds its run under "flags"
 from flag
@@ -126,11 +126,10 @@ COLUMNS = {
     'v': ('harmonization_omop::MEASUREMENT_VALUE', 'MEASUREMENT_VALUE_HARMONIZED'),
     'ref_low': ('REFERENCE_RANGE_LOWER_VALUE', 'REFERENCE_RANGE_LOW_VALUE'),
     'ref_high': ('REFERENCE_RANGE_UPPER_VALUE', 'REFERENCE_RANGE_HIGH_VALUE'),
-    'ref_text': ('REFERENCE_RANGE_TEXT', 'REFERENCE_RANGE_TEXT'),
-    'ref_group': ('REFERENCE_RANGE_GROUP', 'REFERENCE_RANGE_GROUP'),
+    'ref_source': ('REFERENCE_RANGE_SOURCE', 'REFERENCE_RANGE_SOURCE'),
 }
-OPTIONAL = {'rowid', 'quantity', 'h_unit'}  # left null when the input lacks them
-NBUCKETS = 64  # injected rows and hist: folders bucket=0..63 by hash(TEST_NAME)
+OPTIONAL = {'rowid', 'quantity', 'h_unit', 'ref_source'}  # left null when the input lacks them
+NBUCKETS = 64  # rows and hist: folders bucket=0..63 by hash(TEST_NAME)
 BIN = 0.002  # log10 width of the harmonized-value bins (0.5%: fine enough for narrow tests like hematocrit)
 TEST_ROWS = 10_000_000
 NO_CORE = 3  # exit code: the pair has no rows with a harmonized value
@@ -140,7 +139,6 @@ FLAG = "('unit_mismatch', 'unit_missing')"
 RAM_GB = os.sysconf('SC_PAGE_SIZE') * os.sysconf('SC_PHYS_PAGES') / 2**30
 D = Path('/mnt/disks/data/kanta/ref')
 INPUT = Path('/mnt/disks/data/kanta/engine/kanta_dev_2026_10_15_RELEASE.parquet')
-LIMITS = D / 'limits' / 'ref_text_table_LIMITS.tsv'
 t0 = time.time()
 log = lambda msg: print(f"[{time.time() - t0:7.1f}s] {msg}", flush=True)
 lit = lambda s: "'" + str(s).replace("'", "''") + "'"  # SQL string literal
@@ -160,7 +158,7 @@ def connect(args):
 
 def cache_files(args):
     tag = f"{args.input.stem}{'_sample' if args.sample else ''}"
-    return {'inj': args.tmp / f"ref_injected_{tag}",  # folder of bucket=<n>/ parquet files
+    return {'rows': args.tmp / f"ref_unit_rows_{tag}",  # folder of bucket=<n>/ parquet files
             'hist': args.tmp / f"ref_unit_hist_{tag}",  # same
             'info': args.tmp / f"ref_unit_info_{tag}.parquet",
             'pairs': args.tmp / f"ref_unit_pairs_{tag}.tsv",
@@ -180,7 +178,7 @@ def bucket_of(con, test):
 def cache_stale(args, force=False):
     """True when any cached file must be rebuilt: force, missing, or older than what it is built from."""
     F = cache_files(args)
-    deps = {'inj': [args.input, args.limits], 'hist': [F['inj']], 'info': [F['inj']], 'meta': [F['inj']]}
+    deps = {'rows': [args.input], 'hist': [F['rows']], 'info': [F['rows']], 'meta': [F['rows']]}
     return force or not all(F[k].exists() and all(F[k].stat().st_mtime >= d.stat().st_mtime for d in ds) for k, ds in deps.items())
 
 
@@ -232,39 +230,29 @@ def cache(args, con, force=False):
         return f"nullif(nullif(trim(cast(\"{c}\" as varchar)), ''), 'NA')"
 
     num = lambda name: f"try_cast(replace({col(name)}, ',', '.') as double)"
-    # --- 1. Inject the parsed text limits into the rows without numeric limits (read like ref_text_limits.py wrote
-    # them, so the texts compare equal to the input's)
-    lim = pd.read_csv(args.limits, sep='\t', dtype=str, keep_default_na=False, quoting=3, escapechar='\\')
-    lim = lim[lim['status'].isin(['range', 'upper', 'lower'])]
-    lim = pd.DataFrame({'test_name': lim['test_name'], 'ref_text': lim['ref_text'],
-                        'lower': pd.to_numeric(lim['lower'], errors='coerce'), 'upper': pd.to_numeric(lim['upper'], errors='coerce')})
-    con.register('lim_df', lim)
-    log(f"{len(lim):,} test name x text pairs with limits in {args.limits.name}")
+    # --- 1. The rows with their limits as the engine filled them (lab-sent, else from the curated text-limits table)
     has_num = f"({num('ref_low')} is not null or {num('ref_high')} is not null)"
-    build(F['inj'], [args.input, args.limits], f"""
-        with r as (
+    if col('ref_source') == 'null':
+        log(f"{args.input.name} has no REFERENCE_RANGE_SOURCE (from before the engine filled text limits): numeric limits count as num")
+    source = f"coalesce({col('ref_source')}, case when {has_num} then 'num' end)"
+    build(F['rows'], [args.input], f"""
+        select hash(TEST_NAME) % {NBUCKETS} as bucket, * from (
             select try_cast({col('rowid')} as bigint) as ROWID, coalesce({col('test_name')}, 'NA') as TEST_NAME,
                    nullif({col('omop')}, '0') as OMOP_CONCEPT_ID, {col('quantity')} as OMOP_QUANTITY, {col('sex')} as SEX,
                    try_cast({col('age')} as double) as EVENT_AGE, {num('v_raw')} as MEASUREMENT_VALUE_CLEANED,
                    {col('unit')} as MEASUREMENT_UNIT_CLEANED, {num('v')} as MEASUREMENT_VALUE_HARMONIZED,
-                   {col('h_unit')} as MEASUREMENT_UNIT_HARMONIZED, {num('ref_low')} as lo, {num('ref_high')} as hi, {has_num} as has_num,
-                   regexp_replace(coalesce({col('ref_text')}, {col('ref_group')}), '[\\t\\r\\n]+', ' ', 'g') as txt
-            from {src})
-        select hash(r.TEST_NAME) % {NBUCKETS} as bucket, r.ROWID, r.TEST_NAME, r.OMOP_CONCEPT_ID, r.OMOP_QUANTITY, r.SEX, r.EVENT_AGE,
-               r.MEASUREMENT_VALUE_CLEANED, r.MEASUREMENT_UNIT_CLEANED, r.MEASUREMENT_VALUE_HARMONIZED, r.MEASUREMENT_UNIT_HARMONIZED,
-               case when r.has_num then r.lo else l.lower end as REFERENCE_RANGE_LOW_VALUE,
-               case when r.has_num then r.hi else l.upper end as REFERENCE_RANGE_HIGH_VALUE,
-               case when r.has_num then 'num' when l.lower is not null or l.upper is not null then 'text' end as REFERENCE_RANGE_SOURCE
-        from r left join lim_df l on l.test_name = r.TEST_NAME and l.ref_text = r.txt""", partition='bucket')
-    I = f"read_parquet('{F['inj']}/*/*.parquet', hive_partitioning = true)"
+                   {col('h_unit')} as MEASUREMENT_UNIT_HARMONIZED, {num('ref_low')} as REFERENCE_RANGE_LOW_VALUE,
+                   {num('ref_high')} as REFERENCE_RANGE_HIGH_VALUE, {source} as REFERENCE_RANGE_SOURCE
+            from {src})""", partition='bucket')
+    I = f"read_parquet('{F['rows']}/*/*.parquet', hive_partitioning = true)"
     # --- 2. Histogram of the harmonized values by stratum, unit and range, in the same buckets
-    build(F['hist'], [F['inj']], f"""
+    build(F['hist'], [F['rows']], f"""
         select bucket, TEST_NAME test, OMOP_CONCEPT_ID omop, {SEX} sex, {AGE} age, coalesce(MEASUREMENT_UNIT_CLEANED, 'NA') unit,
                REFERENCE_RANGE_LOW_VALUE lower, REFERENCE_RANGE_HIGH_VALUE upper,
                floor(log10(MEASUREMENT_VALUE_HARMONIZED) / {BIN})::integer hbin, count(*) n
         from {I} where MEASUREMENT_VALUE_HARMONIZED > 0 and OMOP_CONCEPT_ID is not null group by all""", partition='bucket')
     # --- 3. Rows per test x OMOP x range source; the pair list
-    build(F['info'], [F['inj']], f"""select TEST_NAME, OMOP_CONCEPT_ID omop, coalesce(REFERENCE_RANGE_SOURCE, 'none') src, count(*) n,
+    build(F['info'], [F['rows']], f"""select TEST_NAME, OMOP_CONCEPT_ID omop, coalesce(REFERENCE_RANGE_SOURCE, 'none') src, count(*) n,
                                          mode(OMOP_QUANTITY) quantity, mode(MEASUREMENT_UNIT_HARMONIZED) harmonized_unit
                                   from {I} group by all""")
     con.sql(f"""copy (select TEST_NAME, omop OMOP_CONCEPT_ID, sum(n)::bigint n from read_parquet('{F['info']}')
@@ -273,9 +261,8 @@ def cache(args, con, force=False):
     for s, n, pct in con.sql(f"""select src, sum(n), 100 * sum(n) / sum(sum(n)) over () from read_parquet('{F['info']}')
                                  group by all order by 2 desc""").fetchall():
         log(f"  range from {s}: {n:,} rows ({pct:.1f}%)")
-    meta = {'input': str(args.input.resolve()), 'input_modified': mtime(args.input), 'limits': str(args.limits.resolve()),
-            'limits_modified': mtime(args.limits), 'sample_rows_only': args.sample, 'injected_rows': str(F['inj'].resolve()),
-            'injected_modified': mtime(F['inj']), 'hist': str(F['hist'].resolve()), 'buckets': NBUCKETS}
+    meta = {'input': str(args.input.resolve()), 'input_modified': mtime(args.input), 'sample_rows_only': args.sample,
+            'rows': str(F['rows'].resolve()), 'rows_modified': mtime(F['rows']), 'hist': str(F['hist'].resolve()), 'buckets': NBUCKETS}
     F['meta'].write_text(json.dumps(meta, indent=1) + '\n')
     n = con.sql(f"select count(*), sum(n) from read_csv('{F['pairs']}', delim='\t', header=true)").fetchone()
     log(f"Cache ready ({F['meta']}); {n[0]:,} test x OMOP pairs, {n[1]:,} rows -> {F['pairs']}")
@@ -307,7 +294,7 @@ def learn(args, con, test, omop):
               'bin_log10': BIN, 'mixed_scale_factor': 10}
     if META.exists() and not args.force:
         old = json.loads(META.read_text())
-        if old.get('cache', {}).get('injected_modified') == cmeta['injected_modified'] and old.get('parameters') == params:
+        if old.get('cache', {}).get('rows_modified') == cmeta['rows_modified'] and old.get('parameters') == params:
             log(f"{test} / {omop}: {d} is up to date with the cache and parameters, kept (--force to redo)")
             return True
     b = bucket_of(con, test)
@@ -406,13 +393,13 @@ def flag(args, con, test, omop):
     meta = json.loads(META.read_text())
     core_sd = meta['parameters']['core_sd']
     b = bucket_of(con, test)
-    SRC = f"read_parquet('{F['inj']}/bucket={b}/*.parquet')"
+    SRC = f"read_parquet('{F['rows']}/bucket={b}/*.parquet')"
     THIS = f"TEST_NAME = {lit(test)} and (OMOP_CONCEPT_ID = {lit(omop)} or OMOP_CONCEPT_ID is null)"
     I = f"(select * from {SRC} where {THIS} and MEASUREMENT_VALUE_CLEANED is not null)"
     no_value = con.sql(f"select count(*) from {SRC} where {THIS} and MEASUREMENT_VALUE_CLEANED is null").fetchone()[0]
     other = con.sql(f"""select OMOP_CONCEPT_ID, count(*) from {SRC}
                          where TEST_NAME = {lit(test)} and OMOP_CONCEPT_ID != {lit(omop)} group by all""").fetchall()
-    log(f"{test} / OMOP {omop}: rows from {F['inj']}; left out: {no_value:,} without a value"
+    log(f"{test} / OMOP {omop}: rows from {F['rows']}; left out: {no_value:,} without a value"
         + (f", mapped to other OMOP ids: {dict(other)}" if other else ''))
     # the rows with their stratum and signature key k (the same query in both passes, so the keys match)
     R = f"""(select *, hash(test, sex, age, unit, lower, upper) k from (
@@ -707,7 +694,7 @@ def run_batch(args, con):
     total_gb = float(args.memory_limit.upper().removesuffix('GB')) if args.memory_limit.upper().endswith('GB') \
         else float(args.memory_limit.upper().removesuffix('MB')) / 1024
     mem, threads = max(1, int(total_gb / jobs)), max(1, args.threads // jobs)
-    cmd = [sys.executable, str(Path(__file__).resolve()), args.mode, '--input', str(args.input), '--limits', str(args.limits),
+    cmd = [sys.executable, str(Path(__file__).resolve()), args.mode, '--input', str(args.input),
            '--tmp', str(args.tmp), '--out', str(args.out), '--min-n', str(args.min_n), '--memory-limit', f"{mem}GB",
            '--threads', str(threads), '--core-sd', str(args.core_sd), '--min-rows', str(args.min_rows), '--min-pct', str(args.min_pct)]
     cmd += ['--sample'] * args.sample + ['--force'] * args.force
@@ -789,7 +776,6 @@ if __name__ == '__main__':
     common.add_argument('--input', type=Path, help=f"Engine output (or release) parquet; also names the cache (default: the pair folder's, else {INPUT})")
     common.add_argument('--tmp', type=Path, default=Path('/mnt/disks/data/kanta/tmp/ref_unit'),
                         help="Cache and duckdb spill folder (default: /mnt/disks/data/kanta/tmp/ref_unit)")
-    common.add_argument('--limits', type=Path, help=f"*_LIMITS.tsv from ref_text_limits.py, injected by the cache (default: the pair folder's, else {LIMITS})")
     common.add_argument('--memory-limit', default=f"{int(RAM_GB * 0.5)}GB",
                         help=f"duckdb memory limit; it spills to --tmp beyond it (default: 50%% of RAM, here {int(RAM_GB * 0.5)}GB)")
     common.add_argument('--threads', type=int, default=min(8, os.cpu_count() or 1), help="duckdb threads; fewer threads lower peak memory (default: min(8, cores))")
@@ -841,10 +827,9 @@ if __name__ == '__main__':
                 ap.error(f"{args.out} is one pair's folder: give the results folder for --test/--omop/--top/--random/--pairs"
                          + (f"/{'/'.join(several)}" if several else ''))
             m = json.loads(found[0].read_text())
-            c = m.get('cache', m)  # folders from ref_unit_sets.py kept input/limits at the top level
+            c = m.get('cache', m)  # folders from ref_unit_sets.py kept the input at the top level
             args.test_name, args.omop, args.out = m['test_name'], str(m['omop_id']), args.out.parent.parent
             args.input = args.input or (Path(c['input']) if c.get('input') else None)
-            args.limits = args.limits or (Path(c['limits']) if c.get('limits') else None)
             if args.sample is None:
                 args.sample = bool(c.get('sample_rows_only', c.get('test_rows_only', False)))
             log(f"{found[0].parent}: {args.test_name} / {args.omop}, input {args.input}")
@@ -853,7 +838,7 @@ if __name__ == '__main__':
         elif args.test_name and several:
             ap.error(f"{'/'.join(several)} apply to several pairs, not to --test/--omop")
         args.jobs, args.min_count = args.jobs or 1, args.min_count or 1000
-    args.input, args.limits, args.sample = args.input or INPUT, args.limits or LIMITS, bool(args.sample)
+    args.input, args.sample = args.input or INPUT, bool(args.sample)
 
     con = connect(args)
     if args.mode == 'cache':

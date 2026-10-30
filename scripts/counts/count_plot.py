@@ -1,5 +1,13 @@
+"""Compare two releases' per-OMOP counts: ratio new / old per column, histograms, appeared / disappeared OMOP IDs.
+
+--new / --old take a counts.py TSV, or a _RELEASE.parquet: its counts table is then made first with counts.py (the
+columns below), as new_/old_<parquet name>_omop_analysis.tsv in the current folder, and reused while it is newer than the
+parquet (--force to recount).
+"""
 import argparse
 import os
+import sys
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -7,12 +15,37 @@ import pandas as pd
 
 from kanta import config
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from counts import analyze_omop_data  # noqa: E402
+
+# What a parquet is counted on (counts.py -c / -b / -a): values, outcomes, failed QC, rows with a reference limit
+COUNT_COLUMNS = ['MEASUREMENT_VALUE_CLEANED', 'MEASUREMENT_UNIT_CLEANED', 'MEASUREMENT_VALUE_HARMONIZED', 'TEST_OUTCOME',
+                 'TEST_OUTCOME_IMPUTED']
+ZERO_COLUMNS = ['QC_PASS']
+ANY_COLUMNS = [('REFERENCE_RANGE', ['REFERENCE_RANGE_LOW_VALUE', 'REFERENCE_RANGE_HIGH_VALUE'])]  # lower or upper (or both)
+
+
+def counts_table(path, role, force=False):
+    """A counts TSV as given, or the one made from a parquet (kept as <role>_<name>_omop_analysis.tsv, so two releases
+    with the same file name don't share it; reused when newer)."""
+    path = Path(path)
+    if path.suffix != '.parquet':
+        return path
+    tsv = Path(f"{role}_{path.stem}_omop_analysis.tsv")
+    if not force and tsv.exists() and tsv.stat().st_mtime >= path.stat().st_mtime:
+        print(f"Reusing {tsv} (newer than {path.name}; --force to recount)")
+    else:
+        print(f"Counting {path} -> {tsv}")
+        analyze_omop_data(str(path), COUNT_COLUMNS, ZERO_COLUMNS, '.', prefix=f"{role}_{path.stem}", any_columns=ANY_COLUMNS)
+    return tsv
+
 
 def main():
     parser = argparse.ArgumentParser(description="Analyze relative changes between two data versions.")
     # File Inputs
-    parser.add_argument("--new", required=True, help="Path to the new version TSV file")
-    parser.add_argument("--old", required=True, help="Path to the old version TSV file")
+    parser.add_argument("--new", required=True, help="The new version: a counts.py TSV, or a _RELEASE.parquet (counted first)")
+    parser.add_argument("--old", required=True, help="The old version: a counts.py TSV, or a _RELEASE.parquet (counted first)")
+    parser.add_argument("--force", action="store_true", help="Recount a parquet even when its counts table is up to date")
     parser.add_argument("--names", default=config.USAGI_MAPPING_FILE,
                         help="Usagi mapping TSV providing OMOP_ID -> concept name")
     
@@ -28,7 +61,8 @@ def main():
     
     args = parser.parse_args()
 
-    # 1. Load data
+    # 1. Load data (counting a parquet first)
+    args.new, args.old = counts_table(args.new, 'new', args.force), counts_table(args.old, 'old', args.force)
     print("Loading files...")
     new_ver = pd.read_csv(args.new, sep='\t')
     old_ver = pd.read_csv(args.old, sep='\t')
@@ -116,28 +150,39 @@ def main():
         
         # --- Left: Histogram (Zoomed [0, 2]) ---
         ax_hist = axes[i, 0]
+        # OMOP IDs of the new release whose count in this column went from 0 (incl. new IDs) to > 0, or from > 0 to 0:
+        # no ratio, so not in the histogram; in the scatter on the axes, coloured. IDs gone from the new release are
+        # in the box at the top.
+        omop = (m['NAME'] != 'ALL').to_numpy()
+        from_zero = omop & (old_vals == 0).to_numpy() & (new_vals > 0).to_numpy()
+        to_zero = omop & (old_vals > 0).to_numpy() & (new_vals == 0).to_numpy()
+        stats = f'from 0: {from_zero.sum():,}\nto 0: {to_zero.sum():,}'
         if not rel_change.empty:
             zoomed_data = rel_change[(rel_change >= 0) & (rel_change <= 2)]
             outliers_count = (rel_change > 2).sum()
-            
+
             ax_hist.hist(zoomed_data, bins=50, range=(0, 2), edgecolor='black', alpha=0.7)
             ax_hist.axvline(x=1.0, color='red', linestyle='--', label='No change (1.0)')
-            ax_hist.set_title(f'{col} - Ratio Distribution [0, 2]')
             ax_hist.set_xlabel('Relative Change Ratio')
             ax_hist.set_ylabel('Frequency')
             ax_hist.legend()
-            
+
             stats = (f'Mean: {rel_change.mean():.3f}\n'
                      f'Median: {rel_change.median():.3f}\n'
                      f'N (total): {len(rel_change)}\n'
-                     f'N > 2.0: {outliers_count}')
-            
-            ax_hist.text(0.95, 0.95, stats, transform=ax_hist.transAxes, verticalalignment='top', 
-                        horizontalalignment='right', bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
+                     f'N > 2.0: {outliers_count}\n' + stats)
+        ax_hist.set_title(f'{col} - Ratio Distribution [0, 2]')
+        ax_hist.text(0.95, 0.95, stats, transform=ax_hist.transAxes, verticalalignment='top',
+                     horizontalalignment='right', bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
 
         # --- Right: Scatter Plot (Old vs New Counts) ---
         ax_scatter = axes[i, 1]
-        ax_scatter.scatter(old_vals, new_vals, alpha=0.4, s=15)
+        rest = ~(from_zero | to_zero)
+        ax_scatter.scatter(old_vals[rest], new_vals[rest], alpha=0.4, s=15)
+        ax_scatter.scatter(old_vals[from_zero], new_vals[from_zero], alpha=0.8, s=25, color='tab:orange',
+                           label=f'from 0 ({from_zero.sum():,})')
+        ax_scatter.scatter(old_vals[to_zero], new_vals[to_zero], alpha=0.8, s=25, color='tab:purple',
+                           label=f'to 0 ({to_zero.sum():,})')
         
         # Reference Lines
         max_val = max(old_vals.max(), new_vals.max())
@@ -156,7 +201,12 @@ def main():
             ax_scatter.set_yscale('symlog')
         ax_scatter.grid(True, alpha=0.3)
 
-    plt.tight_layout()
+    # OMOP IDs that appeared / disappeared, in a box above the plots ('ALL' is the total row, not an OMOP ID)
+    ids = lambda s: {x for x in s if x != 'ALL'}
+    fig.text(0.99, 0.995, f"OMOP IDs: {len(ids(old_ids)):,} old, {len(ids(new_ids)):,} new\n"
+                          f"appeared: {len(ids(appeared_ids)):,}   disappeared: {len(ids(disappeared_ids)):,}",
+             ha='right', va='top', fontsize=14, bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
+    plt.tight_layout(rect=(0, 0, 1, 1 - 0.6 / fig.get_figheight()))  # room for the box
     plt.savefig(args.out_img, dpi=300, bbox_inches='tight')
     print(f"\nDone! Results saved to:")
     print(f"  - {args.out_tsv}")

@@ -77,7 +77,8 @@ by test_name x ref_text:
                         OVERRIDE_CHECK when an override is set on such a pair
   only in this run      change NEW_ENTRY
   only in the curated   kept, with its curated values, change NOT_SEEN (never dropped)
---curated defaults to the current curated table, ref_text_table_LIMITS.tsv next to this script.
+--curated defaults to the engine's copy of the curated table (kanta.config.REF_TEXT_LIMITS_FILE). The key (ref_key)
+and the verdict rule (approve) come from kanta.engine.reference_data, shared with the engine.
 
 Every pair not approved also goes to one of two files (largest first, with the reason and the columns needed to review
 it, NOT_SEEN ones included):
@@ -93,6 +94,9 @@ from pathlib import Path
 import duckdb
 import numpy as np
 import pandas as pd
+
+from kanta import config
+from kanta.engine.reference_data import REF_TEXT_OK_STATUSES as OK, REF_TEXT_VERDICT as VERDICT, approve as approve_pairs, ref_key
 
 NUM = r'(?:\d+(?:\.\d+)?|\.\d+)'  # also .5
 SNUM = rf'[-+]?{NUM}'  # signed, for ranges like -3 - 3 (base excess)
@@ -126,10 +130,8 @@ AGE_PATTERNS = [  # (kind, regex); a is the lower age, b the upper
     ('upper', re.compile(rf'(?:^|(?<=[\s,/(]))-\s*(?P<b>{NUM})\s*{AU}')),  # -17v
 ]
 AGE_WORDS = [(re.compile(r'(?<!\w)aik\w*'), 16, None), (re.compile(r'(?<!\w)laps\w*'), None, 16)]
-OK = ['range', 'upper', 'lower']
 FLAGS = ('unparsed', 'bad_order', 'value_off', 'sex_mismatch', 'age_mismatch')  # failed checks: keep a pair out unless decided
 MANUAL = ['use', 'lower_override', 'upper_override', 'NOTES']  # written by hand, carried over by --curated
-VERDICT = ['approved', 'reason', 'final_lower', 'final_upper']  # worked out by approve() on every run
 REVIEW = ('PARSE_CHANGED', 'OVERRIDE_CHECK')  # changes on approved pairs, printed for a look
 REVIEW_COLS = ['test_name', 'ref_text', 'n', 'n_value', 'n_outcome', 'reason', 'change', 'use', 'NOTES', 'ratio_n', 'status', 'lower', 'upper', 'v_p05', 'v_p25', 'v_p50', 'v_p75', 'v_p95',
                  'pct_below', 'pct_in', 'pct_above', 'pct_in_numeric', 'sex_text', 'pct_f', 'age_lo', 'age_hi', 'age_p05', 'age_p50', 'age_p95', 'pct_age_in', 'rest']
@@ -249,17 +251,6 @@ def limits(s):
                 return lo, hi, 'bad_order', None
             return lo, hi, status, None
     return None, None, 'unparsed', s
-
-
-def ref_key(s):
-    """A raw REFERENCE_RANGE_TEXT (or REFERENCE_RANGE_GROUP) value -> the cleaned text that keys the curated table, None
-    when empty: runs of tabs/newlines become one space, double quotes are dropped, the ends are trimmed; '' and 'NA' are
-    empty. A row's key is ref_key(text), else ref_key(group); it joins the table with its test name. The one definition:
-    the engine must use this function too."""
-    if s is None or pd.isna(s):
-        return None
-    s = re.sub(r'[\t\r\n]+', ' ', str(s)).replace('"', '').strip()
-    return None if s in ('', 'NA') else s
 
 
 def build_table(con, args, files, log):
@@ -416,21 +407,8 @@ def check(con, df, files, args):
 
 
 def approve(d):
-    """The limits in use (see the docstring): approved yes/no, the reason, and final_lower/final_upper (an override, else
-    the parsed limit), filled on approved pairs only."""
-    use = d['use'].str.strip().str.lower()
-    set_ = [d[c].astype(str).str.strip() != '' for c in ('lower_override', 'upper_override')]
-    lo, hi = (pd.to_numeric(d[c].astype(str).str.strip(), errors='coerce').fillna(pd.to_numeric(d[p], errors='coerce'))
-              for c, p in (('lower_override', 'lower'), ('upper_override', 'upper')))
-    has, override = lo.notna() | hi.notna(), set_[0] | set_[1]
-    flags = d['flags'].fillna('').astype(str)
-    approved = has & ((use == 'yes') | ((use == '') & (override | (d['status'].isin(OK) & (flags == '')))))
-    d['approved'] = np.where(approved, 'yes', 'no')
-    d['reason'] = np.select(
-        [approved & (use == 'yes'), approved & override, approved, use == 'no', use == 'yes', use != ''],
-        ['use=yes', 'override', 'parsed', 'use=no', 'use=yes, no limits', 'use=' + use],
-        default=np.where(flags != '', flags, d['status']))  # undecided: the failed checks, else the status (skip_*)
-    d['final_lower'], d['final_upper'] = lo.where(approved), hi.where(approved)
+    """The verdict (kanta.engine.reference_data.approve, the rule the engine uses too), its columns before the manual ones."""
+    d = approve_pairs(d)
     return d[[c for c in d.columns if c not in VERDICT + MANUAL] + VERDICT + MANUAL]
 
 
@@ -487,7 +465,7 @@ def reconcile(df, curated, log):
 
 if __name__ == '__main__':
     D = Path('/mnt/disks/data/kanta/ref/limits')
-    CURATED = Path(__file__).resolve().parent / 'ref_text_table_LIMITS.tsv'  # hardcoded for now, to move to kanta.config
+    CURATED = config.REF_TEXT_LIMITS_FILE  # the engine's copy
     RAM_GB = os.sysconf('SC_PAGE_SIZE') * os.sysconf('SC_PHYS_PAGES') / 2**30
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument('--input', required=True, type=Path, help="Engine output (or release) parquet")

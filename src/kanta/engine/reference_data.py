@@ -5,8 +5,11 @@ so worker processes can deserialize tables warm_all() already built, instead of
 re-parsing them.
 """
 
+import csv
+import io
 import logging
 import pickle
+import re
 import shutil
 import urllib.request
 import warnings
@@ -505,6 +508,116 @@ def get_ab_limits(verbose: bool = False) -> pd.DataFrame:
     return df
 
 
+# --- Reference limits from text: the curated table's key and verdict, shared with scripts/ref_ranges/ref_text_limits.py
+REF_TEXT_OK_STATUSES = ["range", "upper", "lower"]  # statuses that are limits (the others: skip_*, unparsed, bad_order)
+REF_TEXT_VERDICT = ["approved", "reason", "final_lower", "final_upper"]  # the columns approve() adds
+
+
+def ref_key(s):
+    """A raw REFERENCE_RANGE_TEXT (or REFERENCE_RANGE_GROUP) value -> the cleaned text that keys the curated table, None
+    when empty: runs of tabs/newlines become one space, double quotes are dropped, the ends are trimmed; '' and 'NA' are
+    empty. A row's key is ref_key(text), else ref_key(group); it joins the table with its test name."""
+    if s is None or pd.isna(s):
+        return None
+    s = re.sub(r"[\t\r\n]+", " ", str(s)).replace('"', "").strip()
+    return None if s in ("", "NA") else s
+
+
+def approve(d: pd.DataFrame) -> pd.DataFrame:
+    """Add the verdict to a limits table: approved yes/no, the reason, and final_lower/final_upper (an override, else
+    the parsed limit), filled on approved pairs only.
+
+      use = yes                      approved (a whitelist), if it has a limit
+      use = no                       not approved
+      use empty, an override set     approved (the override is the decision)
+      use empty                      approved when the status is range/upper/lower and no check failed (flags empty)
+
+    reason: use=yes / override / parsed for approved pairs; use=no, use=yes, no limits, the failed checks, or the
+    status (skip_*) for the others.
+    """
+    use = d["use"].astype(str).str.strip().str.lower()
+    set_ = [d[c].astype(str).str.strip() != "" for c in ("lower_override", "upper_override")]
+    lo, hi = (
+        pd.to_numeric(d[c].astype(str).str.strip(), errors="coerce").fillna(pd.to_numeric(d[p], errors="coerce"))
+        for c, p in (("lower_override", "lower"), ("upper_override", "upper"))
+    )
+    has, override = lo.notna() | hi.notna(), set_[0] | set_[1]
+    flags = d["flags"].fillna("").astype(str)
+    approved = has & ((use == "yes") | ((use == "") & (override | (d["status"].isin(REF_TEXT_OK_STATUSES) & (flags == "")))))
+    d["approved"] = np.where(approved, "yes", "no")
+    d["reason"] = np.select(
+        [approved & (use == "yes"), approved & override, approved, use == "no", use == "yes", use != ""],
+        ["use=yes", "override", "parsed", "use=no", "use=yes, no limits", "use=" + use],
+        default=np.where(flags != "", flags, d["status"]),  # undecided: the failed checks, else the status (skip_*)
+    )
+    d["final_lower"], d["final_upper"] = lo.where(approved), hi.where(approved)
+    return d
+
+
+@lru_cache(maxsize=1)
+def get_text_limits(verbose: bool = False) -> pd.DataFrame:
+    """Approved pairs of the curated reference-limits table: (test name, cleaned reference text) -> final_lower,
+    final_upper (floats; one of them NaN for a one-sided limit). See scripts/ref_ranges/ref_text_limits.py.
+
+    test_name  ref_text   ->  final_lower  final_upper
+    b-hkr      0.35-0.46  ->  0.35         0.46
+    p-crp      <4         ->  NaN          4.0
+
+    The verdict (approved, reason, final_lower, final_upper) is worked out here with approve() from the
+    manual columns: a hand edit of `use` takes effect at once. When the file's stored verdict differs (stale after
+    such an edit), the file is rewritten with the new one, so every run keeps it in sync; if it can't be written
+    (e.g. a read-only image), a warning and the in-memory verdict. Fails loud on a table the join could fan out on
+    (duplicate keys), keys ref_key() would change, or lower > upper.
+    """
+
+    def compute():
+        path = config.REF_TEXT_LIMITS_FILE
+        raw = path.read_text()
+        df = pd.read_csv(io.StringIO(raw), sep="\t", dtype=str, keep_default_na=False, quoting=3, escapechar="\\")
+        need = {"test_name", "ref_text", "status", "flags", "lower", "upper", "use", "lower_override", "upper_override"}
+        if need - set(df.columns):
+            raise ValueError(f"{path}: missing columns {sorted(need - set(df.columns))}")
+        key = ["test_name", "ref_text"]
+        if df.duplicated(key).any():
+            raise ValueError(f"{path}: duplicated test_name x ref_text keys, "
+                             f"e.g. {df.loc[df.duplicated(key), key].iloc[0].tolist()}")
+        unclean = df["ref_text"].map(ref_key) != df["ref_text"]
+        if unclean.any():
+            raise ValueError(f"{path}: {unclean.sum()} ref_text values are not ref_key()-clean, "
+                             f"e.g. {df.loc[unclean, 'ref_text'].iloc[0]!r}")
+        stored = df.reindex(columns=REF_TEXT_VERDICT, fill_value="")
+        had_verdict = set(REF_TEXT_VERDICT) <= set(df.columns)
+        df = approve(df)  # an existing verdict is overwritten in place
+        if not had_verdict:  # a new one goes before the manual columns, as the script writes it
+            cols = [c for c in df.columns if c not in REF_TEXT_VERDICT]
+            df = df[cols[: cols.index("use")] + REF_TEXT_VERDICT + cols[cols.index("use"):]]
+        bad = (df["approved"] == "yes") & (df["final_lower"] > df["final_upper"])
+        if bad.any():
+            raise ValueError(f"{path}: final_lower > final_upper for {df.loc[bad, key].values.tolist()[:3]}")
+        out = df.to_csv(sep="\t", index=False, quoting=csv.QUOTE_NONE, escapechar="\\")
+        if out != raw:
+            num = lambda s: pd.to_numeric(s, errors="coerce")
+            differ = lambda a, b: ~((a.isna() & b.isna()) | (a == b))
+            n = int(((df["approved"] != stored["approved"])
+                     | differ(df["final_lower"], num(stored["final_lower"]))
+                     | differ(df["final_upper"], num(stored["final_upper"]))).sum())
+            try:
+                tmp = path.with_name(path.name + ".tmp")
+                tmp.write_text(out)
+                tmp.replace(path)
+                logger.warning(f"[reference_data] {path.name}: verdict refreshed ({n} pairs changed); file rewritten")
+            except OSError as e:
+                logger.warning(f"[reference_data] {path.name}: verdict differs on {n} pairs but the file can't be "
+                               f"rewritten ({e}); using the refreshed verdict in memory")
+        df = df[df["approved"] == "yes"]
+        return df.set_index(key)[["final_lower", "final_upper"]].astype("float64")
+
+    df = _cached("text_limits", compute)
+    if verbose:
+        logger.info(f"[reference_data] text_limits: {len(df)} approved test name x reference text pairs loaded")
+    return df
+
+
 @lru_cache(maxsize=1)
 def get_omop_qc(verbose: bool = False) -> pd.DataFrame:
     """Per-OMOP_ID QC threshold rules: SIDE/THRESHOLD/UNIT/QC_NOTES.
@@ -685,5 +798,6 @@ def warm_all(verbose: bool = True) -> None:
     get_posneg_table(verbose=verbose)
     get_plus_ab_table(verbose=verbose)
     get_ab_limits(verbose=verbose)
+    get_text_limits(verbose=verbose)
     get_omop_qc(verbose=verbose)
     get_compiled_omop_qc(verbose=verbose)

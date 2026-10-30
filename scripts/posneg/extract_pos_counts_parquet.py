@@ -17,7 +17,7 @@ need passing to compare against other versions.
 
 Usage
 -----
-  python3 scripts/counts/extract_pos_counts_parquet.py <engine_output>.parquet
+  python3 scripts/posneg/extract_pos_counts_parquet.py <engine_output>.parquet
 """
 import argparse
 import os

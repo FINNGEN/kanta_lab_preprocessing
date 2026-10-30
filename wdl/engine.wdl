@@ -13,6 +13,8 @@ workflow engine {
     Boolean test = false
     Int chunk_size = 200000
     String injection_branch = "master"
+    # an earlier release (its _RELEASE.parquet) to compare this run's per-OMOP counts with; no comparison without it
+    File? old_release_parquet
   }
 
   String downstream_docker = select_first([qc_docker, engine_docker])
@@ -55,6 +57,16 @@ workflow engine {
     docker = downstream_docker
   }
 
+  # Per-OMOP counts of this release and of an earlier one, and how they changed (incl. the rows with a reference limit)
+  if (defined(old_release_parquet)) {
+    call release_counts {
+      input:
+      release_parquet = run_engine.release_parquet,
+      old_release_parquet = select_first([old_release_parquet]),
+      docker = downstream_docker
+    }
+  }
+
   output {
     File engine_parquet = run_engine.engine_parquet
     File errors_parquet = run_engine.errors_parquet
@@ -74,6 +86,12 @@ workflow engine {
     File ref_text_rejected = ref_limits.rejected
     File metabolomics_biomarkers = metabolomics.biomarkers
     File metabolomics_risks = metabolomics.risks
+    File? counts_new = release_counts.counts_new
+    File? counts_old = release_counts.counts_old
+    File? counts_change = release_counts.change
+    File? counts_change_plot = release_counts.change_plot
+    File? counts_appeared = release_counts.appeared
+    File? counts_disappeared = release_counts.disappeared
   }
 }
 
@@ -158,7 +176,7 @@ task pos_tables {
     set -euxo pipefail
     # Free-text pos/neg and "+" summaries vs. the engine's negpos_mapping.tsv /
     # kanta_plusplus_abnormality.tsv. Needs the main output: _RELEASE has no free text.
-    python3 /scripts/counts/extract_pos_counts_parquet.py ~{engine_parquet}
+    python3 /scripts/posneg/extract_pos_counts_parquet.py ~{engine_parquet}
   >>>
 
   output {
@@ -229,5 +247,38 @@ task metabolomics {
     cpu: 2
     memory: "16 GB"
     disks: "local-disk ~{ceil(size(engine_parquet, 'GB') * 3 / 2) + 20} SSD"
+  }
+}
+
+
+task release_counts {
+  input {
+    File release_parquet
+    File old_release_parquet
+    String docker
+  }
+
+  command <<<
+    set -euxo pipefail
+    # Per OMOP_CONCEPT_ID for both releases: non-missing values, failed QC (QC_PASS 0), rows with a lower or upper
+    # reference limit (count_plot.py counts the parquets first, with counts.py); then the change per column (new / old)
+    export MPLCONFIGDIR="$(pwd)/mpl"
+    python3 /scripts/counts/count_plot.py --new ~{release_parquet} --old ~{old_release_parquet}
+  >>>
+
+  output {
+    File counts_new = "new_~{basename(release_parquet, '.parquet')}_omop_analysis.tsv"
+    File counts_old = "old_~{basename(old_release_parquet, '.parquet')}_omop_analysis.tsv"
+    File change = "relative_change.tsv"
+    File change_plot = "relative_change_histograms.png"
+    File appeared = "appeared_omop_ids.tsv"
+    File disappeared = "disappeared_omop_ids.tsv"
+  }
+
+  runtime {
+    docker: docker
+    cpu: 8
+    memory: "32 GB"
+    disks: "local-disk ~{ceil(size(release_parquet, 'GB') + size(old_release_parquet, 'GB')) + 20} SSD"
   }
 }

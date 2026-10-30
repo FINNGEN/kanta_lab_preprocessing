@@ -13,8 +13,9 @@ Turns reference-range texts into numeric limits, then uses those ranges to flag 
    test_name  ref_text     n       lower  upper  status  sex_text  value_check  flags
    p-krea     50-90 umol/l 120000  50     90     range   F         value_ok
    ```
+   Each run is reconciled with the curated table the engine uses (`src/kanta/engine/data/ref_text_limits.tsv`, `kanta.config.REF_TEXT_LIMITS_FILE`): edit the LIMITS output's manual columns (`use`, `lower_override`, `upper_override`, `NOTES`) and copy it there. The key (`ref_key`) and the approval rule (`approve`) live in `kanta.engine.reference_data`, shared with the engine.
 
-2. **`ref_units.py`**: for each test × OMOP pair, learns which reference ranges go with which unit and flags rows whose range points to another unit. It takes the `*_LIMITS.tsv` from step 1 as `--limits`. There are three modes:
+2. **`ref_units.py`**: for each test × OMOP pair, learns which reference ranges go with which unit and flags rows whose range points to another unit. It reads the limits as the engine filled them (`REFERENCE_RANGE_SOURCE`: num = sent by the lab, text = from the curated table), so it needs no LIMITS file. There are three modes:
    - `cache`: builds the shared cache only
    - `sets`: learns the unit ranges per pair
    - `flag`: runs both of the above if needed, then flags the rows

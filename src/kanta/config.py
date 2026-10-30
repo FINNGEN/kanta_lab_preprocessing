@@ -47,6 +47,11 @@ COLUMN_ALIASES = {
     "_rowid": "ROWID",
 }
 
+# Curated reference-limits table: one row per test name x cleaned reference text (kanta.engine.reference_data.ref_key),
+# with the limits parsed from the text, their checks against the rows and the manual decisions (use, lower_override,
+# upper_override, NOTES). Built and reconciled by scripts/ref_ranges/ref_text_limits.py (its --curated default).
+REF_TEXT_LIMITS_FILE = DATA_DIR / "ref_text_limits.tsv"
+
 # Which columns the engine keeps in its own output, and how the release step selects/
 # renames/types a curated subset of them for the final release file -- one source of
 # truth for both, keyed by the engine's internal (post-alias) column name, in the order
@@ -104,6 +109,8 @@ OUTPUT_COLUMNS = {
     "REFERENCE_RANGE_UPPER_VALUE": (True, "REFERENCE_RANGE_HIGH_VALUE", "Float64"),
     "REFERENCE_RANGE_UPPER_UNIT": (True, "REFERENCE_RANGE_HIGH_UNIT", "string"),
     "REFERENCE_RANGE_TEXT": (True, "REFERENCE_RANGE_TEXT", "string"),
+    # where the limits come from: "num" (sent by the lab), "text" (filled from the reference text), "NA" (none)
+    "REFERENCE_RANGE_SOURCE": (True, "REFERENCE_RANGE_SOURCE", "string"),
     # Sensitive data
     "MEASUREMENT_FREE_TEXT": (False, "MEASUREMENT_FREE_TEXT", "string"),
     # Dumps from source
