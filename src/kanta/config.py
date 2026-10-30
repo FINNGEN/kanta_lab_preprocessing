@@ -21,6 +21,10 @@ DEFAULT_INJECTION_BRANCH = "master"
 # Test-specific unit corrections (e.g. osuus -> ratio for b-hkr).
 OMOP_INJECTION_FILE = DATA_DIR / "omop_injection.tsv"
 
+# Start of the local CLIs' output file names (python -m kanta / kanta.intake), e.g. <prefix>_kanta_laboratory_responses_1.0_<date>.parquet;
+# --prefix sets it per run (e.g. finngen_R15). The WDL names its files with its own prefix inputs.
+DEFAULT_FILE_PREFIX = "finngen_R14"
+
 # Which columns to read from the input file, using the original (pre-alias) column names.
 # An empty list means all columns are read.
 READ_COLUMNS = []

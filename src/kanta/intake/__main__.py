@@ -1,13 +1,9 @@
 if __name__ == "__main__":
-    import datetime
     from argparse import ArgumentParser
     from pathlib import Path
 
     from kanta import output
     from kanta.intake import assemble, tidyup
-
-
-    today = datetime.datetime.now(tz=datetime.UTC).date()
 
     parser = ArgumentParser()
 
@@ -30,6 +26,12 @@ if __name__ == "__main__":
         type=Path,
     )
     parser.add_argument(
+        "--prefix",
+        default=None,
+        help="Output names: <prefix>_assembled.parquet and <prefix>.parquet (as the WDL names them; default: the "
+        "source files' shared name start, e.g. finngen_R15_kanta_laboratory_responses)",
+    )
+    parser.add_argument(
         "--partition-n-buckets",
         help="How many buckets to partition the data into to spread the sort+dedup computations.",
         required=False,
@@ -50,17 +52,12 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
+    args.source_list_file = assemble.readable_source_list(args.source_list_file)  # a pipe can be read only once
+    prefix = args.prefix or assemble.shared_root(args.source_list_file)
 
-    # Setup
-    output_file_assemble_stage = output.check_safe_write(
-        args.output_dir
-        / f"finngen_R14_kanta_laboratory_responses.assemble-stage.{today}.parquet"
-    )
-
-    output_file_tidyup_stage = output.check_safe_write(
-        args.output_dir
-        / f"finngen_R14_kanta_laboratory_responses_internal_1.0_{today}.parquet"
-    )
+    # Setup: the same names as the separate steps (and the WDL) give them
+    output_file_assemble_stage = output.check_safe_write(args.output_dir / f"{prefix}_assembled.parquet")
+    output_file_tidyup_stage = output.check_safe_write(args.output_dir / f"{prefix}.parquet")
     output.check_safe_write(
         output_file_tidyup_stage.with_name(f"{output_file_tidyup_stage.stem}_duplicates.parquet")
     )

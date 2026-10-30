@@ -201,9 +201,10 @@ def init_cli():
     )
     parser.add_argument(
         "--output-file",
-        help="Path to write the output file",
-        required=True,
+        help="Path to write the output file (default: the assembled file's name without _assembled, in the current "
+        "folder, e.g. x_assembled.parquet -> x.parquet)",
         type=Path,
+        default=None,
     )
     parser.add_argument(
         "--partition-n-buckets",
@@ -225,8 +226,14 @@ def init_cli():
         action="store_true",
     )
     args = parser.parse_args()
+    args.output_file = args.output_file or default_output_file(args.assembled_file)
 
     return args
+
+
+def default_output_file(assembled_file: Path) -> Path:
+    """The assembled file's name without _assembled, in the current folder."""
+    return Path(f"{assembled_file.stem.removesuffix('_assembled')}.parquet")
 
 
 def consolidate_columns(assembled_file: Path, output_file: Path) -> Path:

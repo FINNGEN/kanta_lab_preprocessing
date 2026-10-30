@@ -9,6 +9,8 @@ Differences from the WDL implementation
 """
 
 import gzip
+import os
+import tempfile
 from argparse import ArgumentParser
 from itertools import zip_longest
 from pathlib import Path
@@ -78,6 +80,43 @@ def main(source_list_file: Path, output_file: Path) -> None:
     print("All good." if is_consistent else "!!! Inconsistent merge !!!")
 
 
+def readable_source_list(source_list_file: Path) -> Path:
+    """The source list as a regular file that can be read more than once. A pipe (e.g. <(head -n2 list.tsv)) can be
+    read only once, so it is copied to a temporary file, with relative paths made absolute (from the current folder)."""
+    source_list_file = Path(source_list_file)
+    if source_list_file.is_file():
+        return source_list_file
+    lines = [
+        "\t".join(str(Path(p.strip()).resolve()) if p.strip() else p for p in line.split("\t"))
+        for line in source_list_file.read_text().splitlines()
+    ]
+    with tempfile.NamedTemporaryFile("w", suffix=".tsv", delete=False) as tmp:
+        tmp.write("\n".join(lines) + "\n")
+    return Path(tmp.name)
+
+
+def shared_root(source_list_file: Path) -> str:
+    """The start the source files' names all share, without trailing separators, e.g.
+    finngen_R15_kanta_laboratory_responses for finngen_R15_kanta_laboratory_responses_2014_internal_1.0.txt.gz and
+    finngen_R15_kanta_laboratory_responses_freetext_2014_internal_1.0.txt.gz. Names the outputs by default."""
+    names = [
+        Path(path.strip()).name
+        for line in Path(source_list_file).read_text().splitlines() if line.strip()
+        for path in line.split("\t")
+    ]
+    if not names:
+        raise ValueError(f"{source_list_file}: no source files listed")
+    root = os.path.commonprefix(names).rstrip("_.-")
+    if not root:
+        raise ValueError(f"{source_list_file}: the source files share no common name start; give the output name")
+    return root
+
+
+def default_output_file(source_list_file: Path) -> Path:
+    """<shared root>_assembled.parquet, in the current folder."""
+    return Path(f"{shared_root(source_list_file)}_assembled.parquet")
+
+
 def validate_input_pairs(
     source_list_file: Path, *, separator="\t"
 ) -> list[tuple[Path, Path]]:
@@ -100,6 +139,9 @@ def validate_input_pairs(
             freetext = validate_tsv_gz(values[1], source_list_file.parent)
 
             pairs.append((main, freetext))
+
+    if not pairs:
+        raise ValueError(f"{source_list_file}: no main / freetext pairs (an empty file, or a pipe already read)")
 
     for main, freetext in pairs:
         check_columns(main, EXPECTED_COLUMNS_MAIN, "main")
@@ -264,12 +306,15 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--output-file",
-        required=True,
         type=Path,
-        help="Path to output the intermediary file from this stage.",
+        default=None,
+        help="Path to output the intermediary file from this stage "
+        "(default: <the source files' shared name start>_assembled.parquet, in the current folder).",
     )
 
     args = parser.parse_args()
+    args.source_list_file = readable_source_list(args.source_list_file)
+    args.output_file = args.output_file or default_output_file(args.source_list_file)
 
     output.check_safe_write(args.output_file)
 

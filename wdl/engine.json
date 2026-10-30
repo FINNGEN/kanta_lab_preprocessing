@@ -3,7 +3,7 @@
     "engine.tidied_parquet": "gs://fg-3/kanta_v4/dev/intake/finngen_R15_dev_kanta_laboratory_responses_internal_1.0.parquet",
     "engine.engine_docker": "europe-west1-docker.pkg.dev/finngen-refinery-dev/fg-refinery-registry/kanta:v4-engine.ref_limits",
     "engine.qc_docker": "europe-west1-docker.pkg.dev/finngen-refinery-dev/fg-refinery-registry/kanta:v4-engine.summaries",
-    "engine.prefix": "kanta_dev_2026_10_30",
+    "engine.prefix": "kanta_R15_prelease_2026_10_30",
     "engine.chunk_size": 200000,
     "engine.injection_branch": "master",
     "engine.old_release_parquet": "gs://fg-3/kanta_v4/dev/engine/kanta_dev_2026_10_15_RELEASE.parquet"
