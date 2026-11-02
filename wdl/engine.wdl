@@ -72,13 +72,32 @@ workflow engine {
     docker = downstream_docker
   }
 
+  # The prefixed outputs again, named <prefix>_<today>: the date is set here, at publish time, so engine.prefix can stay
+  # fixed (it is a run_engine input: changing it reruns the engine). Paths only, read through the gcsfuse mount.
+  call release {
+    input:
+    prefix = prefix,
+    engine_parquet = "~{run_engine.engine_parquet}",
+    errors_parquet = "~{run_engine.errors_parquet}",
+    abbr_parquet = "~{run_engine.abbr_parquet}",
+    unit_parquet = "~{run_engine.unit_parquet}",
+    release_parquet = "~{run_engine.release_parquet}",
+    log = "~{run_engine.log}",
+    counts_new = "~{release_counts.counts_new}",
+    # every copied file lands on the local disk (counts_new is small: the 20 GB covers it)
+    disk_gb = ceil(size([run_engine.engine_parquet, run_engine.errors_parquet, run_engine.abbr_parquet,
+                         run_engine.unit_parquet, run_engine.release_parquet, run_engine.log], "GB")) + 20,
+    docker = downstream_docker
+  }
+
   output {
-    File engine_parquet = run_engine.engine_parquet
-    File errors_parquet = run_engine.errors_parquet
-    File abbr_parquet = run_engine.abbr_parquet
-    File unit_parquet = run_engine.unit_parquet
-    File release_parquet = run_engine.release_parquet
-    File log = run_engine.log
+    String release_name = release.release_name
+    File engine_parquet = release.engine_parquet
+    File errors_parquet = release.errors_parquet
+    File abbr_parquet = release.abbr_parquet
+    File unit_parquet = release.unit_parquet
+    File release_parquet = release.release_parquet
+    File log = release.log
     File abnormality_table = abnormality.table
     File abnormality_ranges = abnormality.ranges
     File pos_neg_summary = pos_tables.pos_neg_summary
@@ -91,7 +110,7 @@ workflow engine {
     File ref_text_rejected = ref_limits.rejected
     File metabolomics_biomarkers = metabolomics.biomarkers
     File metabolomics_risks = metabolomics.risks
-    File counts_new = release_counts.counts_new
+    File counts_new = release.counts_new
     File counts_old = release_counts.counts_old
     File counts_change = release_counts.change
     File counts_change_plot = release_counts.change_plot
@@ -323,5 +342,59 @@ task summaries {
     cpu: 8
     memory: "32 GB"
     disks: "local-disk ~{ceil(size(engine_parquet, 'GB') * 2) + 20} HDD"
+  }
+}
+
+
+task release {
+  input {
+    String prefix
+    # gs:// paths (String, not File): nothing is localized, the files are read through the gcsfuse mount
+    String engine_parquet
+    String errors_parquet
+    String abbr_parquet
+    String unit_parquet
+    String release_parquet
+    String log
+    String counts_new
+    Int disk_gb
+    String docker
+  }
+
+  command <<<
+    set -euxo pipefail
+    name="~{prefix}_$(date -u +%Y_%m_%d)"
+    echo "$name" > release_name.txt
+    # The backend mounts the Cromwell execution bucket at /mnt/disks/gcs (gcsfuse): gs://<bucket>/<path> is
+    # /mnt/disks/gcs/<path>. Assumes these outputs are in that bucket (they are run_engine / release_counts outputs).
+    to_fuse() { echo "$1" | sed 's|gs://[^/]*/|/mnt/disks/gcs/|'; }
+    for f in ~{engine_parquet} ~{errors_parquet} ~{abbr_parquet} ~{unit_parquet} ~{release_parquet} ~{log} ~{counts_new}; do
+      base=$(basename "$f")
+      cp "$(to_fuse "$f")" "./${base/~{prefix}/$name}"
+    done
+    ls -l
+  >>>
+
+  output {
+    String release_name = read_string("release_name.txt")
+    File engine_parquet = read_string("release_name.txt") + ".parquet"
+    File errors_parquet = read_string("release_name.txt") + "_errors.parquet"
+    File abbr_parquet = read_string("release_name.txt") + "_abbr.parquet"
+    File unit_parquet = read_string("release_name.txt") + "_unit.parquet"
+    File release_parquet = read_string("release_name.txt") + "_RELEASE.parquet"
+    File log = read_string("release_name.txt") + ".log"
+    File counts_new = "new_" + read_string("release_name.txt") + "_RELEASE_omop_analysis.tsv"
+  }
+
+  runtime {
+    docker: docker
+    cpu: 2
+    memory: "4 GB"
+    disks: "local-disk ~{disk_gb} HDD"
+  }
+
+  meta {
+    # rerun every time, so the date is always today's (a cached copy would keep the first run's date)
+    volatile: true
   }
 }
