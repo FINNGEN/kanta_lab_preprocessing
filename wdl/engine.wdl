@@ -172,7 +172,7 @@ task abnormality {
     docker: docker
     cpu: 8
     memory: "32 GB"
-    disks: "local-disk ~{ceil(size(release_parquet, 'GB') * 3) + 20} SSD"
+    disks: "local-disk ~{ceil(size(release_parquet, 'GB') * 3) + 20} HDD"
   }
 }
 
@@ -201,7 +201,7 @@ task pos_tables {
     docker: docker
     cpu: 8
     memory: "32 GB"
-    disks: "local-disk ~{ceil(size(engine_parquet, 'GB') * 2) + 20} SSD"
+    disks: "local-disk ~{ceil(size(engine_parquet, 'GB') * 2) + 20} HDD"
   }
 }
 
@@ -230,7 +230,7 @@ task ref_limits {
     docker: docker
     cpu: 8
     memory: "32 GB"
-    disks: "local-disk ~{ceil(size(engine_parquet, 'GB') * 2) + 20} SSD"
+    disks: "local-disk ~{ceil(size(engine_parquet, 'GB') * 2) + 20} HDD"
   }
 }
 
@@ -257,7 +257,7 @@ task metabolomics {
     docker: docker
     cpu: 2
     memory: "16 GB"
-    disks: "local-disk ~{ceil(size(engine_parquet, 'GB') * 3 / 2) + 20} SSD"
+    disks: "local-disk ~{ceil(size(engine_parquet, 'GB') * 3 / 2) + 20} HDD"
   }
 }
 
@@ -290,7 +290,7 @@ task release_counts {
     docker: docker
     cpu: 8
     memory: "32 GB"
-    disks: "local-disk ~{ceil(size(release_parquet, 'GB') + size(old_release_parquet, 'GB')) + 20} SSD"
+    disks: "local-disk ~{ceil(size(release_parquet, 'GB') + size(old_release_parquet, 'GB')) + 20} HDD"
   }
 }
 
@@ -321,6 +321,6 @@ task summaries {
     docker: docker
     cpu: 8
     memory: "32 GB"
-    disks: "local-disk ~{ceil(size(engine_parquet, 'GB') * 2) + 20} SSD"
+    disks: "local-disk ~{ceil(size(engine_parquet, 'GB') * 2) + 20} HDD"
   }
 }
