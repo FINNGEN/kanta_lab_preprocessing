@@ -72,11 +72,11 @@ workflow engine {
     docker = downstream_docker
   }
 
-  # The prefixed outputs again, named <prefix>_<today>: the date is set here, at publish time, so engine.prefix can stay
-  # fixed (it is a run_engine input: changing it reruns the engine). Paths only, read through the gcsfuse mount.
+  call get_date { input: prefix = prefix }
   call release {
     input:
     prefix = prefix,
+    release_name = get_date.release_name,
     engine_parquet = "~{run_engine.engine_parquet}",
     errors_parquet = "~{run_engine.errors_parquet}",
     abbr_parquet = "~{run_engine.abbr_parquet}",
@@ -89,12 +89,11 @@ workflow engine {
     # every copied file lands on the local disk
     disk_gb = ceil(size([run_engine.engine_parquet, run_engine.errors_parquet, run_engine.abbr_parquet,
                          run_engine.unit_parquet, run_engine.release_parquet, run_engine.log,
-                         release_counts.change_plot, metabolomics.biomarkers, metabolomics.risks], "GB")) + 20,
-    docker = downstream_docker
+                         release_counts.change_plot, metabolomics.biomarkers, metabolomics.risks], "GB")) + 20
   }
 
   output {
-    String release_name = release.release_name
+    String release_name = get_date.release_name
     File engine_parquet = release.engine_parquet
     File errors_parquet = release.errors_parquet
     File abbr_parquet = release.abbr_parquet
@@ -349,9 +348,20 @@ task summaries {
 }
 
 
+# <prefix>_<today>. Volatile: never call-cached, so the date is always today's even when every other task is cached.
+# Runtime from the workflow options' defaults (google_inputs.json).
+task get_date {
+  input { String prefix }
+  command <<< date -u +%Y_%m_%d | tr -d '\n' >>>
+  output { String release_name = prefix + "_" + read_string(stdout()) }
+  meta { volatile: true }
+}
+
+
 task release {
   input {
     String prefix
+    String release_name
     # gs:// paths (String, not File): nothing is localized, the files are read through the gcsfuse mount
     String engine_parquet
     String errors_parquet
@@ -365,15 +375,12 @@ task release {
     String metabolomics_biomarkers
     String metabolomics_risks
     Int disk_gb
-    String docker
   }
 
   command <<<
     set -euxo pipefail
-    name="~{prefix}_$(date -u +%Y_%m_%d)"
-    echo "$name" > release_name.txt
-    # The backend mounts the Cromwell execution bucket at /mnt/disks/gcs (gcsfuse): gs://<bucket>/<path> is
-    # /mnt/disks/gcs/<path>. Assumes these outputs are in that bucket (they are run_engine / release_counts outputs).
+    name="~{release_name}"
+    #gcsfuze trick to avoide localization (very slow with HDD and pointless in this case)
     to_fuse() { echo "$1" | sed 's|gs://[^/]*/|/mnt/disks/gcs/|'; }
     for f in ~{engine_parquet} ~{errors_parquet} ~{abbr_parquet} ~{unit_parquet} ~{release_parquet} ~{log}; do
       base=$(basename "$f")
@@ -387,27 +394,16 @@ task release {
   >>>
 
   output {
-    String release_name = read_string("release_name.txt")
-    File engine_parquet = read_string("release_name.txt") + ".parquet"
-    File errors_parquet = read_string("release_name.txt") + "_errors.parquet"
-    File abbr_parquet = read_string("release_name.txt") + "_abbr.parquet"
-    File unit_parquet = read_string("release_name.txt") + "_unit.parquet"
-    File release_parquet = read_string("release_name.txt") + "_RELEASE.parquet"
-    File log = read_string("release_name.txt") + ".log"
-    File change_plot = read_string("release_name.txt") + "_relative_change_histograms.png"
-    File metabolomics_biomarkers = read_string("release_name.txt") + "_nightingale_results_metabolomics.tsv.gz"
-    File metabolomics_risks = read_string("release_name.txt") + "_nightingale_results_risks.tsv.gz"
+    File engine_parquet = "~{release_name}.parquet"
+    File errors_parquet = "~{release_name}_errors.parquet"
+    File abbr_parquet = "~{release_name}_abbr.parquet"
+    File unit_parquet = "~{release_name}_unit.parquet"
+    File release_parquet = "~{release_name}_RELEASE.parquet"
+    File log = "~{release_name}.log"
+    File change_plot = "~{release_name}_relative_change_histograms.png"
+    File metabolomics_biomarkers = "~{release_name}_nightingale_results_metabolomics.tsv.gz"
+    File metabolomics_risks = "~{release_name}_nightingale_results_risks.tsv.gz"
   }
 
-  runtime {
-    docker: docker
-    cpu: 2
-    memory: "4 GB"
-    disks: "local-disk ~{disk_gb} HDD"
-  }
-
-  meta {
-    # rerun every time, so the date is always today's (a cached copy would keep the first run's date)
-    volatile: true
-  }
+  runtime { disks: "local-disk ~{disk_gb} HDD" }
 }
