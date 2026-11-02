@@ -37,6 +37,7 @@ workflow intake {
     File tidied_parquet = tidyup.tidied_parquet
     File tidied_duplicates_parquet = tidyup.tidied_duplicates_parquet
     File? include_filter_summary = tidyup.include_filter_summary
+    File oid_map = tidyup.oid_map
   }
 }
 
@@ -85,17 +86,27 @@ task tidyup {
       --output-file ~{prefix}.parquet \
       --partition-n-buckets ~{partition_n_buckets} \
       ~{"--include-ids-file " + include_ids_file}
+
+    # ROWID -> record OID bridge to the statement data (scripts/OID/README.md). The lookup-array cache stays in the
+    # task's working dir, it isn't an output.
+    python3 /scripts/OID/oid_map.py \
+      --assembled ~{assembled_file} \
+      --tidyup ~{prefix}.parquet \
+      --output ~{prefix}_oid_map.parquet
   >>>
 
   output {
     File tidied_parquet = "~{prefix}.parquet"
     File tidied_duplicates_parquet = "~{prefix}_duplicates.parquet"
     File? include_filter_summary = "~{prefix}_include_filter.tsv"
+    File oid_map = "~{prefix}_oid_map.parquet"
   }
 
   runtime {
     docker: docker
     predefinedMachineType: "n2d-highcpu-32"
-    disks: "local-disk ~{ceil(size(assembled_file, 'GB')) * 3 + 1} SSD"
+    # + 4 GB for the OID step's lookup array (~1.2 GB for 300M rows); its output is smaller than the assembled file's
+    # OID columns, and tidyup's own temporary files are gone by then.
+    disks: "local-disk ~{ceil(size(assembled_file, 'GB')) * 3 + 5} SSD"
   }
 }
