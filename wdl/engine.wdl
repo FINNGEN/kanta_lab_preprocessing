@@ -117,9 +117,10 @@ task run_engine {
     String injection_branch
   }
 
+  Int cpus = 64
   command <<<
     set -euxo pipefail
-    echo "cpus: $(nproc)"
+    echo "cpus: $(nproc) ~{cpus}"
     # The engine writes its chunk files under tempfile.mkdtemp(), i.e. /tmp by default,
     # which lives on the boot disk in Cromwell. Point it at the sized local disk instead.
     mkdir -p tmp
@@ -143,8 +144,8 @@ task run_engine {
 
   runtime {
     docker: docker
-    cpu: 16
-    memory: "32 GB"
+    cpu: "~{cpus}"
+    memory: "64 GB"
     disks: "local-disk ~{ceil(size(tidied_parquet, 'GB') * 10) + 50} SSD"
   }
 }
