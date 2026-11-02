@@ -83,10 +83,13 @@ workflow engine {
     unit_parquet = "~{run_engine.unit_parquet}",
     release_parquet = "~{run_engine.release_parquet}",
     log = "~{run_engine.log}",
-    counts_new = "~{release_counts.counts_new}",
-    # every copied file lands on the local disk (counts_new is small: the 20 GB covers it)
+    change_plot = "~{release_counts.change_plot}",
+    metabolomics_biomarkers = "~{metabolomics.biomarkers}",
+    metabolomics_risks = "~{metabolomics.risks}",
+    # every copied file lands on the local disk
     disk_gb = ceil(size([run_engine.engine_parquet, run_engine.errors_parquet, run_engine.abbr_parquet,
-                         run_engine.unit_parquet, run_engine.release_parquet, run_engine.log], "GB")) + 20,
+                         run_engine.unit_parquet, run_engine.release_parquet, run_engine.log,
+                         release_counts.change_plot, metabolomics.biomarkers, metabolomics.risks], "GB")) + 20,
     docker = downstream_docker
   }
 
@@ -108,12 +111,12 @@ workflow engine {
     File ref_text_limits = ref_limits.limits
     File ref_text_undecided = ref_limits.undecided
     File ref_text_rejected = ref_limits.rejected
-    File metabolomics_biomarkers = metabolomics.biomarkers
-    File metabolomics_risks = metabolomics.risks
-    File counts_new = release.counts_new
+    File metabolomics_biomarkers = release.metabolomics_biomarkers
+    File metabolomics_risks = release.metabolomics_risks
+    File counts_new = release_counts.counts_new
     File counts_old = release_counts.counts_old
     File counts_change = release_counts.change
-    File counts_change_plot = release_counts.change_plot
+    File counts_change_plot = release.change_plot
     File counts_appeared = release_counts.appeared
     File counts_disappeared = release_counts.disappeared
     File summary_test = summaries.test
@@ -356,7 +359,11 @@ task release {
     String unit_parquet
     String release_parquet
     String log
-    String counts_new
+    # Unprefixed downstream outputs, published with the release name in front: release_counts' plot of the per-OMOP
+    # count changes vs the earlier release, and the metabolomics tables
+    String change_plot
+    String metabolomics_biomarkers
+    String metabolomics_risks
     Int disk_gb
     String docker
   }
@@ -368,9 +375,13 @@ task release {
     # The backend mounts the Cromwell execution bucket at /mnt/disks/gcs (gcsfuse): gs://<bucket>/<path> is
     # /mnt/disks/gcs/<path>. Assumes these outputs are in that bucket (they are run_engine / release_counts outputs).
     to_fuse() { echo "$1" | sed 's|gs://[^/]*/|/mnt/disks/gcs/|'; }
-    for f in ~{engine_parquet} ~{errors_parquet} ~{abbr_parquet} ~{unit_parquet} ~{release_parquet} ~{log} ~{counts_new}; do
+    for f in ~{engine_parquet} ~{errors_parquet} ~{abbr_parquet} ~{unit_parquet} ~{release_parquet} ~{log}; do
       base=$(basename "$f")
       cp "$(to_fuse "$f")" "./${base/~{prefix}/$name}"
+    done
+    # These names have no prefix to replace: the release name goes in front
+    for f in ~{change_plot} ~{metabolomics_biomarkers} ~{metabolomics_risks}; do
+      cp "$(to_fuse "$f")" "./${name}_$(basename "$f")"
     done
     ls -l
   >>>
@@ -383,7 +394,9 @@ task release {
     File unit_parquet = read_string("release_name.txt") + "_unit.parquet"
     File release_parquet = read_string("release_name.txt") + "_RELEASE.parquet"
     File log = read_string("release_name.txt") + ".log"
-    File counts_new = "new_" + read_string("release_name.txt") + "_RELEASE_omop_analysis.tsv"
+    File change_plot = read_string("release_name.txt") + "_relative_change_histograms.png"
+    File metabolomics_biomarkers = read_string("release_name.txt") + "_nightingale_results_metabolomics.tsv.gz"
+    File metabolomics_risks = read_string("release_name.txt") + "_nightingale_results_risks.tsv.gz"
   }
 
   runtime {
