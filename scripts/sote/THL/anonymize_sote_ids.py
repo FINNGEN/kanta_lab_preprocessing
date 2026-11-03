@@ -8,19 +8,24 @@ followed by three columns to check the lookup:
     <column>      the original OID
     <new>_match   the register OID the maakunta came from
 
-An OID gets a maakunta only if it is exactly a register unit with a known municipality (no guessing from parents,
-organizations or similar OIDs); everything else is NA, with the reason in <new>_how:
+An OID gets a maakunta if it is exactly a register unit with a known municipality, or, as the one override, if it
+is a unit missing from the register whose organization is entirely in one maakunta; everything else is NA. How each
+row was resolved is in <new>_how:
     exact              a register unit with a known municipality: that municipality's maakunta
     exact_old_municipality  the same, for a unit recorded with a municipality that has since been merged away (e.g.
                        838 Tarvasjoki): the maakunta Statistics Finland assigned it in its last year
                        (data/municipality_history.tsv, from data/fetch_municipality_history.py)
+    org_all_units      not a register unit, but the organization in its OID (by Y-tunnus) has all its units, at
+                       least ORG_MIN_UNITS of them, in one maakunta: that maakunta; <new>_match is the organization's
+                       top-level entry. Tested on the register (each unit left out of its organization's counts):
+                       ~99.9% right
     head_office_multi  the top-level entry (head office) of an organization whose units are spread over several
                        maakunnat (e.g. a private chain): NA, the head office's municipality says nothing about where
     unit_no_region     a register unit whose municipality code isn't a municipality, current or old (999 Ei
                        tiedossa, 200 Ulkomaat, a mistyped code): NA
     professional       1.2.246.537.28.<n>, an individual healthcare professional (self-employed practitioner) not
                        in the register: NA; these OIDs identify people
-    not_found          not a register unit: NA
+    not_found          not a register unit, and its organization isn't entirely in one maakunta: NA
     missing            empty, NA or Puuttuu: NA
 The rest of each line is copied byte for byte (lines are split on tabs only, as the old pre-merge WDL did). Lines
 with too few fields (e.g. after a newline inside a text field) are copied unchanged and counted.
@@ -49,7 +54,8 @@ HISTORY_TABLE = DATA_DIR / "municipality_history.tsv"  # every municipality code
 NA = "NA"
 MISSING = {"", "NA", "PUUTTUU"}  # compared upper-cased
 PROFESSIONAL = "1.2.246.537.28."  # individual healthcare professionals
-YTUNNUS_PURITY = 0.9
+YTUNNUS_PURITY = 0.9  # an organization with less than this share of its units in one maakunta is multi-region
+ORG_MIN_UNITS = 20  # org_all_units: the organization needs at least this many units, all in one maakunta
 TEST_LINES = 100_000
 
 
@@ -106,10 +112,13 @@ class Maakunta:
         self.level = {r["OrganizationId"]: r["HierarchyLevel"] for r in rows}
         # Per Y-tunnus, the maakunnat of the organization's units: to tell multi-region organizations' head offices.
         self.code_maakunnat = collections.defaultdict(collections.Counter)
-        for r in rows:
+        self.code_top = {}  # Y-tunnus -> the organization's top-level entry (or its first unit)
+        for r in sorted(rows, key=lambda r: r["HierarchyLevel"] != "0"):
             code = org_code(r["OrganizationId"])
-            if code and maakunta(r):
-                self.code_maakunnat[code][maakunta(r)] += 1
+            if code:
+                self.code_top.setdefault(code, r["OrganizationId"])
+                if maakunta(r):
+                    self.code_maakunnat[code][maakunta(r)] += 1
         self.cache = {}
 
     def resolve(self, oid: str) -> tuple[str, str, str]:
@@ -131,6 +140,10 @@ class Maakunta:
             if self.level.get(oid) == "0" and self.multi_region(oid):
                 return NA, "head_office_multi", oid
             return self.by_oid[oid], "exact_old_municipality" if oid in self.old_municipality else "exact", oid
+        code = org_code(oid)
+        counts = self.code_maakunnat.get(code) if code else None
+        if counts and len(counts) == 1 and sum(counts.values()) >= ORG_MIN_UNITS:
+            return next(iter(counts)), "org_all_units", self.code_top[code]
         if oid.startswith(PROFESSIONAL):
             return NA, "professional", NA
         return NA, "not_found", NA
@@ -280,8 +293,8 @@ def replace_column(path: Path, column: str, output: Path, lookup: Maakunta, max_
             progress.done(lines)
 
     print(f"# {column} -> {new_name}: {lines:,} lines in {time.time() - t0:.0f}s", file=sys.stderr)
-    for how in ["exact", "exact_old_municipality", "head_office_multi", "unit_no_region", "professional", "not_found",
-                "missing"]:
+    for how in ["exact", "exact_old_municipality", "org_all_units", "head_office_multi", "unit_no_region", "professional",
+                "not_found", "missing"]:
         n = by_how.get(how, 0)
         print(f"  {how:<23} {n:>14,} rows ({100 * n / max(lines, 1):5.1f}%), {len(oids_by_how[how]):,} distinct OIDs",
               file=sys.stderr)
