@@ -1,6 +1,6 @@
-# omop_qc
+# qc_checks
 
-QC tools for a single OMOP concept, and for the engine's `omop_qc.tsv`.
+Value QC on the engine output: per test and service provider (`qc_build.py`), for a single OMOP concept (`explore_omop.py`), and for the engine's `omop_qc.tsv`.
 
 ## Main
 
@@ -18,9 +18,22 @@ python3 explore_omop.py <engine_output>.parquet 3000963 [--out-dir DIR] [--top-n
 
 Writes `omop_3000963_report.png`: KDE panels per stage, with the KS mismatch table at the bottom.
 
+**`qc_build.py`**: in one pass over all tests, builds a slim row-level base (kept in the cache) and the shareable aggregates per OMOP × test × SP × year.
+
+```
+python3 qc_build.py --input <engine_output>.parquet [--out DIR] [--out-cache DIR] [--min-test-people 20] [--test]
+```
+
+Exportable outputs: `qc_tests`, `qc_lookup`, `qc_hist`, `qc_national` and `qc_mix`:
+
+```
+qc_national:  omop     n         p001  ...  p50  ...  p999  fence_lo  fence_hi
+              3000963  12000000  70    ...  140  ...  185   ...       ...
+```
+
 ## Utils
 
 - **`sort_omop_qc.py`**: re-sorts `src/kanta/engine/data/omop_qc.tsv` in place. Rows with a threshold come first, then the `NA` placeholders. Run it after hand-editing the file; CI checks the order.
   ```
-  python3 scripts/omop_qc/sort_omop_qc.py
+  python3 scripts/qc_checks/sort_omop_qc.py
   ```

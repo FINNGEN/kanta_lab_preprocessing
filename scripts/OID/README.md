@@ -51,3 +51,43 @@ The log prints progress for both passes and a summary:
 - unmatched rows (should be 0)
 - repeated ROWID / ROWID_SOURCE (should be 0)
 - null/`NA` counts per OID column
+
+## Selecting kanta rows by OID
+
+**`oid_select.py`**: the kanta rows whose record OIDs appear in another file, e.g. the statement data (`finngen_R12_kanta_laboratory_reports_internal_1.0.txt.gz`, with `asiakirjaoid_pseudo`, `merkintaoid_pseudo`, `entryoid_pseudo`, ...).
+
+```
+python3 oid_select.py --map <x>_oid_map.parquet --kanta <x>_RELEASE.parquet --statements <statements>.txt.gz [--keys ...] [--output out.parquet|out.tsv] [--links links.parquet] [--test]
+```
+
+1. Reads the distinct key values of the statements file (tab-separated, read like the intake reads the raw files). Key `k` comes from column `k_pseudo`, or `k` if there is none. Null / `NA` keys are dropped.
+2. Finds the map rows with those values, which gives the matching ROWIDs. All `--keys` must match the same statement row. The default is all five OIDs, the key the old pre-merge WDL joined responses and reports on (`wdl/pre-merge.wdl` at commit `13e8e74`). Each key's own counts are printed too, showing which OIDs link the two files.
+3. Writes the kanta rows with those ROWIDs, with all their columns and the header, to `--output`. The default is `<statements name>_kanta_rows.parquet`; `.tsv` writes tab-separated text.
+
+- `--kanta` is the tidyup, engine or release parquet of the **same intake run** as the map.
+- `--links` also writes the ROWID ↔ key table, to join the selected rows back to the statements.
+- `--test` reads only the first 1k statement rows. The map and kanta passes still read the whole files.
+- Two things show up in the summary: statement keys that aren't in the map (other individuals, documents not in this intake, or a different pseudonymisation), and matched ROWIDs that aren't in the kanta file (filtered by the engine or not released).
+
+## Temporary: `oid_shapes.py`
+
+A diagnostic for when `oid_select.py` finds no match. For each OID column it prints the *shape* of the values in the map and in the statements file (digits → `9`, letters → `a`, first 40 characters, plus the length), and the null/`NA` counts, but never the values themselves. If the map columns are all null, the map build lost the OIDs. If the shapes differ, the formats differ. If the shapes are the same and nothing matches, the files were pseudonymised differently. To be deleted once the link is sorted.
+
+```
+python3 oid_shapes.py --map <x>_oid_map.parquet --statements <statements>.txt.gz [--map-rows 100000] [--statement-rows 1000]
+```
+
+## Temporary: `oid_key_check.py`
+
+Checks whether the R12 statements and the R15 lab data share OIDs, on events known to have a statement. It takes the first `--n` (default 100) rows with a statement in the old v2 release (responses + reports, no OID columns), then:
+- finds the same events in the new release by `FINNGENID` + `APPROX_EVENT_DAY` + `TIME`, and gets their R15 OIDs from the map;
+- finds the statements in the R12 reports file by organisation + status + first statement text (not by date, which can differ), and gets their R12 OIDs;
+- compares the two per key and as a full tuple, and also checks whether the R15 OIDs appear anywhere in the reports file.
+
+```
+python3 oid_key_check.py --old <R12 v2>.tsv.gz --new <R15>_RELEASE.parquet --map <R15>_oid_map.parquet --reports <R12 reports>.txt.gz [--n 100] [--output details.tsv]
+```
+
+It prints counts only. `--output` holds FINNGENIDs and OIDs, so it stays on the data side.
+
+Statements are sparse, so the sample rows are cached in `--cache` (default `<old name>_statement_sample.parquet` in the current folder, plus a `.json` sidecar). The cache is reused when the old file is unchanged and `--n` is the same or smaller; delete both files to rebuild it. It holds FINNGENIDs and statement texts, so it stays on the data side too.

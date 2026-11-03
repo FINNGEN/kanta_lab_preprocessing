@@ -16,7 +16,7 @@ import duckdb
 import pandas as pd
 
 REPO = Path(__file__).resolve().parents[3]
-DATA = Path(__file__).resolve().parent / 'data'
+DATA = Path(__file__).resolve().parents[1] / 'data'  # scripts/sote/data
 SOTE = DATA / 'sote.txt.gz'  # THL sote organization register (';'-delimited, ISO-8859-1)
 MUNI_REGION = DATA / 'municipality_to_region.tsv'
 MULTI_REGION_PUBLIC_LABS = {'24838684': 'NordLab', '21261066': 'ISLAB'}

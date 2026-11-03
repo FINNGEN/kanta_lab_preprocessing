@@ -59,10 +59,10 @@ ap.add_argument('--age-col', default='AGE_AT_DEATH_OR_END_OF_FOLLOWUP',
                 help="Age in --pheno used to standardise endpoint prevalence: age reached by death or end of follow-up, since "
                      "endpoint status is 'ever by end of follow-up' (default: AGE_AT_DEATH_OR_END_OF_FOLLOWUP)")
 ap.add_argument('--sex-col', default='SEX', help="Sex column in --pheno, also used to standardise endpoint prevalence (default: SEX)")
-ap.add_argument('--sotkanet', type=Path, default=Path(__file__).resolve().parent / 'data' / 'sotkanet_health_index_2024.tsv',
-                help="Reference disease indices per hyvinvointialue from fetch_thl_reference.py (default: data/sotkanet_health_index_2024.tsv next to this script)")
-ap.add_argument('--thl-ttr', type=Path, default=Path(__file__).resolve().parent / 'data' / 'thl_ttr_incidence_2015_2024.tsv',
-                help="Infectious disease incidence per hyvinvointialue from fetch_thl_reference.py (default: data/thl_ttr_incidence_2015_2024.tsv next to this script)")
+ap.add_argument('--sotkanet', type=Path, default=Path(__file__).resolve().parents[1] / 'data' / 'sotkanet_health_index_2024.tsv',
+                help="Reference disease indices per hyvinvointialue from fetch_thl_reference.py (default: scripts/sote/data/sotkanet_health_index_2024.tsv)")
+ap.add_argument('--thl-ttr', type=Path, default=Path(__file__).resolve().parents[1] / 'data' / 'thl_ttr_incidence_2015_2024.tsv',
+                help="Infectious disease incidence per hyvinvointialue from fetch_thl_reference.py (default: scripts/sote/data/thl_ttr_incidence_2015_2024.tsv)")
 ap.add_argument('--exclude-cohorts', type=lambda s: sorted(c for c in s.split(',') if c), default=[],
                 help="Comma-separated cohorts left out of the disease comparison, e.g. ones recruited for a disease "
                      "(THL_BIOBANK_BOTNIA,THL_BIOBANK_FUSION,THL_BIOBANK_T1D,THL_BIOBANK_COROGENE,THL_BIOBANK_HHS); default: none")
@@ -499,7 +499,7 @@ if cached(disease_file) and not person_fresh:  # built from the per-person table
 elif not ph_endpoints:
     print(f"\nDisease prevalence: skipped, none of {sorted(ENDPOINT_TO_INDEX)} in {pheno.name}")
 elif not args.sotkanet.exists():
-    print(f"\nDisease prevalence: skipped, {args.sotkanet} not found (run fetch_thl_reference.py)")
+    print(f"\nDisease prevalence: skipped, {args.sotkanet} not found (run data/fetch_thl_reference.py)")
 else:
     if set(ENDPOINT_TO_INDEX) - set(ph_endpoints):
         print(f"\nDisease prevalence: endpoints not in {pheno.name}, left out: {sorted(set(ENDPOINT_TO_INDEX) - set(ph_endpoints))}")
@@ -525,7 +525,7 @@ if counts is not None and len(counts):
     if args.thl_ttr.exists():
         thl = thl.join(thl_index_by_maakunta(args.thl_ttr, weight='person_years'), how='outer')
     else:
-        print(f"  {args.thl_ttr} not found (run fetch_thl_reference.py): endpoints compared with it have no reference")
+        print(f"  {args.thl_ttr} not found (run data/fetch_thl_reference.py): endpoints compared with it have no reference")
     # indirect standardisation: expected cases = each stratum's people x the national (all assigned people) rate in
     # that stratum; index = 100 x observed / expected, on the same scale as THL/Kela's (country = 100). Stabler than
     # direct standardisation when a maakunta has few people in some strata. Strata with unknown age or sex left out.

@@ -28,7 +28,8 @@ written under a temporary name and renamed when complete; --test uses the first 
                       decimals (category mix) and has_value, qc_fail, unit_missing, has_ref_text, has_ref_num
                       (cat true/false); for unit and qc_note cat is the qc_lookup key as text
 
-Join qc_lookup on (kind, key) for names; SP region/org are in region/sp_region.tsv (column s = SP hash).
+Join qc_lookup on (kind, key) for names; SP region/org are in sp_region.tsv from scripts/sote/region/sp_region_cs.py
+(column s = SP hash).
 """
 import argparse, os, shutil, time
 from pathlib import Path

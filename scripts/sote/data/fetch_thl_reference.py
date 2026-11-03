@@ -1,6 +1,6 @@
 """Fetch THL's regional disease reference data per wellbeing services county (hyvinvointialue) for region_people.py.
 
-Writes two files to data/ next to this script, so region_people.py can compare FinnGen endpoint prevalence per
+Writes two files next to this script (scripts/sote/data/), so region_people.py can compare FinnGen endpoint prevalence per
 assigned maakunta against them without internet access; standard library only.
 
 - sotkanet_health_index_<year>.tsv: THL/Kela National Health Index from Sotkanet (https://sotkanet.fi/rest/1.1/),
@@ -42,7 +42,7 @@ args = ap.parse_args()
 
 # hyvinvointialue -> maakunta, from the municipality table used everywhere in scripts/sote/region (one-to-one except
 # Uusimaa, split into Helsinki and four counties)
-with open(HERE / 'data' / 'municipality_to_region.tsv', encoding='utf-8') as f:
+with open(HERE / 'municipality_to_region.tsv', encoding='utf-8') as f:
     HVA_TO_MAAKUNTA = {r['Hyvinvointialue']: r['Maakunta'] for r in csv.DictReader(f, delimiter='\t')}
 HVA_TO_MAAKUNTA['Ahvenanmaa'] = 'Ahvenanmaa'
 
@@ -78,7 +78,7 @@ for col, indicator in {'population': POPULATION, **INDICES}.items():
         if x['region'] in hva and x.get('value') is not None:
             values[hva[x['region']]][col] = x['value']
 check_mapped(values, 'Sotkanet')
-out = HERE / 'data' / f'sotkanet_health_index_{args.year}.tsv'
+out = HERE / f'sotkanet_health_index_{args.year}.tsv'
 columns = ['hyvinvointialue', 'maakunta', 'population', *INDICES]
 write_tsv(out, columns, [[name, HVA_TO_MAAKUNTA[name], *[values[name].get(c, '') for c in columns[2:]]]
                          for name in sorted(values, key=lambda n: (HVA_TO_MAAKUNTA[n], n))])
@@ -144,7 +144,7 @@ rate = {(lab, b, s): national.get((lab, b, s, 'Tapaukset'), 0) / national[(lab, 
 
 # population per hyvinvointialue x age band x sex, summed over the years (year-end population, as the register's),
 # from Statistics Finland table 11re by municipality in the current municipality division; one request per year
-with open(HERE / 'data' / 'municipality_to_region.tsv', encoding='utf-8') as f:
+with open(HERE / 'municipality_to_region.tsv', encoding='utf-8') as f:
     muni_to_hva = {r['MunicipalityName']: r['Hyvinvointialue'] for r in csv.DictReader(f, delimiter='\t')}
 meta = get(STATFIN_POPULATION)
 var = {v['text']: v for v in meta['variables']}
@@ -189,7 +189,7 @@ for h in sorted(ttr_regions, key=lambda h: (HVA_TO_MAAKUNTA[h], h)):
         row += [int(observed), round(expected, 1), round(100 * observed / expected, 1),
                 round(100 * observed / person_years[h] / national_rate, 1)]
     rows.append(row)
-out = HERE / 'data' / f'thl_ttr_incidence_{args.first_year}_{args.last_year}.tsv'
+out = HERE / f'thl_ttr_incidence_{args.first_year}_{args.last_year}.tsv'
 write_tsv(out, columns, rows)
 print(f"Wrote {out} ({len(rows)} hyvinvointialue, {args.first_year}-{args.last_year}; diseases: "
       + ", ".join(f"{c} ({l})" for c, l in DISEASES.items()) + ")")
