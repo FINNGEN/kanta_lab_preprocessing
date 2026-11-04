@@ -76,7 +76,13 @@ Many lab records carry a numeric value but no unit. The unit injection pipeline 
 [FINNGEN/kanta_lab_injection](https://github.com/FINNGEN/kanta_lab_injection); its
 `data/injection_results.tsv` on `master` is fetched by the engine at run time (branch
 switchable via `--injection-branch`), with a committed snapshot in `src/kanta/engine/data/`
-as offline fallback and as a record of the version used.
+as offline fallback and as a record of the version used. The Usagi tables (`LABfi.tsv`,
+`UNITSfi.tsv`, `harmonization_counts.tsv`, `quantity_source_unit_conversion.tsv`) are fetched the
+same way from `MAPPINGS/` of
+[FINNGEN/kanta_lab_harmonisation_public](https://github.com/FINNGEN/kanta_lab_harmonisation_public),
+branch `kanta_v4` by default (switchable via `--harmonization-branch`). In the WDL both are inputs:
+`engine.injection_branch` and `engine.harmonization_branch`. On a non-default branch a failed
+fetch stops the run instead of silently using the snapshot.
 
 # MERGE OF RAW DATA
 

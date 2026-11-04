@@ -27,6 +27,7 @@ def main(
     n_workers=1,
     chunk_size=chunking.N_LINES_PER_CHUNK,
     injection_branch=config.DEFAULT_INJECTION_BRANCH,
+    harmonization_branch=config.DEFAULT_HARMONIZATION_BRANCH,
     verbose=False,
 ):
     # Setup
@@ -37,8 +38,10 @@ def main(
     cache_dir.mkdir()
     reference_data.set_cache_dir(cache_dir)
 
-    # Must be set before warm_all(), which triggers get_injection_results()'s fetch.
+    # Must be set before warm_all(), which triggers the remote fetches.
     reference_data.set_injection_branch(injection_branch)
+    reference_data.set_harmonization_branch(harmonization_branch)
+    logger.info(f"Reference branches: injection={injection_branch}, harmonization={harmonization_branch}")
 
     # Load every reference table once, up front, before workers start.
     reference_data.warm_all()

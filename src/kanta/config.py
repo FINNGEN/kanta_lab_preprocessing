@@ -7,10 +7,9 @@ DATA_DIR = Path(__file__).parent / "engine" / "data"
 
 # Unit-injection results released by FINNGEN/kanta_lab_injection (data/injection_results.tsv).
 # Refreshed from INJECTION_REPO_URL_TEMPLATE on load, overwriting the committed snapshot below,
-# same fetch-with-local-fallback mechanism as HARMONIZATION_REPO_URL; falls back to the snapshot
-# if offline. The branch is a runtime parameter (--injection-branch), not a fixed constant like
-# HARMONIZATION_REPO_BRANCH, so dev results can be tested per run — see
-# reference_data.set_injection_branch().
+# same fetch-with-local-fallback mechanism as HARMONIZATION_REPO_URL_TEMPLATE; falls back to the snapshot
+# if offline. The branch is a runtime parameter (--injection-branch), so dev results can be
+# tested per run — see reference_data.set_injection_branch().
 INJECTION_RESULTS_FILE = DATA_DIR / "injection_results.tsv"
 INJECTION_REPO_URL_TEMPLATE = (
     "https://raw.githubusercontent.com/FINNGEN/kanta_lab_injection/"
@@ -283,30 +282,28 @@ TEST_OUTCOME_MAP = {
     ">": "H",
 }
 
-# Public repo hosting Usagi (OMOP) harmonization reference tables.
-HARMONIZATION_REPO_BRANCH = "kanta_v4"
-HARMONIZATION_REPO_URL = (
+# Public repo hosting Usagi (OMOP) harmonization reference tables (MAPPINGS/<file>). The branch
+# is a runtime parameter (--harmonization-branch, default DEFAULT_HARMONIZATION_BRANCH) — see
+# reference_data.set_harmonization_branch().
+HARMONIZATION_REPO_URL_TEMPLATE = (
     "https://raw.githubusercontent.com/FINNGEN/kanta_lab_harmonisation_public/"
-    f"refs/heads/{HARMONIZATION_REPO_BRANCH}/MAPPINGS/"
+    "refs/heads/{branch}/MAPPINGS/{file}"
 )
+DEFAULT_HARMONIZATION_BRANCH = "kanta_v4"
 
 # Usagi-approved MEASUREMENT_UNIT source codes, filtered to unique-for-lab units.
-# Refreshed from HARMONIZATION_REPO_URL on load; falls back to this local snapshot if offline.
+# Refreshed from HARMONIZATION_REPO_URL_TEMPLATE on load; falls back to this local snapshot if offline.
 USAGI_UNITS_FILE = DATA_DIR / "UNITSfi.tsv"
-USAGI_UNITS_URL = HARMONIZATION_REPO_URL + "UNITSfi.tsv"
 
 # Usagi lab-test mapping table (MAPPING_STATUS/OMOP concept id per TEST_NAME_ABBREVIATION).
-# Refreshed from HARMONIZATION_REPO_URL on load; falls back to this local snapshot if offline.
+# Refreshed from HARMONIZATION_REPO_URL_TEMPLATE on load; falls back to this local snapshot if offline.
 USAGI_MAPPING_FILE = DATA_DIR / "LABfi.tsv"
-USAGI_MAPPING_URL = HARMONIZATION_REPO_URL + "LABfi.tsv"
 
 # Target MEASUREMENT_UNIT per OMOP concept (chosen destination unit for harmonization).
 HARMONIZATION_COUNTS_FILE = DATA_DIR / "harmonization_counts.tsv"
-HARMONIZATION_COUNTS_URL = HARMONIZATION_REPO_URL + "harmonization_counts.tsv"
 
 # Per-OMOP-quantity unit conversion factors (source unit -> target unit).
 UNIT_CONVERSION_FILE = DATA_DIR / "quantity_source_unit_conversion.tsv"
-UNIT_CONVERSION_URL = HARMONIZATION_REPO_URL + "quantity_source_unit_conversion.tsv"
 
 # Free-text prefixes stripped from the start of MEASUREMENT_FREE_TEXT before numeric extraction.
 FREE_TEXT_RESULT_STRINGS = [

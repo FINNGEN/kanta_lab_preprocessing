@@ -61,10 +61,22 @@ if __name__ == "__main__":
         default=config.DEFAULT_INJECTION_BRANCH,
         help=(
             "Branch of FINNGEN/kanta_lab_injection to fetch data/injection_results.tsv from "
-            f"(default: {config.DEFAULT_INJECTION_BRANCH}). Same fetch-with-local-fallback "
-            "mechanism as the Usagi harmonization tables: falls back to whatever is already "
-            "on disk if the fetch fails, and the local copy left behind after a run is a "
-            "record of which version was actually used."
+            f"(default: {config.DEFAULT_INJECTION_BRANCH}). A failed fetch falls back to the "
+            "local snapshot only on the default branch; on any other branch it stops the run. "
+            "The local copy left behind after a run records which version was used."
+        ),
+        required=False,
+    )
+    parser.add_argument(
+        "--engine-harmonization-branch",
+        type=str,
+        default=config.DEFAULT_HARMONIZATION_BRANCH,
+        help=(
+            "Branch of FINNGEN/kanta_lab_harmonisation_public to fetch the Usagi tables from "
+            "(MAPPINGS/: LABfi.tsv, UNITSfi.tsv, harmonization_counts.tsv, "
+            f"quantity_source_unit_conversion.tsv; default: {config.DEFAULT_HARMONIZATION_BRANCH}). "
+            "A failed fetch falls back to the local snapshot only on the default branch; "
+            "on any other branch it stops the run."
         ),
         required=False,
     )
@@ -192,6 +204,7 @@ if __name__ == "__main__":
         n_workers=args.engine_n_workers,
         chunk_size=args.engine_chunk_size,
         injection_branch=args.engine_injection_branch,
+        harmonization_branch=args.engine_harmonization_branch,
         verbose=args.verbose,
     )
 

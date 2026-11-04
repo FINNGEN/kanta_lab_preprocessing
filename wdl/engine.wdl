@@ -13,6 +13,7 @@ workflow engine {
     Boolean test = false
     Int chunk_size = 200000
     String injection_branch = "master"
+    String harmonization_branch = "kanta_v4"
     # an earlier release (its _RELEASE.parquet) to compare this run's per-OMOP counts with
     File old_release_parquet
   }
@@ -26,7 +27,8 @@ workflow engine {
     prefix = prefix,
     test = test,
     chunk_size = chunk_size,
-    injection_branch = injection_branch
+    injection_branch = injection_branch,
+    harmonization_branch = harmonization_branch
   }
 
   # QC tables built from this run's output, for curating the engine's reference data
@@ -77,15 +79,15 @@ workflow engine {
     input:
     prefix = prefix,
     release_name = get_date.release_name,
-    engine_parquet = "~{run_engine.engine_parquet}",
-    errors_parquet = "~{run_engine.errors_parquet}",
-    abbr_parquet = "~{run_engine.abbr_parquet}",
-    unit_parquet = "~{run_engine.unit_parquet}",
-    release_parquet = "~{run_engine.release_parquet}",
-    log = "~{run_engine.log}",
-    change_plot = "~{release_counts.change_plot}",
-    metabolomics_biomarkers = "~{metabolomics.biomarkers}",
-    metabolomics_risks = "~{metabolomics.risks}",
+    engine_parquet_path = "~{run_engine.engine_parquet}",
+    errors_parquet_path = "~{run_engine.errors_parquet}",
+    abbr_parquet_path = "~{run_engine.abbr_parquet}",
+    unit_parquet_path = "~{run_engine.unit_parquet}",
+    release_parquet_path = "~{run_engine.release_parquet}",
+    log_path = "~{run_engine.log}",
+    change_plot_path = "~{release_counts.change_plot}",
+    metabolomics_biomarkers_path = "~{metabolomics.biomarkers}",
+    metabolomics_risks_path = "~{metabolomics.risks}",
     # every copied file lands on the local disk
     disk_gb = ceil(size([run_engine.engine_parquet, run_engine.errors_parquet, run_engine.abbr_parquet,
                          run_engine.unit_parquet, run_engine.release_parquet, run_engine.log,
@@ -136,6 +138,7 @@ task run_engine {
     Boolean test
     Int chunk_size
     String injection_branch
+    String harmonization_branch
   }
 
   Int cpus = 64
@@ -151,6 +154,7 @@ task run_engine {
       --output-prefix ~{prefix} \
       --chunk-size ~{chunk_size} \
       --injection-branch ~{injection_branch} \
+      --harmonization-branch ~{harmonization_branch} \
       ~{if test then "--test" else ""}
   >>>
 
@@ -363,17 +367,17 @@ task release {
     String prefix
     String release_name
     # gs:// paths (String, not File): nothing is localized, the files are read through the gcsfuse mount
-    String engine_parquet
-    String errors_parquet
-    String abbr_parquet
-    String unit_parquet
-    String release_parquet
-    String log
+    String engine_parquet_path
+    String errors_parquet_path
+    String abbr_parquet_path
+    String unit_parquet_path
+    String release_parquet_path
+    String log_path
     # Unprefixed downstream outputs, published with the release name in front: release_counts' plot of the per-OMOP
     # count changes vs the earlier release, and the metabolomics tables
-    String change_plot
-    String metabolomics_biomarkers
-    String metabolomics_risks
+    String change_plot_path
+    String metabolomics_biomarkers_path
+    String metabolomics_risks_path
     Int disk_gb
   }
 
@@ -382,12 +386,12 @@ task release {
     name="~{release_name}"
     #gcsfuze trick to avoide localization (very slow with HDD and pointless in this case)
     to_fuse() { echo "$1" | sed 's|gs://[^/]*/|/mnt/disks/gcs/|'; }
-    for f in ~{engine_parquet} ~{errors_parquet} ~{abbr_parquet} ~{unit_parquet} ~{release_parquet} ~{log}; do
+    for f in ~{engine_parquet_path} ~{errors_parquet_path} ~{abbr_parquet_path} ~{unit_parquet_path} ~{release_parquet_path} ~{log_path}; do
       base=$(basename "$f")
       cp "$(to_fuse "$f")" "./${base/~{prefix}/$name}"
     done
     # These names have no prefix to replace: the release name goes in front
-    for f in ~{change_plot} ~{metabolomics_biomarkers} ~{metabolomics_risks}; do
+    for f in ~{change_plot_path} ~{metabolomics_biomarkers_path} ~{metabolomics_risks_path}; do
       cp "$(to_fuse "$f")" "./${name}_$(basename "$f")"
     done
     ls -l

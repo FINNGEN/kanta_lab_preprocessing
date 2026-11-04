@@ -44,9 +44,34 @@ _INJECTION_BRANCH: str = config.DEFAULT_INJECTION_BRANCH
 
 def set_injection_branch(branch: str) -> None:
     """Point get_injection_results()'s remote fetch at this branch of kanta_lab_injection
-    (switchable per run via --injection-branch, unlike the fixed HARMONIZATION_REPO_BRANCH)."""
+    (switchable per run via --injection-branch)."""
     global _INJECTION_BRANCH
     _INJECTION_BRANCH = branch
+
+
+# Same pattern as _INJECTION_BRANCH: set via set_harmonization_branch() by main() before
+# warm_all(); the default keeps standalone scripts (omop_qc, ref_ranges, ...) on the usual branch.
+# Only the main process fetches: workers read the pickles warm_all() wrote.
+_HARMONIZATION_BRANCH: str = config.DEFAULT_HARMONIZATION_BRANCH
+
+
+def set_harmonization_branch(branch: str) -> None:
+    """Point the Usagi tables' remote fetch (LABfi, UNITSfi, harmonization_counts,
+    quantity_source_unit_conversion) at this branch of kanta_lab_harmonisation_public
+    (switchable per run via --harmonization-branch)."""
+    global _HARMONIZATION_BRANCH
+    _HARMONIZATION_BRANCH = branch
+
+
+def _refresh_harmonization_table(local_path: Path, verbose: bool = False) -> None:
+    """Refresh one MAPPINGS/ table from the selected harmonization branch (file name = local name)."""
+    url = config.HARMONIZATION_REPO_URL_TEMPLATE.format(branch=_HARMONIZATION_BRANCH, file=local_path.name)
+    _refresh_from_remote(
+        url,
+        local_path,
+        strict=_HARMONIZATION_BRANCH != config.DEFAULT_HARMONIZATION_BRANCH,
+        verbose=verbose,
+    )
 
 
 def _cached(key: str, compute):
@@ -78,12 +103,15 @@ def _sample_dict(d: dict, n: int = 3) -> dict:
     return dict(list(d.items())[:n])
 
 
-def _refresh_from_remote(url: str, local_path: Path, timeout: float = 5.0, verbose: bool = False) -> None:
+def _refresh_from_remote(
+    url: str, local_path: Path, timeout: float = 5.0, strict: bool = False, verbose: bool = False
+) -> None:
     """Best-effort refresh of local_path's contents from url.
 
     Downloads to a temp file first so a failed/partial download never corrupts the
     existing local snapshot. On any failure (no network, timeout, 404, ...), silently
-    falls back to whatever is already on disk.
+    falls back to whatever is already on disk — unless `strict`, used when a non-default
+    branch was asked for: then the failure raises, since the local snapshot is not that branch.
     """
     tmp_path = local_path.with_suffix(local_path.suffix + ".tmp")
     try:
@@ -93,6 +121,11 @@ def _refresh_from_remote(url: str, local_path: Path, timeout: float = 5.0, verbo
         if verbose:
             logger.info(f"[reference_data] refreshed {local_path.name} from {url}")
     except (URLError, OSError) as e:
+        if strict:
+            raise RuntimeError(
+                f"Could not fetch {local_path.name} from {url} ({e}); a non-default branch was "
+                "requested, so not falling back to the local snapshot."
+            ) from e
         if verbose:
             warnings.warn(f"Could not refresh {local_path.name} from {url} ({e}); using local copy.")
     finally:
@@ -163,7 +196,7 @@ def get_usagi_units(verbose: bool = False) -> set[str]:
     """Usagi-approved lab MEASUREMENT_UNIT source codes, filtered to unique-for-lab units."""
 
     def compute():
-        _refresh_from_remote(config.USAGI_UNITS_URL, config.USAGI_UNITS_FILE, verbose=verbose)
+        _refresh_harmonization_table(config.USAGI_UNITS_FILE, verbose=verbose)
         df = pd.read_csv(
             config.USAGI_UNITS_FILE,
             sep="\t",
@@ -196,7 +229,12 @@ def get_injection_results(verbose: bool = False) -> pd.DataFrame:
 
     def compute():
         url = config.INJECTION_REPO_URL_TEMPLATE.format(branch=_INJECTION_BRANCH)
-        _refresh_from_remote(url, config.INJECTION_RESULTS_FILE, verbose=verbose)
+        _refresh_from_remote(
+            url,
+            config.INJECTION_RESULTS_FILE,
+            strict=_INJECTION_BRANCH != config.DEFAULT_INJECTION_BRANCH,
+            verbose=verbose,
+        )
         return pd.read_csv(
             config.INJECTION_RESULTS_FILE,
             sep="\t",
@@ -300,7 +338,7 @@ def get_usagi_mapping(verbose: bool = False) -> pd.DataFrame:
     """
 
     def compute():
-        _refresh_from_remote(config.USAGI_MAPPING_URL, config.USAGI_MAPPING_FILE, verbose=verbose)
+        _refresh_harmonization_table(config.USAGI_MAPPING_FILE, verbose=verbose)
         return pd.read_csv(
             config.USAGI_MAPPING_FILE,
             sep="\t",
@@ -326,7 +364,7 @@ def get_harmonization_counts(verbose: bool = False) -> pd.DataFrame:
     """Reads in the target MEASUREMENT_UNIT per (OMOP_ID, OMOP_QUANTITY)."""
 
     def compute():
-        _refresh_from_remote(config.HARMONIZATION_COUNTS_URL, config.HARMONIZATION_COUNTS_FILE, verbose=verbose)
+        _refresh_harmonization_table(config.HARMONIZATION_COUNTS_FILE, verbose=verbose)
         df = pd.read_csv(
             config.HARMONIZATION_COUNTS_FILE,
             sep="\t",
@@ -352,7 +390,7 @@ def get_unit_conversion(verbose: bool = False) -> pd.DataFrame:
     """Reads in the conversion factor per (OMOP_QUANTITY, source unit, target unit)."""
 
     def compute():
-        _refresh_from_remote(config.UNIT_CONVERSION_URL, config.UNIT_CONVERSION_FILE, verbose=verbose)
+        _refresh_harmonization_table(config.UNIT_CONVERSION_FILE, verbose=verbose)
         df = pd.read_csv(
             config.UNIT_CONVERSION_FILE,
             sep="\t",
