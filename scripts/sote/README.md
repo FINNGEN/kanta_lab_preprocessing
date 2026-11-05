@@ -49,3 +49,11 @@ The lookup tables the sote scripts read, and the scripts that generate them:
   ```
   python3 data/fetch_municipality_history.py
   ```
+- **`coding_system_map.py`**: maps each `CODING_SYSTEM` OID of an engine output to its organisation and region using `sote.txt.gz`.
+  - **Counts:** it first counts the distinct coding systems that have more than `--min-count` rows (default 5) and caches them in `coding_system_counts.tsv` next to itself (`CODING_SYSTEM`, `CODING_SYSTEM_MAP`, `CNT`). When the cache exists the engine output isn't read again; `--force` recounts.
+  - **Lookup order:** national code lists and `NA` have no organisation. CGI-hosted systems are decoded to their customer's Y-tunnus (customers that don't decode are `cgi_undecoded`). The org code is then looked up as the exact register unit (`node`), then the `<code>.10.0` entry (`org_root`), then the register's `A:Y-Tunnus` column (`ytunnus`), then a short manual list (`manual`).
+  - **Region:** an organisation gets one only if it is public, is not a lab serving several regions (NordLab, ISLAB), and its municipality maps to a maakunta.
+  - **Output:** `coding_system_map.tsv`, one row per coding system, next to itself.
+  ```
+  python3 data/coding_system_map.py --input <engine_output>.parquet [--min-count 5] [--force]
+  ```
