@@ -189,5 +189,3 @@ plans/
 scripts/THL/
 scripts/release/
 
-# Local venv build helper
-scripts/setup/

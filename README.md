@@ -2,6 +2,38 @@
 
 Based on Kira Detrois' [existing repo](https://github.com/detroiki/kanta_lab).
 
+## Requirements
+
+- Python >= 3.12
+- `pandas >= 3.0.2`, `polars >= 1.40.0`, `pyarrow >= 24.0.0`
+
+Dependencies are declared in `pyproject.toml` and pinned in `uv.lock`, managed with [uv](https://docs.astral.sh/uv/).
+
+Run the pipeline and the scripts through `uv run`. The simplest way, from inside the repo (the first run builds a
+`.venv/` in the repo):
+
+```bash
+uv run python -m kanta.engine --input-file <intake output>.parquet
+```
+
+To keep the venv outside the repo and run from any folder (adjust the paths):
+
+```bash
+UV_PROJECT_ENVIRONMENT=$HOME/.venvs/kanta uv run --locked --project $HOME/Projects/kanta_lab_preprocessing python -m kanta.engine --input-file <intake output>.parquet
+```
+
+Shortcut, in `~/.bashrc`:
+
+```bash
+alias kpy='UV_PROJECT_ENVIRONMENT=$HOME/.venvs/kanta uv run --locked --project $HOME/Projects/kanta_lab_preprocessing python'
+```
+
+```bash
+kpy -m kanta.intake ...
+kpy -m kanta.engine ...
+kpy scripts/<folder>/<script>.py ...
+```
+
 ## OUTPUT FILE
 
 The pipeline produces one main file, the engine output (`<prefix>.parquet`; in the WDL `<release_name>.parquet`, e.g.
