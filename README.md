@@ -96,23 +96,18 @@ The pipeline (WDL tasks; see [WDL](#wdl)):
 
 ```mermaid
 flowchart TD
-  src["Source list: main + free-text file pairs"] --> assemble
-  pheno["Phenotype file: SEX"] --> tidyup
+  src["Source list<br/>main + free-text file pairs"] --> assemble
+  pheno["Phenotype file<br/>SEX"] --> tidyup
   subgraph intake["intake.wdl"]
-    assemble["assemble: merge each pair, stack the pairs"] --> tidyup["tidyup: deduplicate, add SEX and ROWID, OID map"]
+    assemble["assemble<br/>merge each pair, stack the pairs"] --> tidyup["tidyup<br/>deduplicate, add SEX and ROWID,<br/>build the OID map"]
   end
   tidyup -->|tidied parquet| run_engine
   subgraph engine["engine.wdl"]
-    run_engine["run_engine: engine output + release file"]
-    run_engine --> abnormality["abnormality"]
-    run_engine --> pos_tables["pos_tables"]
-    run_engine --> extract_regions_limits["extract_regions_limits"]
-    run_engine --> summaries["summaries"]
-    run_engine --> metabolomics["metabolomics"]
-    run_engine --> release_counts["release_counts"]
-    run_engine --> release["release"]
-    metabolomics --> release
-    release_counts --> release
+    run_engine["run_engine<br/>engine output + release file"]
+    run_engine --> tables["Tables for the next run and QC:<br/>abnormality<br/>pos_tables<br/>extract_regions_limits<br/>summaries"]
+    run_engine --> extra["Released alongside the data:<br/>metabolomics<br/>release_counts"]
+    run_engine --> release["release<br/>files named with the release name"]
+    extra --> release
   end
 ```
 
@@ -267,16 +262,16 @@ below all start from its tidied parquet.
 5. **Final run**: the release.
 
 ```mermaid
-flowchart LR
-  run1["1. Dry run"] -->|cleaned units| inj["Unit injection: kanta_lab_injection"]
-  run1 -->|reference limits, coding systems| data["src/kanta/engine/data"]
+flowchart TD
+  run1["1. Dry run"] -->|cleaned units| inj["Unit injection<br/>kanta_lab_injection"]
+  run1 -->|reference limits,<br/>coding systems| data["Engine reference tables<br/>src/kanta/engine/data"]
   inj -->|injection branch| run2["2. Dry run"]
-  run2 -->|summaries| omop["OMOP mapping: kanta_lab_harmonisation_public"]
-  omop -->|harmonization branch| run3["3. Rerun, review with the phenotype team"]
-  run3 -->|update the mapping and rerun, until it is set| run3
-  run3 --> run4["4. Run on the final OMOP mapping"]
-  run4 -->|pos/neg and abnormality tables| data
-  data --> run5["5. Final run: the release"]
+  run2 -->|summaries| omop["OMOP mapping<br/>kanta_lab_harmonisation_public"]
+  omop -->|harmonization branch| run3["3. Rerun, review with<br/>the phenotype team"]
+  run3 -->|update the mapping,<br/>rerun until set| run3
+  run3 --> run4["4. Run on the final<br/>OMOP mapping"]
+  run4 -->|pos/neg and<br/>abnormality tables| data
+  data --> run5["5. Final run<br/>the release"]
 ```
 
 How a table gets plugged back in depends on where the engine reads it from:
