@@ -14,7 +14,8 @@ Step 2, mapping, per coding system, in this order:
      stripped; old-form 7-digit codes completed with their check digit, as in kanta.engine). The org node is the
      OID minus its trailing .6.<n>.<year> / .<year>, when it names a register unit (<code>.10.<...>).
   Lookup of the code, first hit wins:
-     node      the org node is itself a register OrganizationId (e.g. a city's lab unit, <code>.10.1.1)
+     node      the org node is itself a register OrganizationId (e.g. a city's lab unit, <code>.10.1.1): the unit
+               gives the location, the organisation's own entry (as below) the name
      org_root  the register entry 1.2.246.10.<code>.10.0 (else that code's top-level entry)
      ytunnus   the register's A:Y-Tunnus column: organisations registered under an older OID code, e.g.
                Keski-Uudenmaan hyvinvointialue (OID code 28449694, Y-tunnus 3221340-6)
@@ -25,8 +26,11 @@ serving several regions (MULTI_REGION_LABS), and its municipality (A:Sijainti ku
 municipality_to_region.tsv (municipality_history.tsv for merged municipalities: maakunta only). Otherwise
 multi_region_lab / not_public / no_municipality, or the lookup outcome when unresolved.
 
-Writes coding_system_map.tsv next to this script, one row per coding system:
-    CODING_SYSTEM  CNT  engine_org  code  how  sote_id  org_name  sector  municipality  maakunta  hva  region_reason
+Writes src/kanta/engine/data/coding_system_map.tsv, the table kanta.engine maps CODING_SYSTEM with (to
+CODING_SYSTEM_MAP and CODING_SYSTEM_MAAKUNTA), one row per coding system:
+    CODING_SYSTEM  CNT  engine_org  code  how  sote_id  org_name  unit_name  sector  municipality  maakunta  hva
+    region_reason
+engine_org is the name the engine output being counted gave (CODING_SYSTEM_MAP), kept for comparison.
 
     python3 data/coding_system_map.py --input <engine_output>.parquet [--min-count 5] [--force]
 """
@@ -35,6 +39,7 @@ from collections import defaultdict
 from pathlib import Path
 
 DATA = Path(__file__).resolve().parent  # scripts/sote/data
+ENGINE_DATA = Path(__file__).resolve().parents[3] / 'src' / 'kanta' / 'engine' / 'data'
 SOTE = DATA / 'sote.txt.gz'  # THL sote organisation register (';'-delimited, ISO-8859-1)
 MUNI_REGION = DATA / 'municipality_to_region.tsv'
 MUNI_HISTORY = DATA / 'municipality_history.tsv'
@@ -58,15 +63,15 @@ MANUAL_ORGS = {
     '26771567': ('Negen Oy', '2', None),
 }
 COUNT_COLS = ['CODING_SYSTEM', 'CODING_SYSTEM_MAP', 'CNT']
-OUT_COLS = ['CODING_SYSTEM', 'CNT', 'engine_org', 'code', 'how', 'sote_id', 'org_name', 'sector', 'municipality',
-            'maakunta', 'hva', 'region_reason']
+OUT_COLS = ['CODING_SYSTEM', 'CNT', 'engine_org', 'code', 'how', 'sote_id', 'org_name', 'unit_name', 'sector',
+            'municipality', 'maakunta', 'hva', 'region_reason']
 
 ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
 ap.add_argument('--input', type=Path, help="Engine output parquet (CODING_SYSTEM or CODING_SYSTEM_OID column; "
                                            "only read when the counts cache is missing or with --force)")
 ap.add_argument('--min-count', type=int, default=5, help="Keep coding systems with more than this many rows (default: 5)")
 ap.add_argument('--counts', type=Path, default=DATA / 'coding_system_counts.tsv', help="Counts cache (default: %(default)s)")
-ap.add_argument('--out', type=Path, default=DATA / 'coding_system_map.tsv', help="Mapping output (default: %(default)s)")
+ap.add_argument('--out', type=Path, default=ENGINE_DATA / 'coding_system_map.tsv', help="Mapping output (default: %(default)s)")
 ap.add_argument('--force', action='store_true', help="Recount from --input even if the counts cache exists")
 args = ap.parse_args()
 
@@ -134,7 +139,7 @@ for mk, hva in muni.values():
     hvas[mk].add(hva)
 mk_hva = {mk: next(iter(h)) for mk, h in hvas.items() if len(h) == 1}  # all but Uusimaa
 
-# register entries: (OrganizationId, name, sector digit, municipality code); per code / Y-tunnus the .10.0 root
+# register entries: (OrganizationId, LongName, sector digit, municipality code); per code / Y-tunnus the .10.0 root
 # entry is preferred, then the lowest hierarchy level
 by_id, by_code, by_yt = {}, {}, {}
 
@@ -152,7 +157,8 @@ def keep_best(index, key, r, entry):
 with gzip.open(SOTE, 'rt', encoding='iso-8859-1') as f:
     for r in csv.DictReader(f, delimiter=';'):
         oid = r['OrganizationId']
-        entry = (oid, r['Abbreviation'], (r['A:Sektori'] or ' ')[0], (r['A:Sijainti kunta'] or '').split(' ')[0])
+        name = (r['LongName'] or '').strip() or r['Abbreviation']  # full name ("Pohjois-Savon hyvinvointialue", not "... hva")
+        entry = (oid, name, (r['A:Sektori'] or ' ')[0], (r['A:Sijainti kunta'] or '').split(' ')[0])
         by_id[oid] = entry
         m = OID_CODE.match(oid)
         keep_best(by_code, m and norm_code(m.group(1)), r, entry)
@@ -179,7 +185,7 @@ def resolve(cs):
         n = ORG_NODE.match(cs)
         node = n and n.group(1)
     if node in by_id:
-        return code, 'node', by_id[node]
+        return code, 'node', by_id[node]  # the unit; its organisation's name is looked up below
     if code in by_code:
         return code, 'org_root', by_code[code][1]
     if code in by_yt:
@@ -216,6 +222,9 @@ for cs, (n, engine_org, _) in sorted(per_cs.items(), key=lambda kv: (-kv[1][0], 
         row['maakunta'], row['hva'], row['region_reason'] = region(code, sector, None, mk)
     elif hit:
         oid, name, sector, mcode = hit
+        if how == 'node':  # name the organisation, not its unit (e.g. Espoon kaupunki, not its sote department)
+            org = by_code.get(code) or by_yt.get(code)
+            row['unit_name'], name = name, org[1][1] if org else name
         row.update(sote_id=oid, org_name=name, sector=sector, municipality=mcode)
         row['maakunta'], row['hva'], row['region_reason'] = region(code, sector, mcode)
     else:

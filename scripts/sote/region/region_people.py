@@ -1,7 +1,8 @@
 """Most likely maakunta per individual, from the maakunta of the service providers (SP) of their lab events.
 
 Each event's SERVICE_PROVIDER is mapped to a maakunta via sp_region.tsv (written by sp_region_cs.py: run that
-first, on the same engine output). Events whose SP has no maakunta are dropped, so everything below is computed
+first, on the same engine output). SPs whose maakunta rests on too few of their own rows (--sp-min-region-pct) or
+is too mixed (--sp-min-pct) count as having none. Events whose SP has no maakunta are dropped, so everything below is computed
 over each person's regional events only. Per person, the most prevalent maakunta is returned, plus a `maakunta`
 column holding it only if its share of the person's regional events is above --threshold, and last a JSON dict
 of the person's top 3 maakunta with their shares.
@@ -47,6 +48,10 @@ ap.add_argument('--input', required=True, type=Path, help="Engine output parquet
 ap.add_argument('--out', type=Path, default=Path('/mnt/disks/data/kanta/service-provider/region'), help="Output directory; writes person_maakunta_t<threshold>.tsv and the other t<threshold>-tagged outputs there")
 ap.add_argument('--sp-region', type=Path, default=None, help="sp_region.tsv from sp_region_cs.py (default: <out>/sp_region.tsv)")
 ap.add_argument('--sp-min-pct', type=float, default=0, help="Only use SPs whose own maakunta purity (pct_maakunta) is at least this (default: 0, all SPs with a maakunta)")
+ap.add_argument('--sp-min-region-pct', type=float, default=5,
+                help="Only use SPs whose maakunta rests on at least this %% of their own rows (pct_region_of_total: rows "
+                     "with a coding system maakunta, the votes). Leaves out SPs assigned from a few stray rows, e.g. "
+                     "nationwide private chains (default: 5; 0 keeps all)")
 ap.add_argument('--threshold', type=float, default=50,
                 help="%% threshold: the person's top maakunta goes in column `maakunta` only if its share of their "
                      "regional events is > this (default: 50, i.e. a strict majority)")
@@ -80,8 +85,10 @@ if not sp_region.exists():
     raise SystemExit(f"{sp_region} not found: run sp_region_cs.py on the same engine output first")
 args.out.mkdir(parents=True, exist_ok=True)
 # every output below depends on --threshold (person_maakunta via its `maakunta` column, the rest by using only
-# people above it), so its value goes into each file name, e.g. person_maakunta_t50.tsv
-TAG = f"t{args.threshold:g}" + (f"_sp{args.sp_min_pct:g}" if args.sp_min_pct else "")  # --sp-min-pct changes every output too
+# people above it), so its value goes into each file name, e.g. person_maakunta_t50_reg5.tsv
+# --sp-min-pct and --sp-min-region-pct change every output too
+TAG = (f"t{args.threshold:g}" + (f"_sp{args.sp_min_pct:g}" if args.sp_min_pct else "")
+       + (f"_reg{args.sp_min_region_pct:g}" if args.sp_min_region_pct else ""))
 THRESHOLD_DESC = f"people whose top maakunta has > {args.threshold:g}% of their regional events"
 out_file = args.out / f'person_maakunta_{TAG}.tsv'
 
@@ -138,8 +145,10 @@ if not person_fresh:
 else:
     # SP -> maakunta, only SPs that have one
     con.sql(f"""create table sp as select s, maakunta from read_csv('{sp_region}', delim='\t', header=true, all_varchar=true, quote='', escape='')
-                where maakunta is not null and pct_maakunta::double >= {args.sp_min_pct}""")
-    print(f"{con.sql('select count(*) from sp').fetchone()[0]:,} SPs mapped to a maakunta (pct_maakunta >= {args.sp_min_pct})")
+                where maakunta is not null and pct_maakunta::double >= {args.sp_min_pct}
+                  and pct_region_of_total::double >= {args.sp_min_region_pct}""")
+    print(f"{con.sql('select count(*) from sp').fetchone()[0]:,} SPs mapped to a maakunta (pct_maakunta >= {args.sp_min_pct}, "
+          f"pct_region_of_total >= {args.sp_min_region_pct})")
 
     # events per (person, SP), then per (person, maakunta), dropping events whose SP has no maakunta
     con.sql(f"create table fs as select FINNGENID f, SERVICE_PROVIDER s, count(*)::bigint n from {P} group by all")

@@ -1,3 +1,5 @@
+import re
+
 import numpy as np
 import pandas as pd
 
@@ -113,21 +115,11 @@ def get_lab_abbrv(df: pd.DataFrame, abbr_changes: AbbrSink) -> pd.DataFrame:
 
 # Coding systems hosted by CGI (org code 3575029) embed the customer organization as "11" + its
 # Y-tunnus digits, usually zero-padded to 8, e.g. "...3575029.12.2.10.1102012566.6.17" -> "2012566"
-# (Helsinki). Values whose customer isn't in the manual map keep resolving to "3575029".
-CGI_CODING_SYSTEM_PREFIX = r"^1\.2\.246\.537\.10\.3575029\.12\.2\.10\.110?"
-CGI_CODING_SYSTEM_SUFFIX = r"\.6\.17$"
-
-
-def cgi_customer_pattern(manual_map: dict[str, str]) -> str:
-    """Regex capturing the embedded customer code of a CGI coding system, limited to the
-    numeric codes the manual map resolves to a real name."""
-    # "NA" codes/names come back from the CSV read as NaN
-    codes = sorted(
-        code
-        for code, name in manual_map.items()
-        if isinstance(code, str) and code.isdigit() and isinstance(name, str) and name != "NA"
-    )
-    return rf"{CGI_CODING_SYSTEM_PREFIX}({'|'.join(codes)}){CGI_CODING_SYSTEM_SUFFIX}"
+# (Helsinki). Customer numbers of another form can't be decoded and stay unmapped.
+CGI_CODING_SYSTEM = re.compile(r"^1\.2\.246\.537\.10\.3575029\.12\.2\.10\.(\d+)\.6\.17$")
+CGI_CUSTOMER = re.compile(r"^110?(\d{7,8})$")
+# Other organization OIDs: the code is the arc after the root
+OID_ORG_CODE = re.compile(r"^1\.2\.246\.(?:537\.)?10\.(\d+)")
 
 
 def ytunnus_check_digit(body: str) -> int | None:
@@ -141,7 +133,7 @@ def ytunnus_check_digit(body: str) -> int | None:
 def complete_old_form_code(code: str) -> str:
     """Old-form OIDs embed the 7-digit Y-tunnus body without its check digit, keeping the leading zero
     (e.g. "1.2.246.10.0132239.10.0": 0132239 -> Y-tunnus 0132239-4). OID arcs normally have no leading
-    zeros, so a 7-digit code starting with 0 is completed to the current form used by the manual map:
+    zeros, so a 7-digit code starting with 0 is completed to the current form used by the mapping table:
     body + check digit, leading zeros stripped ("0132239" -> "1322394"). Other codes are returned as is."""
     if len(code) == 7 and code.startswith("0") and code.isdigit():
         check = ytunnus_check_digit(code)
@@ -150,37 +142,39 @@ def complete_old_form_code(code: str) -> str:
     return code
 
 
-def get_coding_map(df: pd.DataFrame) -> pd.DataFrame:
-    """Derive CODING_SYSTEM_MAP (organization name) from the CODING_SYSTEM OID, which is kept as is.
+def coding_system_org_code(coding_system: str) -> str | None:
+    """Organization code (Y-tunnus digits, no leading zeros) embedded in a CODING_SYSTEM OID: the CGI
+    customer for CGI-hosted systems, else the arc after 1.2.246.10. / 1.2.246.537.10. (old-form codes
+    completed); None if there is none (not an organization OID, or an undecodable CGI customer)."""
+    m = CGI_CODING_SYSTEM.match(coding_system)
+    if m:
+        customer = CGI_CUSTOMER.match(m.group(1))
+        return customer.group(1).lstrip("0") if customer else None
+    m = OID_ORG_CODE.match(coding_system)
+    return complete_old_form_code(m.group(1)).lstrip("0") if m else None
 
-    The organization code embedded in the OID is looked up in the manual map, e.g. "3575029" ->
-    "CGI_Suomi_Oy". CGI values are resolved to the embedded customer organization when the manual map
-    knows it, otherwise they stay "CGI_Suomi_Oy". Old-form codes (Y-tunnus body without check digit)
-    are completed first, see complete_old_form_code().
+
+def get_coding_map(df: pd.DataFrame) -> pd.DataFrame:
+    """Derive CODING_SYSTEM_MAP (organization name) and CODING_SYSTEM_MAAKUNTA (the organization's
+    maakunta) from the CODING_SYSTEM OID, which is kept as is.
+
+    Looked up in the coding system table (reference_data.get_coding_system_map, built from THL's sote
+    register): by the full OID, else by the organization code embedded in it, see
+    coding_system_org_code(). The maakunta is "NA" for organizations without one region (private,
+    labs serving several regions); both columns are "NA" when nothing matches.
     """
     col = "CODING_SYSTEM"
-    manual_map = reference_data.get_thl_manual_map()
-
-    tmp_system = (
-        df[col]
-        .str.replace(cgi_customer_pattern(manual_map), r"\1", regex=True)
-        .str.replace("1.2.246.10.", "", regex=False)
-        .str.replace("1.2.246.537.10.", "", regex=False)
-        # NOTE(Vincent 2026-08-28) I changed this from `.str.split(".", n=1, expand=False).str[0]`
-        # since that generated a runtime error when df was empty AND pandas was set-up to use
-        # Arrow-backed strings.
-        # The semantic is the same.
-        .str.extract(r"^(?P<x>[^.]*)", expand=False)
-    )
-    # complete old-form codes the manual map doesn't know as they are (few distinct values: map uniques)
-    # string codes only: "NA" codes come back from the CSV read as NaN, and a NaN among the isin() values
-    # makes Arrow-backed strings try to compare as doubles
-    known_codes = [code for code in manual_map if isinstance(code, str)]
-    is_old_form = tmp_system.str.fullmatch(r"0\d{6}").fillna(False).astype(bool) & ~tmp_system.isin(known_codes)
-    if is_old_form.any():
-        completed = {c: complete_old_form_code(c) for c in tmp_system[is_old_form].unique()}
-        tmp_system = tmp_system.where(~is_old_form, tmp_system.map(completed))
-    df["CODING_SYSTEM_MAP"] = tmp_system.map(manual_map).fillna("NA")
+    by_oid, by_code = reference_data.get_coding_system_map()
+    # few distinct values per chunk: resolve each once, then map
+    resolved = {}
+    for coding_system in df[col].dropna().unique():
+        hit = by_oid.get(coding_system)
+        if hit is None:
+            hit = by_code.get(coding_system_org_code(coding_system))
+        if hit is not None:
+            resolved[coding_system] = hit
+    df["CODING_SYSTEM_MAP"] = df[col].map({k: v[0] for k, v in resolved.items()}).fillna("NA")
+    df["CODING_SYSTEM_MAAKUNTA"] = df[col].map({k: v[1] for k, v in resolved.items()}).fillna("NA")
     return df
 
 

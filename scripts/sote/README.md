@@ -6,17 +6,22 @@ Service-provider (SP) analyses: assigning a region to providers and people, and 
 
 ### Main (run in order)
 
-1. **`sp_region_cs.py`**: links each SP to a maakunta/hyvinvointialue. The chain is coding-system OID → org code → `data/sote.txt.gz` → `data/municipality_to_region.tsv` (both in `scripts/sote/data/`).
+1. **`sp_region_cs.py`**: links each SP to a maakunta.
+   - **Input:** each row's coding-system maakunta, `CODING_SYSTEM_MAAKUNTA` in the engine output. The engine looks it up in `src/kanta/engine/data/coding_system_map.tsv`, which `data/coding_system_map.py` builds. Only about a third of rows have one.
+   - **Vote:** per SP, the rows with a maakunta vote. The SP gets the top maakunta, and `region_people.py` uses it for all of that SP's rows.
+   - **Older engine outputs** without the column get the maakunta by joining the table on `CODING_SYSTEM`.
    ```
    python3 region/sp_region_cs.py --input <engine_output>.parquet [--out DIR]
    ```
-   Main output: `sp_region.tsv` (the top region per SP, with its purity). It also writes `sp_x_codingsystem.tsv`, `cs_region.tsv` and `sp_best_org.tsv`.
+   Main output: `sp_region.tsv` (the top maakunta per SP, with its purity). It also writes `sp_x_codingsystem.tsv` (SP × coding system counts) and `sp_top_codingsystem_map.tsv`.
 
 2. **`region_people.py`**: assigns each person their most likely maakunta from their SPs. It then validates the assignment against region of birth, cohort, the vitamin D seasonal cycle and THL disease references.
    ```
-   python3 region/region_people.py --input <engine_output>.parquet [--threshold 50] [--pheno PATH]
+   python3 region/region_people.py --input <engine_output>.parquet [--threshold 50] [--sp-min-region-pct 5] [--pheno PATH]
    ```
-   Main output: `person_maakunta_t50.tsv` (row-level, stays on the data side). The aggregates are `vitd_*_t50.tsv`, `disease_vs_thl_*.tsv` and the figures:
+   `--sp-min-region-pct` (default 5) skips SPs whose maakunta rests on less than that % of their own rows (`pct_region_of_total` in `sp_region.tsv`). In the full run checked so far, these were nationwide private chains (Terveystalo, Mehiläinen, …) assigned a maakunta from a few stray rows.
+
+   Main output: `person_maakunta_t50_reg5.tsv` (row-level, stays on the data side). The aggregates are `vitd_*_t50_reg5.tsv`, `disease_vs_thl_*.tsv` and the figures. The settings are in every output's name, so a run with other settings doesn't reuse the cached files:
    ```
    disease_vs_thl:  maakunta         ...  n_people  n_cases  finngen_index  thl_index
                     Pohjois-Karjala  ...  21000     2400     112            115
@@ -51,9 +56,9 @@ The lookup tables the sote scripts read, and the scripts that generate them:
   ```
 - **`coding_system_map.py`**: maps each `CODING_SYSTEM` OID of an engine output to its organisation and region using `sote.txt.gz`.
   - **Counts:** it first counts the distinct coding systems that have more than `--min-count` rows (default 5) and caches them in `coding_system_counts.tsv` next to itself (`CODING_SYSTEM`, `CODING_SYSTEM_MAP`, `CNT`). When the cache exists the engine output isn't read again; `--force` recounts.
-  - **Lookup order:** national code lists and `NA` have no organisation. CGI-hosted systems are decoded to their customer's Y-tunnus (customers that don't decode are `cgi_undecoded`). The org code is then looked up as the exact register unit (`node`), then the `<code>.10.0` entry (`org_root`), then the register's `A:Y-Tunnus` column (`ytunnus`), then a short manual list (`manual`).
+  - **Lookup order:** national code lists and `NA` have no organisation. CGI-hosted systems are decoded to their customer's Y-tunnus (customers that don't decode are `cgi_undecoded`). The org code is then looked up as the exact register unit (`node`), then the `<code>.10.0` entry (`org_root`), then the register's `A:Y-Tunnus` column (`ytunnus`), then a short manual list (`manual`). The name is the organisation's register `LongName`; for a `node` hit the unit's name goes in `unit_name`.
   - **Region:** an organisation gets one only if it is public, is not a lab serving several regions (NordLab, ISLAB), and its municipality maps to a maakunta.
-  - **Output:** `coding_system_map.tsv`, one row per coding system, next to itself.
+  - **Output:** `src/kanta/engine/data/coding_system_map.tsv`, one row per coding system: the table the engine maps `CODING_SYSTEM` with (to `CODING_SYSTEM_MAP`, released as `CODING_SYSTEM_ORG`, and the engine-only `CODING_SYSTEM_MAAKUNTA`). Re-run it and commit the table to update the engine's mapping.
   ```
   python3 data/coding_system_map.py --input <engine_output>.parquet [--min-count 5] [--force]
   ```

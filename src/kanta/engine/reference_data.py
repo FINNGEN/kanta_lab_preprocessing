@@ -154,22 +154,43 @@ def get_thl_lab_map(verbose: bool = False) -> FallbackToKeyDict:
 
 
 @lru_cache(maxsize=1)
-def get_thl_manual_map(verbose: bool = False) -> dict[str, str]:
-    """Manual mapping from a short numeric code (derived from CODING_SYSTEM) to a coding system name."""
+def get_coding_system_map(
+    verbose: bool = False,
+) -> tuple[dict[str, tuple[str, str]], dict[str, tuple[str, str]]]:
+    """CODING_SYSTEM -> (organization name, maakunta), from config.CODING_SYSTEM_MAP_FILE.
+
+    Returns two dicts with the same (name, maakunta) values, "NA" for an unknown maakunta:
+    - by_oid: keyed by the full CODING_SYSTEM OID, for the values the table lists;
+    - by_code: keyed by the organization code (Y-tunnus digits) embedded in the OID, for OIDs the
+      table doesn't list (e.g. a newer code list year); per code, its most frequent row's values.
+    Rows without an organization name (national code lists, undecodable CGI customers, codes not
+    found in the register) are left out, so their OIDs map to "NA".
+    """
 
     def compute():
         df = pd.read_csv(
-            config.THL_CODING_MANUAL_MAP_FILE,
+            config.CODING_SYSTEM_MAP_FILE,
             sep="\t",
-            usecols=["CODE", "NAME"],
+            usecols=["CODING_SYSTEM", "CNT", "code", "org_name", "maakunta"],
             dtype=str,
+            keep_default_na=False,
         )
-        return dict(zip(df["CODE"], df["NAME"]))
+        df = df[df["org_name"] != ""].copy()
+        df["maakunta"] = df["maakunta"].replace("", "NA")
+        values = list(zip(df["org_name"], df["maakunta"]))
+        by_oid = dict(zip(df["CODING_SYSTEM"], values))
+        df["_cnt"] = df["CNT"].astype(int)
+        top = df[df["code"] != ""].sort_values("_cnt", ascending=False).drop_duplicates("code")
+        by_code = dict(zip(top["code"], zip(top["org_name"], top["maakunta"])))
+        return by_oid, by_code
 
-    result = _cached("thl_manual_map", compute)
+    by_oid, by_code = _cached("coding_system_map", compute)
     if verbose:
-        logger.info(f"[reference_data] thl_manual_map: {len(result)} entries loaded, sample {_sample_dict(result)}")
-    return result
+        logger.info(
+            f"[reference_data] coding_system_map: {len(by_oid)} OIDs, {len(by_code)} org codes loaded, "
+            f"sample {_sample_dict(by_oid)}"
+        )
+    return by_oid, by_code
 
 
 @lru_cache(maxsize=1)
@@ -826,7 +847,7 @@ def warm_all(verbose: bool = True) -> None:
     startup and the per-run pickle cache is populated before any worker process starts.
     """
     get_thl_lab_map(verbose=verbose)
-    get_thl_manual_map(verbose=verbose)
+    get_coding_system_map(verbose=verbose)
     get_unit_map(verbose=verbose)
     get_usagi_units(verbose=verbose)
     get_injection_table(verbose=verbose)

@@ -44,7 +44,7 @@ This is the file that contains all columns, including mostly empty and/or uninfo
 | `REFERENCE_RANGE_GROUP` | The reference values for the measurement in text form | Used, with `REFERENCE_RANGE_TEXT`, to fill the numeric limits (see [Reference ranges](#reference-ranges)). |
 | `REFERENCE_RANGE_[LOW\|HIGH]_[VALUE\|UNIT]` | Reference lower\|upper value\|unit | Sent by the lab, or filled from the reference text when the lab sent none (`REFERENCE_RANGE_SOURCE`). The values are on the scale the lab reported (not harmonized); filled limits leave the unit columns empty. |
 | `REFERENCE_RANGE_SOURCE` | Where the row's reference limits come from | `num`: sent by the lab as numbers; `text`: parsed from the reference text and approved in the curated table; empty: no limits. |
-| `CODING_SYSTEM_ORG` | Name (if present) of the uploading org, mapped via Business Identity Code | From a table in the [data folder](/src/kanta/engine/data/thl_coding_manual_mapping.txt). The central digits of the OID are the org's Business Identity Code (Y-tunnus), which is looked up in that table; for CGI-hosted systems the customer org embedded in the OID is used. |
+| `CODING_SYSTEM_ORG` | Name (if present) of the uploading org, from THL's sote organisation register | Looked up in [`coding_system_map.tsv`](/src/kanta/engine/data/coding_system_map.tsv), written by [`scripts/sote/data/coding_system_map.py`](/scripts/sote/data/coding_system_map.py) from the register: by the full OID, else by the org code in it (the central digits, the org's Business Identity Code / Y-tunnus; for CGI-hosted systems, the customer org embedded in the OID). The engine output (not the release) also has the org's maakunta, `CODING_SYSTEM_MAAKUNTA` (`NA` for private orgs and labs serving several regions). |
 | `CODING_SYSTEM_OID` | ID of what is probably the org that logged the data in the system. |  |
 
 
@@ -108,7 +108,7 @@ The code performs the following actions:
 - TEST_ID is created assigning the regional id for regional labs and a 
 - TEST_NAME_ABBREVIATION is updated for national labs [through a mapping](/finngen_qc/data/thl_lab_id_abbrv_map.tsv)
 - CODING_SYSTEM is updated when available (problematic ATM, see table above)
-- CODING_SYSTEM_MAP is created from y-tunnukset in table
+- CODING_SYSTEM_MAP (organisation name) and CODING_SYSTEM_MAAKUNTA (its maakunta, engine output only) are looked up from the OID in `coding_system_map.tsv`
 - ~~SERVICE_PROVIDER_ID is updated where the mapping can happen~~ --> scrapped in v3
 - TEST_NAME_ABBREVIATIONs with problematic characters are edited (see `abbreviation_replacements` in the config)
 

@@ -102,6 +102,7 @@ OUTPUT_COLUMNS = {
     # Misc
     "CODING_SYSTEM": (True, "CODING_SYSTEM_OID", "string"),
     "CODING_SYSTEM_MAP": (True, "CODING_SYSTEM_ORG", "string"),
+    "CODING_SYSTEM_MAAKUNTA": (False, "CODING_SYSTEM_MAAKUNTA", "string"),
     "MEASUREMENT_STATUS": (True, "MEASUREMENT_STATUS", "string"),
     "MEASUREMENT_METHOD": (True, "MEASUREMENT_METHOD", "string"),
     "SERVICE_PROVIDER": (True, "SERVICE_PROVIDER_ID", "string"),
@@ -179,10 +180,10 @@ MEASUREMENT_METHOD_MAP = {
     "3": "SELF",
 }
 
-# Manual mapping from the organization code embedded in CODING_SYSTEM (Y-tunnus digits) to an
-# organization name, used to derive CODING_SYSTEM_MAP. TSV with a CODE/NAME header (plus COUNT/
-# SOURCE columns from coding_map.py that this loader ignores).
-THL_CODING_MANUAL_MAP_FILE = DATA_DIR / "thl_coding_manual_mapping.txt"
+# CODING_SYSTEM OID -> organization name and maakunta, from THL's sote organization register, used to
+# derive CODING_SYSTEM_MAP and CODING_SYSTEM_MAAKUNTA. Written by scripts/sote/data/coding_system_map.py;
+# the engine reads its CODING_SYSTEM, code, org_name and maakunta columns.
+CODING_SYSTEM_MAP_FILE = DATA_DIR / "coding_system_map.tsv"
 
 # Regex fragments (joined with "|") for characters/patterns stripped from
 # TEST_NAME_ABBREVIATION.
