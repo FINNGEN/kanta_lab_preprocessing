@@ -20,7 +20,7 @@ when their output file already exists, and that file is loaded instead, so an in
 Derived tables and figures are kept when their source table was loaded from cache, and rewritten when it was just
 recomputed (they would be stale otherwise). --force recomputes and overwrites everything.
 """
-import argparse, hashlib, json
+import argparse, json
 from pathlib import Path
 import duckdb
 import numpy as np
@@ -81,9 +81,6 @@ ap.add_argument('--sotkanet', type=Path, default=Path(__file__).resolve().parent
                 help="Reference disease indices per hyvinvointialue from fetch_thl_reference.py (default: scripts/sote/data/sotkanet_health_index_2024.tsv)")
 ap.add_argument('--thl-ttr', type=Path, default=Path(__file__).resolve().parents[1] / 'data' / 'thl_ttr_incidence_2015_2024.tsv',
                 help="Infectious disease incidence per hyvinvointialue from fetch_thl_reference.py (default: scripts/sote/data/thl_ttr_incidence_2015_2024.tsv)")
-ap.add_argument('--exclude-cohorts', type=lambda s: sorted(c for c in s.split(',') if c), default=[],
-                help="Comma-separated cohorts left out of the disease comparison, e.g. ones recruited for a disease "
-                     "(THL_BIOBANK_BOTNIA,THL_BIOBANK_FUSION,THL_BIOBANK_T1D,THL_BIOBANK_COROGENE,THL_BIOBANK_HHS); default: none")
 ap.add_argument('--disease-min-people', type=int, default=100, help="Leave out maakunta with fewer people with endpoint data than this (default: 100)")
 ap.add_argument('--min-cell', type=int, default=5,
                 help="Shareable tables show person counts from 1 to this minus 1 as '<N' and blank the values derived from "
@@ -474,7 +471,7 @@ def thl_index_by_maakunta(path, weight='population'):
 
 def plot_disease(cmp, path, eps, stem, fresh=False):
     """One panel per endpoint in `eps`: FinnGen age/sex-standardised index (x) vs THL reference index (y), one labelled
-    dot per maakunta; saved as <stem>_<DTAG>.png."""
+    dot per maakunta; saved as <stem>_<TAG>.png."""
     plt = setup_matplotlib()
     eps = [e for e in eps if e in set(cmp['endpoint']) and ENDPOINT_TO_INDEX[e][0]]
     if not eps:
@@ -511,12 +508,10 @@ def plot_disease(cmp, path, eps, stem, fresh=False):
             ax.spines[side].set_visible(False)
     fig.suptitle(f"FinnGen endpoint index per assigned maakunta vs THL regional reference\n{THRESHOLD_DESC}", color=INK, fontsize=11)
     fig.tight_layout()
-    save_fig_once(fig, path / f'{stem}_{DTAG}.png', fresh)
+    save_fig_once(fig, path / f'{stem}_{TAG}.png', fresh)
 
 
-# leaving cohorts out changes the counts, so it goes into the file names (short hash of the sorted list)
-DTAG = TAG + (f"_excl{hashlib.md5(','.join(args.exclude_cohorts).encode()).hexdigest()[:6]}" if args.exclude_cohorts else "")
-disease_file = args.out / f'disease_counts_{DTAG}.tsv'
+disease_file = args.out / f'disease_counts_{TAG}.tsv'
 counts, disease_fresh = None, False
 if cached(disease_file) and not person_fresh:  # built from the per-person table: redo when that was recomputed
     counts = pd.read_csv(disease_file, sep='\t', dtype={'maakunta': str, 'endpoint': str, 'stratum': str})
@@ -531,13 +526,9 @@ else:
     # stratum = age band | sex ('NA' parts when unknown; strata with an NA part are left out of the standardisation)
     stratum = (f"coalesce(lpad((least(greatest(floor(ph.age / 10) * 10, {AGE_BANDS[0]}), {AGE_BANDS[-1]}))::int::varchar, 2, '0'), 'NA')"
                " || '|' || coalesce(ph.sex, 'NA')")
-    excl_sql = (" and coalesce(ph.cohort, '') not in (" + ", ".join(f"'{c}'" for c in args.exclude_cohorts) + ")"
-                if args.exclude_cohorts else "")
-    if args.exclude_cohorts:
-        print(f"\nDisease prevalence: leaving out cohorts {args.exclude_cohorts} (file tag {DTAG})")
     unions = " union all ".join(
         f"select '{e}' endpoint, p.maakunta, {stratum} stratum, ph.\"ep_{e}\" case_status "
-        f"from person p join pheno ph on ph.f = p.FINNGENID where p.maakunta is not null{excl_sql}" for e in ph_endpoints)
+        f"from person p join pheno ph on ph.f = p.FINNGENID where p.maakunta is not null" for e in ph_endpoints)
     counts = con.sql(f"""
       select endpoint, maakunta, stratum, count(*) n, sum(case_status) n_cases from ({unions})
       where case_status in (0, 1) group by all order by 1, 2, 3""").df()
@@ -606,7 +597,7 @@ if counts is not None and len(counts):
     shared = mask_small(cmp.drop(columns='shareable').round(2), ['n_people', 'n_cases'], ['pct_crude', 'finngen_index'], few_noncases)
     shared['n_cases'] = shared['n_cases'].where(~few_noncases, None)
     write_tsv_once(shared,
-                   args.out / f'disease_vs_thl_{DTAG}.tsv', fresh=disease_fresh)
+                   args.out / f'disease_vs_thl_{TAG}.tsv', fresh=disease_fresh)
     plot_disease(cmp, args.out, [e for e in ENDPOINT_TO_INDEX if e not in OWN_FIGURE], 'disease_vs_thl', fresh=disease_fresh)
     for ep, stem in OWN_FIGURE.items():
         plot_disease(cmp, args.out, [ep], stem, fresh=disease_fresh)

@@ -2,75 +2,122 @@
 
 Based on Kira Detrois' [existing repo](https://github.com/detroiki/kanta_lab).
 
-## CORE FILE
+## OUTPUT FILE
 
-N.B. The raw data contains a `MEASUREMENT_FREE_TEXT` column that unfortunately cannot be directly released as it contains data that is potentially sensitive. It contains a mix of numerical measurement values, positive/negative outcomes, outcomes linked to thresholds (e.g. <3ml) and general notes. Our approach has been to extract such data from the original column through a process of cleaning and whitelisting of the field.
+The pipeline produces one main file, the engine output (`<prefix>.parquet`; in the WDL `<release_name>.parquet`, e.g.
+`kanta_R15_dev_2026_11_05.parquet`). The release file (`<release_name>_RELEASE.parquet`) is a curated subset of
+its columns, renamed and typed for external use: in the release, the engine's literal `NA` strings become real
+nulls (except for `TEST_NAME`, where an unmapped name is itself informative), and flags become booleans/integers.
 
-This is the file that contains mostly just workable data for analysis, like values,outcomes and pos/neg status both raw and extracted from free text where possible.
+N.B. The raw data contains a free-text column (`MEASUREMENT_FREE_TEXT`) that cannot be released, as it may contain
+sensitive data. It holds a mix of numeric values, positive/negative results, results against thresholds (e.g.
+`<3 ml`) and general notes. Instead of releasing it, the engine extracts from it what can be used, through cleaning
+and whitelisting: values (`IS_VALUE_EXTRACTED`), units, outcome texts and positive/negative status.
 
-| Column Name | Easy Description | Technical Notes |
-|---|---|---|
-| `ROW_ID` | ROW ID that allows to compare lines across steps of the pipeline |  |
-| `FINNGENID` | Pseudoanonimized IDs |  |
-| `SEX` | Sex of the sample |  |
-| `EVENT_AGE` | Age of the individual at the time fo the event |  |
-| `APPROX_EVENT_DATETIME` | Approximate event (+- two weeks) of the event |  |
-| `OMOP_CONCEPT_ID` | OMOP id of the mapping | The mapping is done using [a table](/finngen_qc/data/LABfi_ALL.usagi.csv) |
-| `TEST_NAME` | Name of test. It's either the local one (manipulated to standard) or the national one mapped via the lab_id table | The map for the national (THL) IDs is in the [data folder](/finngen_qc//data/thl_lab_id_abbrv_map.tsv),and was downloaded from [Kuntaliitto - Laboratoriotutkimusnimikkeistö](https://koodistopalvelu.kanta.fi/codeserver/pages/classification-view-page.xhtml?classificationKey=88&versionKey=120) |
-| `MEASUREMENT_VALUE_HARMONIZED` | The harmonized numeric value of the measurement |  |
-| `MEASUREMENT_UNIT_HARMONIZED` | The harmonized unit of the measurement from the data | The conversion happens from [a table](/finngen_qc/data/quantity_source_unit_conversion.tsv) and by defining a target unit from [another table](/finngen_qc/data/harmonization_counts.txt) built using the most common unit for each concept ID |
-| `MEASUREMENT_VALUE_EXTRACTED` | Numerical value extracted from the measurement free text field | The column remove special prefixes (check config) and specific characteres (as before). If the remaining text is a float it's kept. In our analysis, the values statistically align with the distribution of harmonized values, thus suggesting that the units are the same, although some QC is still needed.|
-| `MEASUREMENT_VALUE_MERGED` | Column containing harmonized values and merged values, where former is missing and the latter present. | The merged column undergoes a final "ad-hoc" harmonization step. Since extracted values are most often without unit we _assume_ that they are in the target unit and perform post merging QCing. (see below `QC_PASS`). When we see that there is clearly an issue at the srouce we use a [table](/core/data/omop_conversion_fix.tsv)  to perform a final conversion based on numerical thresholds (e.g. hematocrit >100 as it's sometimes reported in the wrong unit). At times we're also forced to [blacklist](/core/data/omop_extraction_blacklist.tsv) extracted values since there is a mismatch of units and we cannot use numerical thresholds to disentangle the faulty entries. |
-| `TEST_OUTCOME` | Outcome of the lab measurement. (typical values H=high, L=low, N=Normal, A=Abnormal) |The AR/LABRA - Exception Messages classification is used in local and national healthcare information systems to indicate deviations or changes in laboratory measurements and other measurements or examinations in relation to reference values ​​or normal values. The content of the classification follows the content of the following classification approved by HL7International (FHIR Value set/code system definition for HL7 v2 table 0078 (Interpretation Codes), see [AR/LABRA - Poikkeustilanneviestit](https://91.202.112.142/codeserver/pages/publication-view-page.xhtml?distributionKey=10329&versionKey=324&returnLink=fromVersionPublicationList) for the abbreviations. N.B. We have found at times this columns to be contraddicting the `OUTCOME_POS_EXTRACTED` column. Our clinicians have pointed out that this column is automatically generated and might not always reliable. Such mismatches are most often linked to panel tests where the outcome is assigned to the whole set of panel tests as a whole while the information in the free text data is different for each entry. These mismatches are flagged in the `QC_NOTES` so users can be aware of the mismatch. In general, we recommend using the free text column for these values.|
-| `TEST_OUTCOME_IMPUTED` | Imputed outcome values of the lab measurement | We automatically tried to detecth high/low value thresholds based on lab value entries where both MEASUREMENT_VALUE_HARMONIED and TEST_OUTCOME appear together at least 100 times.  Values are ```H,L,N``` for high,low and normal. All entries with valid OMOP ids with >100 counts were imputed, including already labelled ones. The `*` sign indicates that there were issues in defining the threshold for `H/L` thresholds so one should use these values with caution.In the data folder there's a [table](/core/data/abnormality_estimation.table.tsv) that shows the values used to determine lower/higher limits for each OMOP id. Please see the [handbook] (https://docs.finngen.fi/finngen-data-specifics/red-library-data-individual-level-data/what-phenotype-files-are-available-in-sandbox-1/kanta-lab-values/data) for more info.|
-| `OUTCOME_POS_EXTRACTED` | POSITIVE(1) or NEGATIVE(0) status extracted from free text. | We extracted all strings from the measurement free text field containing either `pos` or `neg` as a substring. We then checked them one by one and assigned to each a POS or NEG status. The mapping table can be seen [here](/core/data/negpos_mapping.tsv). Virtually all cases are straightforward as the Finnish language doesn't contain false positives (pun kinda intended). The only problematic entries are linked to RH pos/neg, which we decided to skip as they are not relevant. More fields are included from [a table](/core/data/kanta_plusplus_abnormality.tsv) through a similar process of whitelisting. These are  families of values are the ones that show a + sign in their text, mostly from presence in urine measurements. |
-| `TEST_OUTCOME_TEXT_EXTRACTED` | Abnormality texts extracted from free text after standardization. It's formatted as `[<\>]\|[VALUE]\|[UNIT?]` | We applied similar filters as for `MEASUREMENT_VALUE_EXTRACTED` also allowing for a comparison (e.g. `Yli/Alle/</>`) and a unit as long as it's in list of target units (after basic string manipulation). More fields are included from [a table](/core/data/kanta_plusplus_abnormality.tsv) through a similar process of whitelisting. These are  families of values are the ones that show a + sign in their text, mostly from presence in urine measurements. They are often formatted as +/++ or with numerical indicators like 3+.|
-| `QC_PASS` | Boolean indicator of numerical QC.| Values are initialized as `2` (unchcked). Through [a table](/core/data/omop_qc.tsv) containing numerical thresholds (e.g. impossible or implausible values) the column is updated to `1` (checked and passed) or `0` (checked and not passed). These filters are not to be taken as definite but they are the ones used in the analysis side for GWAS and downstream analyses. We always recommend to double check yourself based on your needs. |
-| `QC_NOTES` | Description of QC considerations. | Post-harmonization ad hoc conversions are annotated here (like Hematocrit [0,1] --> [0,100] conversion). It also includes flagging of mismatches between `TEST_OUTCOME` and `OUTCOME_POS_EXTRACTED` |
+Columns in engine-output order. **Release name** = the column's name in the release file; `NA` = not in the release.
 
+| Column (engine output) | Release name | Easy Description | Technical Notes |
+|---|---|---|---|
+| `ROWID` | `ROWID` | Row ID, unique per row | Assigned by the intake after deduplication. Lets you compare rows across the pipeline's outputs (errors, abbreviation and unit changes). Only valid within one intake run. |
+| `FINNGENID` | `FINNGENID` | Pseudonymised individual ID | |
+| `SEX` | `SEX` | Sex of the individual | Joined from the phenotype file in the intake. |
+| `EVENT_AGE` | `EVENT_AGE` | Age at the time of the event | |
+| `APPROX_EVENT_DATETIME` | `APPROX_EVENT_DATETIME` | Approximate date and time of the event (± two weeks) | Built from `APPROX_EVENT_DAY` and `TIME`; rows whose date can't be parsed are dropped (logged in `_errors.parquet`, `DATE`). Typed as a UTC timestamp in the release. |
+| `TEST_ID` | `TEST_ID` | National (THL) or local lab ID of the test | The national ID (`laboratoriotutkimusnimike`) when present, else the local code. |
+| `TEST_ID_IS_NATIONAL` | `TEST_ID_IS_NATIONAL` | Whether `TEST_ID` is national | `1` national (THL), `0` local. Boolean in the release. |
+| `TEST_NAME_ABBREVIATION` | `TEST_NAME` | Name of the test | The local name, or for national IDs the THL abbreviation from [`thl_lab_id_abbrv_map.txt`](/src/kanta/engine/data/thl_lab_id_abbrv_map.txt) (from [Kuntaliitto - Laboratoriotutkimusnimikkeistö](https://koodistopalvelu.kanta.fi/codeserver/pages/classification-view-page.xhtml?classificationKey=88&versionKey=120)). Stray characters and dashes are cleaned (`ABBREVIATION_*` in the config); changes are logged in `_abbr.parquet`. |
+| `MEASUREMENT_VALUE` | `MEASUREMENT_VALUE_CLEANED` | Numeric value, on the scale the lab reported | Filled from the free text when the value column is empty (`IS_VALUE_EXTRACTED`). Not harmonized. |
+| `MEASUREMENT_UNIT` | `MEASUREMENT_UNIT_CLEANED` | Unit, cleaned and completed | Cleaned (dictionary + regex), taken from the free text when missing, then completed by unit injection (see [Unit injection](#unit-injection)). Changes are logged in `_unit.parquet`. |
+| `IS_VALUE_EXTRACTED` | `IS_VALUE_EXTRACTED` | Value taken from the free text | `1`: the value column was empty and the free text was a number (e.g. `tulos: 4.82 e12/l`). |
+| `IS_UNIT_EXTRACTED` | `IS_UNIT_EXTRACTED` | Unit taken from the free text | `1`: the free text after the number was a recognised (Usagi) unit. |
+| `harmonization_omop::MEASUREMENT_VALUE` | `MEASUREMENT_VALUE_HARMONIZED` | Value in the OMOP concept's target unit | Converted with [`quantity_source_unit_conversion.tsv`](/src/kanta/engine/data/quantity_source_unit_conversion.tsv) to the target unit in [`harmonization_counts.tsv`](/src/kanta/engine/data/harmonization_counts.tsv) (the most common unit per concept). `NA` when there's no conversion or the value isn't numeric. |
+| `harmonization_omop::MEASUREMENT_UNIT` | `MEASUREMENT_UNIT_HARMONIZED` | Target unit of the harmonized value | |
+| `harmonization_omop::IS_UNIT_VALID` | NA | Whether the unit is Usagi-approved | From [`UNITSfi.tsv`](/src/kanta/engine/data/UNITSfi.tsv). |
+| `harmonization_omop::OMOP_ID` | `OMOP_CONCEPT_ID` | OMOP concept of the test | Looked up by test name and unit in the Usagi table [`LABfi.tsv`](/src/kanta/engine/data/LABfi.tsv). `0`: mapped but not approved; `NA`: no mapping. |
+| `harmonization_omop::OMOP_QUANTITY` | `OMOP_QUANTITY` | Quantity of the OMOP mapping | e.g. substance concentration, mass fraction; selects the conversion. |
+| `TEST_OUTCOME` | `TEST_OUTCOME` | Outcome sent by the lab (H high, L low, N normal, A abnormal, ...) | AR/LABRA exception codes ([AR/LABRA - Poikkeustilanneviestit](https://91.202.112.142/codeserver/pages/publication-view-page.xhtml?distributionKey=10329&versionKey=324&returnLink=fromVersionPublicationList), following HL7 v2 table 0078); `<` and `>` are rewritten to `L` and `H`. N.B. clinicians report it is generated automatically and not always reliable, e.g. on panels it can apply to the whole panel while the free text differs per test. Conflicts with `OUTCOME_POS_EXTRACTED` are flagged in `QC_NOTES`; in general prefer the extracted columns. |
+| `extracted::TEST_OUTCOME_TEXT` | `TEST_OUTCOME_TEXT_EXTRACTED` | Out-of-range result from the free text, standardised | `<comparator><value><unit>`, e.g. `YLI 3.0 ml` → `>3ml`: only texts with `<`, `>`, `yli` or `alle`, unit kept only if recognised. For `+`-style results (`+`, `++`, `3+`, mostly urine strips) the whitelisted text itself. |
+| `imputed::TEST_OUTCOME` | `TEST_OUTCOME_IMPUTED` | Outcome imputed from the harmonized value | `L` / `H` / `N` from per-OMOP limits in [`abnormality_estimation.table.tsv`](/src/kanta/engine/data/abnormality_estimation.table.tsv), learned from rows that have both a value and a lab outcome (WDL `abnormality`). `*` (`L*`, `H*`): the limit was hard to estimate, use with caution. See the [handbook](https://docs.finngen.fi/finngen-data-specifics/red-library-data-individual-level-data/what-phenotype-files-are-available-in-sandbox-1/kanta-lab-values/data). |
+| `extracted::IS_POS` | `OUTCOME_POS_EXTRACTED` | Positive (`1`) or negative (`0`) result from the free text | Free texts containing `pos`/`neg`, each checked by hand, in [`negpos_mapping.tsv`](/src/kanta/engine/data/negpos_mapping.tsv) (RH pos/neg skipped). `+`-style results by free text and OMOP concept in [`kanta_plusplus_abnormality.tsv`](/src/kanta/engine/data/kanta_plusplus_abnormality.tsv). |
+| `QC_PASS` | `QC_PASS` | Numeric QC status | `2`: unchecked; `1`: the concept has QC rules and the row passed; `0`: failed a rule in [`omop_qc.tsv`](/src/kanta/engine/data/omop_qc.tsv) (impossible/implausible values, unresolvable units) or has an outcome conflict. These are the filters used for GWAS and downstream analyses; check them against your own needs. |
+| `QC_NOTES` | `QC_NOTES` | Why a row was flagged | `;`-separated: the failed rule's note (e.g. `IMPLAUSIBLE_VALUE`), `OUTCOME_EXTRACT_CONFLICT` (`TEST_OUTCOME` N with a positive extraction, or A with a negative one), `bimodal_split (...)` (unit injected where the units' value ranges overlap). |
+| `CODING_SYSTEM` | `CODING_SYSTEM_OID` | Coding system (OID) of the test, kept as sent | Embeds the business ID (Y-tunnus) of the organization that owns it. |
+| `CODING_SYSTEM_MAP` | `CODING_SYSTEM_ORG` | Name of that organization | From THL's sote organization register, looked up in [`coding_system_map.tsv`](/src/kanta/engine/data/coding_system_map.tsv): by the full OID, else by the organization code in it (for CGI-hosted systems, the customer embedded in the OID). Built by [`scripts/sote/data/coding_system_map.py`](/scripts/sote/README.md#data) (WDL `extract_regions_limits`). |
+| `CODING_SYSTEM_MAAKUNTA` | NA | Maakunta of that organization | Same table. `NA` for private organizations and labs serving several regions. |
+| `MEASUREMENT_STATUS` | `MEASUREMENT_STATUS` | Status of the result | Rows with status K, W, X, I, D or P are dropped (logged in `_errors.parquet`). See [AR/LABRA - Tutkimusvastauksien tulkintakoodit 1997](https://koodistopalvelu.kanta.fi/codeserver/pages/publication-view-page.xhtml?distributionKey=2637&versionKey=321&returnLink=fromVersionPublicationList). |
+| `MEASUREMENT_METHOD` | `MEASUREMENT_METHOD` | How the test was done | `LAB` (laboratory), `POC` (point of care), `SELF` (self-measured). |
+| `SERVICE_PROVIDER` | `SERVICE_PROVIDER_ID` | Pseudonymised ID of the service provider | Present on every row. |
+| `REFERENCE_RANGE_GROUP` | `REFERENCE_RANGE_GROUP` | Reference range group, as text | Used, after `REFERENCE_RANGE_TEXT`, to fill the numeric limits (see [Reference ranges](#reference-ranges)). |
+| `REFERENCE_RANGE_LOWER_VALUE` | `REFERENCE_RANGE_LOW_VALUE` | Lower reference limit | Sent by the lab, or filled from the reference text when the lab sent none. On the scale the lab reported (not harmonized). |
+| `REFERENCE_RANGE_LOWER_UNIT` | `REFERENCE_RANGE_LOW_UNIT` | Unit of the lower limit | As sent; empty for limits filled from text. |
+| `REFERENCE_RANGE_UPPER_VALUE` | `REFERENCE_RANGE_HIGH_VALUE` | Upper reference limit | As `REFERENCE_RANGE_LOW_VALUE`. |
+| `REFERENCE_RANGE_UPPER_UNIT` | `REFERENCE_RANGE_HIGH_UNIT` | Unit of the upper limit | As `REFERENCE_RANGE_LOW_UNIT`. |
+| `REFERENCE_RANGE_TEXT` | `REFERENCE_RANGE_TEXT` | Reference range as text (e.g. `117-155`, `<4`) | From the free-text file. |
+| `REFERENCE_RANGE_SOURCE` | `REFERENCE_RANGE_SOURCE` | Where the row's limits come from | `num`: sent by the lab; `text`: parsed from the reference text and approved in the curated table; `NA`: no limits. |
+| `MEASUREMENT_FREE_TEXT` | NA | Free-text result | Sensitive: never released (see above). |
+| `source::MEASUREMENT_VALUE` | NA | Value as sent, before cleaning | Snapshot right after reading. |
+| `source::MEASUREMENT_UNIT` | NA | Unit as sent, before cleaning | |
+| `source::TEST_NAME_ABBREVIATION` | NA | Test name as sent | |
+| `source::TEST_OUTCOME` | NA | Outcome as sent | |
+| `harmonization_omop::CONVERSION_FACTOR` | NA | Factor or formula used for the harmonized value | Debugging. |
+| `cleaned-pre-inj::MEASUREMENT_UNIT` | NA | Unit before unit injection | Debugging: with the next column, isolates what primary injection changed. |
+| `cleaned-post-inj::MEASUREMENT_UNIT` | NA | Unit after primary injection, before secondary injection | Debugging; secondary injection's re-validation starts from it. |
+| `_rowid_source` | NA | Row number in the source file | Links a row back to the raw data (the intake's `oid_map` bridge to the statement data). |
 
-## EXTENDED_COLUMNS FILE
-
-This is the file that contains all columns, including mostly empty and/or uninformative ones. It can be used as a default file for analysis, but there are pre-harmonization (source) columns that might lead to confusion. Very useful for debugging pruposes or for custom QCing. The columns unique to this file are:
-
-| Column Name | Easy Description | Technical Notes |
-|---|---|---|
-| `TEST_ID` | National (THL) or local lab ID of the measurement |  |
-| `TEST_ID_IS_NATIONAL` | Source of the lab ID | 0: local and 1: national (THL) |
-| `TEST_NAME_SOURCE` | The original abbreviation of the measurement |  |
-| `MEASUREMENT_VALUE_SOURCE` | Original measurement value |  |
-| `MEASUREMENT_UNIT_SOURCE` | Original measurement unit |  |
-| `MEASUREMENT_STATUS` | The measurement status | The final data contains only `C` \- corrected results or `F` \- final result \| See [Koodistopalvelu - AR/LABRA - Tutkimusvastauksien tulkintakoodit 1997](https://koodistopalvelu.kanta.fi/codeserver/pages/publication-view-page.xhtml?distributionKey=2637&versionKey=321&returnLink=fromVersionPublicationList) |
-| `REFERENCE_RANGE_GROUP` | The reference values for the measurement in text form | Used, with `REFERENCE_RANGE_TEXT`, to fill the numeric limits (see [Reference ranges](#reference-ranges)). |
-| `REFERENCE_RANGE_[LOW\|HIGH]_[VALUE\|UNIT]` | Reference lower\|upper value\|unit | Sent by the lab, or filled from the reference text when the lab sent none (`REFERENCE_RANGE_SOURCE`). The values are on the scale the lab reported (not harmonized); filled limits leave the unit columns empty. |
-| `REFERENCE_RANGE_SOURCE` | Where the row's reference limits come from | `num`: sent by the lab as numbers; `text`: parsed from the reference text and approved in the curated table; empty: no limits. |
-| `CODING_SYSTEM_ORG` | Name (if present) of the uploading org, from THL's sote organisation register | Looked up in [`coding_system_map.tsv`](/src/kanta/engine/data/coding_system_map.tsv), written by [`scripts/sote/data/coding_system_map.py`](/scripts/sote/data/coding_system_map.py) from the register: by the full OID, else by the org code in it (the central digits, the org's Business Identity Code / Y-tunnus; for CGI-hosted systems, the customer org embedded in the OID). The engine output (not the release) also has the org's maakunta, `CODING_SYSTEM_MAAKUNTA` (`NA` for private orgs and labs serving several regions). |
-| `CODING_SYSTEM_OID` | ID of what is probably the org that logged the data in the system. |  |
-
-
+The engine also writes, next to the main file, `_errors.parquet` (rows dropped or flagged, with the check and the
+offending value), `_abbr.parquet` (test-name changes) and `_unit.parquet` (unit changes), all keyed by `ROWID`.
 
 The raw to output column mapping is as follows:
 
-| Column in raw file           | Description              |
-|------------------------------|--------------------------|
-|FINNGENID|FINNGENID|
-|EVENT\_AGE|EVENT\_AGE|
-|tutkimuskoodistonjarjestelmaid|CODING\_SYSTEM|
-|paikallinentutkimusnimike\_selite|TEST\_NAME\_ABBREVIATION|
-|tutkimustulosarvo|MEASUREMENT\_VALUE|
-|tutkimustulosyksikko|MEASUREMENT\_UNIT|
-|tutkimusvastauksentilaid|MEASUREMENT\_STATUS|
-|tuloksenpoikkeavuus|TEST\_OUTCOME|
-|viitearvoryhma|REFERENCE\_RANGE\_GROUP|
-|viitevalialkuarvo|REFERENCE\_RANGE\_LOWER\_VALUE|
-|viitevalialkuyksikko|REFERENCE\_RANGE\_LOWER\_UNIT|
-|viitevaliloppuarvo|REFERENCE\_RANGE\_UPPER\_VALUE|
-|viitevaliloppuyksikko|REFERENCE\_RANGE\_UPPER\_UNIT|
-|tutkimustulosteksti|MEASUREMENT\_FREE\_TEXT|
+| Column in raw file | Column in engine output |
+|---|---|
+| FINNGENID | FINNGENID |
+| EVENT\_AGE | EVENT\_AGE |
+| APPROX\_EVENT\_DAY + TIME | APPROX\_EVENT\_DATETIME |
+| laboratoriotutkimusnimike, paikallinentutkimusnimike\_koodi | TEST\_ID, TEST\_ID\_IS\_NATIONAL |
+| paikallinentutkimusnimike\_selite | TEST\_NAME\_ABBREVIATION |
+| tutkimuskoodistonjarjestelma | CODING\_SYSTEM |
+| tutkimusvastauksentila | MEASUREMENT\_STATUS |
+| tutkimustulosarvo | MEASUREMENT\_VALUE |
+| tutkimustulosyksikko | MEASUREMENT\_UNIT |
+| tutkimuksentekotapa | MEASUREMENT\_METHOD |
+| tuloksenpoikkeavuus | TEST\_OUTCOME |
+| viitearvoryhma | REFERENCE\_RANGE\_GROUP |
+| viitevalialkuarvo | REFERENCE\_RANGE\_LOWER\_VALUE |
+| viitevalialkuyksikko | REFERENCE\_RANGE\_LOWER\_UNIT |
+| viitevaliloppuarvo | REFERENCE\_RANGE\_UPPER\_VALUE |
+| viitevaliloppuyksikko | REFERENCE\_RANGE\_UPPER\_UNIT |
+| viitevaliteksti (free-text file) | REFERENCE\_RANGE\_TEXT |
+| tutkimustulosteksti (free-text file) | MEASUREMENT\_FREE\_TEXT |
+| palvelutuottaja\_organisaatio | SERVICE\_PROVIDER |
+| SEX (phenotype file) | SEX |
 
-![Summary of the wdl pipeline](./kanta_pipeline.png)
+The pipeline (WDL tasks; see [WDL](#wdl)):
+
+```mermaid
+flowchart TD
+  src["Source list: main + free-text file pairs"] --> assemble
+  pheno["Phenotype file: SEX"] --> tidyup
+  subgraph intake["intake.wdl"]
+    assemble["assemble: merge each pair, stack the pairs"] --> tidyup["tidyup: deduplicate, add SEX and ROWID, OID map"]
+  end
+  tidyup -->|tidied parquet| run_engine
+  subgraph engine["engine.wdl"]
+    run_engine["run_engine: engine output + release file"]
+    run_engine --> abnormality["abnormality"]
+    run_engine --> pos_tables["pos_tables"]
+    run_engine --> extract_regions_limits["extract_regions_limits"]
+    run_engine --> summaries["summaries"]
+    run_engine --> metabolomics["metabolomics"]
+    run_engine --> release_counts["release_counts"]
+    run_engine --> release["release"]
+    metabolomics --> release
+    release_counts --> release
+  end
+```
 
 # UNIT INJECTION
+<a name="unit-injection"></a>
 
 Many lab records carry a numeric value but no unit. The unit injection pipeline lives in
 [FINNGEN/kanta_lab_injection](https://github.com/FINNGEN/kanta_lab_injection); its
@@ -84,33 +131,56 @@ branch `kanta_v4` by default (switchable via `--harmonization-branch`). In the W
 `engine.injection_branch` and `engine.harmonization_branch`. On a non-default branch a failed
 fetch stops the run instead of silently using the snapshot.
 
+Injection happens in two steps inside the harmonization filter (see below): primary injection guesses a missing unit
+per test name from the value distributions of the units seen for that test (`injection_results.tsv`); secondary
+injection fixes missing, incomplete or wrong units by test name and unit with hand-made rules
+([`omop_injection.tsv`](/src/kanta/engine/data/omop_injection.tsv), e.g. b-hkr `osuus` → `ratio`, du-prot `g` →
+`g/24h`).
+
 # MERGE OF RAW DATA
 
-Inputs reports and responses are sorted over the same keys and merged
+The intake ([`kanta.intake.assemble`](/src/kanta/intake/assemble.py), WDL `intake.assemble`) reads the source list:
+one pair of files (main data, free text) per line. Each pair is merged side by side row by row, after checking that
+both files have the same number of rows and agree on their shared columns; the pairs are then stacked into
+`<prefix>_assembled.parquet`.
 
 # DUPLICATE REMOVAL & SORTING
-First the [wdl](/finngen_qc/wdl/sort_dup.wdl) trims the data of only the relevant columns (taken from the config) and sorts it by a series of columns (also specified in the config under `sort_cols`) so we can also discard duplicate entries. 
 
+The intake's tidy-up step ([`kanta.intake.tidyup`](/src/kanta/intake/tidyup.py), WDL `intake.tidyup`):
+- keeps only the columns the engine needs (renamed from `main.` / `freetext.`), plus `_rowid_source`;
+- optionally keeps only the FINNGENIDs in `--include-ids-file` (e.g. the genotype-QC sample list);
+- sorts the rows by the key columns (FINNGENID, date, time, lab IDs, status, value, unit, outcome, service provider,
+  free text; `COLUMNS_UNIQUENESS_SORT`) and keeps the first row per key, writing the dropped duplicates to
+  `<prefix>_duplicates.parquet` (partitioned in buckets to spread the work);
+- joins `SEX` from the phenotype file, numbers the rows (`_rowid`, the engine's `ROWID`) and replaces newlines and
+  tabs inside text fields;
+- in the WDL, also builds the `ROWID` → record OID lookup (`<prefix>_oid_map.parquet`,
+  [`scripts/OID/`](/scripts/OID/)), the bridge to the statement data. It only matches an engine output built from
+  the same intake run.
 
 # Preprocessing
-There is a [config file](/finngen_qc/magic_config.py) that contains all the relevant "choices" about how to manipulate the data (e.g. which columns to include, how to rename columns, which values of which column to include etc.) so there are virtually no hard coded elements in the code itself.
+The [config file](/src/kanta/config.py) contains all the relevant "choices" about how to manipulate the data (which
+columns to read and keep, how to rename them, which values to drop, the regexes, which reference tables to use, the
+release columns), so there are virtually no hard-coded elements in the code itself.
 
 ## TECHNICAL INFO
-The code performs the following actions:
-## [MINIMAL](/finngen_qc/filters/filter_minimal.py)
-- output columns are initialized
-- spaces are removed everywhere in the text
-- the date is built in the right format
-- all type of NA/missing values (Puuttuu,"_" etc.) are replaced with "NA"
-- entries with invalid hetu root are removed (and logged)
-- entries with invalid measurement status are removed (and logged)
-- TEST_ID_IS_NATIONAL is created checking if `laboratoriotutkimusnimike_koodi` is not NA (1 national/0 regional)
-- TEST_ID is created assigning the regional id for regional labs and a 
-- TEST_NAME_ABBREVIATION is updated for national labs [through a mapping](/finngen_qc/data/thl_lab_id_abbrv_map.tsv)
-- CODING_SYSTEM is updated when available (problematic ATM, see table above)
-- CODING_SYSTEM_MAP (organisation name) and CODING_SYSTEM_MAAKUNTA (its maakunta, engine output only) are looked up from the OID in `coding_system_map.tsv`
-- ~~SERVICE_PROVIDER_ID is updated where the mapping can happen~~ --> scrapped in v3
-- TEST_NAME_ABBREVIATIONs with problematic characters are edited (see `abbreviation_replacements` in the config)
+The engine ([`kanta.engine`](/src/kanta/engine/)) runs the following steps on each chunk, in this order
+([`pipes.py`](/src/kanta/engine/pipes.py)): the input columns are renamed, the raw values snapshotted into the
+`source::` columns, then the filters below run, and the output columns are selected.
+
+## [MINIMAL](/src/kanta/engine/filters/filter_minimal.py)
+- `APPROX_EVENT_DATETIME` is built from the day and time; unparseable rows are dropped (and logged)
+- spaces are removed from every text column except the free texts
+- all types of NA/missing values (`Puuttuu`, `_`, `NULL`, `-1` outside the value column, etc.) are replaced with `NA`
+- rows with a problematic measurement status (K, W, X, I, D, P) are dropped (and logged)
+- `TEST_ID` and `TEST_ID_IS_NATIONAL` are derived from the national and local lab IDs
+- `TEST_NAME_ABBREVIATION` is mapped for national IDs [through the THL table](/src/kanta/engine/data/thl_lab_id_abbrv_map.txt)
+- `CODING_SYSTEM_MAP` (organization name) and `CODING_SYSTEM_MAAKUNTA` (its maakunta) are looked up from the OID in
+  [`coding_system_map.tsv`](/src/kanta/engine/data/coding_system_map.tsv) (see
+  [`scripts/sote/README.md`](/scripts/sote/README.md#data))
+- test names with problematic characters are edited (`ABBREVIATION_DELETION_PATTERNS` / `ABBREVIATION_REPLACEMENTS`
+  in the config; logged)
+- `MEASUREMENT_METHOD` codes are mapped to `LAB` / `POC` / `SELF`
 
 ## [REFERENCE RANGES](/src/kanta/engine/filters/ref_range.py)
 <a name="reference-ranges"></a>
@@ -121,111 +191,116 @@ Labs send numeric reference limits for only ~13% of rows, but most rows carry th
 
 The table has one row per test name × text, built by [`scripts/ref_ranges/ref_text_limits.py`](/scripts/ref_ranges/) from an engine run: the limits parsed from the text (plus sex/age written in it), checked against the rows (values mostly inside, ages and sexes as written), and manual decisions (`use` yes/no, `lower_override`/`upper_override`, `NOTES`). A pair is approved when it parsed and passed the checks, or was whitelisted/overridden by hand; therapeutic ranges (e.g. INR 2-3 on warfarin), labels and texts without a number are not used. Each WDL run reconciles the table with the new data and lists the undecided and rejected pairs for review; the engine recomputes the approval from the manual columns when it loads the table.
 
-## [UNIT](/finngen_qc/filters/fix_unit.py)
-- Fixes strange characters in the lab unit field. Also moves to lower case for non NA values.
-- Mapping of units. This can be done either via regex (from config) or [through a mapping](/finngen_qc/data/unit_mapping.txt)
-- TEST_OUTCOME is edited to be consistent with the standard definition see AR/LABRA - Poikkeustilanneviestit. This means replacing `<` with `L`, `>` with `H`, `POS` with `A` and `NEG` with `N`.
+## [UNIT](/src/kanta/engine/filters/fix_unit.py)
+- stray characters are removed from the unit, which is lower-cased
+- units are fixed [through a mapping](/src/kanta/engine/data/unit_mapping.txt), then by regex (`UNIT_REPLACEMENTS` in the config); both logged
+- `TEST_OUTCOME` is made consistent with the AR/LABRA standard: `<` → `L`, `>` → `H`
 
-## [HARMONIZATION](/finngen_qc/filters/harmonization.py)
-- Mapping status is updated (internal thing)
-- IS_UNIT_VALID column is populated based on whether the unit is in usagi list
-- Unit edit or injection to make sure all abbreviations with similar units are mapped to the same one (e.g. mg --> mg/24h for du-prot). Based on [a table](/finngen_qc/data/fix_unit_based_in_abbreviation.tsv) 
-- OMOP mapping from [a table](/finngen_qc/data/LABfi_ALL.usagi.csv)
-- unit harmonization (optional but default) from [a table](/finngen_qc/data/quantity_source_unit_conversion.tsv)
+## [HARMONIZATION](/src/kanta/engine/filters/harmonization.py)
+- mapping status: concepts not approved in the Usagi table get OMOP ID `0`
+- values from free text: where the value is missing and the free text is a number (after stripping prefixes like
+  `tulos:`), it becomes the value (`IS_VALUE_EXTRACTED`), and a recognised unit after it the unit (`IS_UNIT_EXTRACTED`)
+- primary unit injection: a missing unit is guessed per test name from the value distributions
+  (`injection_results.tsv`; see [Unit injection](#unit-injection)); overlapping value ranges are noted in `QC_NOTES`
+- secondary unit injection: missing, incomplete or wrong units fixed by test name and unit
+  ([`omop_injection.tsv`](/src/kanta/engine/data/omop_injection.tsv))
+- OMOP mapping by test name and unit from [the Usagi table](/src/kanta/engine/data/LABfi.tsv)
+- unit harmonization to the concept's target unit, [via conversion factors or formulas](/src/kanta/engine/data/quantity_source_unit_conversion.tsv)
+- `IS_UNIT_VALID`: whether the unit is in the Usagi unit list
 
-## How it works
-The script reads in the data in chunks of  `--chunksize` length and it processes the lines with Python's pandas. With the flag `--mp` and `--jobs` the script runs each chunk into other smaller subchunks in parallel (efficiency TBD). The [filter folder](/finngen_qc/filters/) contains separate scripts that perform conceptually separate tasks. Each of them contains a global function of the same name of the script that gathers all individual functions that populate the script. In this way we can easily compartmentalize the munging/qc and add new features.
+## [OUTCOME](/src/kanta/engine/filters/outcome.py)
+- `OUTCOME_POS_EXTRACTED`: free texts containing `pos`/`neg`, mapped by hand to 1/0 ([table](/src/kanta/engine/data/negpos_mapping.tsv))
+- `TEST_OUTCOME_TEXT_EXTRACTED`: out-of-range results from the free text (`<`, `>`, `yli`, `alle`), standardised to
+  `<comparator><value><unit>`
+- `+`-style results (`+`, `++`, `3+`, mostly urine strips): mapped by free text and OMOP concept
+  ([table](/src/kanta/engine/data/kanta_plusplus_abnormality.tsv)); they override the two columns above
+- `TEST_OUTCOME_IMPUTED`: the harmonized value against the concept's limits
+  ([table](/src/kanta/engine/data/abnormality_estimation.table.tsv)), learned from rows with both a value and a
+  lab outcome
 
-
-```
-usage: main.py [-h] [--raw-data RAW_DATA] [--log {critical,error,warn,warning,info,debug}] [--test] [--gz] [--mp [MP]] [-o OUT] [--prefix PREFIX] [--sep SEP] [--chunk-size CHUNK_SIZE] [--lines LINES] [--unit-map {regex,map,none}] [--harmonization [HARMONIZATION]]
-
-Kanta Lab preprocessing pipeline: raw data ⇒ clean data.
-
-options:
-  -h, --help            show this help message and exit
-  --raw-data RAW_DATA   Path to input raw file. File should be tsv.
- --log {critical,error,warn,warning,info,debug}Provide logging level. Example '--log debug', default = 'warning'
-  --test                Reads first chunk only
-  --gz                  Ouputs to gz
-  --mp [MP]             Flag for multiproc. Default is '0' (no multiproc). If passed it defaults to cpu count, but one can also specify the number of cpus to use: e.g. '--mp' or '--mp 4'.
-  -o OUT, --out OUT     Folder in which to save the results (default = current working directory)
-  --prefix PREFIX       Prefix of the out files (default = 'kanta_YYYY_MM_DD')
-  --sep SEP             Separator (default = tab)
-  --chunk-size CHUNK_SIZE      Number of rows to be processed by each chunk (default = '100').
-  --lines LINES         Number of lines in input file (calculated/estimated otherwise).
-  --unit-map {regex,map,none}  How to replace units. Map uses the unit_mapping.txt mapping in data and regex after. Regex does only regex. none skips it entirely.
-  --harmonization [HARMONIZATION]  Path to tsv with concept id and target unit.
-
-```
-
-
-# Core
-
-The `core` folder contains the pipeline that produces a similar file, which is used for analysis purposes.
-
-The current version outputs new columns, which are taken from the `MEASUREMENT_FREE_TEXT` column, which cannot be shared due to data privacy reasons for the time being. The columns are:
-
-| Column Name | Easy Description | General Notes | Technical Notes |
-|---|---|---|---|
-| `MEASUREMENT_VALUE_EXTRACTED` | Numerical values | The column is mutually exclusive with `harmonization_omop::MEASUREMENT_VALUE`. In our analysis the units seemed to be pretty much always coherent with our target OMOP units, albeit for occasional clusters of outliers that are present also in the core data. | The content of the `MEASUREMENT_FREE_TEXT` colum is cleaned by removal of spaces, converted to lower case, the target omop unit is removed if present, certain result strings are removed. If we're left with a pure float number, it's considered to be an extracted value. |
-| `extracted::MEASUREMENT_VALUE_MERGED` | extracted::MEASUREMENT_VALUE_MERGED | Merge of harmonized value column and of extracted value column |  |
-| `OUTCOME_POS_EXTRACTED` | Boolean | Pos(1) or Neg(0) status | We extracted all strings containing the substring pos/neg and we manually mapped them to pos/neg statuses. The mapping is stored in the [data folder](/core/data/negpos_mapping.tsv). We also added positive extractions linked to (mostly) from presence in urine measurements. They are often formatted as +/++ or with numerical indicators like 3+. The mapping is stored in the [data folder](/core/data/kanta_plusplus_abnormality.tsv) |
-| `TEST_OUTCOME_TEXT_EXTRACTED` | Strings | Simplified/summarized strings present in free text. E.g. (YLI 3.0 ml --> >3ml). |  |
-| `QC_PASS` | Boolean indicator of numerical QC.| Values are initialized as `2` (unchcked). Through [a table](/core/data/omop_qc.tsv) containing numerical thresholds (e.g. impossible or implausible values) the column is updated to `1` (checked and passed) or `0` (checked and not passed). These filters are not to be taken as definite but they are the ones used in the analysis side for GWAS and downstream analyses. We always recommend to double check yourself based on your needs. |
-| `QC_NOTES` | Description of QC considerations. | Post-harmonization ad hoc conversions are annotated here (like Hematocrit [0,1] --> [0,100] conversion). It also includes flagging of mismatches between `TEST_OUTCOME` and `OUTCOME_POS_EXTRACTED` |
-
-
-## TECHNICAL INFO
-
-The princples are identical to the `finngen_qc` pipeline, just with different filters being used.
-
-### [EXTRACT](/core/filters/extract.py)
-
-This filter extracts info from the free text column:
-
-- extract\_outcome: This function extracts test outcomes (e.g., "<5", ">10") from the "MEASUREMENT_FREE_TEXT" column. It identifies rows with status indicators, standardizes the text, parses the comparison operator, value, and unit, and stores the extracted outcome in a new column named "extracted::TEST_OUTCOME_TEXT". It also performs some data cleaning and unit mapping. Another type of families of values are the ones that show a + sign in their text, mostly from presence in urine measurements. They are often formatted as +/++ or with numerical indicators like 3+. These values are taken from a mapping file.
-
-- extract\_measurement: This function extracts numerical measurement values from the "MEASUREMENT_FREE_TEXT" column and stores them in a new column called "extracted::MEASUREMENT_VALUE". It also creates a "extracted::MEASUREMENT_VALUE_MERGED" column, which prioritizes values from the "harmonization_omop::MEASUREMENT_VALUE" column if available, otherwise using the newly extracted values.
-
-- extract\_positive: This function takes in a [table](/core/data/negpos_mapping.tsv) and maps these full free text fields (manually checked by us) to 1(pos)/0(neg) outcomes. These free text contains the substrings `pos` or `neg` in them.
-
-- extract\_plus\_ab" This function takes in a [table](/core/data/kanta_plusplus_abnormality.tsv) and maps these full free text fields (manually checked by us) to 1(pos)/0(neg) outcomes. These strings contains the sign `+` in them.
-
-### [QC](/core/filters/qc.py)
-
-This is for all sorts of QCing of the data, ideally for outlier filter/removal:
-- all extracted values that can be misinterpreted as dates are removed (DDMMYY) as they can either be birth dates or the exact date of the examination, which is shifted +- 2 weeks for each FINNGENID
-- we perform a post harmonization fix for certain values where a mismatch of units exist. For the time being we've only seen his happen on the whole OMOP\_ID scale with Hematocrit, where some values are in the [0,1] range instead of the [0,100] range as expected. This is mostly linked to extracted values, but it also affects heavily harmonized values. The mapping file can be found in the [data folder](/core/data/omop_conversion_fix.tsv)
-- we use [a table](/core/data/omop_qc.tsv) to perform basic QC. The table enumerates thresholds for which we find values that are impossible/implausible or for which the pipeline cannot handle potential issues with unit. If en entry matches the criteria in the table, `QC_PASS` is set to 0 and `QC_NOTES` is updated to describe what went wrong according to our analysis
-- we use [a table](/core/data/omop_extraction_blacklist.tsv) to mask out extracted values from the `MEASUREMENT_VALUE_MERGED` column. QC columns are also updated. ATM it only involves only a handful of OMOP_IDS that clearly have problematic coexistence of units, either by nature (e.g. hematocrit in two different units) or clearly typos at source. In general, we prefer to QC problematic values and the idea is to use this list carefully only for clear cut cases where there is no space for ambiguity whatsoever.
-- we flag values for which the `TEST_OUTCOME` column does not match the `extracted::IS_POS` column by adding the string `OUTCOME_EXTRACT_CONFLICT` to QC_NOTES
-
-### [OUTCOME](/core/filters/outcome.py)
-- `TEST_OUTCOME_IMPUTED` is generated from the (merged) numerical values based on thresholds learned from the data when both values and outcomes are present
-
+## [QC](/src/kanta/engine/filters/qc.py)
+- values that look like a DDMMYY date typed into the value field are dropped (they can be birth dates or the exact
+  examination date, which is otherwise shifted ± 2 weeks); logged
+- [per-concept rules](/src/kanta/engine/data/omop_qc.tsv) on the harmonized value: impossible or implausible values,
+  or units the pipeline can't resolve, get `QC_PASS` `0` and a note in `QC_NOTES`; rows of concepts with rules that
+  pass get `1`, all others stay `2` (unchecked)
+- rows whose `TEST_OUTCOME` contradicts the extracted positive/negative status get `QC_PASS` `0` and
+  `OUTCOME_EXTRACT_CONFLICT`
 
 ## How it works
-The princples are identical to the `finngen_qc` pipeline.
+The data is read in chunks of `--chunk-size` rows, processed in parallel by `--n-workers` processes, with pandas. The
+[filters folder](/src/kanta/engine/filters/) holds one script per conceptual step; each has a `run()` function that
+chains its individual functions, so the munging/QC is compartmentalized and new features are easy to add. Reference
+tables are loaded once per run ([`reference_data.py`](/src/kanta/engine/reference_data.py)).
 
+- `python -m kanta`: the whole pipeline (intake + engine), locally
+- `python -m kanta.intake` and `python -m kanta.engine`: each stage on its own, as the WDL runs them
+
+`--help` on each describes every option.
+
+# RUNNING A RELEASE
+
+A release takes several engine runs: each run produces the reference tables the next one needs, and they are plugged
+back in before rerunning. The intake runs once per data delivery (again if the sample list changes); the engine runs
+below all start from its tidied parquet.
+
+1. **Dry run.** Its engine output is the input of the unit injection,
+   [FINNGEN/kanta_lab_injection](https://github.com/FINNGEN/kanta_lab_injection): the run cleans up the units (and
+   the test names and values) the injection learns from, and dumps the cleaned unit before any injection
+   (`cleaned-pre-inj::MEASUREMENT_UNIT`). In principle the injection could start from the intake output and replicate
+   the cleaning, but taking the dumped column from the engine guarantees exactly the same steps as the engine's. From
+   the same run, plug back in the
+   reference limits and the coding systems, both from `extract_regions_limits`:
+   - reference limits need a minimal validation: review LIMITS / UNDECIDED / REJECTED (mainly the new and changed
+     pairs) and update [`ref_text_limits.tsv`](/src/kanta/engine/data/ref_text_limits.tsv);
+   - coding systems need no review unless the numbers are massively off compared with the previous table: copy
+     `coding_system_map.tsv` over [the engine's](/src/kanta/engine/data/coding_system_map.tsv).
+2. **Dry run with the new injection.** Its `summaries` outputs go to the OMOP mapping
+   ([FINNGEN/kanta_lab_harmonisation_public](https://github.com/FINNGEN/kanta_lab_harmonisation_public)).
+3. **OMOP feedback loop.** With the updated mapping, rerun and check the results with the phenotype team; repeat until
+   the OMOP mapping is set.
+4. **Run on the final OMOP mapping** to build the OMOP-dependent tables: `pos_tables` (for
+   [`negpos_mapping.tsv`](/src/kanta/engine/data/negpos_mapping.tsv) and
+   [`kanta_plusplus_abnormality.tsv`](/src/kanta/engine/data/kanta_plusplus_abnormality.tsv)) and `abnormality` (for
+   [`abnormality_estimation.table.tsv`](/src/kanta/engine/data/abnormality_estimation.table.tsv)). Review them and plug
+   them back in.
+5. **Final run**: the release.
+
+```mermaid
+flowchart LR
+  run1["1. Dry run"] -->|cleaned units| inj["Unit injection: kanta_lab_injection"]
+  run1 -->|reference limits, coding systems| data["src/kanta/engine/data"]
+  inj -->|injection branch| run2["2. Dry run"]
+  run2 -->|summaries| omop["OMOP mapping: kanta_lab_harmonisation_public"]
+  omop -->|harmonization branch| run3["3. Rerun, review with the phenotype team"]
+  run3 -->|until the mapping is set| omop
+  run3 --> run4["4. Run on the final OMOP mapping"]
+  run4 -->|pos/neg and abnormality tables| data
+  data --> run5["5. Final run: the release"]
 ```
-usage: main.py [-h] --raw-data RAW_DATA [--log {critical,error,warn,warning,info,debug}] [--test] [--gz] [--mp [MP]] [-o OUT] [--prefix PREFIX] [--sep SEP]
-               [--chunk-size CHUNK_SIZE] [--lines LINES]
 
-Kanta Lab analysis pipeline: clean data ⇒ analysis data.
+How a table gets plugged back in depends on where the engine reads it from:
+- **Fetched at run time** from their repos, by branch: the injection results (`engine.injection_branch`) and the Usagi
+  OMOP tables (`engine.harmonization_branch`). Point the run at the branch; no rebuild.
+- **Bundled in the image** from [`src/kanta/engine/data/`](/src/kanta/engine/data/): reference limits, coding systems,
+  secondary injection rules (`omop_injection.tsv`), pos/neg and abnormality tables, QC rules. Copy the reviewed table
+  there, commit, and rebuild the engine image (`docker/build_docker.py`) before the next run.
 
-options:
-  -h, --help            show this help message and exit
-  --raw-data RAW_DATA   Path to input raw file. File should be tsv.
-  --log {critical,error,warn,warning,info,debug Provide logging level. Example '--log debug', default = 'warning'
-  --test                Reads first chunk only
-  --gz                  Ouputs to gz
-  --mp [MP]             Flag for multiproc. Default is '0' (no multiproc). If passed it defaults to cpu count, but one can also specify the number of cpus  to use: e.g. '--mp' or '--mp 4'.
-  -o OUT, --out OUT     Folder in which to save the results (default = current working directory)
-  --prefix PREFIX       Prefix of the out files (default = 'kanta_YYYY_MM_DD')
-  --sep SEP             Separator (default = tab)
-  --chunk-size CHUNK_SIZE
-                        Number of rows to be processed by each chunk (default = '1000*n_cpus').
-  --lines LINES         Number of lines in input file (calculated/estimated otherwise).
+# WDL
 
-```
+[`wdl/intake.wdl`](/wdl/intake.wdl) runs `assemble` and `tidyup` (above). [`wdl/engine.wdl`](/wdl/engine.wdl) runs
+the engine on the tidied parquet, then builds the QC and reference tables for the next release from its output:
+
+| Task | What it produces |
+|---|---|
+| `run_engine` | The engine output, the release file, the errors / abbreviation / unit change tables and the log |
+| `abnormality` | Per-concept abnormality limits, for `abnormality_estimation.table.tsv` ([`scripts/abnormality/`](/scripts/abnormality/)) |
+| `pos_tables` | Free-text pos/neg and `+` summaries, for `negpos_mapping.tsv` / `kanta_plusplus_abnormality.tsv` ([`scripts/posneg/`](/scripts/posneg/)) |
+| `extract_regions_limits` | Reference limits from text (LIMITS / UNDECIDED / REJECTED, for `ref_text_limits.tsv`; [`scripts/ref_ranges/`](/scripts/ref_ranges/)) and `coding_system_map.tsv` ([`scripts/sote/data/`](/scripts/sote/data/)) |
+| `metabolomics` | The Nightingale metabolomics panel and risk scores, unpacked from free text ([`scripts/metabolomics/`](/scripts/metabolomics/)) |
+| `release_counts` | Per-concept counts of this release and an earlier one, and how they changed ([`scripts/counts/`](/scripts/counts/)) |
+| `summaries` | Summary tables per test name × unit, for the OMOP mappings ([`scripts/summaries/`](/scripts/summaries/)) |
+| `release` | The engine outputs, the count-change plot and the metabolomics tables, named with the release name (`<prefix>_<YYYY_MM_DD>`) |
+
+The reference tables these tasks produce are reviewed and copied into `src/kanta/engine/data/` by hand; the engine
+never writes them.

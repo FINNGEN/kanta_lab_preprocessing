@@ -44,9 +44,13 @@ workflow engine {
     docker = downstream_docker
   }
 
-  # Reference-range texts -> numeric limits, checked against the rows; LIMITS feeds the next run's
-  # reference extraction (approved + final limits), UNDECIDED (still to decide on) and REJECTED (out for good) split the pairs not approved
-  call ref_limits {
+  # Reference tables for the next run, built from this run's output:
+  # - reference-range texts -> numeric limits, checked against the rows; LIMITS feeds the next run's reference
+  #   extraction (approved + final limits), UNDECIDED (still to decide on) and REJECTED (out for good) split the pairs
+  #   not approved
+  # - coding system -> organisation and maakunta from THL's sote register (coding_system_map.tsv, to copy into
+  #   src/kanta/engine/data/ for the next run)
+  call extract_regions_limits {
     input:
     engine_parquet = run_engine.engine_parquet,
     docker = downstream_docker
@@ -108,10 +112,12 @@ workflow engine {
     File pos_neg_summary_pasteable = pos_tables.pos_neg_summary_pasteable
     File plusplus_summary = pos_tables.plusplus_summary
     File plusplus_summary_pasteable = pos_tables.plusplus_summary_pasteable
-    File ref_text_table = ref_limits.table
-    File ref_text_limits = ref_limits.limits
-    File ref_text_undecided = ref_limits.undecided
-    File ref_text_rejected = ref_limits.rejected
+    File ref_text_table = extract_regions_limits.table
+    File ref_text_limits = extract_regions_limits.limits
+    File ref_text_undecided = extract_regions_limits.undecided
+    File ref_text_rejected = extract_regions_limits.rejected
+    File coding_system_map = extract_regions_limits.coding_system_map
+    File coding_system_counts = extract_regions_limits.coding_system_counts
     File metabolomics_biomarkers = release.metabolomics_biomarkers
     File metabolomics_risks = release.metabolomics_risks
     File counts_new = release_counts.counts_new
@@ -234,7 +240,7 @@ task pos_tables {
 }
 
 
-task ref_limits {
+task extract_regions_limits {
   input {
     File engine_parquet
     String docker
@@ -245,6 +251,9 @@ task ref_limits {
     # Rows per test name x reference text, the limits parsed from each text, and the value/sex/age checks.
     # Step 1 is one duckdb pass; its cache and spill files go to ./tmp on the local disk.
     python3 /scripts/ref_ranges/ref_text_limits.py --input ~{engine_parquet} --out . --tmp tmp
+    # Coding systems with more than 5 rows -> organisation and maakunta, from THL's sote register (bundled in the
+    # image next to the script): coding_system_counts.tsv (counts) and coding_system_map.tsv (the engine's table)
+    python3 /scripts/sote/data/coding_system_map.py --input ~{engine_parquet} --out .
   >>>
 
   output {
@@ -252,6 +261,8 @@ task ref_limits {
     File limits = "ref_text_table_LIMITS.tsv"
     File undecided = "ref_text_table_UNDECIDED.tsv"
     File rejected = "ref_text_table_REJECTED.tsv"
+    File coding_system_map = "coding_system_map.tsv"
+    File coding_system_counts = "coding_system_counts.tsv"
   }
 
   runtime {

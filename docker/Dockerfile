@@ -25,3 +25,6 @@ ADD scripts/posneg scripts/posneg
 ADD scripts/metabolomics scripts/metabolomics
 ADD scripts/ref_ranges scripts/ref_ranges
 ADD scripts/summaries/summaries.py scripts/summaries/summaries.py
+# service-provider / region scripts, with their reference tables in scripts/sote/data (THL's sote register,
+# municipality -> maakunta): code and public reference data only, about 9 MB
+ADD scripts/sote scripts/sote
