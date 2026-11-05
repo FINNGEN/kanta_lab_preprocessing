@@ -273,7 +273,7 @@ flowchart LR
   inj -->|injection branch| run2["2. Dry run"]
   run2 -->|summaries| omop["OMOP mapping: kanta_lab_harmonisation_public"]
   omop -->|harmonization branch| run3["3. Rerun, review with the phenotype team"]
-  run3 -->|until the mapping is set| omop
+  run3 -->|update the mapping and rerun, until it is set| run3
   run3 --> run4["4. Run on the final OMOP mapping"]
   run4 -->|pos/neg and abnormality tables| data
   data --> run5["5. Final run: the release"]
