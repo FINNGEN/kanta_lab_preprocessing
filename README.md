@@ -27,7 +27,7 @@ Shortcut, in `~/.bashrc`:
 ```bash
 alias kpy='UV_PROJECT_ENVIRONMENT=$HOME/.venvs/kanta uv run --locked --project $HOME/Projects/kanta_lab_preprocessing python'
 ```
-
+This alias can also be used for the other helper scripts that live inside the repository.
 ```bash
 kpy -m kanta.intake ...
 kpy -m kanta.engine ...
