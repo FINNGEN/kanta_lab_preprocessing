@@ -258,7 +258,8 @@ below all start from its tidied parquet.
    [`negpos_mapping.tsv`](/src/kanta/engine/data/negpos_mapping.tsv) and
    [`kanta_plusplus_abnormality.tsv`](/src/kanta/engine/data/kanta_plusplus_abnormality.tsv)) and `abnormality` (for
    [`abnormality_estimation.table.tsv`](/src/kanta/engine/data/abnormality_estimation.table.tsv)). Review them and plug
-   them back in.
+   them back in. Also refine the QC limits, rerunning as needed: [`omop_qc.tsv`](/src/kanta/engine/data/omop_qc.tsv)
+   is for now a standalone table edited by hand, with no WDL task producing it.
 5. **Final run**: the release.
 
 ```mermaid
