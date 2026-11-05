@@ -7,30 +7,36 @@ THL's national code list, or a coding system of a private organisation or of a l
 SP, its rows with a maakunta vote, and the SP gets the top maakunta with its purity; region_people.py then uses it
 for all the SP's rows, including those without a maakunta of their own.
 
-Engine outputs from before CODING_SYSTEM_MAAKUNTA existed are handled by joining the table on CODING_SYSTEM instead
-(exact OIDs only: the few coding systems the table doesn't list get no maakunta).
-
 Input is the engine output parquet. Writes to --out:
-- sp_x_codingsystem.tsv       SP x CODING_SYSTEM row counts (e.g. to find the SPs behind an unmapped coding system)
-- sp_top_codingsystem_map.tsv per SP: top CODING_SYSTEM_MAP organisation among rows with one, its share, next 3
-- sp_region.tsv               the SP -> maakunta link: top maakunta per SP with its purity (pct_maakunta, over the
-                              SP's rows with a maakunta) and the next 3
+- sp_region.tsv          the SP -> maakunta link: top maakunta per SP with its purity (pct_maakunta, over the SP's
+                         rows with a maakunta) and the next 3; also the SP's top CODING_SYSTEM_MAP organisation
+- sp_x_codingsystem.tsv  SP x CODING_SYSTEM row counts, for diagnostics (e.g. the SPs behind an unmapped coding system)
 """
 import argparse, json
 from pathlib import Path
 import duckdb
 import pandas as pd
 
-CS_MAP = Path(__file__).resolve().parents[3] / 'src' / 'kanta' / 'engine' / 'data' / 'coding_system_map.tsv'
+ENGINE_DIR = Path('/mnt/disks/data/kanta/engine')
+
+
+def latest_engine_output(engine_dir=ENGINE_DIR):
+    """Most recent engine output: runs sit in <engine_dir>/<prefix>_<YYYY_MM_DD>/<prefix>_<YYYY_MM_DD>.parquet; the one
+    with the latest date in its folder name (ties: the newest file), or None if there is none."""
+    runs = [(d.name[-10:], (d / f'{d.name}.parquet').stat().st_mtime, d / f'{d.name}.parquet')
+            for d in engine_dir.glob('*_[0-9][0-9][0-9][0-9]_[0-9][0-9]_[0-9][0-9]') if (d / f'{d.name}.parquet').is_file()]
+    return max(runs)[2] if runs else None
+
 
 ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-ap.add_argument('--input', required=True, type=Path,
-                help="Engine output parquet (needs SERVICE_PROVIDER, CODING_SYSTEM, CODING_SYSTEM_MAP; "
-                     "CODING_SYSTEM_MAAKUNTA if present, else --cs-map is joined on CODING_SYSTEM)")
+ap.add_argument('--input', type=Path, default=latest_engine_output(),
+                help="Engine output parquet (needs SERVICE_PROVIDER, CODING_SYSTEM, CODING_SYSTEM_MAP, CODING_SYSTEM_MAAKUNTA) "
+                     f"(default: the most recent run in {ENGINE_DIR}, now %(default)s)")
 ap.add_argument('--out', type=Path, default=Path('/mnt/disks/data/kanta/service-provider/region'), help="Output directory")
-ap.add_argument('--cs-map', type=Path, default=CS_MAP,
-                help="Coding system table, used when the input lacks CODING_SYSTEM_MAAKUNTA (default: %(default)s)")
 args = ap.parse_args()
+if args.input is None:
+    raise SystemExit(f"No engine output found in {ENGINE_DIR}: pass --input <engine_output>.parquet")
+print(f"Input: {args.input}")
 args.out.mkdir(parents=True, exist_ok=True)
 
 
@@ -62,19 +68,12 @@ def is_set(s):
 con = duckdb.connect()
 P = f"read_parquet('{args.input}')"
 cols = set(con.sql(f"select * from {P} limit 0").columns)
-missing = {'SERVICE_PROVIDER', 'CODING_SYSTEM', 'CODING_SYSTEM_MAP'} - cols
+missing = {'SERVICE_PROVIDER', 'CODING_SYSTEM', 'CODING_SYSTEM_MAP', 'CODING_SYSTEM_MAAKUNTA'} - cols
 if missing:
-    raise SystemExit(f"{args.input}: not an engine output file, missing columns {sorted(missing)}")
-has_mk = 'CODING_SYSTEM_MAAKUNTA' in cols
-mk_expr = 'CODING_SYSTEM_MAAKUNTA' if has_mk else 'null::varchar'
-agg = con.sql(f"""select SERVICE_PROVIDER s, CODING_SYSTEM cs, CODING_SYSTEM_MAP csm, {mk_expr} mk, count(*)::bigint n
-                  from {P} group by all""").df()
-if not has_mk:
-    if not args.cs_map.exists():
-        raise SystemExit(f"{args.input} has no CODING_SYSTEM_MAAKUNTA and {args.cs_map} isn't there (--cs-map)")
-    cs_map = pd.read_csv(args.cs_map, sep='\t', usecols=['CODING_SYSTEM', 'maakunta'], dtype=str, keep_default_na=False)
-    agg['mk'] = agg['cs'].map(dict(zip(cs_map['CODING_SYSTEM'], cs_map['maakunta'])))
-    print(f"No CODING_SYSTEM_MAAKUNTA in {args.input.name}: maakunta from {args.cs_map}")
+    raise SystemExit(f"{args.input}: missing columns {sorted(missing)} (CODING_SYSTEM_MAAKUNTA: engine outputs from "
+                     f"2026-11-05 on)")
+agg = con.sql(f"""select SERVICE_PROVIDER s, CODING_SYSTEM cs, CODING_SYSTEM_MAP csm, CODING_SYSTEM_MAAKUNTA mk,
+                  count(*)::bigint n from {P} group by all""").df()
 
 x = agg.groupby(['s', 'cs'], dropna=False, as_index=False)['n'].sum()
 write_tsv(x.sort_values('n', ascending=False), args.out / 'sp_x_codingsystem.tsv')
@@ -83,19 +82,12 @@ n_total = agg.groupby('s', dropna=False)['n'].sum()
 # --- SP -> top CODING_SYSTEM_MAP organisation (the engine's name), among rows with one
 csm = agg[is_set(agg['csm'])].groupby(['s', 'csm'], as_index=False)['n'].sum()
 top_csm = top_with_next3(csm, 's', 'csm')
-rows = []
-for s, tot in n_total.items():
-    t = top_csm.get(s)
-    rows.append({'s': s, 'n_total': int(tot), 'n_mapped': t['n'] if t else 0,
-                 'pct_na': round(100 * (1 - (t['n'] if t else 0) / tot), 2),
-                 'top_csm': t and t['top'], 'n_top': t and t['n_top'], 'pct_top': t and t['pct_top'],
-                 'next3_csm': t['next3'] if t else '{}'})
-sp_csm = pd.DataFrame(rows).astype({'n_top': 'Int64'}).sort_values(['n_total', 'pct_top'], ascending=False, na_position='last')
-write_tsv(sp_csm, args.out / 'sp_top_codingsystem_map.tsv')
+sp_region = pd.DataFrame([{'s': s, 'n_total': int(tot), 'top_csm': top_csm[s]['top'] if s in top_csm else None,
+                           'pct_top': top_csm[s]['pct_top'] if s in top_csm else None} for s, tot in n_total.items()])
+sp_region = sp_region.sort_values(['n_total', 'pct_top'], ascending=False, na_position='last')
 
 # --- SP -> maakunta: rows with a maakunta vote; purity is over those rows
 votes = top_with_next3(agg[is_set(agg['mk'])].groupby(['s', 'mk'], as_index=False)['n'].sum(), 's', 'mk')
-sp_region = sp_csm[['s', 'n_total', 'top_csm', 'pct_top']].copy()
 get = lambda key: sp_region['s'].map(lambda s: votes[s][key] if s in votes else None)
 sp_region['n_region'] = get('n').astype('Int64')
 sp_region['pct_region_of_total'] = (100 * sp_region['n_region'] / sp_region['n_total']).round(2)

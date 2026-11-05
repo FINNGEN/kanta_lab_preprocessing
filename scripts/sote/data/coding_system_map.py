@@ -2,8 +2,8 @@
 
 Step 1, counts (cached): the distinct CODING_SYSTEM values of the engine output with their row counts and the
 engine's own organisation name (CODING_SYSTEM_MAP), keeping values with more than --min-count rows, are written to
-coding_system_counts.tsv next to this script (columns CODING_SYSTEM, CODING_SYSTEM_MAP, CNT). When that file exists
-the engine output isn't read again (--force recounts).
+<out>/coding_system_counts.tsv (columns CODING_SYSTEM, CODING_SYSTEM_MAP, CNT). When that file exists the engine
+output isn't read again (--force recounts).
 
 Step 2, mapping, per coding system, in this order:
   1. not_org        NA and THL's national code lists (1.2.246.537.6.*): no organisation.
@@ -26,20 +26,19 @@ serving several regions (MULTI_REGION_LABS), and its municipality (A:Sijainti ku
 municipality_to_region.tsv (municipality_history.tsv for merged municipalities: maakunta only). Otherwise
 multi_region_lab / not_public / no_municipality, or the lookup outcome when unresolved.
 
-Writes src/kanta/engine/data/coding_system_map.tsv, the table kanta.engine maps CODING_SYSTEM with (to
-CODING_SYSTEM_MAP and CODING_SYSTEM_MAAKUNTA), one row per coding system:
+Writes <out>/coding_system_map.tsv, one row per coding system; copied to src/kanta/engine/data/coding_system_map.tsv,
+it is the table kanta.engine maps CODING_SYSTEM with (to CODING_SYSTEM_MAP and CODING_SYSTEM_MAAKUNTA):
     CODING_SYSTEM  CNT  engine_org  code  how  sote_id  org_name  unit_name  sector  municipality  maakunta  hva
     region_reason
 engine_org is the name the engine output being counted gave (CODING_SYSTEM_MAP), kept for comparison.
 
-    python3 data/coding_system_map.py --input <engine_output>.parquet [--min-count 5] [--force]
+    python3 data/coding_system_map.py --input <engine_output>.parquet [--out DIR] [--min-count 5] [--force]
 """
 import argparse, csv, gzip, re
 from collections import defaultdict
 from pathlib import Path
 
 DATA = Path(__file__).resolve().parent  # scripts/sote/data
-ENGINE_DATA = Path(__file__).resolve().parents[3] / 'src' / 'kanta' / 'engine' / 'data'
 SOTE = DATA / 'sote.txt.gz'  # THL sote organisation register (';'-delimited, ISO-8859-1)
 MUNI_REGION = DATA / 'municipality_to_region.tsv'
 MUNI_HISTORY = DATA / 'municipality_history.tsv'
@@ -66,14 +65,30 @@ COUNT_COLS = ['CODING_SYSTEM', 'CODING_SYSTEM_MAP', 'CNT']
 OUT_COLS = ['CODING_SYSTEM', 'CNT', 'engine_org', 'code', 'how', 'sote_id', 'org_name', 'unit_name', 'sector',
             'municipality', 'maakunta', 'hva', 'region_reason']
 
+ENGINE_DIR = Path('/mnt/disks/data/kanta/engine')
+
+
+def latest_engine_output(engine_dir=ENGINE_DIR):
+    """Most recent engine output: runs sit in <engine_dir>/<prefix>_<YYYY_MM_DD>/<prefix>_<YYYY_MM_DD>.parquet; the one
+    with the latest date in its folder name (ties: the newest file), or None if there is none."""
+    runs = [(d.name[-10:], (d / f'{d.name}.parquet').stat().st_mtime, d / f'{d.name}.parquet')
+            for d in engine_dir.glob('*_[0-9][0-9][0-9][0-9]_[0-9][0-9]_[0-9][0-9]') if (d / f'{d.name}.parquet').is_file()]
+    return max(runs)[2] if runs else None
+
+
 ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-ap.add_argument('--input', type=Path, help="Engine output parquet (CODING_SYSTEM or CODING_SYSTEM_OID column; "
-                                           "only read when the counts cache is missing or with --force)")
+ap.add_argument('--input', type=Path, default=latest_engine_output(),
+                help="Engine output parquet (CODING_SYSTEM or CODING_SYSTEM_OID column; only read when the counts cache "
+                     f"is missing or with --force) (default: the most recent run in {ENGINE_DIR}, now %(default)s)")
 ap.add_argument('--min-count', type=int, default=5, help="Keep coding systems with more than this many rows (default: 5)")
-ap.add_argument('--counts', type=Path, default=DATA / 'coding_system_counts.tsv', help="Counts cache (default: %(default)s)")
-ap.add_argument('--out', type=Path, default=ENGINE_DATA / 'coding_system_map.tsv', help="Mapping output (default: %(default)s)")
+ap.add_argument('--out', type=Path, default=Path('.'),
+                help="Output directory: the counts cache coding_system_counts.tsv and coding_system_map.tsv go there "
+                     "(default: current directory)")
 ap.add_argument('--force', action='store_true', help="Recount from --input even if the counts cache exists")
 args = ap.parse_args()
+args.out.mkdir(parents=True, exist_ok=True)
+counts_file = args.out / 'coding_system_counts.tsv'
+map_file = args.out / 'coding_system_map.tsv'
 
 
 def ytunnus_check_digit(body):
@@ -93,9 +108,10 @@ def norm_code(code):
 
 
 # --- Step 1: coding system counts, cached
-if args.force or not args.counts.exists():
+if args.force or not counts_file.exists():
     if args.input is None:
-        raise SystemExit(f"{args.counts} not found: pass --input <engine_output>.parquet to count coding systems")
+        raise SystemExit(f"{counts_file} not found and no engine output in {ENGINE_DIR}: pass --input <engine_output>.parquet")
+    print(f"Counting coding systems in {args.input}")
     import duckdb
     con = duckdb.connect()
     P = f"read_parquet('{args.input}')"
@@ -107,17 +123,17 @@ if args.force or not args.counts.exists():
     org_expr = f'coalesce("{org_col}", \'NA\')' if org_col else "'NA'"
     counts = con.sql(f"""select coalesce("{cs_col}", 'NA') cs, {org_expr} org, count(*)::bigint n from {P}
                          group by all having count(*) > {args.min_count} order by n desc, cs""").fetchall()
-    with open(args.counts, 'w', encoding='utf-8', newline='') as f:
+    with open(counts_file, 'w', encoding='utf-8', newline='') as f:
         w = csv.writer(f, delimiter='\t', lineterminator='\n')
         w.writerow(COUNT_COLS)
         w.writerows(counts)
-    print(f"Wrote {args.counts}: {len(counts):,} (coding system, engine org) pairs with > {args.min_count} rows")
+    print(f"Wrote {counts_file}: {len(counts):,} (coding system, engine org) pairs with > {args.min_count} rows")
 else:
-    with open(args.counts, encoding='utf-8') as f:
+    with open(counts_file, encoding='utf-8') as f:
         counts = [(r['CODING_SYSTEM'], r.get('CODING_SYSTEM_MAP') or 'NA', int(r['CNT']))
                   for r in csv.DictReader(f, delimiter='\t')]
     counts = [c for c in counts if c[2] > args.min_count]
-    print(f"Loaded {args.counts} (--force to recount): {len(counts):,} pairs with > {args.min_count} rows")
+    print(f"Loaded {counts_file} (--force to recount): {len(counts):,} pairs with > {args.min_count} rows")
 
 # one row per coding system: rows summed, the engine's name with the most rows kept
 per_cs = defaultdict(lambda: [0, None, 0])
@@ -231,11 +247,11 @@ for cs, (n, engine_org, _) in sorted(per_cs.items(), key=lambda kv: (-kv[1][0], 
         row['region_reason'] = how
     out.append(row)
 
-with open(args.out, 'w', encoding='utf-8', newline='') as f:
+with open(map_file, 'w', encoding='utf-8', newline='') as f:
     w = csv.writer(f, delimiter='\t', lineterminator='\n')
     w.writerow(OUT_COLS)
     w.writerows([['' if r[c] is None else r[c] for c in OUT_COLS] for r in out])
-print(f"Wrote {args.out}: {len(out):,} coding systems")
+print(f"Wrote {map_file}: {len(out):,} coding systems")
 
 # --- Summary, over rows of coding systems that name an organisation
 org_rows = [r for r in out if r['how'] != 'not_org']

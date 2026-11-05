@@ -43,8 +43,21 @@ MAAKUNTA_LAT = {
     'Keski-Pohjanmaa': 63.8, 'Kainuu': 64.2, 'Pohjois-Pohjanmaa': 65.0, 'Lappi': 66.5,
 }
 
+ENGINE_DIR = Path('/mnt/disks/data/kanta/engine')
+
+
+def latest_engine_output(engine_dir=ENGINE_DIR):
+    """Most recent engine output: runs sit in <engine_dir>/<prefix>_<YYYY_MM_DD>/<prefix>_<YYYY_MM_DD>.parquet; the one
+    with the latest date in its folder name (ties: the newest file), or None if there is none."""
+    runs = [(d.name[-10:], (d / f'{d.name}.parquet').stat().st_mtime, d / f'{d.name}.parquet')
+            for d in engine_dir.glob('*_[0-9][0-9][0-9][0-9]_[0-9][0-9]_[0-9][0-9]') if (d / f'{d.name}.parquet').is_file()]
+    return max(runs)[2] if runs else None
+
+
 ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-ap.add_argument('--input', required=True, type=Path, help="Engine output parquet (needs FINNGENID, SERVICE_PROVIDER)")
+ap.add_argument('--input', type=Path, default=latest_engine_output(),
+                help="Engine output parquet (needs FINNGENID, SERVICE_PROVIDER) "
+                     f"(default: the most recent run in {ENGINE_DIR}, now %(default)s)")
 ap.add_argument('--out', type=Path, default=Path('/mnt/disks/data/kanta/service-provider/region'), help="Output directory; writes person_maakunta_t<threshold>.tsv and the other t<threshold>-tagged outputs there")
 ap.add_argument('--sp-region', type=Path, default=None, help="sp_region.tsv from sp_region_cs.py (default: <out>/sp_region.tsv)")
 ap.add_argument('--sp-min-pct', type=float, default=0, help="Only use SPs whose own maakunta purity (pct_maakunta) is at least this (default: 0, all SPs with a maakunta)")
@@ -77,6 +90,9 @@ ap.add_argument('--min-cell', type=int, default=5,
                      "them (default: 5, i.e. no counts under 5)")
 ap.add_argument('--force', action='store_true', help="Recompute and overwrite every output, ignoring existing files")
 args = ap.parse_args()
+if args.input is None:
+    raise SystemExit(f"No engine output found in {ENGINE_DIR}: pass --input <engine_output>.parquet")
+print(f"Input: {args.input}")
 pheno = args.pheno.expanduser()
 if not pheno.exists():
     raise SystemExit(f"{pheno} not found (--pheno)")

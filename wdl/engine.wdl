@@ -172,6 +172,8 @@ task run_engine {
     cpu: "~{cpus}"
     memory: "64 GB"
     disks: "local-disk ~{ceil(size(tidied_parquet, 'GB') * 10) + 50} SSD"
+    # a preempted VM is reported as a failed task, so retry instead of failing the workflow
+    maxRetries: 2
   }
 }
 
