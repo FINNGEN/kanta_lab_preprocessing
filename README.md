@@ -264,14 +264,15 @@ below all start from its tidied parquet.
 ```mermaid
 flowchart TD
   run1["1. Dry run"] -->|cleaned units| inj["Unit injection<br/>kanta_lab_injection"]
-  run1 -->|reference limits,<br/>coding systems| data["Engine reference tables<br/>src/kanta/engine/data"]
-  inj -->|injection branch| run2["2. Dry run"]
+  run1 -->|reference limits,<br/>coding systems| data["All tables<br/>src/kanta/engine/data<br/> up to date"]
+  inj -->|injection branch commit| run2["2. Dry run"]
   run2 -->|summaries| omop["OMOP mapping<br/>kanta_lab_harmonisation_public"]
-  omop -->|harmonization branch| run3["3. Rerun, review with<br/>the phenotype team"]
+  omop -->|harmonization branch update| run3["3. Rerun, review with<br/>the phenotype team"]
   run3 -->|update the mapping,<br/>rerun until set| run3
   run3 --> run4["4. Run on the final<br/>OMOP mapping"]
-  run4 -->|pos/neg and<br/>abnormality tables| data
-  data --> run5["5. Final run<br/>the release"]
+  run4 -->|update QC limits| run4
+  run4 -->|pos/neg and<br/>abnormality tables,<br/> manual review| data
+  data --> run5["5. Final run"]
 ```
 
 How a table gets plugged back in depends on where the engine reads it from:
