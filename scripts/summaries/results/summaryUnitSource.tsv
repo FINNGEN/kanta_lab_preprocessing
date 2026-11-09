@@ -4752,9 +4752,9 @@ p-antifactorix-aktiivisuus(hepariininestovaiku	u/ml	Source	25	8
 p-antifaktorix-ak.(frag.hepar.estovaikut)	u/ml	Source	63	23
 p-antifaktorix-aktiivisuus	iu/ml	Source	47	19
 p-antifaktorix-aktiivisuus	u/ml	Source	43	21
-p-antifxa	iu/ml	PrimaryInjection	9407	2821
+p-antifxa	iu/ml	PrimaryInjection	11583	3712
 p-antifxa	iu/ml	Source	13887	4268
-p-antifxa	u/ml	PrimaryInjection	2210	944
+p-antifxa	u/ml	PrimaryInjection	34	13
 p-antifxa	u/ml	Source	11346	3827
 p-antifxa3	iu/ml	Source	53	15
 p-antirtombiiniiii(trombot-paketti)	%	Source	18	18
@@ -6972,12 +6972,12 @@ s-chpnaba	eiu	Source	329	288
 s-chpnaba	u/ml	PrimaryInjection	6	6
 s-chpnaba	u/ml	Source	1783	1556
 s-chpnabg	au/ml	Source	29	22
-s-chpnabg	bu/ml	PrimaryInjection	1297	1182
 s-chpnabg	bu/ml	Source	470	412
 s-chpnabg	eiu	PrimaryInjection	176	168
 s-chpnabg	eiu	Source	1857	1702
 s-chpnabg	form	Source	22	20
 s-chpnabg	titre	Source	435	387
+s-chpnabg	u/ml	PrimaryInjection	1302	1187
 s-chpnabg	u/ml	Source	1638	1438
 s-chpnabm	index	PrimaryInjection	7	7
 s-chpnabm	index	Source	946	838
@@ -7294,9 +7294,9 @@ s-fosfolipaasi-a2-reseptori,vasta-aineet	titre	Source	44	11
 s-fpsa	ug/l	Source	29	28
 s-frtuab	titre	Source	135	111
 s-frtuabg	titre	Source	9	8
-s-fsh	iu/l	PrimaryInjection	5121	3748
+s-fsh	iu/l	PrimaryInjection	6868	5259
 s-fsh	iu/l	Source	15461	12041
-s-fsh	u/l	PrimaryInjection	1768	1595
+s-fsh	u/l	PrimaryInjection	21	21
 s-fsh	u/l	Source	15547	12011
 s-fumoabe	u/ml	Source	6	6
 s-fusariummoniliformae,igevasta-aineet	u/ml	Source	12	12
@@ -8641,8 +8641,8 @@ s-reumafaktori,määritys	kiu/l	Source	249	236
 s-rf	iu/l	Source	9	9
 s-rf	iu/ml	PrimaryInjection	1359	1287
 s-rf	iu/ml	Source	11533	10370
+s-rf	kiu/l	PrimaryInjection	1827	1713
 s-rf	kiu/l	Source	4188	3590
-s-rf	u/ml	PrimaryInjection	1827	1713
 s-rf	u/ml	Source	275	261
 s-rfeld1e	u/ml	Source	6	6
 s-rgadc1e	u/ml	Source	173	168
@@ -9051,10 +9051,9 @@ s-trvirig	mg/l	Source	28	28
 s-trypg2	ug/l	Source	459	104
 s-trypt	ug/l	Source	3751	2416
 s-tryptaasi	ug/l	Source	534	421
-s-tsh	miu/l	PrimaryInjection	21655	15703
 s-tsh	miu/l	Source	95437	51397
 s-tsh	mlu/l	SecondaryCorrection	113	87
-s-tsh	mu/l	PrimaryInjection	6432	4700
+s-tsh	mu/l	PrimaryInjection	28087	20203
 s-tsh	mu/l	Source	277574	137862
 s-tsh	u/l	Source	142	86
 s-tsh-abr	iu/ml	Source	6	6
@@ -10002,13 +10001,12 @@ u-osmole	mosm/kgh2o	Source	70885	30529
 u-osmolie	mosm/kgh2o	Source	8	8
 u-pbg	umol/l	Source	252	214
 u-pbg	umol/mmol	Source	6	6
-u-ph	1	PrimaryInjection	670545	194498
 u-ph	1	Source	663	536
-u-ph	form	SecondaryCorrection	18123	13598
+u-ph	form	SecondaryCorrection	688668	200735
 u-ph	ph	PrimaryInjection	7	6
 u-ph	ph	Source	222	123
-u-ph-o	N	SecondaryCorrection	2076	585
-u-ph-o	form	SecondaryCorrection	55502	24744
+u-ph-o	N	SecondaryCorrection	55588	24346
+u-ph-o	form	SecondaryCorrection	1990	1493
 u-pi	mmol/l	Source	828	356
 u-pien.ep	e6/l	Source	1002	851
 u-pienep	e6/l	PrimaryInjection	153149	52334
@@ -10053,8 +10051,8 @@ u-suhteellinentiheys	1	Source	331	223
 u-suhteellinentiheys	kg/l	Source	82	55
 u-suhti	1	Source	664	536
 u-suhti	form	Source	38	31
-u-suhti	g/ml	SecondaryCorrection	289439	79894
-u-suhti	kg/l	PrimaryInjection	7	6
+u-suhti	g/ml	SecondaryCorrection	3084	2234
+u-suhti	kg/l	PrimaryInjection	286362	78065
 u-suhti	kg/l	Source	41628	12844
 u-suhti	ratio	Source	607	94
 u-suhti-o		SecondaryCorrection	47147	10381

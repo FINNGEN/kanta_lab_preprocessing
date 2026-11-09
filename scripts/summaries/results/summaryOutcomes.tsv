@@ -9528,10 +9528,11 @@ p-ancab		N	40	39
 p-angap	mmol/l	A	1802	1221
 p-anti-a-isoagglutiniinitiitteri,igm	titre	N	32	30
 p-anti-b-isoagglutiniinitiitteri,igm	titre	N	32	30
+p-antifxa	iu/ml	A	10	7
 p-antifxa	iu/ml	HH	68	66
-p-antifxa	iu/ml	N	9330	2820
-p-antifxa	u/ml	A	32	22
-p-antifxa	u/ml	N	121	65
+p-antifxa	iu/ml	N	9364	2832
+p-antifxa	u/ml	A	23	16
+p-antifxa	u/ml	N	87	53
 p-antifxa	umol/l	N	15	6
 p-antifxa		HH	8	8
 p-antifxa		N	5337	2989
@@ -14139,17 +14140,16 @@ s-chpnaba		A	6	6
 s-chpnaba		H	60	47
 s-chpnaba		N	344	332
 s-chpnabg	au/ml	H	25	18
-s-chpnabg	bu/ml	A	209	175
-s-chpnabg	bu/ml	H	396	358
-s-chpnabg	bu/ml	N	163	154
+s-chpnabg	bu/ml	A	186	153
+s-chpnabg	bu/ml	N	86	79
 s-chpnabg	eiu	A	26	22
 s-chpnabg	eiu	H	222	186
 s-chpnabg	eiu	N	286	275
 s-chpnabg	form	N	12	11
 s-chpnabg	titre	N	24	20
-s-chpnabg	u/ml	A	76	73
-s-chpnabg	u/ml	H	1128	970
-s-chpnabg	u/ml	N	136	130
+s-chpnabg	u/ml	A	99	95
+s-chpnabg	u/ml	H	1524	1313
+s-chpnabg	u/ml	N	213	205
 s-chpnabg		A	31	23
 s-chpnabg		H	20	20
 s-chpnabg		N	388	374
@@ -14746,14 +14746,14 @@ s-frtuab		A	8	7
 s-frtuab		N	63	48
 s-frtuabg		N	7	7
 s-frtuabm		N	9	9
-s-fsh	iu/l	A	495	290
-s-fsh	iu/l	H	601	359
-s-fsh	iu/l	L	50	43
-s-fsh	iu/l	N	5399	4468
-s-fsh	u/l	A	279	199
-s-fsh	u/l	H	114	80
-s-fsh	u/l	L	47	41
-s-fsh	u/l	N	1816	1603
+s-fsh	iu/l	A	513	303
+s-fsh	iu/l	H	608	365
+s-fsh	iu/l	L	54	47
+s-fsh	iu/l	N	5419	4488
+s-fsh	u/l	A	261	182
+s-fsh	u/l	H	107	77
+s-fsh	u/l	L	43	37
+s-fsh	u/l	N	1796	1584
 s-fsh		A	53	48
 s-fsh		L	201	131
 s-fsh		N	84	72
@@ -17275,12 +17275,11 @@ s-reumapaketti		N	11	11
 s-rf	iu/ml	A	1259	1049
 s-rf	iu/ml	H	2112	1749
 s-rf	iu/ml	N	2060	1980
-s-rf	kiu/l	A	917	748
-s-rf	kiu/l	H	29	29
-s-rf	kiu/l	N	723	670
-s-rf	u/ml	A	206	184
-s-rf	u/ml	H	219	182
-s-rf	u/ml	N	27	27
+s-rf	kiu/l	A	1076	890
+s-rf	kiu/l	H	243	208
+s-rf	kiu/l	N	724	671
+s-rf	u/ml	A	47	42
+s-rf	u/ml	N	26	26
 s-rf		A	61	59
 s-rf		N	8175	7731
 s-rgadc1e	u/ml	A	22	21
@@ -18064,18 +18063,18 @@ s-trypt		A	48	33
 s-tryptaasi	ug/l	A	79	35
 s-tryptaasi	ug/l	H	24	16
 s-tryptaasi	ug/l	N	330	297
-s-tsh	miu/l	A	4590	2754
-s-tsh	miu/l	H	8523	5064
-s-tsh	miu/l	L	7557	4179
-s-tsh	miu/l	N	4614	3883
+s-tsh	miu/l	A	1328	789
+s-tsh	miu/l	H	6670	3720
+s-tsh	miu/l	L	6343	3329
+s-tsh	miu/l	N	4431	3724
 s-tsh	mlu/l	A	14	13
 s-tsh	mlu/l	N	51	38
-s-tsh	mu/l	A	10572	5590
-s-tsh	mu/l	H	10886	6539
-s-tsh	mu/l	HH	19	14
-s-tsh	mu/l	L	13802	7545
+s-tsh	mu/l	A	13834	7393
+s-tsh	mu/l	H	12739	7817
+s-tsh	mu/l	HH	22	16
+s-tsh	mu/l	L	15016	8333
 s-tsh	mu/l	LL	36	31
-s-tsh	mu/l	N	114450	77478
+s-tsh	mu/l	N	114633	77567
 s-tsh	u/l	N	57	45
 s-tsh		A	842	451
 s-tsh		L	2164	1352
@@ -20219,13 +20218,10 @@ u-pbg	umol/l	A	17	13
 u-pbg	umol/l	N	29	28
 u-pbg		N	10	10
 u-pbg-o		N	67	63
-u-ph	1	A	46635	17736
-u-ph	1	H	44030	16576
-u-ph	1	L	7	7
-u-ph	1	N	158259	67277
-u-ph	form	H	858	817
-u-ph	form	L	19	19
-u-ph	form	N	393	292
+u-ph	form	A	46635	17736
+u-ph	form	H	44888	17343
+u-ph	form	L	26	26
+u-ph	form	N	158652	67484
 u-ph	ph	N	228	127
 u-ph		A	178	155
 u-ph		H	98	87
@@ -20236,9 +20232,12 @@ u-ph,huumetutkimuksiin/u-huumeseulonta,kval.		N	35	31
 u-ph-0		A	74	57
 u-ph-0		N	1719	429
 u-ph-huu		N	4021	2277
-u-ph-o	form	A	869	464
-u-ph-o	form	H	120	117
-u-ph-o	form	N	15150	5045
+u-ph-o	N	A	822	440
+u-ph-o	N	H	80	78
+u-ph-o	N	N	14283	4765
+u-ph-o	form	A	47	41
+u-ph-o	form	H	40	40
+u-ph-o	form	N	870	582
 u-ph-o		L	11	11
 u-ph-o		N	201	151
 u-ph.		N	6983	4047
@@ -20364,13 +20363,12 @@ u-suhteellinentiheys,osatutkimus		N	185	81
 u-suhteellinentiheyskg/l		A	1241	834
 u-suhteellinentiheysstix		N	1054	736
 u-suhti	form	N	27	22
-u-suhti	g/ml	A	50042	18004
-u-suhti	g/ml	H	29990	14369
-u-suhti	g/ml	L	24504	12200
-u-suhti	g/ml	N	25378	15443
-u-suhti	kg/l	A	1569	817
-u-suhti	kg/l	L	306	297
-u-suhti	kg/l	N	5165	1612
+u-suhti	g/ml	L	533	458
+u-suhti	g/ml	N	7	7
+u-suhti	kg/l	A	51611	18820
+u-suhti	kg/l	H	29995	14374
+u-suhti	kg/l	L	24277	12052
+u-suhti	kg/l	N	30536	16889
 u-suhti	ratio	A	299	61
 u-suhti	ratio	N	12	12
 u-suhti		A	4861	3711

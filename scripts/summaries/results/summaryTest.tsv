@@ -13917,8 +13917,8 @@ p-antifaktorix-ak.(frag.hepar.estovaikut)		77	26
 p-antifaktorix-aktiivisuus	iu/ml	47	19
 p-antifaktorix-aktiivisuus	u/ml	43	21
 p-antifaktorix-aktiivisuus		42	20
-p-antifxa	iu/ml	23294	6691
-p-antifxa	u/ml	13556	4538
+p-antifxa	iu/ml	25470	7465
+p-antifxa	u/ml	11380	3835
 p-antifxa	umol/l	15	6
 p-antifxa		12120	6784
 p-antifxa3	iu/ml	53	15
@@ -19406,11 +19406,11 @@ s-chpnaba	eiu	340	298
 s-chpnaba	u/ml	1789	1562
 s-chpnaba		2375	2210
 s-chpnabg	au/ml	29	22
-s-chpnabg	bu/ml	1767	1592
+s-chpnabg	bu/ml	470	412
 s-chpnabg	eiu	2033	1866
 s-chpnabg	form	22	20
 s-chpnabg	titre	435	387
-s-chpnabg	u/ml	1643	1443
+s-chpnabg	u/ml	2940	2590
 s-chpnabg		2860	2698
 s-chpnabm	index	953	845
 s-chpnabm	u/ml	28	27
@@ -20017,8 +20017,8 @@ s-frtuaba		149	127
 s-frtuabg	titre	10	9
 s-frtuabg		202	175
 s-frtuabm		212	183
-s-fsh	iu/l	20582	14978
-s-fsh	u/l	17315	13357
+s-fsh	iu/l	22329	16326
+s-fsh	u/l	15568	12032
 s-fsh		1282	1053
 s-fsh-rh		8	7
 s-ftaabs		36	31
@@ -22915,8 +22915,8 @@ s-reumapaketti		13	13
 s-reumpak		583	570
 s-rf	iu/l	9	9
 s-rf	iu/ml	12892	11581
-s-rf	kiu/l	4188	3590
-s-rf	u/ml	2102	1974
+s-rf	kiu/l	6015	5299
+s-rf	u/ml	275	261
 s-rf		26737	23619
 s-rfeld1e	u/ml	6	6
 s-rgadc1e	u/ml	173	168
@@ -23844,9 +23844,9 @@ s-trypg2		27	11
 s-trypt	ug/l	3752	2416
 s-trypt		369	327
 s-tryptaasi	ug/l	534	421
-s-tsh	miu/l	117092	66186
+s-tsh	miu/l	95437	51397
 s-tsh	mlu/l	113	87
-s-tsh	mu/l	284006	140424
+s-tsh	mu/l	305661	151981
 s-tsh	u/l	142	86
 s-tsh		5350	3571
 s-tsh,s-t4v		1243	1008
@@ -27393,8 +27393,8 @@ u-pbg	umol/mmol	6	6
 u-pbg		38	35
 u-pbg-o		227	194
 u-pgb		144	11
-u-ph	1	671208	194764
-u-ph	form	18123	13598
+u-ph	1	663	536
+u-ph	form	688668	200735
 u-ph	ph	229	128
 u-ph		21315	13679
 u-ph,huumetutkimuksiin		313	252
@@ -27402,8 +27402,8 @@ u-ph,huumetutkimuksiin/u-huumeseulonta,kval.		56	48
 u-ph-0		1802	446
 u-ph-huu		13759	5238
 u-ph-hy		2442	1331
-u-ph-o	N	2076	585
-u-ph-o	form	55502	24744
+u-ph-o	N	55588	24346
+u-ph-o	form	1990	1493
 u-ph-o		615	527
 u-ph-pika		666	388
 u-ph-r1		6	6
@@ -27638,8 +27638,8 @@ u-suhteellinentiheyskg/l		2143	1215
 u-suhteellinentiheysstix		1514	1011
 u-suhti	1	664	536
 u-suhti	form	38	31
-u-suhti	g/ml	289439	79894
-u-suhti	kg/l	41635	12849
+u-suhti	g/ml	3084	2234
+u-suhti	kg/l	327990	88144
 u-suhti	ratio	607	94
 u-suhti		34880	22186
 u-suhti-o		47147	10381

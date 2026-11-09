@@ -6332,10 +6332,10 @@ p-antifactorix-aktiivisuus(hepariininestovaiku	u/ml	Source	25	8
 p-antifaktorix-ak.(frag.hepar.estovaikut)	u/ml	Source	63	23
 p-antifaktorix-aktiivisuus	iu/ml	Source	47	19
 p-antifaktorix-aktiivisuus	u/ml	Source	43	21
-p-antifxa	iu/ml	Extracted	9407	2821
-p-antifxa	iu/ml	Source	13886	4268
-p-antifxa	u/ml	Extracted	2208	942
-p-antifxa	u/ml	Source	11155	3774
+p-antifxa	iu/ml	Extracted	11581	3710
+p-antifxa	iu/ml	Source	13888	4270
+p-antifxa	u/ml	Extracted	34	13
+p-antifxa	u/ml	Source	11153	3773
 p-antifxa3	iu/ml	Source	53	15
 p-antirtombiiniiii(trombot-paketti)	%	Source	18	18
 p-antitro	%	Source	48	47
@@ -9371,13 +9371,13 @@ s-chpnaba	u/ml	Source	1783	1556
 s-chpnaba		Extracted	29	29
 s-chpnaba		Source	641	583
 s-chpnabg	au/ml	Source	29	22
-s-chpnabg	bu/ml	Extracted	643	589
-s-chpnabg	bu/ml	Source	1124	1005
+s-chpnabg	bu/ml	Source	470	412
 s-chpnabg	eiu	Extracted	176	168
 s-chpnabg	eiu	Source	1857	1702
 s-chpnabg	form	Source	22	20
 s-chpnabg	titre	Source	435	387
-s-chpnabg	u/ml	Source	1638	1438
+s-chpnabg	u/ml	Extracted	648	594
+s-chpnabg	u/ml	Source	2292	2002
 s-chpnabm	index	Extracted	7	7
 s-chpnabm	index	Source	946	838
 s-chpnabm	u/ml	Source	28	27
@@ -9791,10 +9791,10 @@ s-fpsa	ug/l	Source	29	28
 s-frtuab	titre	Source	108	87
 s-frtuab		Extracted	21	14
 s-frtuabg	titre	Source	9	8
-s-fsh	iu/l	Extracted	5121	3748
-s-fsh	iu/l	Source	15461	12041
-s-fsh	u/l	Extracted	1760	1587
-s-fsh	u/l	Source	15466	11985
+s-fsh	iu/l	Extracted	6860	5252
+s-fsh	iu/l	Source	15469	12049
+s-fsh	u/l	Extracted	21	21
+s-fsh	u/l	Source	15458	11978
 s-fumoabe	u/ml	Source	6	6
 s-fumoabe		Extracted	60	60
 s-fusariummoniliformae,igevasta-aineet	u/ml	Source	12	12
@@ -11470,9 +11470,9 @@ s-reumafaktori,määritys	kiu/l	Source	249	236
 s-rf	iu/l	Source	9	9
 s-rf	iu/ml	Extracted	1359	1287
 s-rf	iu/ml	Source	11533	10370
-s-rf	kiu/l	Source	4188	3590
-s-rf	u/ml	Extracted	1811	1698
-s-rf	u/ml	Source	291	276
+s-rf	kiu/l	Extracted	1811	1698
+s-rf	kiu/l	Source	4204	3604
+s-rf	u/ml	Source	275	261
 s-rfeld1e	u/ml	Source	6	6
 s-rgadc1e	u/ml	Source	173	168
 s-rgadc1e		Extracted	57	54
@@ -12021,11 +12021,10 @@ s-trypg2		Extracted	27	11
 s-trypt	ug/l	Source	3749	2416
 s-trypt		Extracted	300	277
 s-tryptaasi	ug/l	Source	534	421
-s-tsh	miu/l	Extracted	21278	15433
-s-tsh	miu/l	Source	95814	51635
+s-tsh	miu/l	Source	95437	51397
 s-tsh	mlu/l	Source	113	87
-s-tsh	mu/l	Extracted	6432	4700
-s-tsh	mu/l	Source	277574	137862
+s-tsh	mu/l	Extracted	27710	19938
+s-tsh	mu/l	Source	277951	137986
 s-tsh	u/l	Source	142	86
 s-tsh-abr	mu/l	Source	2402	947
 s-tsh-abr		Extracted	27	22
@@ -13284,10 +13283,10 @@ u-osmolie	mosm/kgh2o	Source	8	8
 u-pbg	umol/l	Source	248	213
 u-pbg	umol/mmol	Source	6	6
 u-pbg		Extracted	16	15
-u-ph	1	Extracted	387371	127893
-u-ph	1	Source	283837	101118
-u-ph	form	QCOut	20	20
-u-ph	form	Source	18103	13588
+u-ph	1	Source	663	536
+u-ph	form	Extracted	387310	127891
+u-ph	form	QCOut	104	99
+u-ph	form	Source	301254	109284
 u-ph	ph	Extracted	7	6
 u-ph	ph	Source	222	123
 u-ph,huumetutkimuksiin		Extracted	23	19
@@ -13298,10 +13297,10 @@ u-ph-huu		Extracted	7404	3300
 u-ph-huu		Source	5922	2474
 u-ph-hy		Extracted	645	519
 u-ph-hy		Source	1791	1073
-u-ph-o	N	Source	2076	585
-u-ph-o	form	Extracted	16564	12861
-u-ph-o	form	QCOut	29	29
-u-ph-o	form	Source	38909	12793
+u-ph-o	N	Extracted	16564	12861
+u-ph-o	N	QCOut	27	27
+u-ph-o	N	Source	38997	12278
+u-ph-o	form	Source	1988	1492
 u-ph-pika		Extracted	656	385
 u-ph-r1		Source	6	6
 u-ph.		Extracted	3128	1593
@@ -13396,12 +13395,10 @@ u-suhteellinentiheysstix		Extracted	563	471
 u-suhteellinentiheysstix		Source	937	701
 u-suhti	1	Source	664	536
 u-suhti	form	Source	38	31
-u-suhti	g/ml	Extracted	159107	45115
-u-suhti	g/ml	QCOut	123	117
-u-suhti	g/ml	Source	130209	49900
-u-suhti	kg/l	Extracted	7	6
-u-suhti	kg/l	QCOut	23	18
-u-suhti	kg/l	Source	41605	12838
+u-suhti	g/ml	Source	3083	2233
+u-suhti	kg/l	Extracted	159114	45118
+u-suhti	kg/l	QCOut	145	134
+u-suhti	kg/l	Source	168731	58724
 u-suhti	ratio	Source	606	94
 u-suhti-o		Extracted	5267	2358
 u-suhti-o		Source	40673	9805

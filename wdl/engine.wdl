@@ -151,6 +151,9 @@ task run_engine {
   command <<<
     set -euxo pipefail
     echo "cpus: $(nproc) ~{cpus}"
+    # The injection/harmonization tables are fetched by branch at runtime, invisible to call caching:
+    # bump this line when they change upstream to force a rerun.
+    echo "reference tables: injection updated 2026-11-06"
     # The engine writes its chunk files under tempfile.mkdtemp(), i.e. /tmp by default,
     # which lives on the boot disk in Cromwell. Point it at the sized local disk instead.
     mkdir -p tmp

@@ -7190,10 +7190,10 @@ s-chlamydiatrachomatis,igg-vasta-aineet		Adult-Female	0.0	18.181818	44	44
 s-chlamydiatrachomatis,igg-vasta-aineet		Adult-Male	0.0	16.0	7	6
 s-chpnaba	u/ml	Adult-Female		16.443836	365	327
 s-chpnaba	u/ml	Adult-Male		15.930348	201	181
-s-chpnabg	bu/ml	Adult-Female	0.0	10.0	111	94
-s-chpnabg	bu/ml	Adult-Male	0.0	10.0	38	30
-s-chpnabg	u/ml	Adult-Female		16.142077	366	327
-s-chpnabg	u/ml	Adult-Male		15.822222	180	162
+s-chpnabg	bu/ml	Adult-Female	0.0	10.0	102	86
+s-chpnabg	bu/ml	Adult-Male	0.0	10.0	37	29
+s-chpnabg	u/ml	Adult-Female	0.0	15.994667	375	335
+s-chpnabg	u/ml	Adult-Male	0.0	15.790055	181	163
 s-chpnabg		Adult-Female	0.0	11.75	16	16
 s-chpnabm	index	Adult-Female		0.932616	558	496
 s-chpnabm	index	Adult-Male		0.9	272	241
@@ -7500,10 +7500,10 @@ s-fosfaatti	mmol/l	Adult-Female	0.85	1.5	12	11
 s-frtuab	titre	Adult-Male	0.0	24.0	10	7
 s-frtuab		Adult-Female	0.0	32.0	60	52
 s-frtuab		Adult-Male	0.0	28.571429	63	50
-s-fsh	iu/l	Adult-Female	7.726667	41.333333	15	12
-s-fsh	iu/l	Adult-Male	1.009921	12.040476	252	222
+s-fsh	iu/l	Adult-Female	7.36875	39.375	16	13
+s-fsh	iu/l	Adult-Male	1.033962	12.058113	265	235
 s-fsh	iu/l	Minor-Female	0.214286	7.971429	7	6
-s-fsh	u/l	Adult-Male	1.557085	12.138462	247	211
+s-fsh	u/l	Adult-Male	1.560256	12.123932	234	199
 s-fsh		Adult-Male	1.115	12.015	20	18
 s-ftaaihe		Adult-Male	0.0	0.34	7	7
 s-fusariummoniliformae,igevasta-aineet	u/ml	Adult-Female		0.35	10	10
@@ -8566,11 +8566,10 @@ s-rf	iu/ml	Adult-Female	0.0	15.179885	7995	7201
 s-rf	iu/ml	Adult-Male	0.0	15.326368	3015	2745
 s-rf	iu/ml	Minor-Female	0.0	14.388889	18	17
 s-rf	iu/ml	Minor-Male	0.0	14.3	10	7
-s-rf	kiu/l	Adult-Female	0.0	14.0	1969	1742
-s-rf	kiu/l	Adult-Male	0.0	14.0	754	664
-s-rf	kiu/l	Minor-Female		14.0	13	13
-s-rf	u/ml	Adult-Female	0.0	14.940299	134	130
-s-rf	u/ml	Adult-Male	0.0	14.903846	52	49
+s-rf	kiu/l	Adult-Female	0.0	14.052303	2084	1855
+s-rf	kiu/l	Adult-Male	0.0	14.058677	801	709
+s-rf	kiu/l	Minor-Female	0.0	14.071429	14	14
+s-rf	u/ml	Adult-Female	0.0	14.894737	19	17
 s-rf		Adult-Female	0.0	16.676659	10441	9547
 s-rf		Adult-Male	0.0	16.076085	4495	4124
 s-rf		Minor-Female	0.0	14.6875	64	63
@@ -8906,15 +8905,14 @@ s-trypt		Adult-Female	0.0	13.5	116	107
 s-trypt		Adult-Male		13.5	45	39
 s-tryptaasi	ug/l	Adult-Female		11.681818	11	11
 s-tryptaasi	ug/l	Adult-Male		12.25	8	8
-s-tsh	miu/l	Adult-Female	0.416418	3.94304	74154	37734
-s-tsh	miu/l	Adult-Male	0.416527	3.943497	23972	15159
-s-tsh	miu/l	Minor-Female	0.469231	4.092308	13	11
+s-tsh	miu/l	Adult-Female	0.415604	3.937582	71864	36466
+s-tsh	miu/l	Adult-Male	0.415909	3.936364	23232	14682
 s-tsh	mlu/l	Adult-Female	0.422772	4.30495	101	77
 s-tsh	mlu/l	Adult-Male	0.4	4.0	12	10
-s-tsh	mu/l	Adult-Female	0.441263	4.04787	201196	94790
-s-tsh	mu/l	Adult-Male	0.444407	4.067866	72233	42500
-s-tsh	mu/l	Minor-Female	0.432541	4.387879	429	366
-s-tsh	mu/l	Minor-Male	0.449722	4.728704	108	93
+s-tsh	mu/l	Adult-Female	0.441271	4.048618	203486	95224
+s-tsh	mu/l	Adult-Male	0.444321	4.068876	72973	42732
+s-tsh	mu/l	Minor-Female	0.433469	4.378005	441	373
+s-tsh	mu/l	Minor-Male	0.448818	4.742727	110	95
 s-tsh		Adult-Female	0.433017	4.031714	2264	1355
 s-tsh		Adult-Male	0.428554	4.059639	332	233
 s-tsh-reseptori,vasta-aineet	iu/l	Adult-Female	0.0	2.9	15	14
@@ -9768,14 +9766,10 @@ u-osmole	mosm/kgh2o	Minor-Male	150.0	900.0	12	8
 u-osmole		Adult-Female	187.179487	900.0	39	35
 u-osmole		Adult-Male	168.571429	900.0	70	61
 u-pbg	umol/l	Adult-Female	0.0	9.125	16	14
-u-ph	1	Adult-Female	4.999833	7.260726	152877	41202
-u-ph	1	Adult-Male	4.999947	7.27168	94407	27768
-u-ph	1	Minor-Female	5.0	7.378417	695	306
-u-ph	1	Minor-Male	5.0	7.356955	381	99
-u-ph	form	Adult-Female	5.0	7.000529	11347	8403
-u-ph	form	Adult-Male	5.0	7.000727	5499	4382
-u-ph	form	Minor-Female	5.0	7.0	75	73
-u-ph	form	Minor-Male	5.0	7.0	35	32
+u-ph	form	Adult-Female	4.999845	7.242748	164224	47784
+u-ph	form	Adult-Male	4.99995	7.256766	99906	31265
+u-ph	form	Minor-Female	5.0	7.341558	770	373
+u-ph	form	Minor-Male	5.0	7.326923	416	130
 u-ph	ph	Adult-Female	5.0	8.8	90	35
 u-ph	ph	Adult-Male	5.0	8.681818	132	88
 u-ph		Adult-Female	4.999837	8.851147	6147	3389
@@ -9783,10 +9777,13 @@ u-ph		Adult-Male	5.0	8.900771	5835	2740
 u-ph		Minor-Female	5.0	8.961538	26	8
 u-ph-0		Adult-Female	5.0	7.0	1154	228
 u-ph-0		Adult-Male	5.0	7.0	636	207
-u-ph-o	form	Adult-Female	5.0	7.599135	8554	2810
-u-ph-o	form	Adult-Male	5.0	7.664351	3742	1708
-u-ph-o	form	Minor-Female	5.0	8.076923	52	32
-u-ph-o	form	Minor-Male	5.0	7.538462	13	13
+u-ph-o	N	Adult-Female	5.0	7.678988	7548	2338
+u-ph-o	N	Adult-Male	5.0	7.761876	3263	1423
+u-ph-o	N	Minor-Female	5.0	8.555556	36	20
+u-ph-o	form	Adult-Female	5.0	7.0	1006	717
+u-ph-o	form	Adult-Male	5.0	7.0	479	389
+u-ph-o	form	Minor-Female	5.0	7.0	16	13
+u-ph-o	form	Minor-Male	5.0	7.0	9	9
 u-ph-o		Adult-Female	5.0	7.512195	41	34
 u-ph-o		Adult-Male	5.0	7.767442	43	39
 u-pienep	e6/l	Adult-Female	0.0	9.767489	104053	36824
@@ -9843,13 +9840,14 @@ u-suhteellinentiheys,kval		Adult-Male	1.005	1.03	1272	660
 u-suhteellinentiheys,kval		Minor-Male	1.005	1.03	26	8
 u-suhteellinentiheyskg/l		Adult-Female	1.015	1.02	1322	742
 u-suhteellinentiheyskg/l		Adult-Male	1.015	1.02	799	463
-u-suhti	g/ml	Adult-Female	1.013154	1.021714	123853	32352
-u-suhti	g/ml	Adult-Male	1.01302	1.021782	73311	20771
-u-suhti	g/ml	Minor-Female	1.014009	1.02161	582	250
-u-suhti	g/ml	Minor-Male	1.01399	1.021289	298	92
-u-suhti	kg/l	Adult-Female	1.012055	1.030662	4809	1789
-u-suhti	kg/l	Adult-Male	1.011533	1.03043	1901	893
-u-suhti	kg/l	Minor-Female	1.011862	1.03	29	20
+u-suhti	g/ml	Adult-Female	1.015		2099	1486
+u-suhti	g/ml	Adult-Male	1.015		927	695
+u-suhti	g/ml	Minor-Female	1.015		36	34
+u-suhti	g/ml	Minor-Male	1.015		22	20
+u-suhti	kg/l	Adult-Female	1.013082	1.021801	126563	32534
+u-suhti	kg/l	Adult-Male	1.012957	1.021847	74285	20940
+u-suhti	kg/l	Minor-Female	1.013838	1.021717	575	236
+u-suhti	kg/l	Minor-Male	1.013709	1.021478	282	74
 u-suhti		Adult-Female	1.007418	1.02804	10740	6639
 u-suhti		Adult-Male	1.006814	1.028227	8702	4819
 u-suhti		Minor-Female	1.010418	1.025731	67	44
