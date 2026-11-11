@@ -114,7 +114,7 @@ OUTPUT_COLUMNS = {
     "REFERENCE_RANGE_UPPER_UNIT": (True, "REFERENCE_RANGE_HIGH_UNIT", "string"),
     "REFERENCE_RANGE_TEXT": (True, "REFERENCE_RANGE_TEXT", "string"),
     # where the limits come from: "num" (sent by the lab), "text" (filled from the reference text), "NA" (none)
-    "REFERENCE_RANGE_SOURCE": (True, "REFERENCE_RANGE_SOURCE", "string"),
+    "REFERENCE_RANGE_SOURCE": (False, "REFERENCE_RANGE_SOURCE", "string"),
     # Sensitive data
     "MEASUREMENT_FREE_TEXT": (False, "MEASUREMENT_FREE_TEXT", "string"),
     # Dumps from source

@@ -1,8 +1,8 @@
 {
     "engine.test": false,
     "engine.tidied_parquet": "gs://fg-3/kanta_v4/dev/intake/finngen_R15_kanta_laboratory_responses_internal_1.0/finngen_R15_kanta_laboratory_responses_internal_1.0.parquet",
-    "engine.engine_docker": "europe-west1-docker.pkg.dev/finngen-refinery-dev/fg-refinery-registry/kanta:v4-engine.maakunta",
-    "engine.qc_docker": "europe-west1-docker.pkg.dev/finngen-refinery-dev/fg-refinery-registry/kanta:v4-engine.maakunta.2",
+    "engine.engine_docker": "europe-west1-docker.pkg.dev/finngen-refinery-dev/fg-refinery-registry/kanta:v4-engine.release",
+    "engine.qc_docker": "europe-west1-docker.pkg.dev/finngen-refinery-dev/fg-refinery-registry/kanta:v4-engine.release",
     "engine.prefix": "kanta_R15_dev",
     "engine.chunk_size": 200000,
     "engine.injection_branch": "dev",

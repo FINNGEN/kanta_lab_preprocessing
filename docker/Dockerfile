@@ -18,8 +18,8 @@ ENV PATH="/opt/kanta-venv/bin:$PATH"
 
 # Scripts engine.wdl and intake.wdl run, folder by folder (scripts/ also holds data files that must not go into the
 # image); reference-table defaults come from kanta.config
-ADD scripts/OID scripts/OID
 ADD scripts/abnormality scripts/abnormality
+ADD scripts/statements scripts/statements
 ADD scripts/counts scripts/counts
 ADD scripts/posneg scripts/posneg
 ADD scripts/metabolomics scripts/metabolomics

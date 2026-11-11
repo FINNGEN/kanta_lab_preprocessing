@@ -484,6 +484,16 @@ def add_t(df):
     return df
 
 
+def year_spans(years):
+    """[2016, 2017, 2018, 2021] -> '2016..2018, 2021'."""
+    out, a = [], years[0]
+    for p, y in zip(years, years[1:] + [None]):
+        if y != p + 1:
+            out.append(str(a) if a == p else f"{a}..{p}")
+            a = y
+    return ", ".join(out)
+
+
 def merge_years(rows, key_cols):
     """Merge consecutive-year flags of the same SP (and key) into one flag."""
     if not rows:
@@ -549,10 +559,21 @@ def detect(omop, data, args, labels):
         return base_flag(kind, r.k_sp, r.year, rows, math.log10(oe),
                          tmpl.format(events=int(events), oe=oe, rate=100 * events / rows), events, expected, tmpl)
 
-    # shift
-    rows = [base_flag("shift", r.k_sp, r.year, r.n_v, r.shift, "median vs national (same sex x age)")
-            for r in cy.itertuples() if r.n_v >= args.min_cell and pd.notna(r.shift) and abs(r.shift) >= lshift]
-    flags += merge_years(rows, ["k_sp", "kind"])
+    # shift: one flag per SP, over its years off national (a level, often the lab's patient mix, not an event)
+    judged = cy[(cy["n_v"] >= args.min_cell) & cy["shift"].notna()]
+    for sp, g in judged.groupby("k_sp"):
+        off = g[g["shift"].abs() >= lshift]
+        if off.empty:
+            continue
+        side = np.sign(np.average(off["shift"], weights=off["n_v"]))
+        off = off[np.sign(off["shift"]) == side]
+        eff = float(np.average(off["shift"], weights=off["n_v"]))
+        yrs = sorted(int(y) for y in off["year"])
+        flags.append({"omop": omop, "kind": "shift", "k_sp": sp, "rows": int(off["n_v"].sum()), "effect": eff,
+                      "start": yrs[0] * 12, "end": yrs[-1] * 12 + 11, "period": year_spans(yrs),
+                      "detail": f"median vs national (same sex x age) in {len(yrs)} of {len(g)} years "
+                                f"({fx(off['shift'].min())} to {fx(off['shift'].max())}); a level: the lab's patient "
+                                f"mix, or its method"})
     # outliers, person jumps, qc fails, outcome
     rows = [count_flag("outliers", r, r.n_v, r.obs_out, r.exp_out,
                        "{events} outside the national fences (same sex x age), {oe:.1f}x expected")
@@ -678,7 +699,7 @@ def detect(omop, data, args, labels):
             i = j + 1
 
     # --- ranges: SP typical limit vs national, per sex x minor/adult; and changes between years
-    range_rows = []
+    range_rows, range_dev = [], []
     nat = {}
     for lim in ("lhi", "llo"):
         rr = rng[rng[lim].notna()]
@@ -699,14 +720,25 @@ def detect(omop, data, args, labels):
                                "x_vs_national": r.mode - r.nat})
         # adults only: children's limits change with age within "minor", so its typical limit mixes ages
         dev = spm[(spm["ag"] == "adult") & (spm["rows"] >= args.min_cell) & ((spm["mode"] - spm["nat"]).abs() >= lrange)]
-        for sp, g in dev.groupby("k_sp"):  # one flag per SP and limit, its sex x age groups listed
-            g = g.sort_values("rows", ascending=False)
-            groups = "; ".join(f"{sex_label(r.sx)} {r.ag} {fnum(10 ** r.mode)} vs {fnum(10 ** r.nat)}"
-                               for r in g.itertuples())
-            flags.append({"omop": omop, "kind": "range", "k_sp": sp, "rows": int(g["rows"].sum()),
-                          "effect": float(np.average(g["mode"] - g["nat"], weights=g["rows"])), "start": None,
-                          "end": None, "period": "all years",
-                          "detail": f"{'upper' if lim == 'lhi' else 'lower'} limit vs national: {groups}"})
+        range_dev.append(dev.assign(lim=lim))
+    # one flag per SP: its adult ranges vs national, the limits off by >= x--range-margin driving the effect
+    if range_dev:
+        dev = pd.concat(range_dev, ignore_index=True)
+        rr = pd.DataFrame(range_rows)
+        for sp, g in dev.groupby("k_sp"):
+            own = rr[(rr["k_sp"] == sp) & (rr["age"] == "adult")]
+
+            def rng_txt(col):
+                parts = []
+                for sx in ("F", "M"):
+                    o = own[own["sex"] == sx].set_index("limit")[col]
+                    if len(o):
+                        parts.append(f"{sx} {fmt_range(o.get('lower'), o.get('upper'))}")
+                return " ".join(parts)
+            main = g.loc[(g["mode"] - g["nat"]).abs().idxmax()]
+            flags.append({"omop": omop, "kind": "range", "k_sp": sp, "rows": int(g.groupby(["sx", "ag"])["rows"].max().sum()),
+                          "effect": float(main["mode"] - main["nat"]), "start": None, "end": None, "period": "all years",
+                          "detail": f"adult range {rng_txt('sp_typical')} vs national {rng_txt('national_typical')}"})
     # range changes between consecutive years, in the SP's main sex x age group
     rc = []
     ry = rng[rng["year"].notna()]
@@ -853,12 +885,16 @@ def series_panel(fig, spec, sp, s, flags_sp, rng_t, label, color, args):
             a = pd.Timestamp(year=int(fl.start) // 12, month=int(fl.start) % 12 + 1, day=1)
             for x in (ax, ax2):
                 x.axvline(a, color=KIND_COLOR["step"], lw=1.2, ls="--")
-    yt = [v for v in (-0.2, -0.1, -0.05, 0, 0.05, 0.1, 0.2)]
-    ax.set_yticks(yt)
-    ax.set_yticklabels([fx(v) for v in yt])
+
     m = s.loc[long, "m"] if long.any() else s["m"]
     lo, hi = min(np.nanmin(m), -0.06) - 0.02, max(np.nanmax(m), 0.06) + 0.02
     ax.set_ylim(lo, hi)
+    span = hi - lo
+    steps = [f for f in (1.05, 1.1, 1.2, 1.5, 2, 3, 5, 10, 30, 100) if math.log10(f) >= span / 8] or [100]
+    st_ = math.log10(steps[0])
+    yt = [k * st_ for k in range(int(math.floor(lo / st_)), int(math.ceil(hi / st_)) + 1) if lo <= k * st_ <= hi]
+    ax.set_yticks(yt)
+    ax.set_yticklabels([fx(v) if abs(v) > 1e-9 else "x1.00" for v in yt])
     off = s[(s["m"] < lo) | (s["m"] > hi)]  # off the scale: a marker at the edge
     if len(off):
         ax.scatter(dates[off.index], off["m"].clip(lo, hi), marker="^", s=18, color=color, alpha=0.4,
@@ -904,7 +940,7 @@ def range_panel(ax, ranges, src, h_unit, args):
     limit = "upper"
     if len(ranges):
         by = ranges.groupby("limit")["rows"].sum()
-        limit = "upper" if by.get("upper", 0) >= by.get("lower", 0) else "lower"
+        limit = "upper" if by.get("upper", 0) >= 0.5 * by.get("lower", 0) else "lower"
     up = ranges[(ranges["limit"] == limit) & (ranges["rows"] >= args.min_cell)] if len(ranges) else ranges
     if up is None or not len(up):
         ax.text(0.5, 0.5, "no reference limits", transform=ax.transAxes, ha="center", color=MUTED)
@@ -1011,7 +1047,9 @@ def ref_src_share(dims):
 
 
 def report(omop, title, fdf, cy, ranges, nat, series, rng, args, path, dims=None, h_unit=None):
-    flagged_sps = [k for k in fdf.loc[fdf["kind"].isin(["step", "episode", "shift"]), "k_sp"].drop_duplicates()
+    pri = {"step": 0, "episode": 1, "range_change": 2, "shift": 3}
+    f = fdf[fdf["kind"].isin(list(pri))].assign(p=lambda d: d["kind"].map(pri))
+    flagged_sps = [k for k in f.sort_values(["p", "score"], ascending=[True, False])["k_sp"].drop_duplicates()
                    if k in series][:4]
     n_tab = max(min(len(fdf), args.table_rows), 1)
     top_n = min(cy["k_sp"].nunique(), args.top_sp)

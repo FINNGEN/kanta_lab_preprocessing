@@ -87,9 +87,9 @@ task tidyup {
       --partition-n-buckets ~{partition_n_buckets} \
       ~{"--include-ids-file " + include_ids_file}
 
-    # ROWID -> record OID bridge to the statement data (scripts/OID/README.md). The lookup-array cache stays in the
+    # ROWID -> record OID bridge to the statement data (scripts/statements/README.md). The lookup-array cache stays in the
     # task's working dir, it isn't an output.
-    python3 /scripts/OID/oid_map.py \
+    python3 /scripts/statements/oid_map.py \
       --assembled ~{assembled_file} \
       --tidyup ~{prefix}.parquet \
       --output ~{prefix}_oid_map.parquet

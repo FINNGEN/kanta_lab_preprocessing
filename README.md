@@ -85,7 +85,7 @@ Columns in engine-output order. **Release name** = the column's name in the rele
 | `REFERENCE_RANGE_UPPER_VALUE` | `REFERENCE_RANGE_HIGH_VALUE` | Upper reference limit | As `REFERENCE_RANGE_LOW_VALUE`. |
 | `REFERENCE_RANGE_UPPER_UNIT` | `REFERENCE_RANGE_HIGH_UNIT` | Unit of the upper limit | As `REFERENCE_RANGE_LOW_UNIT`. |
 | `REFERENCE_RANGE_TEXT` | `REFERENCE_RANGE_TEXT` | Reference range as text (e.g. `117-155`, `<4`) | From the free-text file. |
-| `REFERENCE_RANGE_SOURCE` | `REFERENCE_RANGE_SOURCE` | Where the row's limits come from | `num`: sent by the lab; `text`: parsed from the reference text and approved in the curated table; `NA`: no limits. |
+| `REFERENCE_RANGE_SOURCE` | NA | Where the row's limits come from | `num`: sent by the lab; `text`: parsed from the reference text and approved in the curated table; `NA`: no limits. |
 | `MEASUREMENT_FREE_TEXT` | NA | Free-text result | Sensitive: never released (see above). |
 | `source::MEASUREMENT_VALUE` | NA | Value as sent, before cleaning | Snapshot right after reading. |
 | `source::MEASUREMENT_UNIT` | NA | Unit as sent, before cleaning | |
@@ -182,8 +182,8 @@ The intake's tidy-up step ([`kanta.intake.tidyup`](/src/kanta/intake/tidyup.py),
 - joins `SEX` from the phenotype file, numbers the rows (`_rowid`, the engine's `ROWID`) and replaces newlines and
   tabs inside text fields;
 - in the WDL, also builds the `ROWID` → record OID lookup (`<prefix>_oid_map.parquet`,
-  [`scripts/OID/`](/scripts/OID/)), the bridge to the statement data. It only matches an engine output built from
-  the same intake run.
+  [`scripts/statements/`](/scripts/statements/)), the bridge to the statement data. It only matches an engine output
+  built from the same intake run.
 
 # Preprocessing
 The [config file](/src/kanta/config.py) contains all the relevant "choices" about how to manipulate the data (which
