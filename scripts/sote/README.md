@@ -1,6 +1,6 @@
 # sote
 
-Service-provider (SP) analyses: assigning a region to providers and people, and organisation OIDs to maakunnat. The value QC per provider is in `scripts/qc_checks/qc_build.py`.
+Service-provider (SP) analyses: assigning a region to providers and people, and organisation OIDs to maakunnat. The value QC per provider is in `scripts/qc_checks/sp_qc.py`.
 
 The scripts that read the engine output (`region/sp_region_cs.py`, `region/region_people.py`, `data/coding_system_map.py`) default `--input` to the most recent run in `/mnt/disks/data/kanta/engine/`. Runs are stored as `<prefix>_<YYYY_MM_DD>/<prefix>_<YYYY_MM_DD>.parquet`, and the latest date wins. Each script prints the file it uses.
 

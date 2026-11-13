@@ -57,7 +57,7 @@ Usage
 Reads one OMOP's rows from an engine output (or release) parquet, aggregated in duckdb to groups (test x source unit x
 unit x harmonized unit x sex x age x range x 0.01-log10 value bin x factor), cached under --cache-dir and rebuilt when
 older than the input. Writes into --out-dir:
-  omop_<id>_ref_audit.png            the report: the three offsets per test, a decision map (value vs range offset),
+  omop_<id>_ref_audit.png / .pdf     the report (the PDF in vectors): the three offsets per test, a decision map (value vs range offset),
                                      verdict shares per test, flagged rows per stage, and the flagged groups
   omop_<id>_ref_audit_groups.tsv     test x source unit -> unit -> harmonized unit x stage x verdict x suggested unit: rows,
                                      median range (source scale), median value before (value) and after
@@ -704,9 +704,11 @@ def report(g, t, canon, stats, cands, args, title, path, ks=None):
              f"same scale when within: range x{args.range_margin:g}, value x{stats['tol_value']:.2g}, "
              f"value vs range x{10 ** max(tol_vr.values()):.2g}   ·   groups and bins under {args.min_n} rows left out",
              fontsize=9, color=MUTED, ha="left", va="top")
-    fig.savefig(path, dpi=130, facecolor=SURFACE)
+    fig.savefig(path, dpi=200, facecolor=SURFACE)
+    pdf = str(path)[:-4] + ".pdf"  # the same figure as vectors: sharp at any zoom
+    fig.savefig(pdf, facecolor=SURFACE)
     plt.close(fig)
-    log(f"Wrote {path}")
+    log(f"Wrote {path} and {pdf}")
 
 
 def markdown(rows, cols=None):

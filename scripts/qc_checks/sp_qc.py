@@ -43,13 +43,24 @@ Per OMOP (cached under --cache/omop=<id>/, rebuilt when its rows change or the p
 
 Usage
 -----
-  python3 sp_qc.py [--omop ID ...] [--input PARQUET] [--out DIR] [--cache DIR]
+  python3 sp_qc.py [--omop ID ...] [--input PARQUET] [--out DIR] [--cache DIR] [--scale all|raw|uln|lln]
 
---omop defaults to the QC-thread concepts (creatinine, ALT, ferritin, HDL, TPO-Ab, TSH, holo-TC, sodium); --all runs
+--scale all (default): raw values and multiples of ULN and of LLN, in one PDF (pages 1-2: per lab three heatmap rows and
+three boxes, raw / x ULN / x LLN; a scaled run is left out when under --min-scaled of the rows have that limit; page 4:
+the flags of all runs); TSVs per run (_uln, _lln for the scaled ones).
+--scale uln / lln: every value as a multiple of its own row's upper / lower reference limit (raw value over raw limit),
+so labs on different assays compare; rows without that limit are left out; outputs and caches get _uln / _lln.
+
+--omop defaults to the QC-thread concepts (creatinine, ALT, ferritin, HDL, TPO-Ab, TSH, holo-TC, CRP, sodium); --all runs
 every OMOP in the input with >= --min-rows rows (one pass extracts them all). Writes into --out:
-  sp_qc_flags.tsv              every flag of every OMOP in --out, most severe first (score = |log10 effect| x log10 rows)
-  sp_qc_<omop>.png             SP x year shift heatmap, monthly series of the flagged SPs with their upper limit,
-                               upper limit per SP vs national, the flags
+  sp_qc_<omop>.pdf             3 pages: (1) the --top-sp SPs by rows, (2) the next --top-sp most deviating SPs (largest
+                               yearly median vs national, >= --min-dev-rows rows): per SP its name, rows, median vs
+                               national per year and its values (p5-p95); (3) adult reference ranges of the top SPs by
+                               rows and of the most deviating others, F and M, sorted by the multiplier vs national, and
+                               one row per lab: its limits per year over the national band, and upright bars of
+                               its typical ranges next to the national ones;
+                               (4+) the flags, most important first (--table-rows), with a key to the kinds and in
+                               plain words: what we see (shares of rows, not only ratios) and the likely cause
   sp_qc_<omop>_flags.tsv       that OMOP's flags
   sp_qc_<omop>_sp_year.tsv     per SP x year: rows, shift, outliers O/E, QC fail %, outcome mismatch %, person-jump O/E,
                                typical upper limit
@@ -59,6 +70,7 @@ totals are written next to masked cells. SERVICE_PROVIDER is a pseudonym in R15:
 most of their rows' coding systems belong to (CODING_SYSTEM_MAP), plus the end of the pseudonym.
 """
 import argparse
+import textwrap
 import json
 import math
 import os
@@ -75,6 +87,7 @@ import pandas as pd
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 import matplotlib.ticker  # noqa: E402
+from matplotlib.backends.backend_pdf import PdfPages  # noqa: E402
 from matplotlib.colors import LinearSegmentedColormap  # noqa: E402
 
 ENGINE_DIR = Path("/mnt/disks/data/kanta/engine")
@@ -82,11 +95,13 @@ ORG_MAP = Path(__file__).resolve().parents[2] / "src/kanta/engine/data/coding_sy
 ORG_CODE = re.compile(r"^1\.2\.246\.(?:537\.)?10\.(\d+)\.")
 OUT = Path("/mnt/disks/data/kanta/qc/sp")  # next to omop_ref_audit.py's qc/omop
 CACHE = Path("/mnt/disks/data/kanta/tmp/sp_qc")
-THREAD = ["3020564", "3006923", "3001122", "3023602", "3027238", "3009201", "43054903", "3019550"]
+THREAD = ["3020564", "3006923", "3001122", "3023602", "3027238", "3009201", "43054903", "3048689", "3019550"]
 BIN = 0.01  # log10 width of the residual and baseline bins
 RCLIP = 2.0  # residuals clipped to +- this (log10) before binning
 MAX_GAP = 2  # missing months allowed inside a run of an SP's monthly series
-CACHE_VERSION = "v4"
+CACHE_VERSION = "v8"
+# an upper limit of 999, 9999, 99999, ...: "no upper limit" (some labs send it for one-sided ranges, e.g. HDL)
+SENTINEL = "({x} >= 999 and abs({x} + 1 - power(10, round(log10({x} + 1)))) < 1e-6)"
 BASE_VERSION = "r2"
 RAM_GB = os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES") / 2**30
 # base column -> (engine output column, release column); the release has no pre-injection unit
@@ -111,6 +126,20 @@ DIMS = {  # cause dimension -> SQL expression (as text)
     "test": "cast(k_test as varchar)", "unit": "cast(k_unit as varchar)", "note": "cast(k_note as varchar)",
     "unit_missing": "cast(unit_missing as varchar)", "extracted": "cast(extracted as varchar)",
     "decimals": "cast(decimals as varchar)", "ref_src": "cast(ref_src as varchar)",
+}
+DIM_LABEL = {"test": "test name", "unit": "unit", "note": "QC note", "unit_missing": "unit missing before injection",
+             "extracted": "value extracted from text", "decimals": "decimals", "ref_src": "range source"}
+KIND_TEXT = {  # one line per kind, for the report
+    "step": "a lasting change in the lab's monthly median; 'limit changed too' points to a method change, "
+            "'unchanged' to drift or a data problem",
+    "episode": "a run of odd months that then returns to the lab's usual level",
+    "shift": "the lab's level is off national (same sex and age) for years: often its patients, or its method",
+    "outliers": "values outside the national fences (3 IQR on a log scale, same sex and age): normally very rare",
+    "person_jump": "values far from the same person's other values of the test: wrong scale, wrong test, wrong person",
+    "qc_fail": "rows failing the engine's own QC (QC_PASS = 0); the reason is in QC_NOTES",
+    "outcome": "TEST_OUTCOME (H/L/N) disagrees with the row's own reference limits",
+    "range": "the lab's typical adult limits differ from national by >= the range margin",
+    "range_change": "the lab's typical limit changed from one year to the next",
 }
 KINDS = ["step", "episode", "shift", "range", "outliers", "person_jump", "qc_fail", "outcome", "range_change"]
 
@@ -314,6 +343,18 @@ def ensure_rows(omops, args, con):
             shutil.rmtree(root)
         meta = dict(want, empty=[], all=False)
     root.mkdir(parents=True, exist_ok=True)
+    names_p = root / "sp_orgs.parquet"
+    if not names_p.exists():
+        # SP -> coding-system organisation counts over the whole input (only some rows of an SP carry an organisation,
+        # and for a given OMOP maybe none: naming from one OMOP's rows leaves e.g. HUS unnamed)
+        types = {r[0]: r[1] for r in con.sql(f"describe select * from read_parquet({sql_str(inp)})").fetchall()}
+        csp = next((c for c in COLUMNS["sp"] if c in types), None)
+        corg = next((c for c in COLUMNS["org"] if c and c in types), None)
+        if csp and corg:
+            log(f"Rows: lab names (SP x coding-system organisation) from {inp.name} ...")
+            con.sql(f"""copy (select "{csp}" k_sp, "{corg}" org, count(*) n from read_parquet({sql_str(inp)})
+                              where "{corg}" is not null and "{corg}" not in ('NA', '') group by all)
+                        to {sql_str(names_p)} (format parquet)""")
     have = {p.name.split("=", 1)[1] for p in root.glob("omop=*")}
     if omops is None:
         todo = None if not meta["all"] else []
@@ -355,7 +396,7 @@ def part_mtime(folder):
 # 1-2 Build (duckdb, cached per OMOP)
 # ---------------------------------------------------------------------------
 
-TABLES = ["strata", "jump", "cells", "res", "rng", "dims", "orgs"]
+TABLES = ["strata", "jump", "cells", "res", "rng", "dims", "orgs", "vals"]
 
 
 def build(omop, args, con, rows):
@@ -363,34 +404,49 @@ def build(omop, args, con, rows):
     if not part.is_dir():
         log(f"OMOP {omop}: no rows in {Path(args.input).name}, skipped")
         return None
-    cdir = args.cache / f"omop={omop}"
+    cdir = args.cache / f"omop={omop}{scale_sfx(args)}"
     meta_p = cdir / "meta.json"
-    params = {"version": CACHE_VERSION, "fence_k": args.fence_k, "bin": BIN, "min_stratum": args.min_stratum}
+    params = {"version": CACHE_VERSION, "fence_k": args.fence_k, "bin": BIN, "min_stratum": args.min_stratum,
+              "scale": args.scale}
     src_mtime = part_mtime(part)
     if meta_p.exists() and not args.force:
         meta = json.loads(meta_p.read_text())
-        if meta.get("params") == params and meta.get("base") == str(part) and meta.get("base_mtime", 0) >= src_mtime \
-                and all((cdir / f"{t}.parquet").exists() for t in TABLES):
+        fresh = meta.get("params") == params and meta.get("base") == str(part) and meta.get("base_mtime", 0) >= src_mtime
+        if fresh and meta.get("empty"):  # nothing to analyse last time either (e.g. no lower limits for x LLN)
+            log(f"OMOP {omop}: cached, no rows{'' if args.scale == 'raw' else ' with that limit'} ({cdir})")
+            return None
+        if fresh and all((cdir / f"{t}.parquet").exists() for t in TABLES):
             log(f"OMOP {omop}: cached ({cdir})")
             return {t: pd.read_parquet(cdir / f"{t}.parquet") for t in TABLES} | {"meta": meta}
 
     P = f"read_parquet({sql_str(str(part) + '/*.parquet')})"
     log(f"OMOP {omop}: aggregating {part} ...")
-    con.sql(f"""create or replace temp view r as
+    con.sql(f"""create or replace temp view r0 as
         select sp k_sp, test k_test, f, year, month, coalesce(cast(sex as varchar), 'U') sx,
                case when age is null then -1 when age >= 90 then 90 else (floor(age / 10) * 10)::int end band,
                case when age is null then 'U' when age < 18 then 'minor' else 'adult' end ag,
                v, v_raw, case when v > 0 then log10(v) end lv,
-               case when v > 0 and v_raw > 0 and ref_high > 0 then round(ref_high * v / v_raw, 6) end hi_h,
+               case when v > 0 and v_raw > 0 and ref_high > 0 and not {SENTINEL.format(x="ref_high")}
+                    then round(ref_high * v / v_raw, 6) end hi_h,
                case when v > 0 and v_raw > 0 and ref_low > 0 then round(ref_low * v / v_raw, 6) end lo_h,
                ref_low, ref_high, qc_pass, outcome, unit k_unit, note k_note, unit_missing, extracted, decimals, ref_src,
                org, h_unit
         from {P}""")
+    # --scale uln / lln: every value as a multiple of its own row's upper / lower limit (the same as raw value over raw
+    # limit, so independent of the unit conversion); rows without that limit left out
+    lim = {"uln": "hi_h", "lln": "lo_h"}.get(args.scale)
+    con.sql("create or replace temp view r as " + (
+        "select * from r0" if lim is None else
+        f"select * replace (case when v > 0 then log10(v / {lim}) end as lv) from r0 where {lim} is not null"))
 
     # --- 1 baseline per sex x age band (small strata take the pooled values)
     h = con.sql(f"select sx, band, round(lv / {BIN})::int b, count(*) n from r where lv is not null group by all").df()
     if h.empty:
-        log(f"OMOP {omop}: no harmonized values > 0, skipped")
+        cdir.mkdir(parents=True, exist_ok=True)
+        meta_p.write_text(json.dumps({"omop": omop, "params": params, "base_mtime": src_mtime, "base": str(part),
+                                      "empty": True, "created": time.strftime("%Y-%m-%dT%H:%M:%S")}, indent=1) + "\n")
+        log(f"OMOP {omop}: " + (f"no rows with a {'lower' if args.scale == 'lln' else 'upper'} reference limit > 0, "
+                                f"x {args.scale.upper()} skipped" if lim else "no harmonized values > 0, skipped"))
         return None
 
     def stratum(d):
@@ -451,7 +507,9 @@ def build(omop, args, con, rows):
                count(*) filter (where oo = 'N' and oe in ('H', 'L')) oc_said_normal,
                count(*) filter (where oo in ('H', 'L', 'A') and oe = 'N') oc_said_abnormal,
                count(*) filter (where (oo = 'H' and oe = 'L') or (oo = 'L' and oe = 'H')) oc_flipped,
-               count(*) filter (where ref_low is not null or ref_high is not null) n_ref
+               count(*) filter (where ref_low is not null or ref_high is not null) n_ref,
+               count(hi_h) n_hi, count(*) filter (where v > hi_h) above,
+               count(lo_h) n_lo, count(*) filter (where v < lo_h) below
         from x group by all""").df()
     res = con.sql(f"""
         select k_sp, year, month, round(greatest(least(lv - st.med, {RCLIP}), -{RCLIP}) / {BIN})::smallint rb, count(*) n
@@ -462,9 +520,10 @@ def build(omop, args, con, rows):
         f"select k_sp, year, month, '{d}' dim, {e} cat, count(*) n from r group by all" for d, e in DIMS.items())).df()
 
     orgs = con.sql("select k_sp, org, count(*) n from r where org is not null group by all").df()
+    vals = con.sql(f"select k_sp, round(lv / {BIN})::int b, count(*) n from r where lv is not null group by all").df()
     hu = con.sql("select h_unit, count(*) n from r where h_unit is not null group by all order by n desc limit 1").fetchall()
     cdir.mkdir(parents=True, exist_ok=True)
-    out = {"strata": st, "jump": jump, "cells": cells, "res": res, "rng": rng, "dims": dims, "orgs": orgs}
+    out = {"strata": st, "jump": jump, "cells": cells, "res": res, "rng": rng, "dims": dims, "orgs": orgs, "vals": vals}
     for k, df in out.items():
         df.to_parquet(cdir / f"{k}.parquet", index=False)
     meta = {"omop": omop, "params": params, "base_mtime": src_mtime, "base": str(part), "h_unit": hu[0][0] if hu else None,
@@ -482,6 +541,41 @@ def add_t(df):
     df = df[df["year"].notna() & df["month"].notna()].copy()
     df["t"] = df["year"].astype(int) * 12 + df["month"].astype(int) - 1
     return df
+
+
+MIN_N = 5  # outputs: no count (or remainder of a shown total) of 1..MIN_N-1; set from --min-n in main()
+
+
+def small(k, n):
+    """True when k, or the remainder n - k, is a count of 1..MIN_N-1 (so k / n would give a small count away).
+    Works on numbers and on arrays."""
+    k, n = np.asarray(k, float), np.asarray(n, float)
+    r = n - k
+    return ((k >= 0.5) & (k < MIN_N - 0.5)) | ((r >= 0.5) & (r < MIN_N - 0.5))
+
+
+def scale_sfx(args):
+    """'' for raw values, '_uln' / '_lln' for --scale uln / lln (file and cache names)."""
+    return "" if args.scale == "raw" else f"_{args.scale}"
+
+
+def above_pct(cy, k, side="uln"):
+    """% of an SP's rows above their own upper limit (side uln) or below their own lower limit (lln), over the rows
+    that have that limit, or None (too few, or small)."""
+    g = cy[cy["k_sp"] == k]
+    nc, kc = ("n_hi", "above") if side == "uln" else ("n_lo", "below")
+    n, a = g[nc].sum() if nc in g else 0, g[kc].sum() if kc in g else 0
+    return None if n < 100 or small(a, n) else 100 * a / n
+
+
+def fmt_counts(tmpl, events, expected, rows):
+    """Fill a count flag's text: events, rows, rate (% of rows), exp_rate (% expected at the national rate), oe (the
+    ratio, written x560 or x3.4)."""
+    oe = events / expected if expected > 0 else float("nan")
+    if small(events, rows):  # the count, or the rows without it, would be under MIN_N
+        return tmpl.format(events=BELOW, rows=int(rows), rate=BELOW, exp_rate=100 * expected / rows, oe=BELOW)
+    return tmpl.format(events=int(events), rows=int(rows), rate=f"{100 * events / rows:.1f}%",
+                       exp_rate=100 * expected / rows, oe=f"{oe:.0f}" if oe >= 10 else f"{oe:.1f}")
 
 
 def year_spans(years):
@@ -517,8 +611,8 @@ def merge_years(rows, key_cols):
         if isinstance(first.get("tmpl"), str):  # counts: totals over the run
             ev, ex = sum(r["events"] for r in run), sum(r["expected"] for r in run)
             eff = math.log10(ev / ex) if ex > 0 else first["effect"]
-            extra["detail"] = first["tmpl"].format(events=int(ev), oe=ev / ex if ex > 0 else float("nan"),
-                                                   rate=100 * ev / rows_)
+            extra["detail"] = fmt_counts(first["tmpl"], ev, ex, rows_)
+            extra["events"] = ev
         else:
             eff = sum(r["effect"] * r["rows"] for r in run) / rows_
         merged.append({**first.to_dict(), **extra, "rows": int(rows_), "effect": eff,
@@ -557,7 +651,7 @@ def detect(omop, data, args, labels):
     def count_flag(kind, r, rows, events, expected, tmpl):
         oe = events / expected
         return base_flag(kind, r.k_sp, r.year, rows, math.log10(oe),
-                         tmpl.format(events=int(events), oe=oe, rate=100 * events / rows), events, expected, tmpl)
+                         fmt_counts(tmpl, events, expected, rows), events, expected, tmpl)
 
     # shift: one flag per SP, over its years off national (a level, often the lab's patient mix, not an event)
     judged = cy[(cy["n_v"] >= args.min_cell) & cy["shift"].notna()]
@@ -571,21 +665,25 @@ def detect(omop, data, args, labels):
         yrs = sorted(int(y) for y in off["year"])
         flags.append({"omop": omop, "kind": "shift", "k_sp": sp, "rows": int(off["n_v"].sum()), "effect": eff,
                       "start": yrs[0] * 12, "end": yrs[-1] * 12 + 11, "period": year_spans(yrs),
-                      "detail": f"median vs national (same sex x age) in {len(yrs)} of {len(g)} years "
-                                f"({fx(off['shift'].min())} to {fx(off['shift'].max())}); a level: the lab's patient "
-                                f"mix, or its method"})
+                      "detail": f"median {fx(eff)} vs national (same sex and age) " + (
+                          f"in {yrs[0]}" if len(yrs) == 1 else
+                          f"in {len(yrs)} of {len(g)} years ({fx(off['shift'].min())} to {fx(off['shift'].max())})")
+                                + ": a steady level, often the lab's patients (who gets tested), or its method"})
     # outliers, person jumps, qc fails, outcome
     rows = [count_flag("outliers", r, r.n_v, r.obs_out, r.exp_out,
-                       "{events} outside the national fences (same sex x age), {oe:.1f}x expected")
+                       "{events} of {rows} values ({rate}) are extreme for this test (outside the national "
+                       "fences, same sex and age); nationally {exp_rate:.2f}% ({oe}x expected)")
             for r in cy.itertuples() if r.obs_out >= args.min_events and pd.notna(r.oe_out) and r.oe_out >= args.oe]
     flags += merge_years(rows, ["k_sp", "kind"])
     rows = [count_flag("person_jump", r, r.n_j, r.obs_jump, r.exp_jump,
-                       "{events} values far from the same person's other values, {oe:.1f}x expected")
+                       "{events} of {rows} values ({rate}) are far from the same person's other values of "
+                       "this test; nationally {exp_rate:.2f}% ({oe}x expected)")
             for r in cy.itertuples() if r.obs_jump >= args.min_events and pd.notna(r.oe_jump) and r.oe_jump >= args.oe]
     flags += merge_years(rows, ["k_sp", "kind"])
     if nat_qc >= 0:
         rows = [count_flag("qc_fail", r, r.n_qc, r.qc_fail, r.n_qc * max(nat_qc, 1e-4),
-                           "QC fail {rate:.1f}% vs " + f"{100 * nat_qc:.2f}% national")
+                           "{events} of {rows} rows ({rate}) fail the engine's QC (QC_PASS = 0); nationally " +
+                           f"{100 * nat_qc:.2f}%")
                 for r in cy.itertuples() if r.qc_fail >= args.min_events and pd.notna(r.qc_rate)
                 and r.qc_rate >= args.oe * nat_qc and r.qc_rate - nat_qc >= 0.01]
         flags += merge_years(rows, ["k_sp", "kind"])
@@ -597,8 +695,8 @@ def detect(omop, data, args, labels):
                      (r.oc_flipped, "H/L the wrong way")]
             main = max(parts)[1]
             rows.append(count_flag("outcome", r, r.n_oc, r.oc_mis, r.n_oc * max(nat_oc, 1e-4),
-                                   "TEST_OUTCOME vs own range: {rate:.0f}% disagree " +
-                                   f"(national {100 * nat_oc:.1f}%), mostly {main}"))
+                                   "TEST_OUTCOME (H/L/N) disagrees with the row's own reference limits in {rate} "
+                                   f"of rows (nationally {100 * nat_oc:.1f}%), mostly {main}"))
     flags += merge_years(rows, ["k_sp", "kind"])
 
     # --- monthly series: steps and episodes
@@ -609,16 +707,17 @@ def detect(omop, data, args, labels):
     mm = mm.merge(cm.groupby(["k_sp", "t"], as_index=False)[["obs_out", "exp_out"]].sum(), on=["k_sp", "t"], how="left")
     mm = mm[mm["rows"] >= args.min_month]
     rng_t = add_t(rng)
+    rng_by_sp = {sp: g for sp, g in rng_t.groupby("k_sp")}
     series = {}
-    for sp, s in mm.groupby("k_sp"):
-        s = s.sort_values("t").reset_index(drop=True)
+    for sp, s in mm.sort_values(["k_sp", "t"]).groupby("k_sp", sort=False):
         # runs of months with data (a new run after more than MAX_GAP missing months); steps and episodes only on
         # runs of >= --min-seg months, so that a few scattered early months don't make a "step" at the real start
         run = np.concatenate([[0], np.cumsum(np.diff(s["t"].to_numpy()) > MAX_GAP + 1)])
-        size = pd.Series(run).map(pd.Series(run).value_counts()).to_numpy()
-        s = s.assign(run=run, long=size >= args.min_seg)
-        series[sp] = s
-        s = s[s["long"]].reset_index(drop=True)
+        long = np.bincount(run)[run] >= args.min_seg
+        series[sp] = s.assign(run=run, long=long)
+        if not long.any():
+            continue
+        s = s[long].assign(run=run[long])
         x = s["m"].to_numpy()
         n = len(x)
         if n == 0:
@@ -646,8 +745,8 @@ def detect(omop, data, args, labels):
                 tb = int(s["t"].iloc[k])
                 step = (k, tb, d)
                 # did the reference limit change at the same time? (the SP's main limit and sex x age group)
-                r_sp = rng_t[rng_t["k_sp"] == sp]
-                detail = f"median {fx(d)} from {ym(tb)} ({abs(d) / noise:.0f} noise units)"
+                r_sp = rng_by_sp.get(sp, rng_t.iloc[:0])
+                detail = f"median {fx(d)} from {ym(tb)} on, for good ({abs(d) / noise:.0f}x its month-to-month noise)"
                 if run[k] != run[k - 1]:
                     detail += (f"; after a gap in the data (no month with >= {args.min_month} rows between "
                                f"{ym(s['t'].iloc[k - 1])} and {ym(tb)}): a new system, or a data problem?")
@@ -690,7 +789,8 @@ def detect(omop, data, args, labels):
                 seg = s.iloc[i:j + 1]
                 d = np.median(x[i:j + 1] - basem[i:j + 1])
                 o, e = seg["obs_out"].sum(), seg["exp_out"].sum()
-                detail = f"median {fx(d)} vs the SP's own baseline"
+                detail = (f"median {fx(d)} vs the lab's own usual level for {int(ts[j] - ts[i] + 1)} months, then "
+                          f"back to it")
                 if e > 0 and o >= args.min_events:
                     detail += f"; outliers {o / e:.1f}x expected"
                 flags.append({"omop": omop, "kind": "episode", "k_sp": sp, "rows": int(seg["rows"].sum()), "effect": d,
@@ -742,10 +842,18 @@ def detect(omop, data, args, labels):
     # range changes between consecutive years, in the SP's main sex x age group
     rc = []
     ry = rng[rng["year"].notna()]
-    for sp, g in ry.groupby("k_sp"):
-        gm, col, lim, grp = main_limit(g)
-        yr = group_mode(gm, ["year"], col)
-        yr = yr[yr["rows"] >= args.min_cell].sort_values("year")
+    # per SP, as main_limit(): the upper limit (lower when it has none), adults when it has any, its largest group
+    has_hi = ry.groupby("k_sp")["lhi"].apply(lambda x: x.notna().any())
+    ry = ry.assign(col=np.where(ry["k_sp"].map(has_hi).astype(bool), "lhi", "llo"))
+    ry = ry.assign(lv=np.where(ry["col"] == "lhi", ry["lhi"], ry["llo"]))
+    ry = ry[ry["lv"].notna()]
+    grp_n = ry.groupby(["k_sp", "sx", "ag"], as_index=False)["n"].sum().assign(adult=lambda d: d["ag"] == "adult")
+    main = grp_n.sort_values(["adult", "n"], ascending=False).drop_duplicates("k_sp")[["k_sp", "sx", "ag"]]
+    ymode = group_mode(ry.merge(main, on=["k_sp", "sx", "ag"]), ["k_sp", "sx", "ag", "year"], "lv")
+    ymode = ymode[ymode["rows"] >= args.min_cell].sort_values(["k_sp", "year"])
+    for (sp, sx_, ag_), yr in ymode.groupby(["k_sp", "sx", "ag"]):
+        lim = "upper" if has_hi[sp] else "lower"
+        grp = f"{sex_label(sx_)} {ag_}"
         for a, b in zip(yr.itertuples(), list(yr.itertuples())[1:]):
             if b.year == a.year + 1 and abs(b.mode - a.mode) >= math.log10(args.range_step):
                 rc.append({"omop": omop, "kind": "range_change", "k_sp": sp, "rows": int(b.rows),
@@ -755,15 +863,18 @@ def detect(omop, data, args, labels):
     flags += rc
 
     # --- causes
-    dt = add_t(dims)
+    ctx = cause_context(dims)
     for fl in flags:
-        fl["cause"] = cause(fl, dt, dims, labels, args)
+        fl["cause"] = cause(fl, ctx, labels, args)
     fdf = pd.DataFrame(flags)
     if len(fdf):
         fdf["sp"] = fdf["k_sp"].map(labels.sp)
         fdf["effect_x"] = fdf.apply(lambda r: fx(r["effect"]) if r["kind"] in ("shift", "step", "episode", "range",
                                                                               "range_change") else
                                     f"{10 ** r['effect']:.1f}x", axis=1)
+        if "events" in fdf.columns:
+            hide = fdf["events"].notna() & small(fdf["events"].fillna(0), fdf["rows"])
+            fdf.loc[hide, "effect_x"] = BELOW
         fdf["score"] = (fdf["effect"].abs() * np.log10(fdf["rows"].clip(lower=1) + 1)).round(3)
         fdf = fdf.sort_values("score", ascending=False)
         fdf = fdf[["omop", "kind", "sp", "period", "rows", "effect_x", "detail", "cause", "score", "k_sp", "start",
@@ -778,35 +889,58 @@ def detect(omop, data, args, labels):
     return fdf, cy, ranges, nat, series
 
 
-def cause(fl, dt, dims, labels, args):
-    """The category whose share changed most between the flagged period and the SP's other periods."""
+def cause_context(dims):
+    """The category counts as integer arrays, once per OMOP: each (dim, category) a code; per SP its rows' month, code
+    and count; totals per code. A flag's cause is then a few bincounts."""
+    dt = add_t(dims)
+    cat = dt["cat"].astype(object).where(dt["cat"].notna(), "NA")
+    code, uniq = pd.factorize(pd.Series(list(zip(dt["dim"], cat))))
+    k = len(uniq)
+    dim_id, dim_names = pd.factorize(pd.Series([u[0] for u in uniq]))
+    n = dt["n"].to_numpy(float)
+    t = dt["t"].to_numpy(float)
+    sp_id, sp_names = pd.factorize(dt["k_sp"])
+    order = np.argsort(sp_id, kind="stable")
+    bounds = np.searchsorted(sp_id[order], np.arange(len(sp_names) + 1))
+    per_sp = {}
+    for i, sp in enumerate(sp_names):
+        ix = order[bounds[i]:bounds[i + 1]]
+        per_sp[sp] = (t[ix], code[ix], n[ix], np.bincount(code[ix], n[ix], k))
+    return {"k": k, "uniq": uniq, "dim_id": dim_id, "n_dim": len(dim_names), "total": np.bincount(code, n, k),
+            "per_sp": per_sp}
+
+
+def cause(fl, ctx, labels, args):
+    """The category whose share changed most between the flagged period and the SP's other periods (or between the SP
+    and the other SPs, when there is no period or too little else)."""
     sp = fl["k_sp"]
-    d = dims[dims["k_sp"] == sp]
-    if fl.get("start") is not None and pd.notna(fl.get("start")):
-        dsp = dt[dt["k_sp"] == sp]
-        inside = (dsp["t"] >= fl["start"]) & (dsp["t"] <= fl["end"])
-        a, b = dsp[inside], dsp[~inside]
-        ref = "rest of the SP's data"
-        if not len(b) or b["n"].sum() < args.min_cell * len(DIMS):
-            a, b, ref = d, dims[dims["k_sp"] != sp], "other SPs"
-    else:  # no period (range): this SP vs the others
-        a, b, ref = d, dims[dims["k_sp"] != sp], "other SPs"
-    best = None
-    for dim in DIMS:
-        sa = a[a["dim"] == dim].groupby("cat", dropna=False)["n"].sum()
-        sb = b[b["dim"] == dim].groupby("cat", dropna=False)["n"].sum()
-        if sa.sum() < args.min_n or sb.sum() < args.min_n:
-            continue
-        pa, pb = sa / sa.sum(), sb / sb.sum()
-        diff = pa.subtract(pb, fill_value=0)
-        cat = diff.abs().idxmax()
-        if best is None or abs(diff[cat]) > abs(best[2]):
-            best = (dim, cat, diff[cat], pb.get(cat, 0.0), pa.get(cat, 0.0))
-    if best is None or abs(best[2]) < 0.1:
+    if sp not in ctx["per_sp"]:
         return ""
-    dim, cat, _, before, now = best
+    t, code, n, own = ctx["per_sp"][sp]
+    k, dim_id, n_dim = ctx["k"], ctx["dim_id"], ctx["n_dim"]
+    a = None
+    if fl.get("start") is not None and pd.notna(fl.get("start")):
+        m = (t >= fl["start"]) & (t <= fl["end"])
+        a = np.bincount(code[m], n[m], k)
+        b = own - a
+        ref = "the lab's other periods"
+        if b.sum() < args.min_cell * len(DIMS):
+            a = None
+    if a is None:  # no period (range), or too little outside it: this SP vs the others
+        a, b, ref = own, ctx["total"] - own, "other labs"
+    sa, sb = np.bincount(dim_id, a, n_dim)[dim_id], np.bincount(dim_id, b, n_dim)[dim_id]
+    ok = (sa >= args.min_n) & (sb >= args.min_n) & ~small(a, sa) & ~small(b, sb)
+    if not ok.any():
+        return ""
+    with np.errstate(divide="ignore", invalid="ignore"):
+        pa, pb = np.where(ok, a / sa, 0.0), np.where(ok, b / sb, 0.0)
+    diff = pa - pb
+    i = int(np.argmax(np.abs(diff)))
+    if abs(diff[i]) < 0.1:
+        return ""
+    dim, cat = ctx["uniq"][i]
     name = labels.name(dim, cat) if dim in ("test", "unit", "note") else ("NA" if pd.isna(cat) else str(cat))
-    return f"{dim} {name}: {100 * before:.0f}% ({ref}) -> {100 * now:.0f}%"
+    return f"{DIM_LABEL.get(dim, dim)} {name}: {100 * pb[i]:.0f}% of rows in {ref} -> {100 * pa[i]:.0f}% here"
 
 
 # ---------------------------------------------------------------------------
@@ -815,8 +949,8 @@ def cause(fl, dt, dims, labels, args):
 
 def titled(ax, title, question):
     ax.set_title(title, fontsize=10, color=INK, loc="left", pad=19)
-    ax.text(0, 1.015, question, transform=ax.transAxes, fontsize=8.5, color=MUTED, style="italic", ha="left",
-            va="bottom")
+    ax.annotate(question, (0, 1), xycoords="axes fraction", xytext=(0, 4), textcoords="offset points", fontsize=8.5,
+                color=MUTED, style="italic", ha="left", va="bottom")
 
 
 def style(ax):
@@ -828,210 +962,20 @@ def style(ax):
     ax.tick_params(colors=MUTED, labelsize=7.5)
 
 
-def heatmap(ax, cy, args):
-    top = cy.groupby("k_sp")["n_v"].sum().sort_values(ascending=False).head(args.top_sp).index
-    d = cy[cy["k_sp"].isin(top)]
-    years = sorted(int(y) for y in d["year"].unique())
-    order = list(top)
-    grid = np.full((len(order), len(years)), np.nan)
-    for r in d.itertuples():
-        if r.n_v >= args.min_cell and pd.notna(r.shift):
-            grid[order.index(r.k_sp), years.index(int(r.year))] = r.shift
-    lim = math.log10(1.3)
-    cmap = LinearSegmentedColormap.from_list("div", [NEG, "#e8e6df", POS])
-    cmap.set_bad(SURFACE)
-    im = ax.imshow(np.clip(grid, -lim, lim), cmap=cmap, vmin=-lim, vmax=lim, aspect="auto", interpolation="nearest")
-    ax.set_yticks(range(len(order)))
-    ax.set_yticklabels([cy.loc[cy["k_sp"] == k, "sp"].iloc[0] for k in order], fontsize=7)
-    ax.set_xticks(range(len(years)))
-    ax.set_xticklabels(years, fontsize=7.5)
-    for i in range(len(order)):
-        for j in range(len(years)):
-            if np.isfinite(grid[i, j]) and abs(grid[i, j]) >= math.log10(args.shift):
-                ax.text(j, i, fx(grid[i, j]), ha="center", va="center", fontsize=6.5, color=INK)
-    cb = plt.colorbar(im, ax=ax, fraction=0.02, pad=0.01)
-    ticks = [-lim, -math.log10(1.1), 0, math.log10(1.1), lim]
-    cb.set_ticks(ticks)
-    cb.set_ticklabels([fx(t) for t in ticks])
-    cb.ax.tick_params(labelsize=7, colors=MUTED)
-    cb.outline.set_edgecolor(LINE)
-    for s in ax.spines.values():
-        s.set_visible(False)
-    ax.tick_params(colors=MUTED, length=0)
-    titled(ax, f"Median vs national per SP x year (largest {len(order)} SPs; blank: under {args.min_cell} rows; "
-               f"labelled when >= {fx(math.log10(args.shift))})",
-           "Which labs sit above or below the national values, and since when?")
-
-
-def series_panel(fig, spec, sp, s, flags_sp, rng_t, label, color, args):
-    sub = spec.subgridspec(2, 1, height_ratios=[2.2, 1], hspace=0.08)
-    ax = fig.add_subplot(sub[0])
-    ax2 = fig.add_subplot(sub[1], sharex=ax)
-    s = s.reset_index(drop=True)
-    dates = pd.to_datetime({"year": s["t"] // 12, "month": s["t"] % 12 + 1, "day": 1})
-    long = s["long"].to_numpy() if "long" in s else np.ones(len(s), bool)
-    ax.axhspan(-math.log10(args.shift), math.log10(args.shift), color=MUTED, alpha=0.07, lw=0)
-    ax.axhline(0, color=LINE, lw=1)
-    # one line per run of months (broken at gaps); months outside the runs used for steps drawn faint
-    for _, g in s.groupby(s["run"] if "run" in s else pd.Series(0, index=s.index)):
-        ax.plot(dates[g.index], g["m"], color=color, lw=1.6, marker="o", ms=2.5,
-                alpha=1.0 if long[g.index[0]] else 0.3)
-    for fl in flags_sp.itertuples():
-        if fl.kind == "episode":
-            a = pd.Timestamp(year=int(fl.start) // 12, month=int(fl.start) % 12 + 1, day=1)
-            b = pd.Timestamp(year=int(fl.end) // 12, month=int(fl.end) % 12 + 1, day=28)
-            ax.axvspan(a, b, color=KIND_COLOR["episode"], alpha=0.15, lw=0)
-        if fl.kind == "step":
-            a = pd.Timestamp(year=int(fl.start) // 12, month=int(fl.start) % 12 + 1, day=1)
-            for x in (ax, ax2):
-                x.axvline(a, color=KIND_COLOR["step"], lw=1.2, ls="--")
-
-    m = s.loc[long, "m"] if long.any() else s["m"]
-    lo, hi = min(np.nanmin(m), -0.06) - 0.02, max(np.nanmax(m), 0.06) + 0.02
-    ax.set_ylim(lo, hi)
-    span = hi - lo
-    steps = [f for f in (1.05, 1.1, 1.2, 1.5, 2, 3, 5, 10, 30, 100) if math.log10(f) >= span / 8] or [100]
-    st_ = math.log10(steps[0])
-    yt = [k * st_ for k in range(int(math.floor(lo / st_)), int(math.ceil(hi / st_)) + 1) if lo <= k * st_ <= hi]
-    ax.set_yticks(yt)
-    ax.set_yticklabels([fx(v) if abs(v) > 1e-9 else "x1.00" for v in yt])
-    off = s[(s["m"] < lo) | (s["m"] > hi)]  # off the scale: a marker at the edge
-    if len(off):
-        ax.scatter(dates[off.index], off["m"].clip(lo, hi), marker="^", s=18, color=color, alpha=0.4,
-                   clip_on=False, zorder=3)
-    ax.set_ylabel("median vs\nnational", fontsize=7.5, color=MUTED)
-    kinds = ", ".join(sorted(set(flags_sp["kind"])))
-    titled(ax, f"{label}: monthly median vs national ({kinds})",
-           "Did the lab's values change, and did its reference range change with them?")
-    plt.setp(ax.get_xticklabels(), visible=False)
-    style(ax)
-    r = rng_t[rng_t["k_sp"] == sp]
-    rm = pd.DataFrame()
-    if len(r):
-        rs, col, lim, grp = main_limit(r)
-        rm = group_mode(rs, ["t"], col)
-        rm = rm[rm["rows"] >= args.min_n].sort_values("t")
-        if len(rm):
-            d2 = pd.to_datetime({"year": rm["t"] // 12, "month": rm["t"] % 12 + 1, "day": 1})
-            ax2.step(d2, 10 ** rm["mode"], where="post", color=MUTED, lw=1.4)
-            ax2.set_ylabel(f"{lim} limit\n({grp})", fontsize=7.5, color=MUTED)
-            vals = 10 ** rm["mode"]
-            pad = max((vals.max() - vals.min()) * 0.3, vals.max() * 0.05)
-            ax2.set_ylim(vals.min() - pad, vals.max() + pad)
-    if not len(rm):
-        ax2.text(0.5, 0.5, "no reference limits", transform=ax2.transAxes, ha="center", fontsize=7.5, color=MUTED)
-        ax2.set_yticks([])
-    ax2.set_xlabel(f"month (shaded band: within x{args.shift:g}; dashed: step; orange: episode; faint: months "
-                   f"outside a run of >= {args.min_seg}, not used for steps; triangles: off the scale)", fontsize=7.5,
-                   color=MUTED)
-    style(ax2)
+def plain_log_x(ax, decades=None):
+    """Log x axis with plain labels (1-1.5-2-3-5-7 steps, or 1-2-5 when it spans more than about 2 decades)."""
+    ax.set_xscale("log")
+    subs = (1, 2, 5) if decades is not None and decades > 2 else (1, 1.5, 2, 3, 5, 7)
+    ax.xaxis.set_major_locator(matplotlib.ticker.LogLocator(base=10, subs=subs))
+    ax.xaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(lambda v, _: fnum(v)))
+    ax.xaxis.set_minor_formatter(matplotlib.ticker.NullFormatter())
+    ax.tick_params(axis="x", labelsize=8)
 
 
 def fmt_range(lo, hi):
     if pd.notna(lo) and pd.notna(hi):
         return f"{fnum(lo)}-{fnum(hi)}"
     return f"<{fnum(hi)}" if pd.notna(hi) else (f">{fnum(lo)}" if pd.notna(lo) else "")
-
-
-def range_panel(ax, ranges, src, h_unit, args):
-    """Typical limit per SP vs national (the upper limit, or the lower one when the concept has (almost) no upper),
-    with the actual ranges written out: national per sex x age in the title, each SP's on the right with the share of
-    its limits from the curated text table."""
-    limit = "upper"
-    if len(ranges):
-        by = ranges.groupby("limit")["rows"].sum()
-        limit = "upper" if by.get("upper", 0) >= 0.5 * by.get("lower", 0) else "lower"
-    up = ranges[(ranges["limit"] == limit) & (ranges["rows"] >= args.min_cell)] if len(ranges) else ranges
-    if up is None or not len(up):
-        ax.text(0.5, 0.5, "no reference limits", transform=ax.transAxes, ha="center", color=MUTED)
-        ax.axis("off")
-        return
-    unit = f" {h_unit}" if h_unit else ""
-    ok = ranges[ranges["rows"] >= args.min_cell]
-    # typical (lower, upper) per SP x sex x age, and national
-    sp_rng = ok.pivot_table(index=["k_sp", "sex", "age"], columns="limit", values="sp_typical", aggfunc="first")
-    nat_rng = ok.groupby(["sex", "age", "limit"])["national_typical"].first().unstack("limit")
-    groups = up.groupby(["sex", "age"])["rows"].sum().sort_values(ascending=False).head(2).index.tolist()
-    sps = up.groupby("k_sp")["rows"].sum().sort_values(ascending=False).head(args.top_sp).index.tolist()
-    lr = math.log10(args.range_margin)
-    ax.axvspan(-lr, lr, color=MUTED, alpha=0.07, lw=0)
-    ax.axvline(0, color=LINE, lw=1)
-    for gi, (sx, ag) in enumerate(groups):
-        g = up[(up["sex"] == sx) & (up["age"] == ag) & up["k_sp"].isin(sps)]
-        y = [sps.index(k) + (gi - 0.5) * 0.25 for k in g["k_sp"]]
-        nr = nat_rng.loc[(sx, ag)] if (sx, ag) in nat_rng.index else pd.Series(dtype=float)
-        ax.scatter(g["x_vs_national"].clip(-1, 1), y, s=28, color=SERIES[gi], edgecolor=SURFACE, lw=1, zorder=3,
-                   label=f"{sx} {ag}: national {fmt_range(nr.get('lower'), nr.get('upper'))}{unit}")
-    ax.set_yticks(range(len(sps)))
-    ax.set_yticklabels([up.loc[up["k_sp"] == k, "sp"].iloc[0] for k in sps], fontsize=7)
-    ax.set_ylim(len(sps) - 0.5, -0.5)
-    # right: each SP's own typical ranges in the two main groups, and where its limits come from
-    right = ax.twinx()
-    right.set_ylim(ax.get_ylim())
-    right.set_yticks(range(len(sps)))
-    labels = []
-    for k in sps:
-        parts = []
-        for sx, ag in groups:
-            if (k, sx, ag) in sp_rng.index:
-                r = sp_rng.loc[(k, sx, ag)]
-                parts.append(f"{sx} {fmt_range(r.get('lower'), r.get('upper'))}")
-        txt = src.get(k)
-        labels.append("  ".join(parts) + (f"   text {txt:.0f}%" if txt is not None and np.isfinite(txt) else ""))
-    right.set_yticklabels(labels, fontsize=7, color=INK)
-    right.tick_params(length=0)
-    for side in ("top", "right", "left", "bottom"):
-        right.spines[side].set_visible(False)
-    ticks = [-math.log10(4), -math.log10(2), 0, math.log10(2), math.log10(4)]
-    ax.set_xticks(ticks)
-    ax.set_xticklabels([fx(t) for t in ticks])
-    ax.set_xlim(-0.8, 0.8)
-    ax.set_xlabel(f"SP's typical {limit} limit / national (shaded: within x{args.range_margin:g}); right: the SP's "
-                  f"typical ranges{unit}, and the share of its limits from the curated text table", fontsize=7.5,
-                  color=MUTED)
-    ax.legend(fontsize=7, loc="lower left", frameon=True, facecolor=SURFACE, edgecolor=LINE)
-    ax.grid(axis="x", color=LINE, lw=0.5)
-    style(ax)
-    # national ranges per sex x age, and where the limits come from overall
-    nat_txt = "   ".join(f"{sx} {ag} {fmt_range(r.get('lower'), r.get('upper'))}"
-                         for (sx, ag), r in nat_rng.iterrows())
-    tot = src.get("__all__")
-    src_txt = (f"; limits from the curated text table for {tot:.0f}% of rows, sent by the lab for {100 - tot:.0f}%"
-               if tot is not None and np.isfinite(tot) else "")
-    titled(ax, f"Reference ranges per SP ({h_unit or 'harmonized unit'})",
-           f"Which labs use a different reference range?   National typical: {nat_txt}{src_txt}")
-
-
-def clip(text, n):
-    """Cut text at a word boundary, with an ellipsis."""
-    text = str(text)
-    return text if len(text) <= n else text[:n].rsplit(" ", 1)[0] + " …"
-
-
-def flag_table(ax, fdf, args):
-    ax.axis("off")
-    rows = fdf.head(args.table_rows)
-    if not len(rows):
-        ax.text(0.5, 0.5, "no flags", ha="center", va="center", transform=ax.transAxes, color=MUTED)
-        return
-    cells = [[r.kind, r.sp, r.period, f"{r.rows}", r.effect_x, clip(r.detail, 115), clip(r.cause or "", 70)]
-             for r in rows.itertuples()]
-    cols = ["kind", "SP", "period", "rows", "effect", "detail", "likely cause"]
-    tb = ax.table(cellText=cells, colLabels=cols, loc="upper center", cellLoc="left", colLoc="left")
-    tb.auto_set_font_size(False)
-    tb.set_fontsize(7.5)
-    tb.auto_set_column_width(list(range(len(cols))))
-    tb.scale(1, 1.4)
-    for (r, c), cell in tb.get_celld().items():
-        cell.set_edgecolor(LINE)
-        cell.set_facecolor(SURFACE)
-        cell.get_text().set_color(MUTED if r == 0 else INK)
-        if r > 0 and c == 0:
-            cell.set_facecolor(KIND_COLOR.get(cells[r - 1][0], LINE) + "40")
-    kinds = fdf["kind"].value_counts()
-    counts = ", ".join(f"{k} {kinds[k]}" for k in KINDS if k in kinds.index)
-    titled(ax, f"Flags: {len(fdf)} ({counts}); the largest {len(cells)} by score = |log10 effect| x log10 rows",
-           "What should be checked with the lab, and what probably caused it?")
 
 
 def ref_src_share(dims):
@@ -1041,36 +985,590 @@ def ref_src_share(dims):
         return {}
     by = d.groupby(["k_sp", "cat"])["n"].sum().unstack("cat", fill_value=0)
     text = by.get("text", pd.Series(0, index=by.index))
-    out = (100 * text / by.sum(axis=1)).where(by.sum(axis=1) >= 1).to_dict()
+    tot = by.sum(axis=1)
+    out = (100 * text / tot).where((tot >= 1) & ~small(text, tot)).to_dict()
     out["__all__"] = 100 * text.sum() / by.values.sum()
     return out
 
 
-def report(omop, title, fdf, cy, ranges, nat, series, rng, args, path, dims=None, h_unit=None):
-    pri = {"step": 0, "episode": 1, "range_change": 2, "shift": 3}
-    f = fdf[fdf["kind"].isin(list(pri))].assign(p=lambda d: d["kind"].map(pri))
-    flagged_sps = [k for k in f.sort_values(["p", "score"], ascending=[True, False])["k_sp"].drop_duplicates()
-                   if k in series][:4]
-    n_tab = max(min(len(fdf), args.table_rows), 1)
-    top_n = min(cy["k_sp"].nunique(), args.top_sp)
-    n_series = math.ceil(len(flagged_sps) / 2)
-    heights = [0.9 + 0.22 * top_n] + [3.6] * n_series + [max(0.9 + 0.22 * top_n, 2.5), 0.9 + 0.26 * n_tab]
-    H = sum(heights) + 1.2 + 0.6 * len(heights)
-    fig = plt.figure(figsize=(20, H), facecolor=SURFACE)
-    gs = fig.add_gridspec(len(heights), 2, height_ratios=heights, hspace=0.6, wspace=0.25, left=0.16, right=0.97,
-                          top=1 - 1.0 / H, bottom=0.2 / H)
-    heatmap(fig.add_subplot(gs[0, :]), cy, args)
-    rng_t = add_t(rng)
-    for i, sp in enumerate(flagged_sps):
-        series_panel(fig, gs[1 + i // 2, i % 2], sp, series[sp], fdf[fdf["k_sp"] == sp], rng_t,
-                     cy.loc[cy["k_sp"] == sp, "sp"].iloc[0], SERIES[i], args)
-    # full width, with the SPs' ranges written out on the right
-    rgs = gs[1 + n_series, :].subgridspec(1, 2, width_ratios=[1.6, 1])
-    range_panel(fig.add_subplot(rgs[0]), ranges, ref_src_share(dims) if dims is not None else {}, h_unit, args)
-    flag_table(fig.add_subplot(gs[2 + n_series, :]), fdf, args)
-    fig.suptitle(title, fontsize=13, fontweight="bold", color=INK, x=0.01, y=1 - 0.25 / H, ha="left")
-    fig.savefig(path, dpi=120, facecolor=SURFACE)
+def pick_value_labs(cy, args):
+    """Top --top-sp SPs by rows with a value, and the next --top-sp most deviating ones (largest yearly |shift| vs
+    national in a year with >= --min-cell rows; SPs with >= --min-dev-rows rows; ties by rows), with that shift."""
+    vol = cy.groupby("k_sp")["n_v"].sum().sort_values(ascending=False)
+    top = list(vol.head(args.top_sp).index)
+    j = cy[(cy["n_v"] >= args.min_cell) & cy["shift"].notna()]
+    dev = j.loc[j.groupby("k_sp")["shift"].apply(lambda x: x.abs().idxmax())][["k_sp", "shift", "year"]]
+    dev = dev[dev["k_sp"].isin(vol[vol >= args.min_dev_rows].index) & ~dev["k_sp"].isin(top)]
+    dev = dev.assign(a=dev["shift"].abs(), n=dev["k_sp"].map(vol)).sort_values(["a", "n"], ascending=False)
+    return top, dev.head(args.top_sp).set_index("k_sp"), vol
+
+
+def sp_label(k, cy, vol, min_n=5):
+    n = int(vol[k])
+    a = above_pct(cy, k)
+    return (f"{cy.loc[cy['k_sp'] == k, 'sp'].iloc[0]}   {n if n >= min_n else BELOW} rows"
+            + (f" · {a:.0f}% > ULN" if a is not None else ""))
+
+
+def heatmap(ax, cy, order, args):
+    """Median vs national (same sex x age) per SP x year, for the SPs in `order` (top to bottom)."""
+    d = cy[cy["k_sp"].isin(order)]
+    years = sorted(int(y) for y in cy["year"].dropna().unique())
+    grid = np.full((len(order), len(years)), np.nan)
+    for r in d.itertuples():
+        if r.n_v >= args.min_cell and pd.notna(r.shift):
+            grid[order.index(r.k_sp), years.index(int(r.year))] = r.shift
+    lim = math.log10(1.5)
+    cmap = LinearSegmentedColormap.from_list("div", [NEG, "#e8e6df", POS])
+    cmap.set_bad(SURFACE)
+    im = ax.imshow(np.clip(grid, -lim, lim), cmap=cmap, vmin=-lim, vmax=lim, aspect="auto", interpolation="nearest")
+    ax.set_xticks(range(len(years)))
+    ax.set_xticklabels(years, fontsize=8)
+    for i in range(len(order)):
+        for j in range(len(years)):
+            if np.isfinite(grid[i, j]):
+                ax.text(j, i, fx(grid[i, j]), ha="center", va="center", fontsize=6.5,
+                        color=INK if abs(grid[i, j]) < 0.6 * lim else SURFACE)
+    cb = plt.colorbar(im, ax=ax, fraction=0.03, pad=0.08, location="bottom", aspect=40)
+    ticks = [-lim, -math.log10(1.2), 0, math.log10(1.2), lim]
+    cb.set_ticks(ticks)
+    cb.set_ticklabels([fx(t) for t in ticks])
+    cb.ax.tick_params(labelsize=7, colors=MUTED)
+    cb.outline.set_edgecolor(LINE)
+    for sp_ in ax.spines.values():
+        sp_.set_visible(False)
+    ax.tick_params(colors=MUTED, length=0)
+    titled(ax, f"Median vs national per year (same sex x age; blank: under {args.min_cell} rows)",
+           "Is the lab above or below the national values, and since when?")
+
+
+def value_boxes(ax, vals, order, h_unit, scale="raw", min_rows=100):
+    """Each SP's harmonized values (log scale): box p25-p75, whiskers p5-p95, median; national p25-p75 shaded."""
+    def q(d, p):
+        return 10 ** wq_hist(d["b"].to_numpy() * BIN, d["n"], p)
+    nat = vals.groupby("b", as_index=False)["n"].sum()
+    n25, n50, n75 = q(nat, 0.25), q(nat, 0.5), q(nat, 0.75)
+    ax.axvspan(n25, n75, color=MUTED, alpha=0.1, lw=0)
+    ax.axvline(n50, color=MUTED, lw=1.2)
+    xs = []
+    for i, k in enumerate(order):
+        d = vals[vals["k_sp"] == k]
+        if d["n"].sum() < min_rows:  # quantiles of a few rows are close to single values: not drawn
+            ax.text(1.01, i, f"under {min_rows} rows: not shown", transform=ax.get_yaxis_transform(), va="center",
+                    fontsize=8, color=MUTED)
+            continue
+        p5, p25, p50, p75, p95 = (q(d, p) for p in (0.05, 0.25, 0.5, 0.75, 0.95))
+        xs += [p5, p95]
+        ax.plot([p5, p25], [i, i], color=SERIES[0], lw=1.2)
+        ax.plot([p75, p95], [i, i], color=SERIES[0], lw=1.2)
+        ax.add_patch(plt.Rectangle((p25, i - 0.3), p75 - p25, 0.6, facecolor=SERIES[0] + "55", edgecolor=SERIES[0], lw=1))
+        ax.plot([p50, p50], [i - 0.3, i + 0.3], color=INK, lw=2)
+        ax.text(1.01, i, f"median {fnum(p50)}  ({fx(math.log10(p50 / n50))})", transform=ax.get_yaxis_transform(),
+                va="center", fontsize=8, color=INK)
+    plain_log_x(ax, math.log10(max(xs) / min(xs)) if xs and min(xs) > 0 else None)
+    ax.set_ylim(len(order) - 0.5, -0.5)
+    ax.set_yticks([])
+    if scale != "raw":  # the limit itself
+        ax.axvline(1, color=POS, lw=1.2, ls=":")
+        ax.text(1, len(order) - 0.5, f" {scale.upper()}", color=POS, fontsize=8, va="bottom")
+    ax.set_xlabel(f"value / {scale.upper()} (multiples of the row's own {'upper' if scale == 'uln' else 'lower'} "
+                  f"limit, log scale)" if scale != "raw" else f"value ({h_unit or 'harmonized unit'}, log scale)",
+                  fontsize=8, color=MUTED)
+    ax.grid(axis="x", color=LINE, lw=0.5, which="both")
+    style(ax)
+    titled(ax, f"Values: box p25-p75, whiskers p5-p95, black line: median",
+           f"grey: national p25-p75 and median {fnum(n50)}; not adjusted for sex and age")
+
+
+def page_values(pdf, title, subtitle, order, cy, vals, vol, h_unit, args):
+    fig = plt.figure(figsize=(17, 2.6 + 0.62 * max(len(order), 1)), facecolor=SURFACE)
+    if not order:
+        fig.text(0.5, 0.5, "no service providers to show", ha="center", color=MUTED)
+    else:
+        gs = fig.add_gridspec(1, 2, width_ratios=[1.25, 1], wspace=0.04, left=0.24, right=0.9, top=0.8, bottom=0.14)
+        ax = fig.add_subplot(gs[0])
+        heatmap(ax, cy, order, args)
+        ax.set_yticks(range(len(order)))
+        ax.set_yticklabels([sp_label(k, cy, vol) for k in order], fontsize=9.5, color=INK)
+        value_boxes(fig.add_subplot(gs[1]), vals, order, h_unit, args.scale, args.min_cell)
+    fig.suptitle(title, fontsize=13, fontweight="bold", color=INK, x=0.01, y=0.985, ha="left")
+    fig.text(0.01, 0.94, subtitle, fontsize=10, color=MUTED, ha="left", va="top")
+    pdf.savefig(fig, facecolor=SURFACE)
     plt.close(fig)
+
+
+def national_limits(a):
+    """National typical adult limits per (sex, limit), only for limits that at least half of the sex's rows with limits
+    carry (HDL: a lower limit only, though a few labs also send an upper one)."""
+    nat = {}
+    for sx, g in a.groupby("sex"):
+        n = g.groupby("limit")["rows"].sum()
+        for lim, h in g.groupby("limit"):
+            if n[lim] >= 0.5 * n.max():
+                nat[(sx, lim)] = float(h["national_typical"].iloc[0])
+    return nat
+
+
+def range_table(ranges, src, nat):
+    """Per SP (adults): typical lower / upper limit per sex, the multiplier vs national (mean log ratio over the limits
+    both the SP and national have), the largest deviation, rows with limits, % from the text table. Whole-table
+    operations (a loop over SPs took minutes for tests with many of them)."""
+    a = ranges[ranges["age"] == "adult"]
+    if a.empty:
+        return pd.DataFrame()
+    piv = a.pivot_table(index="k_sp", columns=["sex", "limit"], values="sp_typical", aggfunc="first")
+    t = pd.DataFrame(index=piv.index)
+    t["sp"] = a.groupby("k_sp")["sp"].first()
+    t["rows"] = a.groupby(["k_sp", "sex"])["rows"].max().groupby("k_sp").sum().astype(int)
+    xs = []
+    for sx in ("F", "M"):
+        for lim in ("lower", "upper"):
+            v = piv[(sx, lim)] if (sx, lim) in piv.columns else pd.Series(np.nan, index=piv.index)
+            t[f"{sx}_{lim}"] = v.astype(float)
+            x = np.log10(v.astype(float) / nat[(sx, lim)]) if (sx, lim) in nat else pd.Series(np.nan, index=piv.index)
+            t[f"{sx}_{lim}_x"] = x
+            xs.append(x.rename(f"{sx}_{lim}"))
+    xx = pd.concat(xs, axis=1)
+    t["mult"] = xx.mean(axis=1).fillna(0.0)
+    t["dev"] = xx.abs().max(axis=1).fillna(0.0)
+    t["text"] = [src.get(k) for k in t.index]
+    return t.reset_index()
+
+
+def unbound_arrow(ax, v, y, side, color, lw=2.5, alpha=0.8):
+    """A short arrow from a one-sided limit towards its unbounded side (side = +1 upwards, -1 downwards), a fixed
+    length on screen whatever the axis scale."""
+    # the head is drawn at xytext: 28 points from the limit, on the unbounded side
+    ax.annotate("", xy=(v, y), xycoords="data", xytext=(side * 28, 0), textcoords="offset points",
+                arrowprops=dict(arrowstyle="<|-", color=color, lw=lw, alpha=alpha, mutation_scale=12,
+                                shrinkA=0, shrinkB=0))
+
+
+F_COL, M_COL = "#E58FB5", "#6FA8DC"  # women pink, men light blue (limits over time)
+
+
+def limits_by_year(rng, labs, args):
+    """Typical adult limit per lab, sex, side and year (years with >= --min-cell rows), for the per-lab plots of
+    limits over time: a DataFrame k_sp, sex ('F'/'M'), side ('upper'/'lower'), year, value."""
+    r = rng[rng["k_sp"].isin(labs) & (rng["ag"] == "adult") & rng["year"].notna()]
+    out = []
+    for col, side in (("lhi", "upper"), ("llo", "lower")):
+        m = group_mode(r[r[col].notna()], ["k_sp", "sx", "year"], col)
+        m = m[m["rows"] >= args.min_cell]
+        out.append(m.assign(side=side, value=10 ** m["mode"].astype(float)))
+    d = pd.concat(out, ignore_index=True)
+    d["sex"] = d["sx"].map(sex_label)
+    return d[d["sex"].isin(["F", "M"])][["k_sp", "sex", "side", "year", "value"]]
+
+
+def limits_row(ax, d, nat, years, show_x, extra=()):
+    """One lab's adult limits per year (women pink, men light blue; upper above lower; a step = a change) against the
+    national typical limits (dashed, same colours). The axis spans the lab's and the national values, so each row
+    reads against national by itself."""
+    vals = list(d["value"]) + [v for v in nat.values() if v > 0] + [v for v in extra if pd.notna(v) and v > 0]
+    if vals:
+        ax.set_yscale("log")
+        y0, y1 = min(vals) / 1.35, max(vals) * 1.35
+        ax.set_ylim(y0, y1)
+        for sx, c in (("F", F_COL), ("M", M_COL)):  # national range per sex as a light band (one-sided: to the edge)
+            lo, hi = nat.get((sx, "lower")), nat.get((sx, "upper"))
+            if lo is not None or hi is not None:
+                ax.axhspan(lo if lo is not None else y0, hi if hi is not None else y1, color=c, alpha=0.13, lw=0)
+    for sx, c, lw in (("F", F_COL, 2.6), ("M", M_COL, 1.4)):  # women a bit wider underneath: both show when equal
+        for side in ("upper", "lower"):
+            g = d[(d["sex"] == sx) & (d["side"] == side)].sort_values("year")
+            if len(g):
+                ax.step(g["year"].astype(int), g["value"], where="mid", color=c, lw=lw)
+                ax.plot(g["year"].astype(int), g["value"], ls="none", marker="o", ms=2.5, color=c)
+    if years:
+        ax.set_xlim(years[0] - 0.5, years[-1] + 0.5)
+        ax.set_xticks(years)
+    # the limit values on the right-hand axis, plain numbers at 1-2-5 steps
+    ax.yaxis.tick_right()
+    ax.yaxis.set_major_locator(matplotlib.ticker.LogLocator(base=10, subs=(1, 2, 5), numticks=6))
+    ax.yaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(lambda v, _: fnum(v)))
+    ax.yaxis.set_minor_locator(matplotlib.ticker.NullLocator())
+    ax.tick_params(axis="y", labelsize=7, colors=MUTED, length=2)
+    ax.tick_params(axis="x", labelsize=8, colors=MUTED, length=0, labelbottom=show_x)
+    ax.grid(axis="x", color=LINE, lw=0.4)
+    for sp_ in ("top", "left"):
+        ax.spines[sp_].set_visible(False)
+    ax.spines["bottom"].set_color(LINE)
+    ax.spines["right"].set_color(LINE)
+
+
+def range_bars(axb, r, nat, show_x):
+    """The lab's typical ranges next to the national ones, as upright bars on the row's limit axis: women (pink) and
+    national women (grey), men (blue) and national men (grey); a one-sided range runs to the axis edge, lighter."""
+    y0, y1 = axb.get_ylim()
+    bars = [(r["F_lower"], r["F_upper"], F_COL), (nat.get(("F", "lower")), nat.get(("F", "upper")), "#B9B7B0"),
+            (r["M_lower"], r["M_upper"], M_COL), (nat.get(("M", "lower")), nat.get(("M", "upper")), "#B9B7B0")]
+    for x, (lo, hi, c) in enumerate(bars):
+        lo = None if lo is None or pd.isna(lo) else lo
+        hi = None if hi is None or pd.isna(hi) else hi
+        if lo is None and hi is None:
+            continue
+        one_sided = lo is None or hi is None
+        axb.plot([x, x], [lo if lo is not None else y0, hi if hi is not None else y1], color=c, lw=9,
+                 solid_capstyle="butt", alpha=0.45 if one_sided else 0.95)
+    axb.set_xlim(-0.7, 3.7)
+    axb.set_xticks(range(4))
+    axb.set_xticklabels(["F", "ref", "M", "ref"], fontsize=7)
+    axb.tick_params(axis="x", colors=MUTED, length=0, labelbottom=show_x)
+    axb.tick_params(axis="y", left=False, labelleft=False, right=False, labelright=False)
+    for sp_ in ("top", "left", "right"):
+        axb.spines[sp_].set_visible(False)
+    axb.spines["bottom"].set_color(LINE)
+
+
+def range_block(fig, spec, t, nat, block_title, h_unit, args, years_df=None):
+    """One row per lab, sorted by the multiplier vs national (high first): its adult limits per year against the
+    national ones; on the left its name, rows, typical ranges, multiplier and limit source."""
+    t = t.sort_values("mult", ascending=False).reset_index(drop=True)
+    d_all = years_df if years_df is not None else pd.DataFrame(columns=["k_sp", "sex", "side", "year", "value"])
+    years = sorted(int(y) for y in d_all["year"].unique()) if len(d_all) else []
+    rows = spec.subgridspec(len(t), 1, hspace=0.35)
+    for i, r in t.iterrows():
+        cells = rows[i].subgridspec(1, 2, width_ratios=[7, 1], wspace=0.09)
+        ax = fig.add_subplot(cells[0])
+        last = i == len(t) - 1
+        limits_row(ax, d_all[d_all["k_sp"] == r["k_sp"]], nat, years, show_x=last,
+                   extra=[r["F_lower"], r["F_upper"], r["M_lower"], r["M_upper"]])
+        range_bars(fig.add_subplot(cells[1], sharey=ax), r, nat, show_x=last)
+        ranges_txt = "  ".join(f"{x} {fmt_range(r[f'{x}_lower'], r[f'{x}_upper'])}" for x in ("F", "M")
+                               if pd.notna(r[f"{x}_lower"]) or pd.notna(r[f"{x}_upper"]))
+        src_txt = f" · text {r['text']:.0f}%" if r["text"] is not None and pd.notna(r["text"]) else ""
+        ax.text(-0.01, 0.62, f"{r['sp']}   {r['rows']} rows", transform=ax.transAxes, ha="right", va="center",
+                fontsize=9, color=INK)
+        ax.text(-0.01, 0.22, f"{ranges_txt}  {fx(r['mult'])}{src_txt}", transform=ax.transAxes, ha="right",
+                va="center", fontsize=8.5, color=POS if r["mult"] > math.log10(1.05) else
+                NEG if r["mult"] < -math.log10(1.05) else MUTED)
+        if i == 0:
+            nat_txt = "  ".join(f"{x} {fmt_range(nat.get((x, 'lower')), nat.get((x, 'upper')))}" for x in ("F", "M")
+                                if (x, "lower") in nat or (x, "upper") in nat)
+            titled(ax, f"{block_title}: adult limits per year ({h_unit or 'harmonized unit'}, log scale)",
+                   f"lines: the lab, pink women, blue men · bands and grey bars (ref): national ({nat_txt}) · "
+                   f"right: the lab's typical ranges")
+    return []
+
+
+def page_ranges(pdf, title, ranges, src, h_unit, args, rng=None):
+    a = ranges[ranges["age"] == "adult"] if len(ranges) else pd.DataFrame()
+    nat = national_limits(a) if len(a) else {}
+    t = range_table(ranges, src, nat) if len(a) else pd.DataFrame()
+    top = dev = pd.DataFrame()
+    if not t.empty:
+        t = t[t["rows"] >= args.min_cell]
+        top = t.sort_values("rows", ascending=False).head(args.top_sp)
+        dev = t[~t["k_sp"].isin(top["k_sp"]) & (t["dev"] >= math.log10(1.05))]
+        dev = dev.sort_values(["dev", "rows"], ascending=False).head(args.top_sp)
+    n_rows = len(top) + len(dev)
+    labs = list(top["k_sp"]) + list(dev["k_sp"]) if not t.empty else []
+    years = limits_by_year(rng, labs, args) if rng is not None and len(labs) else None
+    fig = plt.figure(figsize=(17, 2.4 + 1.3 * (1 + (len(dev) > 0)) + 0.9 * max(n_rows, 2)), facecolor=SURFACE)
+    if top.empty:
+        fig.text(0.5, 0.5, "no reference limits (adults)", ha="center", color=MUTED)
+    else:
+        tot = src.get("__all__")
+        fig.text(0.01, 1 - 0.55 / fig.get_figheight(), "Reference limits, adults, per lab and year (converted to the "
+                 "harmonized unit; years with at least " + str(args.min_cell) + " rows).\nUnder each lab: its typical "
+                 "ranges and multiplier vs national (orange above, blue below); labs sorted by the multiplier, high first" + (f".  Limits from the curated text table for {tot:.0f}% "
+                 f"of rows, sent by the lab for {100 - tot:.0f}%." if tot is not None else ""),
+                 fontsize=10, color=MUTED, ha="left", va="top")
+        blocks = [(top, f"Top {len(top)} labs by rows with limits")] + \
+                 ([(dev, f"Top {len(dev)} other labs by deviation (>= x1.05)")] if len(dev) else [])
+        H = fig.get_figheight()
+        gs = fig.add_gridspec(len(blocks), 1, height_ratios=[max(len(b), 1) for b, _ in blocks], hspace=0.3,
+                              left=0.3, right=0.97, top=1 - 1.5 / H, bottom=0.7 / H)
+        for bi, (b, name) in enumerate(blocks):
+            range_block(fig, gs[bi], b, nat, name, h_unit, args, years)
+
+    fig.suptitle(title, fontsize=13, fontweight="bold", color=INK, x=0.01, y=1 - 0.2 / fig.get_figheight(), ha="left")
+    pdf.savefig(fig, facecolor=SURFACE)
+    plt.close(fig)
+
+
+LINE_IN = 0.15  # one table text line (7.5 pt), in inches
+CHAR_IN = 0.052  # an average character at 7.5 pt, in inches (for wrapping to the column's drawn width)
+
+
+def flag_key(fig, top):
+    """The key to the kinds of flag and to 'effect' / 'likely cause', from `top` down; returns where it ends."""
+    for i, k in enumerate(KINDS):
+        y = top - 0.019 * i
+        fig.text(0.02, y, k, fontsize=8.5, color=INK, fontweight="bold", va="top",
+                 bbox=dict(boxstyle="round,pad=0.2", facecolor=KIND_COLOR[k] + "40", edgecolor="none"))
+        fig.text(0.1, y, KIND_TEXT[k], fontsize=8.5, color=INK, va="top")
+    y = top - 0.019 * len(KINDS) - 0.006
+    fig.text(0.02, y, "effect: the size of the change (x1.24 = 24% higher, /1.09 = 9% lower) or, for counts, observed "
+             "vs expected at the national rate; when the national rate is tiny the ratio gets huge (x560): read the % "
+             "in 'what we see'. Likely cause: the test name, unit, decimals, QC note or range source whose share of "
+             "the lab's rows changed most in the flagged period.", fontsize=8.5, color=MUTED, va="top", wrap=True)
+    return y - 0.045
+
+
+def pages_flags(pdf, title, fdf, args, first_page=4):
+    """The flags, most important first (score = |log10 effect| x log10 rows), --table-rows at most, as many pages as
+    their wrapped text needs; a key to the kinds on the first page."""
+    one_page = not args.table_rows  # default: as many as fit on one page
+    f = fdf if one_page else fdf.head(args.table_rows)
+    counts = fdf["kind"].value_counts()
+    widths = {"kind": 12, "lab": 32, "period": 16, "rows": 7, "effect": 8, "what we see": 80, "likely cause": 52}
+    if "values" in fdf.columns:
+        widths = {"kind": 12, "values": 7, **{k: v for k, v in widths.items() if k != "kind"}}
+        widths["what we see"] = 74
+    cols = list(widths)
+    # wrap each column to the characters its drawn width holds (the table is 0.97 x 0.98 of the 17 in page)
+    pad = 0.012  # cell padding, as a share of the table width (matplotlib's default is 10% of each cell: wasteful)
+    fit = {c: max(6, int((0.97 * 0.98 * 17) * (widths[c] / sum(widths.values()) - 2 * pad) / CHAR_IN)) for c in cols}
+    cells = []
+    for r in f.itertuples():
+        vals = [r.kind] + ([r.values] if "values" in fdf.columns else []) + \
+               [r.sp, r.period, str(r.rows), r.effect_x, r.detail, r.cause or ""]
+        cells.append([textwrap.fill(str(v), fit[c]) for v, c in zip(vals, cols)])
+    n_lines = [max(c.count("\n") + 1 for c in row) for row in cells]
+    H = 11.5
+    key_end = None
+    pages, start = [], 0
+    while start < len(cells) or not pages:
+        top = 0.92 if pages else (key_end or 0.92 - 0.019 * len(KINDS) - 0.051)
+        avail = (top - 0.03) * H / LINE_IN - 1.6  # in lines, less the header row
+        end, used = start, 0.0
+        while end < len(cells) and (used + n_lines[end] + 0.6 <= avail or end == start):
+            used += n_lines[end] + 0.6
+            end += 1
+        pages.append((start, end))
+        start = end
+        if not cells or one_page:
+            break
+    if one_page:
+        f = f.iloc[:pages[0][1]]
+    for pg, (a, b) in enumerate(pages):
+        part = f.iloc[a:b]
+        fig = plt.figure(figsize=(17, H), facecolor=SURFACE)
+        fig.suptitle(title, fontsize=13, fontweight="bold", color=INK, x=0.01, y=0.985, ha="left")
+        head = (f"Page {first_page + pg}: flags, {len(fdf)} in all (" + ", ".join(f"{k} {counts[k]}" for k in KINDS
+                                                                     if k in counts.index) + ")"
+                + (f"; the {len(f)} most important here" if len(fdf) > len(f) else "")
+                + (f" (continued, {a + 1}-{b})" if pg else ""))
+        fig.text(0.01, 0.95, head, fontsize=10, color=MUTED, ha="left", va="top")
+        top = flag_key(fig, 0.92) if pg == 0 else 0.92
+        ax = fig.add_axes([0.01, 0.02, 0.98, top - 0.02])
+        ax.axis("off")
+        if not len(part):
+            ax.text(0.5, 0.9, "no flags", ha="center", color=MUTED, transform=ax.transAxes)
+        else:
+            rows = cells[a:b]
+            tb = ax.table(cellText=rows, colLabels=cols, cellLoc="left", colLoc="left",
+                          colWidths=[0.97 * widths[c] / sum(widths.values()) for c in cols], loc="upper center")
+            tb.auto_set_font_size(False)
+            tb.set_fontsize(7.5)
+            line = LINE_IN / (ax.get_position().height * H)  # one text line, in axes fraction
+            total = sum(widths.values())
+            for (ri, ci), cell in tb.get_celld().items():
+                cell.PAD = pad * total / widths[cols[ci]]  # the same small padding in every column
+                nl = n_lines[a + ri - 1] if ri > 0 else 1
+                cell.set_height(line * (nl + 0.6))
+                cell.set_edgecolor(LINE)
+                cell.set_facecolor(SURFACE)
+                cell.get_text().set_color(MUTED if ri == 0 else INK)
+                if ri > 0 and ci == 0:
+                    cell.set_facecolor(KIND_COLOR.get(part.iloc[ri - 1]["kind"], LINE) + "40")
+        pdf.savefig(fig, facecolor=SURFACE)
+        plt.close(fig)
+
+
+# one diverging palette per run (rows of the heatmap) and the run's box colour
+ULN_NEG, ULN_POS = "#6250d6", "#1baf7a"  # values as multiples of ULN
+LLN_NEG, LLN_POS = "#9c5b1f", "#178a94"  # values as multiples of LLN
+RUN = {"raw": {"neg": NEG, "pos": POS, "box": SERIES[0], "tag": "raw", "name": "raw values"},
+       "uln": {"neg": ULN_NEG, "pos": ULN_POS, "box": ULN_NEG, "tag": "x ULN",
+               "name": "multiples of each row's own upper limit (ULN)"},
+       "lln": {"neg": LLN_NEG, "pos": LLN_POS, "box": LLN_NEG, "tag": "x LLN",
+               "name": "multiples of each row's own lower limit (LLN)"}}
+
+
+def pick_value_labs_multi(runs, args):
+    """Top --top-sp SPs by rows, and the next --top-sp most deviating ones: the largest yearly |shift| in any run
+    (raw, x ULN, x LLN; >= --min-cell rows that year; SPs with >= --min-dev-rows rows; ties by rows)."""
+    vol = runs["raw"]["cy"].groupby("k_sp")["n_v"].sum().sort_values(ascending=False)
+    top = list(vol.head(args.top_sp).index)
+    j = pd.concat([c[(c["n_v"] >= args.min_cell) & c["shift"].notna()][["k_sp", "shift"]]
+                   for c in (r["cy"] for r in runs.values())])
+    dev = j.assign(a=j["shift"].abs()).groupby("k_sp")["a"].max()
+    dev = dev[dev.index.isin(vol[vol >= args.min_dev_rows].index) & ~dev.index.isin(top)]
+    dev = pd.DataFrame({"a": dev, "n": vol.reindex(dev.index)}).sort_values(["a", "n"], ascending=False)
+    return top, list(dev.head(args.top_sp).index), vol
+
+
+def year_grid(cy, order, years, args):
+    grid = np.full((len(order), len(years)), np.nan)
+    for r in cy[cy["k_sp"].isin(order)].itertuples():
+        if r.n_v >= args.min_cell and pd.notna(r.shift) and pd.notna(r.year) and int(r.year) in years:
+            grid[order.index(r.k_sp), years.index(int(r.year))] = r.shift
+    return grid
+
+
+def heatmap_multi(fig, ax, runs, order, args):
+    """One row per SP and run: the median vs national per year in raw values (blue-orange), as multiples of the row's
+    own ULN (purple-green) and of its own LLN (brown-teal)."""
+    sc = list(runs)
+    m, n = len(sc), len(order)
+    years = sorted(int(y) for y in pd.concat([r["cy"]["year"] for r in runs.values()]).dropna().unique())
+    lim = math.log10(1.5)
+    grids, ims = [], []
+    for i, s in enumerate(sc):
+        g = np.full((m * n, len(years)), np.nan)
+        g[i::m] = year_grid(runs[s]["cy"], order, years, args)
+        grids.append(g)
+        cmap = LinearSegmentedColormap.from_list("div", [RUN[s]["neg"], "#e8e6df", RUN[s]["pos"]])
+        cmap.set_bad((0, 0, 0, 0))
+        ims.append(ax.imshow(np.ma.masked_invalid(np.clip(g, -lim, lim)), cmap=cmap, vmin=-lim, vmax=lim,
+                             aspect="auto", interpolation="nearest"))
+    for i in range(m * n):
+        g = grids[i % m]
+        for j in range(len(years)):
+            if np.isfinite(g[i, j]):
+                ax.text(j, i, fx(g[i, j]), ha="center", va="center", fontsize=6,
+                        color=INK if abs(g[i, j]) < 0.6 * lim else SURFACE)
+    for i in range(1, n):  # a line between SPs
+        ax.axhline(m * i - 0.5, color=SURFACE, lw=2.5)
+    ax.set_xticks(range(len(years)))
+    ax.set_xticklabels(years, fontsize=8)
+    ax.set_xlim(-0.5, len(years) - 0.5)
+    ticks = [-lim, -math.log10(1.2), 0, math.log10(1.2), lim]
+    # colour bars side by side under the heatmap (axes fractions, so they don't shrink the heatmap)
+    w = 1 / m
+    for i, (s, im) in enumerate(zip(sc, ims)):
+        cax = ax.inset_axes([i * w + 0.1 * w, -0.9 / (fig.get_figheight() * ax.get_position().height), 0.8 * w,
+                             0.12 / (fig.get_figheight() * ax.get_position().height)])
+        cb = fig.colorbar(im, cax=cax, orientation="horizontal")
+        cb.set_ticks(ticks)
+        cb.set_ticklabels([fx(t) for t in ticks])
+        cb.ax.tick_params(labelsize=7, colors=MUTED)
+        cb.outline.set_edgecolor(LINE)
+        cb.set_label(RUN[s]["tag"] if s != "raw" else "raw values", fontsize=7.5, color=RUN[s]["box"])
+    for sp_ in ax.spines.values():
+        sp_.set_visible(False)
+    ax.tick_params(colors=MUTED, length=0)
+    titled(ax, f"Median vs national per year (same sex x age; blank: under {args.min_cell} rows)",
+           "per lab: " + ", ".join(RUN[s]["tag"] for s in sc) + (
+               " (multiples of the row's own upper / lower limit)" if len(sc) > 1 else ""))
+
+
+def boxes_multi(ax, runs, order, h_unit, args):
+    """One box per SP and run on one axis, each relative to its run's national median: the raw values, and the values
+    as multiples of ULN / LLN. Raw off but x ULN not: the lab's assay or limits, not its values."""
+    def q(d, p):
+        return 10 ** wq_hist(d["b"].to_numpy() * BIN, d["n"], p)
+    sc = list(runs)
+    m = len(sc)
+    xs, meds = [], {}
+    for dy, s in enumerate(sc):
+        vals, color = runs[s]["vals"], RUN[s]["box"]
+        nat = vals.groupby("b", as_index=False)["n"].sum()
+        n50 = q(nat, 0.5) if len(nat) else np.nan
+        meds[s] = n50
+        for i, k in enumerate(order):
+            d = vals[vals["k_sp"] == k]
+            y = m * i + dy
+            if d["n"].sum() < args.min_cell:
+                ax.text(1.01, y, f"under {args.min_cell} rows: not shown", transform=ax.get_yaxis_transform(),
+                        va="center", fontsize=7.5, color=MUTED)
+                continue
+            p5, p25, p50, p75, p95 = (q(d, p) / n50 for p in (0.05, 0.25, 0.5, 0.75, 0.95))
+            xs += [p5, p95]
+            ax.plot([p5, p25], [y, y], color=color, lw=1.1)
+            ax.plot([p75, p95], [y, y], color=color, lw=1.1)
+            ax.add_patch(plt.Rectangle((p25, y - 0.32), p75 - p25, 0.64, facecolor=color + "55", edgecolor=color,
+                                       lw=1))
+            ax.plot([p50, p50], [y - 0.32, y + 0.32], color=INK, lw=2)
+            txt = f"median {fnum(p50 * n50)} " + (h_unit or "" if s == "raw" else RUN[s]["tag"].split()[1])
+            ax.text(1.01, y, f"{txt}  ({fx(math.log10(p50))})", transform=ax.get_yaxis_transform(), va="center",
+                    fontsize=7.5, color=INK)
+    ax.axvline(1, color=MUTED, lw=1.2)
+    for i in range(1, len(order)):
+        ax.axhline(m * i - 0.5, color=LINE, lw=0.6)
+    plain_log_x(ax, math.log10(max(xs) / min(xs)) if xs and min(xs) > 0 else None)
+    ax.set_ylim(m * len(order) - 0.5, -0.5)
+    ax.set_yticks([])
+    cols = {"raw": "blue raw values", "uln": "purple x ULN", "lln": "brown x LLN"}
+    ax.set_xlabel("value / national median (log scale): " + ", ".join(cols[s] for s in sc), fontsize=8, color=MUTED)
+    ax.grid(axis="x", color=LINE, lw=0.5, which="both")
+    style(ax)
+    nat = [f"{fnum(meds[s])} {h_unit or ''}".strip() if s == "raw" else f"{fnum(meds[s])} {RUN[s]['tag']}"
+           for s in sc]
+    titled(ax, "Values vs national median: box p25-p75, whiskers p5-p95, black line: median",
+           f"national median: {', '.join(nat)}; not adjusted for sex and age")
+
+
+def page_values_multi(pdf, title, subtitle, order, runs, vol, h_unit, args):
+    m = len(runs)
+    fig = plt.figure(figsize=(17, 3.4 + 0.47 * m * max(len(order), 1)), facecolor=SURFACE)
+    if not order:
+        fig.text(0.5, 0.5, "no service providers to show", ha="center", color=MUTED)
+    else:
+        h = fig.get_figheight()
+        gs = fig.add_gridspec(1, 2, width_ratios=[1.25, 1], wspace=0.04, left=0.24, right=0.88, top=1 - 1.2 / h,
+                              bottom=1.6 / h)
+        ax = fig.add_subplot(gs[0])
+        heatmap_multi(fig, ax, runs, order, args)
+        ax.set_yticks(range(m * len(order)))
+        labels, colors = [], []
+        cy = runs["raw"]["cy"]
+        for k in order:
+            for s in runs:
+                if s == "raw":
+                    labels.append(sp_label(k, cy, vol).split(" · ")[0])
+                else:
+                    a = above_pct(cy, k, s)
+                    labels.append(f"as {RUN[s]['tag']}" + (
+                        "" if a is None else f" · {a:.0f}% " + ("> ULN" if s == "uln" else "< LLN")))
+                colors.append(RUN[s]["box"] if s != "raw" else INK)
+        ax.set_yticklabels(labels, fontsize=9, color=INK)
+        for t, c in zip(ax.get_yticklabels(), colors):
+            if c != INK:
+                t.set_color(c)
+                t.set_fontsize(8)
+        boxes_multi(fig.add_subplot(gs[1]), runs, order, h_unit, args)
+    fig.suptitle(title, fontsize=13, fontweight="bold", color=INK, x=0.01, y=1 - 0.2 / fig.get_figheight(), ha="left")
+    fig.text(0.01, 1 - 0.55 / fig.get_figheight(), subtitle, fontsize=10, color=MUTED, ha="left", va="top")
+    pdf.savefig(fig, facecolor=SURFACE)
+    plt.close(fig)
+
+
+def report_multi(omop, title, runs, args, path, h_unit=None):
+    """4+ pages: (1) the top SPs by rows and (2) the most deviating others, each with its raw values and as multiples
+    of ULN and LLN, one under the other; (3) reference ranges; (4) the flags of all runs."""
+    top, dev, vol = pick_value_labs_multi(runs, args)
+    raw = runs["raw"]
+    what = " and ".join(["its raw values"] + [f"as {RUN[s]['tag']}" for s in runs if s != "raw"])
+    with PdfPages(path) as pdf:
+        page_values_multi(pdf, title, f"Page 1: the {len(top)} labs with the most rows; each with {what} "
+                          f"(multiples of its own upper / lower reference limit)", top, runs, vol, h_unit, args)
+        page_values_multi(pdf, title, f"Page 2: the {len(dev)} most deviating other labs (largest yearly median vs "
+                          f"national, in any of the rows; >= {args.min_dev_rows} rows)", dev, runs, vol, h_unit, args)
+        page_ranges(pdf, title, raw["ranges"], ref_src_share(raw["dims"]), h_unit, args, raw.get("rng"))
+        parts = [raw["fdf"].assign(values="raw")]
+        for s in runs:  # the limits are the same in every run: their flags come from the raw one
+            if s != "raw":
+                f = runs[s]["fdf"]
+                parts.append(f[~f["kind"].isin(["range", "range_change"])].assign(values=RUN[s]["tag"]))
+        pages_flags(pdf, title, pd.concat(parts, ignore_index=True).sort_values("score", ascending=False), args,
+                    first_page=4)
+    log(f"Wrote {path}")
+
+
+def report(omop, title, fdf, cy, ranges, vals, args, path, dims=None, h_unit=None, rng=None):
+    """A 3-page PDF: the top labs by volume (values), the most deviating ones (values), reference ranges."""
+    top, dev, vol = pick_value_labs(cy, args)
+    with PdfPages(path) as pdf:
+        page_values(pdf, title, f"Page 1: the {len(top)} labs with the most rows, by rows", top, cy, vals, vol,
+                    h_unit, args)
+        page_values(pdf, title, f"Page 2: the {len(dev)} most deviating other labs (largest yearly median vs "
+                                f"national; >= {args.min_dev_rows} rows)", list(dev.index), cy, vals, vol, h_unit, args)
+        page_ranges(pdf, title, ranges, ref_src_share(dims) if dims is not None else {}, h_unit, args, rng)
+        pages_flags(pdf, title, fdf, args)
     log(f"Wrote {path}")
 
 
@@ -1090,19 +1588,26 @@ def mask(df, ncol, stat_cols, min_n):
 
 
 def write_outputs(omop, fdf, cy, ranges, args):
-    stem = args.out / f"sp_qc_{omop}"
+    stem = args.out / f"sp_qc_{omop}{scale_sfx(args)}"
     fdf.drop(columns=["k_sp", "start", "end"]).to_csv(f"{stem}_flags.tsv", sep="\t", index=False)
     t = cy.assign(year=cy["year"].astype(int), x_shift=cy["shift"].map(fx),
                   outliers_oe=cy["oe_out"].round(2), qc_fail_pct=(100 * cy["qc_rate"]).round(2),
                   outcome_mismatch_pct=(100 * cy["oc_rate"]).round(1), person_jump_oe=cy["oe_jump"].round(2),
                   typical_upper_limit=(10 ** cy["lhi_mode"]).round(4))
-    t = t[["sp", "year", "n_v", "x_shift", "outliers_oe", "qc_fail_pct", "outcome_mismatch_pct", "person_jump_oe",
-           "typical_upper_limit"]].rename(columns={"n_v": "rows"}).sort_values(["sp", "year"])
-    mask(t, "rows", ["x_shift", "outliers_oe", "qc_fail_pct", "outcome_mismatch_pct", "person_jump_oe",
-                     "typical_upper_limit"], args.min_n).to_csv(f"{stem}_sp_year.tsv", sep="\t", index=False)
+    t["above_uln_pct"] = (100 * t["above"] / t["n_hi"].where(t["n_hi"] > 0)).round(1)
+    t["below_lln_pct"] = (100 * t["below"] / t["n_lo"].where(t["n_lo"] > 0)).round(1)
+    for col, k, n in (("above_uln_pct", "above", "n_hi"), ("below_lln_pct", "below", "n_lo"),
+                      ("outliers_oe", "obs_out", "n_v"), ("qc_fail_pct", "qc_fail", "n_qc"),
+                      ("outcome_mismatch_pct", "oc_mis", "n_oc"), ("person_jump_oe", "obs_jump", "n_j")):
+        t[col] = t[col].astype(object).where(~small(t[k], t[n]), BELOW)
+    stats = ["x_shift", "above_uln_pct", "below_lln_pct", "outliers_oe", "qc_fail_pct", "outcome_mismatch_pct",
+             "person_jump_oe", "typical_upper_limit"]
+    t = t[["sp", "year", "n_v"] + stats].rename(columns={"n_v": "rows"}).sort_values(["sp", "year"])
+    mask(t, "rows", stats, args.min_n).to_csv(f"{stem}_sp_year.tsv", sep="\t", index=False)
     if len(ranges):
-        r = ranges.assign(x_vs_national=ranges["x_vs_national"].map(fx),
-                          sp_share_at_typical=(100 * ranges["sp_share_at_typical"]).round(1))
+        share = (100 * ranges["sp_share_at_typical"]).round(1).astype(object)
+        share = share.where(~small((ranges["sp_share_at_typical"] * ranges["rows"]).round(), ranges["rows"]), BELOW)
+        r = ranges.assign(x_vs_national=ranges["x_vs_national"].map(fx), sp_share_at_typical=share)
         r = r[["limit", "sex", "age", "sp", "rows", "sp_typical", "sp_share_at_typical", "national_typical",
                "x_vs_national"]].sort_values(["limit", "sex", "age", "rows"], ascending=[False, True, True, False])
         mask(r, "rows", ["sp_typical", "sp_share_at_typical", "x_vs_national"], args.min_n).to_csv(
@@ -1145,11 +1650,16 @@ def build_parser():
     p.add_argument("--input", type=Path, default=latest_engine_output(),
                    help="Engine output (or release) parquet; default: the latest run in " + str(ENGINE_DIR))
     p.add_argument("--org-map", type=Path, default=ORG_MAP,
-                   help="The engine's coding_system_map.tsv: SP organisation names by the org code in the SP's OID")
+                   help="The engine's coding_system_map.tsv: fallback SP names when SERVICE_PROVIDER is a real OID (names come "
+                        "from the rows' CODING_SYSTEM_MAP)")
     p.add_argument("--names", type=Path, default=names, help="Usagi mapping (concept names)")
     p.add_argument("--out", type=Path, default=OUT, help="Report folder")
     p.add_argument("--cache", type=Path, default=CACHE, help="The extracted rows and the aggregates, per OMOP")
     p.add_argument("--force", action="store_true", help="Re-extract the rows and rebuild the aggregates")
+    p.add_argument("--scale", choices=["all", "raw", "uln", "lln"], default="all",
+                   help="Values as they are, or as multiples of each row's own upper (uln) / lower (lln) reference "
+                        "limit (assay differences drop out; rows without that limit are left out). Outputs get _uln / "
+                        "_lln in their names; all (default): raw, uln and lln, in one PDF one under the other")
     p.add_argument("--fence-k", type=float, default=3.0, help="Tukey fence multiplier (log10) for outliers and jumps")
     p.add_argument("--min-stratum", type=int, default=1000,
                    help="Sex x age bands with fewer rows use the pooled baseline")
@@ -1169,8 +1679,14 @@ def build_parser():
     p.add_argument("--min-cell", type=int, default=100, help="Rows an SP x year (or SP range) needs to be judged")
     p.add_argument("--min-month", type=int, default=30, help="Rows an SP x month needs in the monthly series")
     p.add_argument("--min-n", type=int, default=5, help="Cells with fewer rows are masked in the outputs")
-    p.add_argument("--top-sp", type=int, default=25, help="SPs drawn in the heatmap and the range panel")
-    p.add_argument("--table-rows", type=int, default=15, help="Flags listed in the report")
+    p.add_argument("--top-sp", type=int, default=10, help="SPs per list in the report (by volume, by deviation)")
+    p.add_argument("--min-dev-rows", type=int, default=1000, help="Rows an SP needs to be listed as deviating")
+    p.add_argument("--min-scaled", type=float, default=0.05,
+                   help="--scale all: share of the rows with a limit needed to draw the x ULN / x LLN rows in the PDF")
+    p.add_argument("--table-rows", type=int, default=0,
+                   help="Flags in the PDF from page 4 on, over as many pages as they need; 0 (default): as many as fit "
+                        "on one page. All flags are in the TSVs")
+    p.add_argument("--print-rows", type=int, default=15, help="Flags printed per OMOP in the terminal")
     p.add_argument("--memory-limit", default=f"{int(RAM_GB * 0.45)}GB", help="duckdb memory limit (spills beyond it)")
     p.add_argument("--threads", type=int, default=min(8, os.cpu_count() or 1), help="duckdb threads")
     return p
@@ -1178,6 +1694,8 @@ def build_parser():
 
 def main():
     args = build_parser().parse_args()
+    global MIN_N
+    MIN_N = args.min_n
     args.out.mkdir(parents=True, exist_ok=True)
     (args.cache / "duckdb").mkdir(parents=True, exist_ok=True)
     con = duckdb.connect()
@@ -1195,30 +1713,51 @@ def main():
                              group by omop having count(*) >= {args.min_rows} order by n desc""").fetchall()
         omops = [str(o) for o, _ in counts]
     labels = Labels(args.org_map)
+    if (rows / "sp_orgs.parquet").exists():  # names over the whole input first; per-OMOP organisations only fill gaps
+        labels.add_orgs(pd.read_parquet(rows / "sp_orgs.parquet"))
     log(f"{len(omops)} OMOP(s): {', '.join(omops)}; out {args.out}")
+    scales = ["raw", "uln", "lln"] if args.scale == "all" else [args.scale]
     for omop in omops:
-        data = build(omop, args, con, rows)
-        if data is None:
-            continue
-        labels.add_orgs(data["orgs"])
-        r = data["rng"]
-        data["rng"] = r.assign(lhi=np.log10(r["hi_h"].astype(float)), llo=np.log10(r["lo_h"].astype(float)))
-        fdf, cy, ranges, nat, series = detect(omop, data, args, labels)
-        write_outputs(omop, fdf, cy, ranges, args)
         name = concept_name(omop, args.names)
-        title = f"OMOP {omop}" + (f" — {name}" if name else "") + ": service providers over time"
-        report(omop, title, fdf, cy, ranges, nat, series, data["rng"], args, args.out / f"sp_qc_{omop}.png",
-               data["dims"], data["meta"].get("h_unit"))
-        counts = fdf["kind"].value_counts()
-        print(f"\nOMOP {omop}: {len(fdf)} flags" + (" (" + ", ".join(f"{k} {counts[k]}" for k in KINDS
-                                                                  if k in counts.index) + ")" if len(fdf) else ""))
-        if len(fdf):
-            print(markdown(fdf.head(args.table_rows), ["kind", "sp", "period", "rows", "effect_x", "detail", "cause"]))
-    files = sorted(args.out.glob("sp_qc_*_flags.tsv"))
-    if files:
-        allf = pd.concat([pd.read_csv(f, sep="\t", dtype={"omop": str}) for f in files], ignore_index=True)
-        allf.sort_values("score", ascending=False).to_csv(args.out / "sp_qc_flags.tsv", sep="\t", index=False)
-        log(f"Wrote {args.out / 'sp_qc_flags.tsv'} ({len(allf)} flags over {len(files)} OMOPs)")
+        res = {}
+        for sc in scales:
+            a = argparse.Namespace(**{**vars(args), "scale": sc})
+            data = build(omop, a, con, rows)
+            if data is None:
+                continue
+            labels.add_orgs(data["orgs"])
+            r = data["rng"]
+            data["rng"] = r.assign(lhi=np.log10(r["hi_h"].astype(float)), llo=np.log10(r["lo_h"].astype(float)))
+            fdf, cy, ranges, nat, series = detect(omop, data, a, labels)
+            write_outputs(omop, fdf, cy, ranges, a)
+            res[sc] = {"fdf": fdf, "cy": cy, "ranges": ranges, "vals": data["vals"], "dims": data["dims"],
+                       "h_unit": data["meta"].get("h_unit"), "rng": data["rng"]}
+            counts = fdf["kind"].value_counts()
+            print(f"\nOMOP {omop}{' (' + sc + ')' if len(scales) > 1 else ''}: {len(fdf)} flags" + (
+                " (" + ", ".join(f"{k} {counts[k]}" for k in KINDS if k in counts.index) + ")" if len(fdf) else ""))
+            if len(fdf):
+                print(markdown(fdf.head(args.print_rows), ["kind", "sp", "period", "rows", "effect_x", "detail",
+                                                           "cause"]))
+        if not res:
+            continue
+        base = f"OMOP {omop}" + (f" — {name}" if name else "") + ": service providers over time"
+        if len(scales) > 1 and "raw" in res:
+            # a scaled run is drawn when at least --min-scaled of the rows have that limit
+            n_raw = res["raw"]["cy"]["n_v"].sum()
+            runs = {s: res[s] for s in scales
+                    if s in res and (s == "raw" or res[s]["cy"]["n_v"].sum() >= args.min_scaled * n_raw)}
+            for s in sorted(set(res) - set(runs)):
+                log(f"OMOP {omop}: x {s.upper()} left out of the PDF (under {100 * args.min_scaled:.0f}% of the rows "
+                    f"have that limit)")
+            report_multi(omop, base, runs, args, args.out / f"sp_qc_{omop}.pdf", res["raw"]["h_unit"])
+        else:
+            sc = next(iter(res))
+            a = argparse.Namespace(**{**vars(args), "scale": sc})
+            d = res[sc]
+            title = base + (f" (values as multiples of each row's {'upper' if sc == 'uln' else 'lower'} reference "
+                            f"limit)" if sc != "raw" else "")
+            report(omop, title, d["fdf"], d["cy"], d["ranges"], d["vals"], a,
+                   args.out / f"sp_qc_{omop}{scale_sfx(a)}.pdf", d["dims"], d["h_unit"], d["rng"])
 
 
 if __name__ == "__main__":
