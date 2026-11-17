@@ -52,7 +52,8 @@ the flags of all runs); TSVs per run (_uln, _lln for the scaled ones).
 so labs on different assays compare; rows without that limit are left out; outputs and caches get _uln / _lln.
 
 --omop defaults to the QC-thread concepts (creatinine, ALT, ferritin, HDL, TPO-Ab, TSH, holo-TC, CRP, sodium); --all runs
-every OMOP in the input with >= --min-rows rows (one pass extracts them all). Writes into --out:
+every OMOP in the input with >= --min-rows rows (counted first, then extracted --extract-batch OMOPs per pass over
+the input; one run at a time per cache, a lock file guards it). Writes into --out:
   sp_qc_<omop>_<name>.pdf      (1) the --top-sp SPs by rows, (2) the next --top-sp most deviating SPs (largest yearly
                                median vs national, >= --min-dev-rows rows): per SP its name, rows, median vs national
                                per year and its values (p5-p95); (3) adult reference ranges of the top SPs by rows and
@@ -371,22 +372,30 @@ def ensure_rows(omops, args, con):
     else:
         todo = [o for o in omops if o not in have and o not in meta["empty"] and not meta["all"]]
     if todo == []:
+        if not meta_p.exists():  # a new cache with nothing extracted yet (omop_counts): record its input
+            meta_p.write_text(json.dumps(meta, indent=1) + "\n")
         log(f"Rows: cached ({root})")
         return root
     types = {r[0]: r[1] for r in con.sql(f"describe select * from read_parquet({sql_str(inp)})").fetchall()}
     part = root / ".part"
-    shutil.rmtree(part, ignore_errors=True)
-    log(f"Rows: one pass over {inp} for " + ("every OMOP" if todo is None else f"{len(todo)} OMOP(s): {', '.join(todo)}")
-        + " ...")
-    con.sql(f"copy ({extract_query(inp, types, todo)}) to {sql_str(part)} (format parquet, partition_by (omop), "
-            f"compression zstd)")
     got = []
-    for d in sorted(part.glob("omop=*")):
-        o = d.name.split("=", 1)[1]
-        shutil.rmtree(root / d.name, ignore_errors=True)
-        os.replace(d, root / d.name)
-        got.append(o)
-    shutil.rmtree(part, ignore_errors=True)
+    # one pass per batch of --extract-batch OMOPs: a partitioned write with thousands of partitions at once (--all)
+    # made duckdb lose its own files
+    batches = [None] if todo is None else [todo[i:i + args.extract_batch] for i in range(0, len(todo), args.extract_batch)]
+    with cache_lock(root):
+        for bi, batch in enumerate(batches):
+            shutil.rmtree(part, ignore_errors=True)
+            log(f"Rows: pass {bi + 1} of {len(batches)} over {inp.name} for " +
+                ("every OMOP" if batch is None else f"{len(batch)} OMOP(s): {', '.join(batch[:12])}"
+                 + (" ..." if len(batch) > 12 else "")))
+            con.sql(f"copy ({extract_query(inp, types, batch)}) to {sql_str(part)} (format parquet, "
+                    f"partition_by (omop), compression zstd)")
+            for d in sorted(part.glob("omop=*")):
+                o = d.name.split("=", 1)[1]
+                shutil.rmtree(root / d.name, ignore_errors=True)
+                os.replace(d, root / d.name)
+                got.append(o)
+            shutil.rmtree(part, ignore_errors=True)
     if todo is None:
         meta["all"] = True
     else:
@@ -395,6 +404,45 @@ def ensure_rows(omops, args, con):
     log(f"Rows: {len(got)} OMOP(s) cached in {root}" + (f"; no rows for {', '.join(sorted(set(todo) - set(got)))}"
                                                          if todo and set(todo) - set(got) else ""))
     return root
+
+
+class cache_lock:
+    """One run at a time per row cache: a second run would wipe the first one's half-written files. A lock file with
+    the process id; a stale one (that process is gone) is taken over."""
+
+    def __init__(self, root):
+        self.p = Path(root) / ".lock"
+
+    def __enter__(self):
+        if self.p.exists():
+            try:
+                pid = int(self.p.read_text().strip() or 0)
+                os.kill(pid, 0)
+                raise SystemExit(f"{self.p}: another sp_qc.py run (pid {pid}) is extracting into this cache; wait for "
+                                 f"it to finish")
+            except (ValueError, ProcessLookupError):
+                pass  # stale
+            except PermissionError:
+                raise SystemExit(f"{self.p}: locked by another user's run")
+        self.p.write_text(str(os.getpid()))
+        return self
+
+    def __exit__(self, *exc):
+        self.p.unlink(missing_ok=True)
+
+
+def omop_counts(args, con):
+    """Rows with a value per OMOP in --input (one cheap group-by over three columns), cached next to the rows; for
+    --all, so that only the OMOPs with >= --min-rows rows are extracted."""
+    root = ensure_rows([], args, con)  # checks the cache against the input (drops it when the input changed)
+    p = root / "omop_counts.parquet"
+    if not p.exists():
+        inp = Path(args.input).resolve()
+        types = {r[0]: r[1] for r in con.sql(f"describe select * from read_parquet({sql_str(inp)})").fetchall()}
+        log(f"Rows: counting the rows per OMOP in {inp.name} ...")
+        con.sql(f"copy (select omop, count(*) n from ({extract_query(inp, types, None)}) group by omop) "
+                f"to {sql_str(p)} (format parquet)")
+    return pd.read_parquet(p)
 
 
 def part_mtime(folder):
@@ -1899,8 +1947,17 @@ def page_timing(pdf, title, labs, raw, args):
         a = t[(t["k_sp"] == "__all__") & (t["kind"] == kind) & t["ok"] & t["x_vs_all"].notna()]
         a = a.set_index("cat").reindex([c for c in order if c in set(a["cat"])])
         xs = [order.index(c) for c in a.index]
-        axr.bar(xs, a["x_vs_all"], color=np.where(a["x_vs_all"] >= 0, POS, NEG), width=0.7)
-        axr.axhline(0, color=MUTED, lw=0.8)
+        # one point per hour / weekday, its area by its share of the rows: rare hours (night, 00:00) don't look as
+        # weighty as the busy ones
+        axr.axhline(0, color=MUTED, lw=0.8, zorder=1)
+        size = lambda pct: 6 + 900 * np.asarray(pct, float) / 100  # noqa: E731  (area in pt^2 per % of rows)
+        axr.scatter(xs, a["x_vs_all"], s=size(a["pct"]), color=np.where(a["x_vs_all"] >= 0, POS, NEG), alpha=0.75,
+                    edgecolor=SURFACE, linewidth=0.8, zorder=3)
+        if ci == 0:  # a key to the point sizes
+            for k, pct in enumerate((1, 5, 15)):
+                axr.scatter([], [], s=size(pct), color=MUTED, alpha=0.6, label=f"{pct}% of rows")
+            axr.legend(loc="upper right", fontsize=7, frameon=False, labelspacing=1.2, borderpad=0.8, ncol=3,
+                       handletextpad=0.3, columnspacing=1.2)
         axr.set_xlim(-0.5, len(order) - 0.5)
         axr.set_xticks(range(len(order)))
         axr.set_xticklabels([DOW_NAME[c] if kind == "weekday" else c for c in order], fontsize=7)
@@ -1908,7 +1965,8 @@ def page_timing(pdf, title, labs, raw, args):
         axr.set_ylim(-lim * 1.15, lim * 1.15)
         axr.yaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(lambda v, _: fx(v)))
         style(axr)
-        titled(axr, "All labs: median value vs all (same sex and age)" if ci == 0 else "All labs: median vs all",
+        titled(axr, "All labs: median value vs all (same sex and age); point area: share of the rows" if ci == 0
+               else "All labs: median vs all",
                "does the value depend on when the sample was taken? (who is tested when, or a daily rhythm)" if ci == 0
                else "per weekday")
     pdf.savefig(fig, facecolor=SURFACE)
@@ -2030,7 +2088,8 @@ def build_parser():
         names = Path(__file__).resolve().parents[2] / "src" / "kanta" / "engine" / "data" / "LABfi.tsv"
     p = argparse.ArgumentParser(description=" ".join(__doc__.strip().splitlines()[2:3]),
                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    p.add_argument("--omop", nargs="+", default=THREAD, help="OMOP ids (default: the QC-thread concepts)")
+    p.add_argument("--omop", nargs="+", default=THREAD,
+                   help="OMOP ids, space- or comma-separated (default: the QC-thread concepts)")
     p.add_argument("--all", action="store_true", help="Every OMOP in the input with >= --min-rows rows")
     p.add_argument("--min-rows", type=int, default=100_000, help="With --all: OMOPs with at least this many rows")
     p.add_argument("--input", type=Path, default=latest_engine_output(),
@@ -2075,6 +2134,8 @@ def build_parser():
                    help="Flags in the PDF from page 4 on, over as many pages as they need; 0 (default): as many as fit "
                         "on one page. All flags are in the TSVs")
     p.add_argument("--print-rows", type=int, default=15, help="Flags printed per OMOP in the terminal")
+    p.add_argument("--extract-batch", type=int, default=40,
+                   help="OMOPs extracted per pass over the input (more: fewer passes, more open files)")
     p.add_argument("--memory-limit", default=f"{int(RAM_GB * 0.45)}GB", help="duckdb memory limit (spills beyond it)")
     p.add_argument("--threads", type=int, default=min(8, os.cpu_count() or 1), help="duckdb threads")
     return p
@@ -2097,13 +2158,16 @@ def main():
         log("duckdb: no time zone support, times as stored")
     if args.input is None:
         raise SystemExit(f"No engine output in {ENGINE_DIR}: pass --input")
-    omops = [str(o) for o in args.omop]
-    rows = ensure_rows(None if args.all else omops, args, con)
+    # --omop 3036481 3009201, or 3036481,3009201 (or both mixed)
+    omops = [o.strip() for x in args.omop for o in str(x).split(",") if o.strip()]
+    bad = [o for o in omops if not o.isdigit()]
+    if bad:
+        raise SystemExit(f"--omop: not an OMOP id: {', '.join(bad)}")
+    omops = list(dict.fromkeys(omops))  # duplicates once
     if args.all:
-        counts = con.sql(f"""select omop, count(*) n
-                             from read_parquet({sql_str(str(rows) + '/*/*.parquet')}, hive_partitioning = true)
-                             group by omop having count(*) >= {args.min_rows} order by n desc""").fetchall()
-        omops = [str(o) for o, _ in counts]
+        c = omop_counts(args, con)
+        omops = [str(o) for o in c.loc[c["n"] >= args.min_rows].sort_values("n", ascending=False)["omop"]]
+    rows = ensure_rows(omops, args, con)
     labels = Labels(args.org_map)
     if (rows / "sp_orgs.parquet").exists():  # names over the whole input first; per-OMOP organisations only fill gaps
         labels.add_orgs(pd.read_parquet(rows / "sp_orgs.parquet"))

@@ -1,19 +1,21 @@
-FROM eu.gcr.io/finngen-refinery-dev/bioinformatics:0.8
+# Slim Debian with Python 3.14: no gcloud SDK, R or bioinformatics tools
+FROM python:3.14-slim-trixie
 
-RUN apt-get update && apt-get upgrade --yes
-RUN curl https://clickhouse.com/ | sh && ./clickhouse install
-RUN apt install pigz
+# security updates for the few OS packages present
+RUN apt-get update && apt-get upgrade --yes && rm -rf /var/lib/apt/lists/*
 
-# Install kanta package
-RUN curl -LsSf https://astral.sh/uv/install.sh | sh
-ENV PATH="/root/.local/bin:$PATH"
-RUN uv python install 3.14
+# uv, pinned to the version used for development
+COPY --from=ghcr.io/astral-sh/uv:0.13.1 /uv /usr/local/bin/uv
+
+# Install kanta package into /opt/kanta-venv, using the image's Python (no download)
+ENV UV_PROJECT_ENVIRONMENT="/opt/kanta-venv" \
+    UV_PYTHON_DOWNLOADS=never \
+    UV_COMPILE_BYTECODE=1
 ADD pyproject.toml pyproject.toml
 ADD README.md README.md
 ADD uv.lock uv.lock
 ADD src src
-ENV UV_PROJECT_ENVIRONMENT="/opt/kanta-venv"
-RUN uv sync --python 3.14 --locked
+RUN uv sync --python 3.14 --locked --no-cache
 ENV PATH="/opt/kanta-venv/bin:$PATH"
 
 # Scripts engine.wdl and intake.wdl run, folder by folder (scripts/ also holds data files that must not go into the

@@ -5,7 +5,7 @@
     },
 
     "default_runtime_attributes": {
-	"docker": "eu.gcr.io/finngen-refinery-dev/bioinformatics:0.8",
+	"docker": "europe-west1-docker.pkg.dev/finngen-refinery-dev/fg-refinery-registry/kanta:v4.vuln-fix",
 	"zones": "europe-west1-b europe-west1-c europe-west1-d",
 	"cpu":2,
 	"disk":"20 HDD",
