@@ -6,7 +6,7 @@ Service-provider (SP) and time QC for OMOP concepts: which labs, and when, devia
 
 0 rows       each OMOP's rows from the engine output (--input, default the latest run in /mnt/disks/data/kanta/engine),
              cached under --cache/rows_<input name>/omop=<id>/: one row per result with a value (SP, test, unit, QC
-             note, hashed person, year, month, sex, age, harmonized and raw value, missing unit before injection,
+             note, hashed person, year, month, sex, age, harmonized and raw value, the unit before injection,
              extracted, decimals, QC pass, TEST_OUTCOME, numeric reference limits, range source). The OMOPs not cached
              yet are extracted together, in one pass over the input (duckdb, a partitioned write: no sort); the cache
              is dropped when the input file changes (size or mtime) or with --force. Units and harmonization are
@@ -94,6 +94,7 @@ import os
 import re
 import shutil
 import time
+import traceback
 from pathlib import Path
 
 import duckdb
@@ -119,7 +120,7 @@ MAX_GAP = 2  # missing months allowed inside a run of an SP's monthly series
 CACHE_VERSION = "v9"
 # an upper limit of 999, 9999, 99999, ...: "no upper limit" (some labs send it for one-sided ranges, e.g. HDL)
 SENTINEL = "({x} >= 999 and abs({x} + 1 - power(10, round(log10({x} + 1)))) < 1e-6)"
-BASE_VERSION = "r3"
+BASE_VERSION = "r4"  # r4: + src_unit (the unit before injection, for omop_ref_audit.py)
 RAM_GB = os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES") / 2**30
 # base column -> (engine output column, release column); the release has no pre-injection unit
 COLUMNS = {
@@ -326,6 +327,7 @@ select {omop} omop, {s('sp')} sp, {s('test')} test,
        (case lower({s('sex')}) when 'male' then 1 when 'm' then 1 when 'female' then 0 when 'f' then 0 end)::tinyint sex,
        try_cast({num('age')} as float) age, {num('v')} v, {num('v_raw')} v_raw, {s('unit')} unit,
        {"null::utinyint" if col["unit_pre_inj"] is None else f"({s('unit_pre_inj')} is null)::utinyint"} unit_missing,
+       {s('unit_pre_inj')} src_unit,
        {flag('extracted')} extracted,
        (case when try_cast({x} as double) is null then null when strpos({x}, '.') > 0
              then length({x}) - strpos({x}, '.') else 0 end)::tinyint decimals,
@@ -355,7 +357,7 @@ def ensure_rows(omops, args, con):
         meta = dict(want, empty=[], all=False)
     root.mkdir(parents=True, exist_ok=True)
     names_p = root / "sp_orgs.parquet"
-    if not names_p.exists():
+    if not parquet_ok(names_p):
         # SP -> coding-system organisation counts over the whole input (only some rows of an SP carry an organisation,
         # and for a given OMOP maybe none: naming from one OMOP's rows leaves e.g. HUS unnamed)
         types = {r[0]: r[1] for r in con.sql(f"describe select * from read_parquet({sql_str(inp)})").fetchall()}
@@ -363,9 +365,8 @@ def ensure_rows(omops, args, con):
         corg = next((c for c in COLUMNS["org"] if c and c in types), None)
         if csp and corg:
             log(f"Rows: lab names (SP x coding-system organisation) from {inp.name} ...")
-            con.sql(f"""copy (select "{csp}" k_sp, "{corg}" org, count(*) n from read_parquet({sql_str(inp)})
-                              where "{corg}" is not null and "{corg}" not in ('NA', '') group by all)
-                        to {sql_str(names_p)} (format parquet)""")
+            copy_atomic(con, f"""select "{csp}" k_sp, "{corg}" org, count(*) n from read_parquet({sql_str(inp)})
+                                where "{corg}" is not null and "{corg}" not in ('NA', '') group by all""", names_p)
     have = {p.name.split("=", 1)[1] for p in root.glob("omop=*")}
     if omops is None:
         todo = None if not meta["all"] else []
@@ -436,13 +437,63 @@ def omop_counts(args, con):
     --all, so that only the OMOPs with >= --min-rows rows are extracted."""
     root = ensure_rows([], args, con)  # checks the cache against the input (drops it when the input changed)
     p = root / "omop_counts.parquet"
-    if not p.exists():
+    if not parquet_ok(p):
         inp = Path(args.input).resolve()
         types = {r[0]: r[1] for r in con.sql(f"describe select * from read_parquet({sql_str(inp)})").fetchall()}
         log(f"Rows: counting the rows per OMOP in {inp.name} ...")
-        con.sql(f"copy (select omop, count(*) n from ({extract_query(inp, types, None)}) group by omop) "
-                f"to {sql_str(p)} (format parquet)")
+        copy_atomic(con, f"select omop, count(*) n from ({extract_query(inp, types, None)}) group by omop", p)
     return pd.read_parquet(p)
+
+
+def sp_composition(args, con):
+    """The results of every OMOP in the row cache (with --all: every OMOP with >= --min-rows rows, nearly all results),
+    per SP x coding-system organisation x year: rows n and a people sketch p; and the exact people per SP. For the QC
+    portal's lab pages: what the SP names are made of, and how it changed. Read from the cached rows (parsed, hashed,
+    a few columns), not the engine output: one pass to SP x org x year x person, and both tables from that; cached next
+    to the rows, rebuilt when the cached OMOPs change."""
+    root = ensure_rows([], args, con)
+    p_oy, p_pp, meta_p = root / "sp_org_year.parquet", root / "sp_people.parquet", root / "sp_composition.json"
+    parts = sorted(root.glob("omop=*"))
+    want = {"omops": len(parts), "mtime": max((part_mtime(p) or 0 for p in parts), default=0)}
+    fresh = parquet_ok(p_oy) and parquet_ok(p_pp) and meta_p.exists() and json.loads(meta_p.read_text()) == want
+    if not fresh and parts:
+        src = f"read_parquet({sql_str(str(root / 'omop=*' / '*.parquet'))})"
+        tmp = root / "sp_person.parquet"
+        log(f"Rows: labs x coding-system organisation x year over the {len(parts)} cached OMOP(s) ...")
+        con.sql("set enable_progress_bar = true")
+        copy_atomic(con, f"select sp k_sp, org, year, f, count(*) n from {src} group by all", tmp)
+        t = f"read_parquet({sql_str(str(tmp))})"
+        copy_atomic(con, f"select k_sp, org, year, sum(n)::bigint n, min(f, {SKETCH}) filter (where f is not null) p "
+                         f"from {t} group by all", p_oy)
+        copy_atomic(con, f"select k_sp, count(*) people from (select k_sp, f from {t} where f is not null group by all) "
+                         f"group by k_sp", p_pp)
+        tmp.unlink()
+        meta_p.write_text(json.dumps(want) + "\n")
+        log(f"Rows: labs x organisation x year -> {p_oy}")
+    if not parts:
+        return (pd.DataFrame(columns=["k_sp", "org", "year", "n", "p"]), pd.DataFrame(columns=["k_sp", "people"]))
+    return pd.read_parquet(p_oy), pd.read_parquet(p_pp)
+
+
+def parquet_ok(p):
+    """A finished parquet file: there, not empty, with a readable footer (an interrupted run can leave a 0-byte or
+    cut-off file)."""
+    if not p.exists() or p.stat().st_size == 0:
+        return False
+    try:
+        import pyarrow.parquet as pq
+        pq.read_metadata(p)
+        return True
+    except Exception:
+        return False
+
+
+def copy_atomic(con, sql, p):
+    """duckdb `copy (sql) to p`, through p.part and a rename: an interrupted run leaves no half-written p."""
+    tmp = Path(str(p) + ".part")
+    tmp.unlink(missing_ok=True)
+    con.sql(f"copy ({sql}) to {sql_str(tmp)} (format parquet)")
+    os.replace(tmp, p)
 
 
 def part_mtime(folder):
@@ -665,8 +716,14 @@ def _explode(df, keys, col):
 def people(df, keys, col):
     """Distinct people per `keys` from the sketches in `col`, capped at SKETCH (exact for the >= MIN_N test). A Series
     indexed by `keys` (groups without anyone: missing, i.e. 0)."""
-    if df.empty:
-        return pd.Series(dtype="int64")
+    if df.empty:  # keep the key names (and dtypes) so merges and unstacks on `keys` still work
+        if set(keys) <= set(df.columns):
+            idx = pd.MultiIndex.from_frame(df[keys])
+        else:
+            idx = pd.MultiIndex.from_arrays([[]] * len(keys), names=keys)
+        if len(keys) == 1:
+            idx = idx.get_level_values(0)
+        return pd.Series(np.zeros(0, dtype="int64"), index=idx)
     return _explode(df, keys, col).groupby(keys).size().clip(upper=SKETCH)
 
 
@@ -710,6 +767,46 @@ def share_ok(k, pk, c, pc):
     neither can be worked out as a small group). k, c: rows; pk, pc: people. Works on arrays."""
     k, pk, c, pc = (np.asarray(x, float) for x in (k, pk, c, pc))
     return ((k == 0) | (pk >= MIN_N)) & ((c == 0) | (pc >= MIN_N))
+
+
+def pool_adjacent(cells, key, clip=False):
+    """Adjacent cells (sorted by `key`; columns `key`, n and a sketch p) pooled until each pool covers >= MIN_N
+    people; a short tail joins the last pool. A DataFrame lo, hi (the first and last key of each pool), n; empty when
+    all cells together cover fewer than MIN_N people. For plots (histogram bins, years): every bar covers >= MIN_N
+    people and no row is left out, so there is no remainder to work out. clip (value bins): the outer edges move in
+    to the first / last cell with >= MIN_N people at or beyond it, so no drawn edge shows where a few people's
+    extreme values lie (their rows pile into the edge pool)."""
+    out, cur, ids = [], None, set()
+    d = cells.sort_values(key)
+    if clip:  # the innermost cells from each end at which MIN_N people are reached
+        edge = []
+        for part in (d, d.iloc[::-1]):
+            seen, hit = set(), None
+            for k, p in zip(part[key], part["p"]):
+                if has_ids(p):
+                    seen.update(int(x) for x in p)
+                if len(seen) >= MIN_N:
+                    hit = k
+                    break
+            edge.append(hit)
+    for k, n, p in zip(d[key], d["n"], d["p"]):
+        if cur is None:
+            cur, ids = [k, k, 0], set()
+        cur[1] = k
+        cur[2] += int(n)
+        if has_ids(p):
+            ids.update(int(x) for x in p)
+        if len(ids) >= MIN_N:
+            out.append(cur)
+            cur = None
+    if cur is not None and out:
+        out[-1][1] = cur[1]
+        out[-1][2] += cur[2]
+    if clip and out and edge[0] is not None:
+        lo_s, hi_s = edge
+        out[0][0] = max(out[0][0], min(lo_s, out[0][1]))
+        out[-1][1] = min(out[-1][1], max(hi_s, out[-1][0]))
+    return pd.DataFrame(out, columns=["lo", "hi", "n"])
 
 
 def suppress_group(cells, ok):
@@ -1827,6 +1924,23 @@ def page_values_multi(pdf, title, subtitle, order, runs, vol, h_unit, args):
     plt.close(fig)
 
 
+class PdfAndPngs:
+    """The report's PdfPages, plus each plot page as its own PNG (<pdf stem>_<tag>.png, _2, _3 ... when a tag has
+    several pages), for the QC portal to show inline. Pages saved while `tag` is None (the flag tables) go to the PDF
+    only."""
+    PNG_DPI = 100
+
+    def __init__(self, pdf, path):
+        self.pdf, self.stem, self.tag, self.count = pdf, str(path)[:-4], None, {}
+
+    def savefig(self, fig, **kw):
+        self.pdf.savefig(fig, **kw)
+        if self.tag:
+            i = self.count[self.tag] = self.count.get(self.tag, 0) + 1
+            fig.savefig(f"{self.stem}_{self.tag}{'' if i == 1 else f'_{i}'}.png", dpi=self.PNG_DPI,
+                        facecolor=kw.get("facecolor", SURFACE))
+
+
 def report_multi(omop, title, runs, args, path, h_unit=None, raw=None):
     """5+ pages: (1) the top SPs by rows and (2) the most deviating others, each with its raw values and as multiples
     of ULN and LLN, one under the other; (3) reference ranges; (4) when the samples are taken; (5) the flags of all
@@ -1834,13 +1948,23 @@ def report_multi(omop, title, runs, args, path, h_unit=None, raw=None):
     top, dev, vol = pick_value_labs_multi(runs, args)
     raw = raw or runs.get("raw")
     what = " and ".join(["its raw values"] + [f"as {RUN[s]['tag']}" for s in runs if s != "raw"])
-    with PdfPages(path) as pdf:
+    stem = str(path)[:-4]
+    for tag in ("labs_top", "labs_deviating", "ranges", "timing"):  # the previous run's page images
+        for old in Path(stem).parent.glob(f"{Path(stem).name}_{tag}*.png"):
+            old.unlink()
+    with PdfPages(path) as pdf0:
+        pdf = PdfAndPngs(pdf0, path)
+        pdf.tag = "labs_top"
         page_values_multi(pdf, title, f"Page 1: the {len(top)} labs with the most rows; each with {what} "
                           f"(multiples of its own upper / lower reference limit)", top, runs, vol, h_unit, args)
+        pdf.tag = "labs_deviating"
         page_values_multi(pdf, title, f"Page 2: the {len(dev)} most deviating other labs (largest yearly median vs "
                           f"national, in any of the rows; >= {args.min_dev_rows} rows)", dev, runs, vol, h_unit, args)
+        pdf.tag = "ranges"
         page_ranges(pdf, title, raw["ranges"], ref_src_share(raw["dims"]), h_unit, args, raw.get("rng"))
+        pdf.tag = "timing"
         page_timing(pdf, title, top, raw, args)
+        pdf.tag = None  # the flag tables: PDF only (the flags are in _flags.tsv)
         parts = [runs[s]["fdf"].assign(values=RUN[s]["tag"]) for s in runs]  # range flags: raw run only
         pages_flags(pdf, title, pd.concat(parts, ignore_index=True).sort_values("rank", ascending=False), args,
                     first_page=5)
@@ -1977,6 +2101,17 @@ def publish_tsv(df, path, count_cols=("rows",)):
     """Write a table for export, after a last check that no count in it is 1..MIN_N-1 rows: the `count_cols` and any
     "<k> of <n> values / rows" in its text (k and n - k). The people gates upstream are stricter (>= MIN_N people
     implies >= MIN_N rows), so this never fires unless something upstream is wrong; then nothing is written."""
+    bad = small_counts(df, count_cols)
+    if bad:
+        raise SystemExit(f"{path}: not written, {len(bad)} cell(s) under {MIN_N}: {', '.join(bad[:5])}")
+    tmp = Path(str(path) + ".part")
+    df.to_csv(tmp, sep="\t", index=False, float_format="%.4g")
+    os.replace(tmp, path)
+
+
+def small_counts(df, count_cols=("rows",)):
+    """The cells of `df` that give a count of 1..MIN_N-1 away: in the `count_cols`, and "<k> of <n> values / rows" in
+    its text (k or n - k). Empty when the table is safe to publish."""
     bad = []
     for c in count_cols:
         if c in df.columns:
@@ -1990,11 +2125,7 @@ def publish_tsv(df, path, count_cols=("rows",)):
                     k, n = int(k), int(n)
                     if 1 <= k < MIN_N or 1 <= n - k < MIN_N:
                         bad.append(f"{c}: '{k} of {n}'")
-    if bad:
-        raise SystemExit(f"{path}: not written, {len(bad)} cell(s) under {MIN_N}: {', '.join(bad[:5])}")
-    tmp = Path(str(path) + ".part")
-    df.to_csv(tmp, sep="\t", index=False, float_format="%.4g")
-    os.replace(tmp, path)
+    return bad
 
 
 def shown(val, ok, base):
@@ -2173,7 +2304,7 @@ def main():
         labels.add_orgs(pd.read_parquet(rows / "sp_orgs.parquet"))
     log(f"{len(omops)} OMOP(s): {', '.join(omops)}; out {args.out}")
     scales = ["raw", "uln", "lln"] if args.scale == "all" else [args.scale]
-    for omop in omops:
+    def one(omop):
         name = concept_name(omop, args.names)
         res = {}
         # the raw run always comes first: its row counts gate the scaled runs' (rows without that limit), and it
@@ -2190,6 +2321,9 @@ def main():
                 continue  # no raw run to gate it against: nothing is shown
             fdf, cy, ranges, nat, series, cs = detect(omop, data, a, labels,
                                                       res["raw"]["cy"] if sc != "raw" else None)
+            if sc == "raw" and not cy["pub"].any():
+                log(f"OMOP {omop}: no lab-year with at least {MIN_N} people: nothing to publish, skipped")
+                break
             timing = timing_table(data, labels) if sc == "raw" else None
             res[sc] = {"fdf": fdf, "cy": cy, "cs": cs, "ranges": ranges, "vals": data["vals"], "dims": data["dims"],
                        "h_unit": data["meta"].get("h_unit"), "rng": data["rng"], "timing": timing}
@@ -2203,7 +2337,7 @@ def main():
                 print(markdown(fdf.head(args.print_rows), ["kind", "sp", "period", "rows", "effect_x", "detail",
                                                            "cause"]))
         if not any(sc in res for sc in scales):
-            continue
+            return
         base = f"OMOP {omop}" + (f" — {name}" if name else "") + ": service providers over time"
         # a scaled run is drawn when at least --min-scaled of the rows have that limit
         n_raw = res["raw"]["cy"]["n_v"].sum()
@@ -2217,6 +2351,19 @@ def main():
         sfx = scale_sfx(argparse.Namespace(scale=scales[0])) if len(scales) == 1 else ""
         report_multi(omop, title, runs, args, args.out / f"sp_qc_{omop}{name_slug(name)}{sfx}.pdf", res["raw"]["h_unit"],
                      res["raw"])
+
+    failed = []
+    for omop in omops:  # one OMOP's failure (an error, or a refused TSV) is logged and skipped, not the run
+        try:
+            one(omop)
+        except (Exception, SystemExit):
+            if len(omops) == 1:
+                raise
+            failed.append(omop)
+            plt.close("all")
+            log(f"OMOP {omop}: FAILED, skipped:\n{traceback.format_exc()}")
+    if failed:
+        log(f"{len(failed)} OMOP(s) failed: {', '.join(failed)} (tracebacks above)")
 
 if __name__ == "__main__":
     main()

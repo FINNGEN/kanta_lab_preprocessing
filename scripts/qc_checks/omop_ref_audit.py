@@ -2,7 +2,7 @@
 """
 omop_ref_audit.py
 
-Audit one OMOP concept with the reference ranges: which rows went wrong in injection/harmonization, how, where in the
+Audit OMOP concepts with the reference ranges: which rows went wrong in injection/harmonization, how, where in the
 pipeline, and what their unit should have been.
 
 Idea: every row carries three independent witnesses of its scale -- its value v, its reference range (lo-hi), and its
@@ -37,44 +37,63 @@ Verdict (rows with a value > 0; 'A/B/C' = checks 2/1/3 pass):
   unharmonized: conflict   no harmonized value; value and range disagree, or the suggested factor doesn't bring the
                            value on scale;  unharmonized: no unit for factor / no range: as named (no range: unit
                            suggested from the value alone, as for value off)
+  no value > 0             a value of 0 or below (raw or harmonized), or a harmonized value without a raw one: not
+                           checked, listed so that the groups add up to the rows
 Canonical range: weighted median of the harmonized limits over rows passing A and C, per sex x age group (F/M x minor
-<18 / adult) with >= --min-rows rows, else pooled over every row.
+<18 / adult) with >= --min-stratum-rows rows, else pooled over every row.
 
 Stage, from cleaned-pre-inj::MEASUREMENT_UNIT (source) vs MEASUREMENT_UNIT (post-injection):
   lab        source unit kept         -> the error, if any, came from the lab
   injected   source NA, unit injected -> injection chose it
   rewritten  source X -> Y            -> injection changed it (also tells when the suggested unit is the source one:
                                          injection broke a right unit)
-  no unit    no unit after injection;  unknown: the input has no pre-injection unit column
+  no unit    no unit after injection;  unknown: the input has no pre-injection unit column (a release)
 
 Usage
 -----
-  python3 omop_ref_audit.py OMOP_ID [--input PARQUET] [--out-dir DIR] [--cache-dir DIR] [--force]
+  python3 omop_ref_audit.py --omop ID[,ID ...] | --all [--min-rows N]  [--input PARQUET] [--out-dir DIR] [--cache DIR]
+  python3 omop_ref_audit.py ID                                          (one OMOP, as before)
 
---input defaults to the most recent engine run in /mnt/disks/data/kanta/engine
-(<prefix>_<YYYY_MM_DD>/<prefix>_<YYYY_MM_DD>.parquet, the latest date in the folder name).
-
-Reads one OMOP's rows from an engine output (or release) parquet, aggregated in duckdb to groups (test x source unit x
-unit x harmonized unit x sex x age x range x 0.01-log10 value bin x factor), cached under --cache-dir and rebuilt when
-older than the input. Writes into --out-dir:
-  omop_<id>_ref_audit.png / .pdf     the report (the PDF in vectors): the three offsets per test, a decision map (value vs range offset),
-                                     verdict shares per test, flagged rows per stage, and the flagged groups
+Three steps per OMOP, each cached under --cache/audit/omop=<id>/ and redone only when its input changes:
+  rows     the OMOP's rows, from sp_qc.py's row cache (--cache/rows_<input name>/omop=<id>/: extracted from --input
+           in batches of --extract-batch OMOPs per pass, shared with sp_qc.py; --input defaults to the most recent run in
+           /mnt/disks/data/kanta/engine)
+  groups   groups.parquet: test x source unit x unit x harmonized unit x sex x age x range x 0.01-log10 value bin x
+           factor, with rows and a people sketch (the 5 smallest person hashes); rebuilt when the rows change
+  tables   the analysis and every table the outputs show, already gated (*.parquet + tables.json); rebuilt when the
+           groups or the parameters change. The figure is drawn from these tables only (--plots-only redraws it).
+Writes into --out-dir:
+  omop_<id>_ref_audit.png / .pdf     the report (the PDF in vectors): the three offsets per test, a decision map (value
+                                     vs range offset), verdict shares per test, flagged rows per stage, the flagged groups
   omop_<id>_ref_audit_groups.tsv     test x source unit -> unit -> harmonized unit x stage x verdict x suggested unit: rows,
-                                     median range (source scale), median value before (value) and after
-                                     harmonization (value_h), median offsets as factors
+                                     median range (source scale), median value before (value) and after harmonization
+                                     (value_h), median offsets as factors
+  omop_<id>_ref_audit_verdicts.tsv   rows and % per verdict (the shown groups)
   omop_<id>_ref_audit_canonical.tsv  the canonical range per stratum
   omop_<id>_ref_audit_tests.tsv      per test name: KS D of its harmonized values vs the rest of the concept (differs
                                      at D >= --ks-d), % of its rows flagged, harmonized Q1 / median / Q3: a high D with
                                      few flagged rows is another analyte or specimen on a similar scale (the scale
                                      checks miss it)
-and prints the flagged groups as Markdown. Aggregates only: groups and bins under --min-n rows are left out of the plot
-and written as BELOW_THRESHOLD in the TSV; "% rows" is the share of the
-rows in the groups shown (not of the full total, which would give the masked ones away); verdict and stage counts sum
-the shown groups only; no per-test totals are written.
+and prints the flagged groups as Markdown.
+
+Privacy (as sp_qc.py; a hard condition): every published number covers >= --min-n (5) people, not just rows.
+  - A group is shown when its rows cover >= 5 people (merged sketches), else BELOW_THRESHOLD with no statistics. Within
+    each test x unit x harmonized unit (the composition the QC portal shows), the hidden groups together are none or
+    >= 5 people (secondary suppression), so no shown total minus the shown groups gives a small one away.
+  - Every other count (verdicts, stages, tests, canonical strata) sums shown groups only; % rows are shares of the
+    shown rows. A test's KS D and quantiles need >= 5 people in the test and in the rest, and Q1 / Q3 >= 5 people
+    beyond them.
+  - Figures: offset histogram bins are pooled with their neighbours until each covers >= 5 people (no row left out);
+    decision-map points under 5 people are left out; the bars sum shown groups.
+  - Each TSV is checked once more before it is written (sp_qc.publish_tsv). The cache holds hashed person ids.
 """
 import argparse
+import json
 import math
+import os
+import sys
 import time
+import traceback
 from pathlib import Path
 
 import duckdb
@@ -85,35 +104,22 @@ import pandas as pd
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import sp_qc as S  # noqa: E402  (row cache, people sketches, publish_tsv)
+
 try:
     from kanta import config
     DATA_DIR = Path(config.DATA_DIR)
 except ImportError:  # outside the kanta env: the repo's data folder
     DATA_DIR = Path(__file__).resolve().parents[2] / "src" / "kanta" / "engine" / "data"
 
-# short name -> (engine output column, release column)
-COLUMNS = {
-    "test": ("TEST_NAME_ABBREVIATION", "TEST_NAME"),
-    "omop": ("harmonization_omop::OMOP_ID", "OMOP_CONCEPT_ID"),
-    "quantity": ("harmonization_omop::OMOP_QUANTITY", "OMOP_QUANTITY"),
-    "v": ("MEASUREMENT_VALUE", "MEASUREMENT_VALUE_CLEANED"),
-    "unit": ("MEASUREMENT_UNIT", "MEASUREMENT_UNIT_CLEANED"),
-    "src_unit": ("cleaned-pre-inj::MEASUREMENT_UNIT", "MEASUREMENT_UNIT_PRE_INJ"),
-    "h": ("harmonization_omop::MEASUREMENT_VALUE", "MEASUREMENT_VALUE_HARMONIZED"),
-    "h_unit": ("harmonization_omop::MEASUREMENT_UNIT", "MEASUREMENT_UNIT_HARMONIZED"),
-    "sex": ("SEX", "SEX"),
-    "age": ("EVENT_AGE", "EVENT_AGE"),
-    "lo": ("REFERENCE_RANGE_LOWER_VALUE", "REFERENCE_RANGE_LOW_VALUE"),
-    "hi": ("REFERENCE_RANGE_UPPER_VALUE", "REFERENCE_RANGE_HIGH_VALUE"),
-    "ref_source": ("REFERENCE_RANGE_SOURCE", "REFERENCE_RANGE_SOURCE"),
-}
-OPTIONAL = {"quantity", "src_unit", "h_unit", "sex", "age", "ref_source"}
 BIN = 0.01  # log10 width of the value bins in the cached groups
 HBIN = 0.05  # log10 width of the offset histograms
 XLIM = 3.5  # offsets drawn within +- this (log10); beyond, piled at the edge
-CACHE_VERSION = "v1"
-ENGINE_DIR = Path("/mnt/disks/data/kanta/engine")
-BELOW = "BELOW_THRESHOLD"
+CACHE_VERSION = "g2"  # groups: from the shared row cache, with people sketches
+TABLES_VERSION = "t2"
+BELOW = S.BELOW
+NO_VALUE = "no value > 0"
 
 VERDICTS = [  # (name, color, flagged) -- order = legend / stacking order
     ("ok", "#0ca30c", False),
@@ -128,6 +134,7 @@ VERDICTS = [  # (name, color, flagged) -- order = legend / stacking order
     ("unharmonized: conflict", "#184f95", True),
     ("unharmonized: no unit for factor", "#86b6ef", True),
     ("unharmonized: no range", "#8f8e86", True),
+    (NO_VALUE, "#e0ded6", False),
 ]
 VCOLOR = {v: c for v, c, _ in VERDICTS}
 FLAGGED = [v for v, _, f in VERDICTS if f]
@@ -136,16 +143,14 @@ STAGES = [("lab", "#52514e"), ("injected", "#2a78d6"), ("rewritten", "#eb6834"),
 TEST_COLORS = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300"]
 OTHER_COLOR = "#a8a69c"
 INK, MUTED, LINE, SURFACE = "#0b0b0b", "#52514e", "#d6d4cc", "#fcfcfb"
+GKEYS = ["test", "src_unit", "unit", "h_unit", "sex", "age", "ref_source", "lo", "hi", "lv", "lf", "excluded"]
+GROUP_KEYS = ["test", "src_unit", "unit", "h_unit", "stage", "verdict", "suggested", "src_was_right"]
+CELL = ["test", "unit", "h_unit"]  # the composition cell (qc_portal.py's rows): secondary suppression within it
+TABLE_COLS = ["test", "source -> unit -> harmonized", "stage", "verdict", "rows", "% rows", "range (source scale)",
+              "median pre-harm.", "median harmonized", "range x", "value x", "suggested unit"]
+KS_COLS = ["test", "rows", "D (KS)", "differs", "% rows flagged", "Q1", "median", "Q3"]
 
 t0 = time.time()
-
-
-def latest_engine_output(engine_dir=ENGINE_DIR):
-    """Most recent engine output: runs sit in <engine_dir>/<prefix>_<YYYY_MM_DD>/<prefix>_<YYYY_MM_DD>.parquet; the one
-    with the latest date in its folder name (ties: the newest file), or None if there is none."""
-    runs = [(d.name[-10:], (d / f"{d.name}.parquet").stat().st_mtime, d / f"{d.name}.parquet")
-            for d in engine_dir.glob("*_[0-9][0-9][0-9][0-9]_[0-9][0-9]_[0-9][0-9]") if (d / f"{d.name}.parquet").is_file()]
-    return max(runs)[2] if runs else None
 
 
 def log(msg):
@@ -189,59 +194,40 @@ def candidate_units(conversion_file, omop_id, quantity, target):
 
 
 # ---------------------------------------------------------------------------
-# Groups (duckdb, cached)
+# Groups (duckdb over the cached rows, with people sketches)
 # ---------------------------------------------------------------------------
 
-def build_groups(parquet, omop_id, cache_dir, force, memory_limit, threads):
-    cache = Path(cache_dir) / f"ref_audit_groups_{omop_id}_{Path(parquet).stem}_{CACHE_VERSION}.parquet"
-    if cache.exists() and not force and cache.stat().st_mtime >= Path(parquet).stat().st_mtime:
-        log(f"Cached groups: {cache}")
-        return pd.read_parquet(cache)
-    con = duckdb.connect()
-    con.execute(f"set memory_limit = '{memory_limit}'")
-    con.execute(f"set threads = {threads}")
-    con.execute("set preserve_insertion_order = false")
-    cols = set(con.sql(f"select * from read_parquet('{parquet}') limit 0").columns)
-
-    def col(name):
-        c = next((c for c in COLUMNS[name] if c in cols), None)
-        if c is None:
-            if name in OPTIONAL:
-                return "null"
-            raise SystemExit(f"{parquet}: missing column {' / '.join(COLUMNS[name])}")
-        return f"nullif(nullif(trim(cast(\"{c}\" as varchar)), ''), 'NA')"
-
-    def num(name):
-        return f"try_cast(replace({col(name)}, ',', '.') as double)"
-
-    has_src = col("src_unit") != "null"
-    log(f"Querying OMOP {omop_id} from {parquet} (full scan)...")
-    df = con.execute(f"""
-        with r as (
-            select coalesce({col('test')}, 'NA') test,
-                   {"coalesce(" + col('src_unit') + ", 'NA')" if has_src else "'?'"} src_unit,
-                   coalesce({col('unit')}, 'NA') unit, coalesce({col('h_unit')}, 'NA') h_unit,
-                   case when lower({col('sex')}) in ('female', 'f') then 'F'
-                        when lower({col('sex')}) in ('male', 'm') then 'M' end sex,
-                   case when {num('age')} < 18 then 'minor' when {num('age')} >= 18 then 'adult' end age,
-                   {num('v')} v, {num('h')} h,
-                   case when {num('lo')} > 0 then {num('lo')} end lo, case when {num('hi')} > 0 then {num('hi')} end hi,
-                   coalesce({col('ref_source')},
-                            case when {num('lo')} is not null or {num('hi')} is not null then 'num' end, 'none') ref_source
-            from read_parquet('{parquet}') where {col('omop')} = ?)
-        select test, src_unit, unit, h_unit, sex, age, ref_source, round(lo, 6) lo, round(hi, 6) hi,
-               case when v > 0 and (h is null or h > 0) then round(log10(v) / {BIN}) * {BIN} end lv,
-               case when v > 0 and h > 0 then round(log10(h / v), 3) end lf,
-               coalesce(v is null or v <= 0 or h <= 0, false) excluded, count(*) n
-        from r group by all""", [str(omop_id)]).df()
-    Path(cache_dir).mkdir(parents=True, exist_ok=True)
-    df.to_parquet(cache, index=False)
-    log(f"{len(df)} groups over {df['n'].sum()} rows -> {cache}")
+def build_groups(omop, part, cdir, con, force):
+    """The OMOP's groups (GKEYS) with rows n and a people sketch p, from its cached rows; cached in cdir."""
+    path, meta_p = cdir / "groups.parquet", cdir / "groups.json"
+    want = {"version": CACHE_VERSION, "rows": str(part), "rows_mtime": S.part_mtime(part)}
+    if path.exists() and meta_p.exists() and not force and json.loads(meta_p.read_text()) == want:
+        log(f"OMOP {omop}: groups cached ({path})")
+        return pd.read_parquet(path)
+    src = f"read_parquet({S.sql_str(str(part / '*.parquet'))})"
+    has_src = con.sql(f"select count(src_unit) from {src}").fetchone()[0] > 0
+    rows = f"""(select coalesce(test, 'NA') test, {"coalesce(src_unit, 'NA')" if has_src else "'?'"} src_unit,
+                       coalesce(unit, 'NA') unit, coalesce(h_unit, 'NA') h_unit,
+                       case sex when 0 then 'F' when 1 then 'M' end sex,
+                       case when age < 18 then 'minor' when age >= 18 then 'adult' end age,
+                       coalesce(ref_src, case when ref_low is not null or ref_high is not null then 'num' end,
+                                'none') ref_source,
+                       round(case when ref_low > 0 then ref_low end, 6) lo,
+                       round(case when ref_high > 0 then ref_high end, 6) hi,
+                       case when v_raw > 0 and (v is null or v > 0) then round(log10(v_raw) / {BIN}) * {BIN} end lv,
+                       case when v_raw > 0 and v > 0 then round(log10(v / v_raw), 3) end lf,
+                       coalesce(v_raw is null or v_raw <= 0 or v <= 0, false) excluded, f
+                from {src})"""
+    df = con.sql(S.sketch_sql(GKEYS, rows)).df()
+    cdir.mkdir(parents=True, exist_ok=True)
+    df.to_parquet(path, index=False)
+    meta_p.write_text(json.dumps(want, indent=1) + "\n")
+    log(f"OMOP {omop}: {len(df)} groups over {df['n'].sum()} rows -> {path}")
     return df
 
 
 # ---------------------------------------------------------------------------
-# Analysis
+# Analysis (unchanged: on the groups, weighted by rows)
 # ---------------------------------------------------------------------------
 
 def wq(x, w, q=0.5):
@@ -273,6 +259,13 @@ def is_unit_shift(d, cands, tol):
         return False
     ratios = {round(a - b, 3) for a in cands.values() for b in cands.values()} | {k for k in range(-6, 7)}
     return any(abs(d - r) <= tol for r in ratios if abs(r) > tol)
+
+
+def add_stage(g):
+    g["stage"] = np.select(
+        [g["src_unit"] == "?", g["unit"] == "NA", g["src_unit"] == "NA", g["src_unit"] == g["unit"]],
+        ["unknown", "no unit", "injected", "lab"], default="rewritten")
+    return g
 
 
 def analyse(g, cands, args):
@@ -307,7 +300,8 @@ def analyse(g, cands, args):
     A = g["d_vr"].abs() <= g["tol_vr"]
 
     # canonical range: harmonized limits over the rows passing 2 and 3
-    base = g[g["harm"] & has_range & A & C]
+    g["base"] = g["harm"] & has_range & A & C
+    base = g[g["base"]]
     strata = [("all", "all")] + [(s, a) for s in ("F", "M") for a in ("minor", "adult")]
     canon = []
     for s, a in strata:
@@ -318,7 +312,7 @@ def analyse(g, cands, args):
                       "lower": 10 ** wq(np.log10(lo["lo"]) + lo["lf"], lo["n"]) if len(lo) else np.nan,
                       "upper": 10 ** wq(np.log10(hi["hi"]) + hi["lf"], hi["n"]) if len(hi) else np.nan})
     canon = pd.DataFrame(canon)
-    canon["use"] = (canon["rows"] >= args.min_rows) | ((canon["sex"] == "all") & (canon["rows"] > 0))
+    canon["use"] = (canon["rows"] >= args.min_stratum_rows) | ((canon["sex"] == "all") & (canon["rows"] > 0))
     use = canon[canon["use"]].set_index(["sex", "age"])
     if ("all", "all") not in use.index:
         raise SystemExit("No rows pass the value checks with a range: no canonical range to compare with")
@@ -374,10 +368,7 @@ def analyse(g, cands, args):
                                     for lv, u, h in zip(g.loc[by_value, "lv"], g.loc[by_value, "unit"],
                                                         g.loc[by_value, "harm"])]
 
-    # stage
-    g["stage"] = np.select(
-        [g["src_unit"] == "?", g["unit"] == "NA", g["src_unit"] == "NA", g["src_unit"] == g["unit"]],
-        ["unknown", "no unit", "injected", "lab"], default="rewritten")
+    add_stage(g)
     g["src_was_right"] = (g["stage"] == "rewritten") & (g["suggested"] != "") & (g["suggested"] == g["src_unit"])
 
     stats = {"rows": int(n_all), "median": 10 ** m_h, "tol_value": 10 ** tol_v, "tol_value_range": tol_vr,
@@ -385,79 +376,135 @@ def analyse(g, cands, args):
     return g, canon, stats
 
 
-GROUP_KEYS = ["test", "src_unit", "unit", "h_unit", "stage", "verdict", "suggested", "src_was_right"]
+# ---------------------------------------------------------------------------
+# Tables (every count gated on people; the figure is drawn from these only)
+# ---------------------------------------------------------------------------
+
+def npeople(sketches):
+    return len(S.pset(sketches))
 
 
-def group_table(g, min_n):
-    keys = GROUP_KEYS
+def gate_groups(g):
+    """g with `gid` (its GROUP_KEYS group) and `shown`: the group covers >= MIN_N people, and within each composition
+    cell (test x unit x harmonized unit) the hidden groups together are none or >= MIN_N people."""
+    g = g.copy()
+    g["gid"] = g.groupby(GROUP_KEYS, dropna=False, sort=False).ngroup()
+    grp = g.groupby("gid").agg(n=("n", "sum"), **{k: (k, "first") for k in CELL})
+    grp["p"] = S.merge_sketch(g, ["gid"])
+    grp["people"] = [npeople([p]) for p in grp["p"]]
+    ok = np.array(grp["people"] >= S.MIN_N, dtype=bool)  # a writable copy (pandas 3 arrays are read-only)
+    for _, idx in grp.groupby(CELL, dropna=False).indices.items():
+        cells = grp.iloc[idx][["n", "p"]].reset_index(drop=True)
+        ok[idx] = S.suppress_group(cells, ok[idx])
+    g["shown"] = g["gid"].map(dict(zip(grp.index, ok)))
+    return g
+
+
+def group_table(g):
+    """One row per GROUP_KEYS group: rows, median range / values / offsets (shown groups), % of the shown rows."""
     rows = []
-    for k, d in g.groupby(keys, sort=False):
-        n = d["n"].sum()
+    for k, d in g.groupby(GROUP_KEYS, sort=False, dropna=False):
         w = d["n"]
-        rows.append(dict(zip(keys, k), n=int(n),
-                         range_lower=wq(d["lo"], w), range_upper=wq(d["hi"], w), value=10 ** wq(d["lv"], w),
-                         value_h=10 ** wq(d["lh"], w),
-                         x_range=10 ** wq(d["d_ru"], w), x_value_vs_range=10 ** wq(d["d_vr"], w),
-                         x_value=10 ** wq(d["d_vu"], w)))
-    t = pd.DataFrame(rows).sort_values(["test", "n"], ascending=[True, False])
+        shown = bool(d["shown"].iloc[0])
+        st = dict(range_lower=wq(d["lo"], w), range_upper=wq(d["hi"], w), value=10 ** wq(d["lv"], w),
+                  value_h=10 ** wq(d["lh"], w), x_range=10 ** wq(d["d_ru"], w),
+                  x_value_vs_range=10 ** wq(d["d_vr"], w), x_value=10 ** wq(d["d_vu"], w)) if shown else {}
+        rows.append(dict(zip(GROUP_KEYS, k), n=int(w.sum()), shown=shown, **st))
+    t = pd.DataFrame(rows).sort_values(["test", "n"], ascending=[True, False], ignore_index=True)
     t["flagged"] = t["verdict"].isin(FLAGGED)
-    # % of the rows in the shown groups (>= min_n): a share of the full total would give the total away, and the
-    # total minus the shown groups is the masked ones
-    t["pct"] = 100 * t["n"] / t.loc[t["n"] >= min_n, "n"].sum()
+    # % of the rows in the shown groups: a share of the full total would give the hidden ones away
+    t["pct"] = np.where(t["shown"], 100 * t["n"] / t.loc[t["shown"], "n"].sum(), np.nan)
     return t
 
 
-def ks_tests(g, min_n, ks_min_n, d_flag):
+def ks_tests(g, args):
     """Each test name's harmonized values vs the rest of the concept: the KS D statistic (largest gap between the two
     cumulative distributions, on the cached 0.01-log10 bins), from the retired explore_omop.py. D, not the p-value, which is ~0
     at these row counts even for comparable tests (serum vs plasma). It catches what the scale checks miss: another
     analyte or specimen on a similar scale (ap-na under sodium). With the share of the test's rows already flagged:
-    a high D with few flagged rows points to a mapping problem rather than a unit one."""
+    a high D with few flagged rows points to a mapping problem rather than a unit one. A test is compared when it and
+    the rest each cover >= MIN_N people; Q1 / Q3 are shown when >= MIN_N people lie beyond them."""
     h = g[g["harm"]].assign(b=(g["lh"] / 0.01).round())
     h = h[h["b"].notna()]
     tot = h.groupby("b")["n"].sum().sort_index()
     rows = []
     for test, d in h.groupby("test"):
         n = d["n"].sum()
+        rest_rows = h[h["test"] != test]
         rest = tot - d.groupby("b")["n"].sum().reindex(tot.index, fill_value=0)
-        if n < ks_min_n or rest.sum() < ks_min_n:
+        if n < args.ks_min_n or rest.sum() < args.ks_min_n:
+            continue
+        if npeople(d["p"]) < S.MIN_N or npeople(rest_rows["p"]) < S.MIN_N:
             continue
         own = d.groupby("b")["n"].sum().reindex(tot.index, fill_value=0)
         dist = (own.cumsum() / n - rest.cumsum() / rest.sum()).abs().max()
         sh = g[(g["test"] == test) & g["shown"]]  # counts only over the groups the TSV shows
-        rows.append({"test": test, "rows": int(sh["n"].sum()), "D": float(dist), "differs": bool(dist >= d_flag),
+        bins = d.groupby("b").agg(n=("n", "sum"))
+        bins["p"] = S.merge_sketch(d, ["b"])
+        safe = S.safe_bins(bins.reset_index())
+        qs = {}
+        for name, q in (("q25", 0.25), ("q50", 0.5), ("q75", 0.75)):
+            x = wq(d["lh"], d["n"], q)
+            ok = safe is not None and safe[0] <= round(x / 0.01) <= safe[1]
+            qs[name] = 10 ** x if ok else np.nan
+        rows.append({"test": test, "rows": int(sh["n"].sum()), "D": float(dist), "differs": bool(dist >= args.ks_d),
                      "flagged_pct": 100 * sh.loc[sh["verdict"].isin(FLAGGED), "n"].sum() / sh["n"].sum()
-                     if sh["n"].sum() else np.nan,
-                     "q25": 10 ** wq(d["lh"], d["n"], 0.25), "q50": 10 ** wq(d["lh"], d["n"]),
-                     "q75": 10 ** wq(d["lh"], d["n"], 0.75)})
+                     if sh["n"].sum() else np.nan, **qs})
     cols = ["test", "rows", "D", "differs", "flagged_pct", "q25", "q50", "q75"]
     return pd.DataFrame(rows, columns=cols).sort_values("rows", ascending=False, ignore_index=True)
 
 
-KS_COLS = ["test", "rows", "D (KS)", "differs", "% rows flagged", "Q1", "median", "Q3"]
+def canonical_table(g, canon):
+    """The canonical range per stratum, shown when the stratum's base rows cover >= MIN_N people; `rows` counts the
+    base rows of shown groups only (like every other count)."""
+    out = []
+    for r in canon.itertuples():
+        b = g[g["base"]] if r.sex == "all" else g[g["base"] & (g["sex"] == r.sex) & (g["age"] == r.age)]
+        ok = npeople(b["p"]) >= S.MIN_N
+        out.append({"sex": r.sex, "age": r.age, "rows": str(int(b.loc[b["shown"], "n"].sum())) if ok else BELOW,
+                    "lower": r.lower if ok else np.nan, "upper": r.upper if ok else np.nan, "use": bool(r.use and ok)})
+    return pd.DataFrame(out)
 
 
-def ks_rows(ks, min_n):
-    return [[r.test, f"{r.rows}" if r.rows >= min_n else BELOW, f"{r.D:.2f}", "yes" if r.differs else "",
-             fmt_pct(r.flagged_pct) if r.rows >= min_n else "", fmt(r.q25), fmt(r.q50), fmt(r.q75)]
-            for r in ks.itertuples()]
+def offsets_table(g, keep):
+    """Per check (1 d_ru, 2 d_vr, 3 d_vu) x test (keep + 'other'): HBIN bins of the shown rows, pooled with their
+    neighbours until each covers >= MIN_N people; `share` of the test's rows."""
+    out = []
+    edges0 = -XLIM
+    sub0 = g[g["shown"]]
+    for col in ("d_ru", "d_vr", "d_vu"):
+        sub = sub0[sub0[col].notna()]
+        for test in keep + ["other"]:
+            d = sub[sub["test"] == test] if test != "other" else sub[~sub["test"].isin(keep)]
+            if d.empty:
+                continue
+            d = d.assign(b=np.floor((d[col].clip(-XLIM, XLIM - 1e-9) - edges0) / HBIN).astype(int))
+            cells = d.groupby("b").agg(n=("n", "sum")).reset_index()
+            cells["p"] = S.merge_sketch(d, ["b"]).reindex(cells["b"]).to_numpy()
+            pools = S.pool_adjacent(cells, "b", clip=True)
+            if pools.empty:
+                continue
+            tot = pools["n"].sum()
+            for p in pools.itertuples():
+                out.append({"check": col, "test": test, "lo": edges0 + p.lo * HBIN, "hi": edges0 + (p.hi + 1) * HBIN,
+                            "rows": int(p.n), "share": p.n / tot})
+    return pd.DataFrame(out, columns=["check", "test", "lo", "hi", "rows", "share"])
 
 
-def masked(t, min_n):
-    t = t.copy()
-    small = t["n"] < min_n
-    stat_cols = ["pct", "range_lower", "range_upper", "value", "value_h", "x_range", "x_value_vs_range", "x_value"]
-    t[stat_cols] = t[stat_cols].map(lambda x: f"{x:.4g}" if np.isfinite(x) else "")
-    t["pct"] = [fmt_pct(x) for x in t["pct"].replace("", np.nan).astype(float)]
-    t.loc[small, stat_cols] = ""
-    t["n"] = t["n"].astype(object)
-    t.loc[small, "n"] = BELOW
-    return t
+def map_table(g):
+    """Decision-map points: harmonized shown rows with a range, in 0.1-log10 cells per verdict; cells under MIN_N
+    people are left out (the map shows sizes, no totals)."""
+    d = g[g["shown"] & g["harm"] & g["d_ru"].notna()].copy()
+    if d.empty:
+        return pd.DataFrame(columns=["bx", "by", "verdict", "rows"])
+    d["bx"] = (d["d_vu"].clip(-XLIM, XLIM) / 0.1).round() * 0.1
+    d["by"] = (d["d_ru"].clip(-XLIM, XLIM) / 0.1).round() * 0.1
+    pts = d.groupby(["bx", "by", "verdict"], as_index=False)["n"].sum()
+    pts["p"] = S.merge_sketch(d, ["bx", "by", "verdict"]).reindex(
+        pd.MultiIndex.from_frame(pts[["bx", "by", "verdict"]])).to_numpy()
+    pts = pts[[npeople([p]) >= S.MIN_N for p in pts["p"]]]
+    return pts.rename(columns={"n": "rows"})[["bx", "by", "verdict", "rows"]]
 
-
-# ---------------------------------------------------------------------------
-# Report
-# ---------------------------------------------------------------------------
 
 def fmt_pct(x):
     """Share of the concept's rows: 2 significant digits under 10 %, whole percent above."""
@@ -474,11 +521,107 @@ def fmt(x):
 
 def fmt_x(x):
     """A factor as text: 1 -> 'x1', 0.01 -> '/100'."""
-    if not np.isfinite(x):
+    if x is None or not np.isfinite(x):
         return ""
     y = x if x >= 1 else 1 / x
     return ("x" if x >= 1 else "/") + (f"{y:.0f}" if y >= 10 else f"{y:.2g}")
 
+
+def flagged_rows(t, top):
+    f = t[t["flagged"] & t["shown"]].sort_values("n", ascending=False).head(top)
+    out = []
+    for r in f.itertuples():
+        rng = (f"{fmt(r.range_lower)}-{fmt(r.range_upper)}" if np.isfinite(r.range_lower) and np.isfinite(r.range_upper)
+               else f"<{fmt(r.range_upper)}" if np.isfinite(r.range_upper)
+               else f">{fmt(r.range_lower)}" if np.isfinite(r.range_lower) else "")
+        stage = r.stage + (" (source unit was right)" if r.src_was_right else "")
+        out.append([r.test, f"{r.src_unit} -> {r.unit} -> {r.h_unit}", stage, r.verdict, f"{r.n}", fmt_pct(r.pct), rng,
+                    fmt(r.value), fmt(r.value_h), fmt_x(r.x_range), fmt_x(r.x_value), r.suggested])
+    return out
+
+
+def build_tables(omop, groups, cands, target, args, cdir, groups_mtime):
+    """All tables of the outputs, gated, cached in cdir (tables.json + *.parquet); rebuilt when the groups or the
+    parameters change. Returns (tables dict, meta dict)."""
+    params = {"version": TABLES_VERSION, "groups_mtime": groups_mtime, "min_n": S.MIN_N, "target": target,
+              "cands": cands, **{k: getattr(args, k) for k in (
+                  "shift", "far", "range_margin", "min_stratum_rows", "top_n_tests", "table_rows", "ks_d", "ks_min_n")}}
+    meta_p = cdir / "tables.json"
+    names = ["groups", "verdicts", "canonical", "tests", "offsets", "map", "vbars", "stages", "flagged"]
+    if meta_p.exists() and not args.force:
+        meta = json.loads(meta_p.read_text())
+        if meta.get("params") == json.loads(json.dumps(params)) and all((cdir / f"t_{n}.parquet").exists() for n in names):
+            log(f"OMOP {omop}: tables cached ({cdir})")
+            return {n: pd.read_parquet(cdir / f"t_{n}.parquet") for n in names}, meta
+    ex = groups[groups["excluded"]].copy()
+    g, canon, stats = analyse(groups, cands, args)
+    ex = add_stage(ex.assign(verdict=NO_VALUE, suggested="", src_was_right=False, harm=False, base=False))
+    g = gate_groups(pd.concat([g, ex], ignore_index=True))
+    t = group_table(g)
+    shown = g[g["shown"]]
+    a = g[g["verdict"] != NO_VALUE]  # the checked rows (the figure and the tests)
+    # top tests by shown rows: drawn by name, the rest pooled as "other"
+    order = shown[shown["verdict"] != NO_VALUE].groupby("test")["n"].sum().sort_values(ascending=False)
+    keep = list(order.index[:args.top_n_tests])
+    ks = ks_tests(a, args)
+    v = shown.groupby("verdict")["n"].sum()
+    verdicts = pd.DataFrame({"verdict": [x for x, _, _ in VERDICTS if x in v.index]})
+    verdicts["rows"] = [int(v[x]) for x in verdicts["verdict"]]
+    verdicts["pct"] = 100 * verdicts["rows"] / verdicts["rows"].sum() if len(verdicts) else []
+    sa = a[a["shown"]]
+    vb = sa.assign(test=np.where(sa["test"].isin(keep), sa["test"], "other")).groupby(
+        ["test", "verdict"], as_index=False)["n"].sum().rename(columns={"n": "rows"})
+    vb["share"] = vb["rows"] / vb.groupby("test")["rows"].transform("sum")
+    st = sa[sa["verdict"].isin(FLAGGED)].groupby(["verdict", "stage"], as_index=False)["n"].sum().rename(
+        columns={"n": "rows"})
+    flagged = pd.DataFrame(flagged_rows(t, args.table_rows), columns=TABLE_COLS)
+    tables = {"groups": t, "verdicts": verdicts, "canonical": canonical_table(a, canon), "tests": ks,
+              "offsets": offsets_table(a, keep), "map": map_table(a), "vbars": vb, "stages": st, "flagged": flagged}
+    fl = shown[shown["verdict"] != NO_VALUE]
+    meta = {"params": params, "keep": keep, "stats": stats,
+            "flagged_pct": 100 * fl.loc[fl["verdict"].isin(FLAGGED), "n"].sum() / fl["n"].sum() if len(fl) else None,
+            "rtol": math.log10(args.range_margin), "tol_v": math.log10(stats["tol_value"]),
+            "tol_vr": max(stats["tol_value_range"].values()) if stats["tol_value_range"] else math.log10(args.shift)}
+    cdir.mkdir(parents=True, exist_ok=True)
+    for n, df in tables.items():
+        df.to_parquet(cdir / f"t_{n}.parquet", index=False)
+    meta_p.write_text(json.dumps(meta, indent=1, default=float) + "\n")
+    log(f"OMOP {omop}: tables -> {cdir}")
+    return tables, json.loads(meta_p.read_text())
+
+
+def masked_groups(t):
+    """The groups table for export: hidden groups as BELOW_THRESHOLD, without statistics."""
+    t = t.copy()
+    stat_cols = ["range_lower", "range_upper", "value", "value_h", "x_range", "x_value_vs_range", "x_value"]
+    for c in stat_cols:
+        if c not in t.columns:
+            t[c] = np.nan
+    t[stat_cols] = t[stat_cols].map(lambda x: f"{x:.4g}" if pd.notna(x) and np.isfinite(x) else "")
+    t["pct"] = [fmt_pct(x) for x in t["pct"].astype(float)]
+    t.loc[~t["shown"], stat_cols + ["pct"]] = ""
+    t["n"] = t["n"].astype(object)
+    t.loc[~t["shown"], "n"] = BELOW
+    return t[GROUP_KEYS + ["n", "pct"] + stat_cols + ["flagged"]]
+
+
+def ks_rows(ks):
+    return [[r.test, f"{r.rows}" if r.rows > 0 else BELOW, f"{r.D:.2f}", "yes" if r.differs else "",
+             fmt_pct(r.flagged_pct) if r.rows > 0 else "", fmt(r.q25), fmt(r.q50), fmt(r.q75)]
+            for r in ks.itertuples()]
+
+
+def write_tsvs(stem, tables):
+    S.publish_tsv(masked_groups(tables["groups"]), f"{stem}_groups.tsv", count_cols=("n",))
+    S.publish_tsv(tables["verdicts"].assign(pct=tables["verdicts"]["pct"].map(fmt_pct)), f"{stem}_verdicts.tsv")
+    S.publish_tsv(tables["canonical"], f"{stem}_canonical.tsv")
+    S.publish_tsv(pd.DataFrame(ks_rows(tables["tests"]), columns=KS_COLS), f"{stem}_tests.tsv")
+    log(f"Wrote {stem}_groups.tsv, _verdicts.tsv, _canonical.tsv, _tests.tsv")
+
+
+# ---------------------------------------------------------------------------
+# Figure (from the tables only)
+# ---------------------------------------------------------------------------
 
 def style(ax):
     ax.set_facecolor(SURFACE)
@@ -504,52 +647,44 @@ def factor_axis(ax, which="x"):
     (ax.set_xlim if which == "x" else ax.set_ylim)(-XLIM - 0.1, XLIM + 0.1)
 
 
-def top_tests(g, n_top):
-    order = g.groupby("test")["n"].sum().sort_values(ascending=False)
-    keep = list(order.index[:n_top])
-    return keep, {t: TEST_COLORS[i] for i, t in enumerate(keep)}
-
-
-def offset_panel(ax, g, col, keep, colors, tol, title, question, xlabel, min_n):
-    edges = np.arange(-XLIM, XLIM + HBIN / 2, HBIN)
-    sub = g[g[col].notna()]
+def offset_panel(ax, off, col, keep, colors, tol, title, question, xlabel):
+    """One check's histograms: pooled bins (each >= MIN_N people), drawn as share per HBIN of the test's rows."""
+    sub = off[off["check"] == col]
     for test in keep + ["other"]:
-        d = sub[sub["test"] == test] if test != "other" else sub[~sub["test"].isin(keep)]
+        d = sub[sub["test"] == test].sort_values("lo")
         if d.empty:
             continue
-        x = d[col].clip(-XLIM, XLIM - 1e-9)
-        hist, _ = np.histogram(x, bins=edges, weights=d["n"])
-        hist[hist < min_n] = 0  # small bins left out
-        if hist.sum() == 0:
-            continue
-        ax.step(edges[:-1], hist / hist.sum(), where="post", lw=1.4, alpha=0.8,
-                color=colors.get(test, OTHER_COLOR), label=test)
+        xs, ys = [], []  # pools are contiguous ranges; a gap between two pools is drawn as nothing (NaN)
+        for lo, hi, sh in zip(d["lo"], d["hi"], d["share"]):
+            if xs and xs[-1] < lo - 1e-9:
+                ys.append(np.nan)
+                xs.append(lo)
+            if not xs:
+                xs.append(lo)
+            ys.append(sh * HBIN / (hi - lo))
+            xs.append(hi)
+        ax.stairs(ys, xs, lw=1.4, alpha=0.8, color=colors.get(test, OTHER_COLOR), label=test, baseline=None)
     for lo, hi in ([(-tol, tol)] if np.isscalar(tol) else tol):
         ax.axvspan(lo, hi, color=MUTED, alpha=0.08, lw=0)
     factor_axis(ax)
     titled(ax, title, question)
     ax.set_xlabel(xlabel, fontsize=8, color=MUTED)
-    ax.set_ylabel("share of the test's rows (log scale)", fontsize=8, color=MUTED)
+    ax.set_ylabel(f"share of the test's rows per {HBIN:g} log10 (log scale)", fontsize=8, color=MUTED)
     ax.set_yscale("log")
     ax.set_ylim(bottom=1e-4)
     ax.grid(axis="x", color=LINE, lw=0.5)
     style(ax)
 
 
-def decision_map(ax, g, tol_v, rtol, min_n):
-    d = g[g["harm"] & g["d_ru"].notna()].copy()
-    d["bx"] = (d["d_vu"].clip(-XLIM, XLIM) / 0.1).round() * 0.1
-    d["by"] = (d["d_ru"].clip(-XLIM, XLIM) / 0.1).round() * 0.1
-    pts = d.groupby(["bx", "by", "verdict"], as_index=False)["n"].sum()
-    pts = pts[pts["n"] >= min_n]
-    smax = pts["n"].max() if len(pts) else 1
+def decision_map(ax, pts, tol_v, rtol):
+    smax = pts["rows"].max() if len(pts) else 1
     ax.axhspan(-rtol, rtol, color=MUTED, alpha=0.06, lw=0)
     ax.axvspan(-tol_v, tol_v, color=MUTED, alpha=0.06, lw=0)
     ax.plot([-XLIM, XLIM], [-XLIM, XLIM], color=LINE, lw=1, ls="--", zorder=0)
     for v, c, _ in VERDICTS:
         p = pts[pts["verdict"] == v]
         if len(p):
-            ax.scatter(p["bx"], p["by"], s=12 + 500 * np.sqrt(p["n"] / smax), color=c, alpha=0.85,
+            ax.scatter(p["bx"], p["by"], s=12 + 500 * np.sqrt(p["rows"] / smax), color=c, alpha=0.85,
                        edgecolor=SURFACE, lw=1, label=v, zorder=3)
     for x, y, txt in [(0.5, 0.35, "ok"), (-3.4, -1.3, "wrong unit: value and\nrange shift together"),
                       (0.55, 2.6, "range off scale"), (0.55, -2.9, "range off scale"),
@@ -560,34 +695,34 @@ def decision_map(ax, g, tol_v, rtol, min_n):
     titled(ax, "Decision map: harmonized rows with a range", "What is off: the unit, the value or the range?")
     ax.set_xlabel("3 · harmonized value / concept median", fontsize=8, color=MUTED)
     ax.set_ylabel("1 · harmonized range / canonical range", fontsize=8, color=MUTED)
-    leg = ax.legend(fontsize=7, loc="lower right", frameon=True, facecolor=SURFACE, edgecolor=LINE)
-    for h in leg.legend_handles:
-        h.set_sizes([40])
+    if len(pts):
+        leg = ax.legend(fontsize=7, loc="lower right", frameon=True, facecolor=SURFACE, edgecolor=LINE)
+        for h in leg.legend_handles:
+            h.set_sizes([40])
     ax.grid(color=LINE, lw=0.5)
     style(ax)
 
 
-def verdict_bars(ax, g, keep, min_n, ks=None):
-    g = g[g["shown"]]
-    d = g.assign(test=np.where(g["test"].isin(keep), g["test"], "other"))
-    ct = d.pivot_table(index="test", columns="verdict", values="n", aggfunc="sum", fill_value=0)
-    ct = ct.where(ct >= min_n, 0)  # small cells left out; shares are of the shown rows only
-    order = [t for t in keep + ["other"] if t in ct.index][::-1]
-    ct = ct.loc[order]
-    share = ct.div(ct.sum(axis=1).replace(0, np.nan), axis=0).fillna(0)
-    left = np.zeros(len(ct))
+def verdict_bars(ax, vb, keep, ks):
+    if vb.empty:
+        ax.text(0.5, 0.5, "no rows shown", ha="center", va="center", transform=ax.transAxes, color=MUTED)
+        ax.axis("off")
+        return
+    order = [t for t in keep + ["other"] if t in set(vb["test"])][::-1]
+    share = vb.pivot_table(index="test", columns="verdict", values="share", aggfunc="sum", fill_value=0).reindex(order)
+    left = np.zeros(len(share))
     for v, c, _ in VERDICTS:
         if v in share.columns and share[v].sum() > 0:
-            ax.barh(range(len(ct)), share[v], left=left, color=c, label=v, height=0.7, edgecolor=SURFACE, lw=1)
+            ax.barh(range(len(share)), share[v], left=left, color=c, label=v, height=0.7, edgecolor=SURFACE, lw=1)
             left += share[v].to_numpy()
-    ax.set_yticks(range(len(ct)))
-    dmap = dict(zip(ks["test"], ks["D"])) if ks is not None else {}
-    ax.set_yticklabels([f"{x}\nD {dmap[x]:.2f}" if x in dmap else x for x in ct.index], fontsize=8)
-    if ks is not None:  # tests whose distribution differs from the rest: label in the critical color
-        for lab, x in zip(ax.get_yticklabels(), ct.index):
-            if x in set(ks.loc[ks["differs"], "test"]):
-                lab.set_color(dict((v, c) for v, c, _ in VERDICTS)["wrong unit"])
-                lab.set_fontweight("bold")
+    ax.set_yticks(range(len(share)))
+    dmap = dict(zip(ks["test"], ks["D"]))
+    ax.set_yticklabels([f"{x}\nD {dmap[x]:.2f}" if x in dmap else x for x in share.index], fontsize=8)
+    differs = set(ks.loc[ks["differs"], "test"])
+    for lab, x in zip(ax.get_yticklabels(), share.index):  # tests whose distribution differs: the critical color
+        if x in differs:
+            lab.set_color(VCOLOR["wrong unit"])
+            lab.set_fontweight("bold")
     ax.set_xlim(0, 1)
     ax.set_xlabel("share of the test's rows", fontsize=8, color=MUTED)
     titled(ax, "Verdict per test (shares of the rows shown; D = KS vs the other tests, bold: differs)",
@@ -596,10 +731,12 @@ def verdict_bars(ax, g, keep, min_n, ks=None):
     style(ax)
 
 
-def stage_bars(ax, g, min_n):
-    d = g[g["shown"] & g["verdict"].isin(FLAGGED)]
-    ct = d.pivot_table(index="verdict", columns="stage", values="n", aggfunc="sum", fill_value=0)
-    ct = ct.where(ct >= min_n, 0)
+def stage_bars(ax, st):
+    if st.empty:
+        ax.text(0.5, 0.5, "no flagged rows", ha="center", va="center", transform=ax.transAxes, color=MUTED)
+        ax.axis("off")
+        return
+    ct = st.pivot_table(index="verdict", columns="stage", values="rows", aggfunc="sum", fill_value=0)
     ct = ct.loc[[v for v in FLAGGED if v in ct.index and ct.loc[v].sum() > 0]][::-1]
     if ct.empty:
         ax.text(0.5, 0.5, "no flagged rows", ha="center", va="center", transform=ax.transAxes, color=MUTED)
@@ -621,58 +758,32 @@ def stage_bars(ax, g, min_n):
     style(ax)
 
 
-TABLE_COLS = ["test", "source -> unit -> harmonized", "stage", "verdict", "rows", "% rows", "range (source scale)",
-              "median pre-harm.", "median harmonized", "range x", "value x", "suggested unit"]
-
-
-def flagged_pct(t, min_n):
-    """Share of the rows in the shown groups that are flagged, the overall impact."""
-    shown = t[t["n"] >= min_n]
-    return fmt_pct(100 * shown.loc[shown["flagged"], "n"].sum() / shown["n"].sum()) + " %"
-
-
-def flagged_rows(t, min_n, top):
-    f = t[t["flagged"] & (t["n"] >= min_n)].sort_values("n", ascending=False).head(top)
-    out = []
-    for r in f.itertuples():
-        rng = (f"{fmt(r.range_lower)}-{fmt(r.range_upper)}" if np.isfinite(r.range_lower) and np.isfinite(r.range_upper)
-               else f"<{fmt(r.range_upper)}" if np.isfinite(r.range_upper)
-               else f">{fmt(r.range_lower)}" if np.isfinite(r.range_lower) else "")
-        stage = r.stage + (" (source unit was right)" if r.src_was_right else "")
-        out.append([r.test, f"{r.src_unit} -> {r.unit} -> {r.h_unit}", stage, r.verdict, f"{r.n}", fmt_pct(r.pct), rng,
-                    fmt(r.value), fmt(r.value_h), fmt_x(r.x_range), fmt_x(r.x_value), r.suggested])
-    return out
-
-
-def report(g, t, canon, stats, cands, args, title, path, ks=None):
-    keep, colors = top_tests(g, args.top_n_tests)
-    rtol = math.log10(args.range_margin)
-    tol_v = math.log10(stats["tol_value"])
-    tol_vr = stats["tol_value_range"]
-    rows = flagged_rows(t, args.min_n, args.table_rows)
-
+def report(tables, meta, args, title, path):
+    keep = meta["keep"]
+    colors = {t: TEST_COLORS[i] for i, t in enumerate(keep)}
+    rtol, tol_v, tol_vr = meta["rtol"], meta["tol_v"], meta["tol_vr"]
+    rows = tables["flagged"].values.tolist()
+    stats, prm = meta["stats"], meta["params"]
     plt.rcParams["font.family"] = "DejaVu Sans"
     fig = plt.figure(figsize=(22, 15 + 0.32 * max(len(rows), 1)), facecolor=SURFACE)
     gs = fig.add_gridspec(3, 3, height_ratios=[1, 1.15, 0.25 + 0.075 * max(len(rows), 1)],
                           hspace=0.38, wspace=0.32, left=0.06, right=0.98, top=0.88, bottom=0.02)
-    offset_panel(fig.add_subplot(gs[0, 0]), g, "d_ru", keep, colors, rtol,
-                 "1 · Range vs canonical",
+    off = tables["offsets"]
+    offset_panel(fig.add_subplot(gs[0, 0]), off, "d_ru", keep, colors, rtol, "1 · Range vs canonical",
                  "Does the row's unit match its reference range? (range harmonized with the unit, vs the other rows')",
-                 "harmonized range / canonical range (shaded: same scale)", args.min_n)
-    offset_panel(fig.add_subplot(gs[0, 1]), g, "d_vr", keep, colors, max(tol_vr.values()),
-                 "2 · Value vs its own range", "Does the row agree with itself? (the value vs its own range)",
-                 "value / own range, over the concept's typical", args.min_n)
-    offset_panel(fig.add_subplot(gs[0, 2]), g, "d_vu", keep, colors, tol_v,
-                 "3 · Harmonized value vs concept", "Is the harmonized value on scale? (vs the other rows')",
-                 "harmonized value / concept median", args.min_n)
-    shown = keep + (["other"] if (~g["test"].isin(keep)).any() else [])
+                 "harmonized range / canonical range (shaded: same scale)")
+    offset_panel(fig.add_subplot(gs[0, 1]), off, "d_vr", keep, colors, tol_vr, "2 · Value vs its own range",
+                 "Does the row agree with itself? (the value vs its own range)",
+                 "value / own range, over the concept's typical")
+    offset_panel(fig.add_subplot(gs[0, 2]), off, "d_vu", keep, colors, tol_v, "3 · Harmonized value vs concept",
+                 "Is the harmonized value on scale? (vs the other rows')", "harmonized value / concept median")
+    shown = keep + (["other"] if (off["test"] == "other").any() else [])
     handles = [plt.Line2D([], [], color=colors.get(t, OTHER_COLOR), lw=2) for t in shown]
-    fig.legend(handles, shown, loc="upper right", bbox_to_anchor=(0.98, 0.925), ncol=len(handles),
+    fig.legend(handles, shown, loc="upper right", bbox_to_anchor=(0.98, 0.925), ncol=max(len(handles), 1),
                fontsize=8, frameon=False, title="test (top row)", title_fontsize=8)
-
-    decision_map(fig.add_subplot(gs[1, 0]), g, tol_v, rtol, args.min_n)
-    verdict_bars(fig.add_subplot(gs[1, 1]), g, keep, args.min_n, ks)
-    stage_bars(fig.add_subplot(gs[1, 2]), g, args.min_n)
+    decision_map(fig.add_subplot(gs[1, 0]), tables["map"], tol_v, rtol)
+    verdict_bars(fig.add_subplot(gs[1, 1]), tables["vbars"], keep, tables["tests"])
+    stage_bars(fig.add_subplot(gs[1, 2]), tables["stages"])
 
     tx = fig.add_subplot(gs[2, :])
     tx.axis("off")
@@ -688,21 +799,24 @@ def report(g, t, canon, stats, cands, args, title, path, ks=None):
             cell.get_text().set_color(MUTED if r == 0 else INK)
             if r > 0 and c == 3:
                 cell.set_facecolor(VCOLOR[rows[r - 1][3]] + "40")
-        titled(tx, f"Flagged groups (largest {len(rows)}; all flagged: {flagged_pct(t, args.min_n)} of the rows)"
+        titled(tx, f"Flagged groups (largest {len(rows)}; all flagged: {fmt_pct(meta['flagged_pct'])} % of the rows)"
                    f": range x / value x = offset of the harmonized range / "
                    f"value from the canonical range / concept median", "What should be fixed, and to which unit?")
     else:
         tx.text(0.5, 0.5, "no flagged groups", ha="center", color=MUTED, transform=tx.transAxes)
 
-    c = canon[canon["use"]]
+    c = tables["canonical"]
+    c = c[c["use"]]
     ctext = "   ".join(f"{r.sex}/{r.age}: {fmt(r.lower)}-{fmt(r.upper)}" for r in c.itertuples())
+    cands = prm["cands"]
     cand = ", ".join(f"{u} {fmt_x(10 ** f)}" for u, f in sorted(cands.items(), key=lambda kv: kv[1])) or "none found"
     fig.suptitle(title, fontsize=14, fontweight="bold", color=INK, x=0.06, y=0.985, ha="left")
     fig.text(0.06, 0.95,
-             f"canonical range ({stats['target'] or 'harmonized unit'}): {ctext}      concept median "
-             f"{fmt(stats['median'])}      conversion into {stats['target']}: {cand}\n"
-             f"same scale when within: range x{args.range_margin:g}, value x{stats['tol_value']:.2g}, "
-             f"value vs range x{10 ** max(tol_vr.values()):.2g}   ·   groups and bins under {args.min_n} rows left out",
+             f"canonical range ({prm['target'] or 'harmonized unit'}): {ctext}      concept median "
+             f"{fmt(stats['median'])}      conversion into {prm['target']}: {cand}\n"
+             f"same scale when within: range x{prm['range_margin']:g}, value x{stats['tol_value']:.2g}, "
+             f"value vs range x{10 ** tol_vr:.2g}   ·   every group, bin and point covers >= {S.MIN_N} people "
+             f"(histogram bins pooled with their neighbours)",
              fontsize=9, color=MUTED, ha="left", va="top")
     fig.savefig(path, dpi=200, facecolor=SURFACE)
     pdf = str(path)[:-4] + ".pdf"  # the same figure as vectors: sharp at any zoom
@@ -718,6 +832,23 @@ def markdown(rows, cols=None):
     return "\n".join(lines)
 
 
+def print_summary(tables, meta):
+    target = meta["params"]["target"]
+    print("\nRows per verdict (shown groups):")
+    for r in tables["verdicts"].itertuples():
+        print(f"  {r.verdict:<34} {r.rows:>12}")
+    c = tables["canonical"]
+    print("\nCanonical range:\n" + c[c["rows"] != BELOW].to_string(index=False))
+    rows = tables["flagged"].values.tolist()
+    print(f"\nFlagged rows: {fmt_pct(meta['flagged_pct'])} % of the rows (in the shown groups)")
+    print(f"Flagged groups (largest first; % rows = share of the shown rows; value x = median harmonized / concept "
+          f"median {fmt(meta['stats']['median'])}{' ' + target if target else ''}):\n" + (markdown(rows) if rows else "none"))
+    ks = tables["tests"]
+    print(f"\nTest names vs the rest of the concept (KS on harmonized values, differs: D >= {meta['params']['ks_d']:g}; "
+          f"Q1 / median / Q3 in {target or 'the harmonized unit'}; a high D with few rows flagged: another analyte or "
+          f"specimen?):\n" + (markdown(ks_rows(ks), KS_COLS) if len(ks) else "no tests to compare"))
+
+
 # ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
@@ -725,15 +856,20 @@ def markdown(rows, cols=None):
 def build_parser():
     p = argparse.ArgumentParser(description=" ".join(__doc__.strip().splitlines()[2:4]),
                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    p.add_argument("omop_id", help="OMOP_ID to audit")
-    p.add_argument("--input", type=Path, default=latest_engine_output(),
-                   help=f"Engine output (or release) parquet (default: the most recent run in {ENGINE_DIR}, "
+    p.add_argument("omop_id", nargs="?", help="One OMOP_ID to audit (same as --omop ID)")
+    p.add_argument("--omop", nargs="+", default=[], help="OMOP_IDs to audit (space- or comma-separated)")
+    p.add_argument("--all", action="store_true", help="Every OMOP in the input with >= --min-rows rows")
+    p.add_argument("--min-rows", type=int, default=100_000, help="With --all: OMOPs with at least this many rows")
+    p.add_argument("--input", type=Path, default=S.latest_engine_output(),
+                   help=f"Engine output (or release) parquet (default: the most recent run in {S.ENGINE_DIR}, "
                         f"now %(default)s)")
     p.add_argument("--out-dir", type=Path, default=Path("/mnt/disks/data/kanta/qc/omop"),
                    help="Report folder (sp_qc.py writes next to it, in qc/sp)")
-    p.add_argument("--cache-dir", type=Path, default=Path("/mnt/disks/data/kanta/qc/dump_omop"),
-                   help="Cache of the per-OMOP groups (rebuilt when older than the input)")
-    p.add_argument("--force", action="store_true", help="Rebuild the cached groups")
+    p.add_argument("--cache", type=Path, default=S.CACHE,
+                   help="sp_qc.py's cache: the rows (rows_<input>/, shared) and this script's groups and tables (audit/)")
+    p.add_argument("--extract-batch", type=int, default=40, help="OMOPs extracted per pass over the input")
+    p.add_argument("--force", action="store_true", help="Rebuild the groups and tables (not the shared rows)")
+    p.add_argument("--plots-only", action="store_true", help="Redraw the figures from the cached tables")
     p.add_argument("--names", type=Path, default=DATA_DIR / "LABfi.tsv", help="Usagi mapping (concept names)")
     p.add_argument("--harmonization-counts", type=Path, default=DATA_DIR / "harmonization_counts.tsv",
                    help="OMOP_ID -> quantity and harmonized unit")
@@ -746,77 +882,97 @@ def build_parser():
     p.add_argument("--range-margin", type=float, default=2.0,
                    help="Check 1: a harmonized range within this factor of the canonical one is on the same scale; "
                         "also the tolerance when matching a factor to a unit of the conversion table")
-    p.add_argument("--min-rows", type=int, default=100, help="Rows a sex x age stratum needs for its own canonical range")
-    p.add_argument("--min-n", type=int, default=5, help="Groups / bins with fewer rows are left out of the outputs")
+    p.add_argument("--min-stratum-rows", type=int, default=100,
+                   help="Rows a sex x age stratum needs for its own canonical range")
+    p.add_argument("--min-n", type=int, default=5, choices=range(1, S.SKETCH + 1), metavar=f"1..{S.SKETCH}",
+                   help="People every published number must cover")
     p.add_argument("--top-n-tests", type=int, default=6, help="Tests drawn by name (the rest pooled as 'other')")
     p.add_argument("--table-rows", type=int, default=15, help="Flagged groups listed in the report")
     p.add_argument("--ks-d", type=float, default=0.3,
                    help="A test name's distribution differs from the rest of the concept at this KS D")
     p.add_argument("--ks-min-n", type=int, default=20, help="Harmonized rows a test name (and the rest) needs for the KS test")
-    p.add_argument("--memory-limit", default="8GB", help="duckdb memory limit")
-    p.add_argument("--threads", type=int, default=8, help="duckdb threads")
+    p.add_argument("--memory-limit", default=f"{int(S.RAM_GB * 0.45)}GB", help="duckdb memory limit (spills beyond it)")
+    p.add_argument("--threads", type=int, default=min(8, os.cpu_count() or 1), help="duckdb threads")
     return p
+
+
+def audit_one(omop, rows, args, con):
+    name, quantity, target = concept_info(omop, args.names, args.harmonization_counts)
+    title = f"OMOP {omop}" + (f" — {name}" if name else "") + ": injection / harmonization audit with reference ranges"
+    stem = args.out_dir / f"omop_{omop}_ref_audit"
+    cdir = args.cache / "audit" / f"omop={omop}"
+    if args.plots_only:
+        meta_p = cdir / "tables.json"
+        if not meta_p.exists():
+            log(f"OMOP {omop}: no cached tables in {cdir}: run without --plots-only first")
+            return
+        meta = json.loads(meta_p.read_text())
+        tables = {p.stem[2:]: pd.read_parquet(p) for p in cdir.glob("t_*.parquet")}
+        report(tables, meta, args, title, f"{stem}.png")
+        return
+    part = rows / f"omop={omop}"
+    if not part.is_dir():
+        log(f"OMOP {omop}: no rows in {Path(args.input).name}, skipped")
+        return
+    g = build_groups(omop, part, cdir, con, args.force)
+    if g.empty or npeople(g["p"]) < S.MIN_N:
+        log(f"OMOP {omop}: rows of fewer people than the analysis minimum: nothing to publish, skipped")
+        return
+    if not target:  # not in the harmonization table: the input's most common harmonized unit
+        hu = g[g["h_unit"] != "NA"].groupby("h_unit")["n"].sum()
+        target = hu.idxmax() if len(hu) else None
+    cands = candidate_units(args.conversion, omop, quantity, target)
+    log(f"OMOP {omop} ({name or 'name not found'}): {quantity} in {target}; candidate units {cands}")
+    tables, meta = build_tables(omop, g, cands, target, args, cdir, (cdir / "groups.parquet").stat().st_mtime)
+    write_tsvs(stem, tables)
+    report(tables, meta, args, title, f"{stem}.png")
+    print_summary(tables, meta)
 
 
 def main():
     args = build_parser().parse_args()
-    args.out_dir.mkdir(parents=True, exist_ok=True)
-    name, quantity, target = concept_info(args.omop_id, args.names, args.harmonization_counts)
+    S.MIN_N = args.min_n
+    omops = ([args.omop_id] if args.omop_id else []) + [x for o in args.omop for x in o.split(",") if x.strip()]
+    omops = list(dict.fromkeys(o.strip() for o in omops))
+    if not omops and not args.all:
+        raise SystemExit("Give OMOP ids (an id, or --omop ID[,ID ...]) or --all")
+    bad = [o for o in omops if not o.isdigit()]
+    if bad:
+        raise SystemExit(f"Not an OMOP id: {', '.join(bad)}")
     if args.input is None:
-        raise SystemExit(f"No engine output found in {ENGINE_DIR}: pass --input <engine_output>.parquet")
+        raise SystemExit(f"No engine output found in {S.ENGINE_DIR}: pass --input <engine_output>.parquet")
+    args.out_dir.mkdir(parents=True, exist_ok=True)
+    (args.cache / "duckdb").mkdir(parents=True, exist_ok=True)
+    con = duckdb.connect()
+    con.sql(f"set memory_limit = '{args.memory_limit}'")
+    con.sql(f"set threads = {args.threads}")
+    con.sql(f"set temp_directory = '{args.cache / 'duckdb'}'")
+    con.sql("set preserve_insertion_order = false")
     log(f"Input: {args.input}")
-    g = build_groups(args.input, args.omop_id, args.cache_dir, args.force, args.memory_limit, args.threads)
-    if g.empty:
-        raise SystemExit(f"No rows for OMOP_ID {args.omop_id}")
-    if not target:  # not in the harmonization table: the input's most common harmonized unit
-        hu = g[g["h_unit"] != "NA"].groupby("h_unit")["n"].sum()
-        target = hu.idxmax() if len(hu) else None
-    cands = candidate_units(args.conversion, args.omop_id, quantity, target)
-    log(f"OMOP {args.omop_id} ({name or 'name not found'}): {quantity} in {target}; candidate units {cands}")
-
-    excluded = int(g.loc[g["excluded"], "n"].sum())
-    g, canon, stats = analyse(g, cands, args)
-    stats["target"] = target
-    # no exact row total here: with the per-verdict counts it would give away a masked one
-    log(f"{len(g)} groups analysed (rows without a value > 0 left out: "
-        f"{f'{excluded}' if excluded == 0 or excluded >= args.min_n else BELOW}); concept median {stats['median']:.4g}")
-
-    t = group_table(g, args.min_n)
-    # every count below (verdict and stage totals) sums only the groups the TSV shows, so none minus the shown
-    # groups gives a masked one away
-    g["shown"] = g.groupby(GROUP_KEYS, dropna=False)["n"].transform("sum") >= args.min_n
-    stem = args.out_dir / f"omop_{args.omop_id}_ref_audit"
-    masked(t, args.min_n).to_csv(f"{stem}_groups.tsv", sep="\t", index=False, float_format="%.4g")
-    # the pooled row is the sum of the strata (when every row has a sex and age): mask it too when the masked strata
-    # would follow from it
-    small = (canon["rows"] < args.min_n) & (canon["sex"] != "all")
-    pooled_hidden = 0 < canon.loc[small, "rows"].sum() < args.min_n
-    canon.astype({"rows": object}).assign(rows=[
-        BELOW if r < args.min_n or (s == "all" and pooled_hidden) else r
-        for r, s in zip(canon["rows"], canon["sex"])]).to_csv(
-        f"{stem}_canonical.tsv", sep="\t", index=False, float_format="%.4g")
-    ks = ks_tests(g, args.min_n, args.ks_min_n, args.ks_d)
-    pd.DataFrame(ks_rows(ks, args.min_n), columns=KS_COLS).to_csv(f"{stem}_tests.tsv", sep="\t", index=False)
-    log(f"Wrote {stem}_groups.tsv, {stem}_canonical.tsv, {stem}_tests.tsv")
-
-    title = f"OMOP {args.omop_id}" + (f" — {name}" if name else "") + ": injection / harmonization audit with reference ranges"
-    report(g, t, canon, stats, cands, args, title, f"{stem}.png", ks)
-
-    v = g[g["shown"]].groupby("verdict")["n"].sum()
-    print("\nRows per verdict (groups of >= --min-n rows):")
-    for name_, _, _ in VERDICTS:
-        if name_ in v.index:
-            n = v[name_]
-            print(f"  {name_:<34} {n:>12}" if n >= args.min_n else f"  {name_:<34} {BELOW:>12}")
-    shown_canon = canon[(canon["rows"] >= args.min_n) & ~((canon["sex"] == "all") & pooled_hidden)]
-    print("\nCanonical range:\n" + shown_canon.to_string(index=False))
-    rows = flagged_rows(t, args.min_n, args.table_rows)
-    print(f"\nFlagged rows: {flagged_pct(t, args.min_n)} of the rows (in groups of >= --min-n rows)")
-    print(f"Flagged groups (largest first; % rows = share of all rows; value x = median harmonized / concept median {fmt(stats['median'])}"
-          f"{' ' + target if target else ''}):\n" + (markdown(rows) if rows else "none"))
-    print(f"\nTest names vs the rest of the concept (KS on harmonized values, differs: D >= {args.ks_d:g}; "
-          f"Q1 / median / Q3 in {target or 'the harmonized unit'}; a high D with few rows flagged: another analyte or "
-          f"specimen?):\n" + (markdown(ks_rows(ks, args.min_n), KS_COLS) if len(ks) else "no tests to compare"))
+    # the shared row cache (sp_qc.py's): --force here rebuilds this script's groups and tables, not the rows
+    rargs = argparse.Namespace(input=args.input, cache=args.cache, force=False, extract_batch=args.extract_batch)
+    if args.all:
+        c = S.omop_counts(rargs, con)
+        omops = list(dict.fromkeys(omops + [str(o) for o in c.loc[c["n"] >= args.min_rows].sort_values(
+            "n", ascending=False)["omop"]]))
+    rows = S.ensure_rows(omops, rargs, con) if not args.plots_only else None
+    log(f"{len(omops)} OMOP(s): {', '.join(omops)}; out {args.out_dir}")
+    failed = []
+    for omop in omops:
+        try:
+            audit_one(omop, rows, args, con)
+        except SystemExit as e:  # one OMOP's problem (e.g. no canonical range) does not stop the others
+            if len(omops) == 1:
+                raise
+            log(f"OMOP {omop}: skipped: {e}")
+        except Exception:  # an unexpected error: logged with its traceback, the run goes on
+            if len(omops) == 1:
+                raise
+            failed.append(omop)
+            plt.close("all")
+            log(f"OMOP {omop}: FAILED, skipped:\n{traceback.format_exc()}")
+    if failed:
+        log(f"{len(failed)} OMOP(s) failed: {', '.join(failed)} (tracebacks above)")
 
 
 if __name__ == "__main__":
