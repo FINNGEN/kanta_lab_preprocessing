@@ -120,6 +120,7 @@ MAX_GAP = 2  # missing months allowed inside a run of an SP's monthly series
 CACHE_VERSION = "v9"
 # an upper limit of 999, 9999, 99999, ...: "no upper limit" (some labs send it for one-sided ranges, e.g. HDL)
 SENTINEL = "({x} >= 999 and abs({x} + 1 - power(10, round(log10({x} + 1)))) < 1e-6)"
+SP_ORGS = "sp_orgs_mk.parquet"  # SP x organisation x maakunta counts over the whole input (names)
 BASE_VERSION = "r4"  # r4: + src_unit (the unit before injection, for omop_ref_audit.py)
 RAM_GB = os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES") / 2**30
 # base column -> (engine output column, release column); the release has no pre-injection unit
@@ -136,6 +137,7 @@ COLUMNS = {
     "ref_high": ("REFERENCE_RANGE_UPPER_VALUE", "REFERENCE_RANGE_HIGH_VALUE"),
     "ref_src": ("REFERENCE_RANGE_SOURCE", "REFERENCE_RANGE_SOURCE"),
     "org": ("CODING_SYSTEM_MAP", "CODING_SYSTEM_ORG"),  # organisation of the row's coding system: names the SP
+    "mk": ("CODING_SYSTEM_MAAKUNTA", None),  # that organisation's maakunta (NA: private, or serving several regions)
     "h_unit": ("harmonization_omop::MEASUREMENT_UNIT", "MEASUREMENT_UNIT_HARMONIZED"),
 }
 REQUIRED = {"omop", "sp", "f", "dt", "sex", "age", "v", "v_raw"}  # the rest is left null when the input lacks it
@@ -243,24 +245,43 @@ def sex_label(s):
 # ---------------------------------------------------------------------------
 
 class Labels:
-    """SP -> organisation label. SERVICE_PROVIDER is a pseudonym in R15, so the name is the organisation most of the
-    SP's rows' coding systems belong to (CODING_SYSTEM_MAP, from the engine's coding_system_map.tsv), as
-    sp_region_cs.py did; a real OID (1.2.246[.537].10.<code>...) is looked up by its org code first."""
+    """SP -> label. SERVICE_PROVIDER is a pseudonym in R15, so the name is the organisation most of its rows' coding
+    systems belong to (CODING_SYSTEM_MAP, from the engine's coding_system_map.tsv; top_csm in scripts/sote's
+    sp_region.tsv), e.g. HUS-yhtymä, HELSINGIN KAUPUNKI; except when that organisation has no region of its own (a
+    private company such as Fimlab, a lab serving several regions such as NordLab) and the SP has one: then the region,
+    e.g. "Pirkanmaa" for an SP whose rows carry Fimlab's and Pirkanmaa's coding systems. A real OID
+    (1.2.246[.537].10.<code>...) is looked up by its org code first.
+    self.region: SP -> (maakunta, pct_maakunta, pct_region_of_total) as in scripts/sote's sp_region.tsv: among the SP's
+    rows whose organisation has a maakunta (CODING_SYSTEM_MAAKUNTA; not private companies, not labs serving several
+    regions), the top maakunta and its share, and those rows' share of the SP's rows with an organisation. REGION_MIN:
+    the share of regional rows under which the SP has no region (a nationwide private chain with a few stray municipal
+    rows; region_people.py's --sp-min-region-pct)."""
+    REGION_MIN = 0.05
 
     def __init__(self, org_map=None):
-        self.code, self.org = {}, {}
+        self.code, self.org, self.region, self.top_regional = {}, {}, {}, {}
         if org_map and Path(org_map).exists():
             m = pd.read_csv(org_map, sep="\t", dtype=str, usecols=["code", "org_name"]).dropna()
             self.code = dict(zip(m["code"], m["org_name"]))
 
     def add_orgs(self, orgs):
-        """SP -> its most common coding-system organisation, from a per-OMOP `orgs` table (k_sp, org, n)."""
+        """Names (and regions) for the SPs not named yet, from an (k_sp, org, n[, mk]) table: the whole input's first,
+        then a per-OMOP one (no maakunta there)."""
         if orgs is None or not len(orgs):
             return
-        o = orgs[~orgs["org"].isin(["NA", ""])].groupby(["k_sp", "org"], as_index=False)["n"].sum()
+        o = orgs[~orgs["org"].isin(["NA", ""])].copy()
+        o["mk"] = o["mk"].where(~o["mk"].isin(["NA", ""])) if "mk" in o.columns else None
+        o = o.groupby(["k_sp", "org"], as_index=False, dropna=False).agg(n=("n", "sum"), mk=("mk", "first"))
         for sp, g in o.groupby("k_sp"):
-            if sp not in self.org:
-                self.org[sp] = g.sort_values("n", ascending=False)["org"].iloc[0].replace("_", " ")
+            if sp in self.org:
+                continue
+            g = g.sort_values("n", ascending=False)
+            self.org[sp] = g["org"].iloc[0].replace("_", " ")
+            self.top_regional[sp] = bool(pd.notna(g["mk"].iloc[0]))  # its top organisation has a maakunta
+            reg = g[g["mk"].notna()]
+            if len(reg):
+                by = reg.groupby("mk")["n"].sum().sort_values(ascending=False)
+                self.region[sp] = (by.index[0], float(by.iloc[0] / by.sum()), float(reg["n"].sum() / g["n"].sum()))
 
     @staticmethod
     def name(kind, key):
@@ -273,9 +294,16 @@ class Labels:
             return "SP NA"
         raw = str(raw)
         code = ORG_CODE.match(raw)
-        org = (self.code.get(code.group(1)) if code else None) or self.org.get(raw)
+        # its top organisation, unless that one has no region (private, or serving several regions) and the SP has one
+        reg = None if self.top_regional.get(raw, True) else self.region_name(raw)
+        org = (self.code.get(code.group(1)) if code else None) or reg or self.org.get(raw)
         tail = raw[-6:]
         return f"{org[:28]} …{tail}" if org else f"SP …{tail}"
+
+    def region_name(self, raw):
+        """The SP's maakunta when its regional rows are >= REGION_MIN of its rows with an organisation (else None)."""
+        reg = self.region.get(raw)
+        return reg[0] if reg and reg[2] >= self.REGION_MIN else None
 
 
 # ---------------------------------------------------------------------------
@@ -356,16 +384,18 @@ def ensure_rows(omops, args, con):
             shutil.rmtree(root)
         meta = dict(want, empty=[], all=False)
     root.mkdir(parents=True, exist_ok=True)
-    names_p = root / "sp_orgs.parquet"
+    names_p = root / SP_ORGS
     if not parquet_ok(names_p):
-        # SP -> coding-system organisation counts over the whole input (only some rows of an SP carry an organisation,
-        # and for a given OMOP maybe none: naming from one OMOP's rows leaves e.g. HUS unnamed)
+        # SP -> coding-system organisation (and its maakunta) counts over the whole input (only some rows of an SP carry
+        # an organisation, and for a given OMOP maybe none: naming from one OMOP's rows leaves e.g. HUS unnamed)
         types = {r[0]: r[1] for r in con.sql(f"describe select * from read_parquet({sql_str(inp)})").fetchall()}
         csp = next((c for c in COLUMNS["sp"] if c in types), None)
         corg = next((c for c in COLUMNS["org"] if c and c in types), None)
+        cmk = next((c for c in COLUMNS["mk"] if c and c in types), None)
+        mk = f"""nullif(nullif(trim(cast("{cmk}" as varchar)), ''), 'NA')""" if cmk else "cast(null as varchar)"
         if csp and corg:
-            log(f"Rows: lab names (SP x coding-system organisation) from {inp.name} ...")
-            copy_atomic(con, f"""select "{csp}" k_sp, "{corg}" org, count(*) n from read_parquet({sql_str(inp)})
+            log(f"Rows: service provider names (SP x coding-system organisation x maakunta) from {inp.name} ...")
+            copy_atomic(con, f"""select "{csp}" k_sp, "{corg}" org, {mk} mk, count(*) n from read_parquet({sql_str(inp)})
                                 where "{corg}" is not null and "{corg}" not in ('NA', '') group by all""", names_p)
     have = {p.name.split("=", 1)[1] for p in root.glob("omop=*")}
     if omops is None:
@@ -1924,23 +1954,6 @@ def page_values_multi(pdf, title, subtitle, order, runs, vol, h_unit, args):
     plt.close(fig)
 
 
-class PdfAndPngs:
-    """The report's PdfPages, plus each plot page as its own PNG (<pdf stem>_<tag>.png, _2, _3 ... when a tag has
-    several pages), for the QC portal to show inline. Pages saved while `tag` is None (the flag tables) go to the PDF
-    only."""
-    PNG_DPI = 100
-
-    def __init__(self, pdf, path):
-        self.pdf, self.stem, self.tag, self.count = pdf, str(path)[:-4], None, {}
-
-    def savefig(self, fig, **kw):
-        self.pdf.savefig(fig, **kw)
-        if self.tag:
-            i = self.count[self.tag] = self.count.get(self.tag, 0) + 1
-            fig.savefig(f"{self.stem}_{self.tag}{'' if i == 1 else f'_{i}'}.png", dpi=self.PNG_DPI,
-                        facecolor=kw.get("facecolor", SURFACE))
-
-
 def report_multi(omop, title, runs, args, path, h_unit=None, raw=None):
     """5+ pages: (1) the top SPs by rows and (2) the most deviating others, each with its raw values and as multiples
     of ULN and LLN, one under the other; (3) reference ranges; (4) when the samples are taken; (5) the flags of all
@@ -1948,23 +1961,13 @@ def report_multi(omop, title, runs, args, path, h_unit=None, raw=None):
     top, dev, vol = pick_value_labs_multi(runs, args)
     raw = raw or runs.get("raw")
     what = " and ".join(["its raw values"] + [f"as {RUN[s]['tag']}" for s in runs if s != "raw"])
-    stem = str(path)[:-4]
-    for tag in ("labs_top", "labs_deviating", "ranges", "timing"):  # the previous run's page images
-        for old in Path(stem).parent.glob(f"{Path(stem).name}_{tag}*.png"):
-            old.unlink()
-    with PdfPages(path) as pdf0:
-        pdf = PdfAndPngs(pdf0, path)
-        pdf.tag = "labs_top"
+    with PdfPages(path) as pdf:
         page_values_multi(pdf, title, f"Page 1: the {len(top)} labs with the most rows; each with {what} "
                           f"(multiples of its own upper / lower reference limit)", top, runs, vol, h_unit, args)
-        pdf.tag = "labs_deviating"
         page_values_multi(pdf, title, f"Page 2: the {len(dev)} most deviating other labs (largest yearly median vs "
                           f"national, in any of the rows; >= {args.min_dev_rows} rows)", dev, runs, vol, h_unit, args)
-        pdf.tag = "ranges"
         page_ranges(pdf, title, raw["ranges"], ref_src_share(raw["dims"]), h_unit, args, raw.get("rng"))
-        pdf.tag = "timing"
         page_timing(pdf, title, top, raw, args)
-        pdf.tag = None  # the flag tables: PDF only (the flags are in _flags.tsv)
         parts = [runs[s]["fdf"].assign(values=RUN[s]["tag"]) for s in runs]  # range flags: raw run only
         pages_flags(pdf, title, pd.concat(parts, ignore_index=True).sort_values("rank", ascending=False), args,
                     first_page=5)
@@ -2300,8 +2303,8 @@ def main():
         omops = [str(o) for o in c.loc[c["n"] >= args.min_rows].sort_values("n", ascending=False)["omop"]]
     rows = ensure_rows(omops, args, con)
     labels = Labels(args.org_map)
-    if (rows / "sp_orgs.parquet").exists():  # names over the whole input first; per-OMOP organisations only fill gaps
-        labels.add_orgs(pd.read_parquet(rows / "sp_orgs.parquet"))
+    if (rows / SP_ORGS).exists():  # names over the whole input first; per-OMOP organisations only fill gaps
+        labels.add_orgs(pd.read_parquet(rows / SP_ORGS))
     log(f"{len(omops)} OMOP(s): {', '.join(omops)}; out {args.out}")
     scales = ["raw", "uln", "lln"] if args.scale == "all" else [args.scale]
     def one(omop):

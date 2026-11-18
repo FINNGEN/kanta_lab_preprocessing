@@ -51,6 +51,14 @@ The lookup tables the sote scripts read, and the scripts that generate them:
   ```
   python3 data/fetch_thl_reference.py [--year 2024]
   ```
+- **`fetch_maakunta_map.py`**: downloads the maakunta boundaries from Statistics Finland's regional-division service (1:1 000 000, EPSG:3067, CC BY 4.0), drops islands under `--min-area` km² and simplifies each outline (Douglas–Peucker, `--tolerance` metres), and writes `maakunta_map.json` next to itself: one SVG path per maakunta (~30 kB). The QC portal (`scripts/qc_checks/qc_portal.py`) draws a service provider's region with it.
+  ```
+  python3 data/fetch_maakunta_map.py [--tolerance 1500] [--min-area 30]
+  ```
+- **`fetch_maakunta_population.py`**: downloads the population of each maakunta on 31 December of `--year` (default 2024) from Statistics Finland's StatFin table 11ra (CC BY 4.0) into `maakunta_population.tsv` next to itself (`maakunta`, `code`, `year`, `population`). The QC portal compares each region's people with it (coverage).
+  ```
+  python3 data/fetch_maakunta_population.py [--year 2024]
+  ```
 - **`fetch_municipality_history.py`**: downloads from Statistics Finland's classification service every municipality code used since 1990, with the maakunta it belonged to in its last valid year (translated to today's maakunnat), into `municipality_history.tsv` next to itself. It covers the merged-away municipalities that `municipality_to_region.tsv` (the 2024 classification) doesn't have.
   ```
   python3 data/fetch_municipality_history.py
