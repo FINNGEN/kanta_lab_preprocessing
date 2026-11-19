@@ -44,9 +44,9 @@ kind  sp                      period        rows   effect  detail               
 step  Fimlab Laboratoriot Oy  from 2017-03  31022  /1.09   median /1.09 from 2017-03; upper limit changed too: method change?
 ```
 
-**`run_qc_all.sh`**: runs `sp_qc.py` and `omop_ref_audit.py` over every OMOP with at least MIN_ROWS rows, in parallel and with a progress bar. First `sp_qc.py --all --prepare` extracts their rows into the shared row cache in one pass. Then one job runs per OMOP and script, `--jobs N` at a time (default 2), each with 1/N of the duckdb memory and threads. Each job writes its own log under `LOG_DIR/qc_all_<date>_<time>/`. With `--skip-done` (also a flag of both scripts), an OMOP whose report PDF is already there and newer than its cached rows is skipped, so after lowering MIN_ROWS only the new OMOPs run. It doesn't check whether parameters or code have changed since: in that case, run without it.
+**`../test/run_qc_all.sh`**: runs `sp_qc.py` and `omop_ref_audit.py` over every OMOP with at least MIN_ROWS rows, in parallel and with a progress bar. First `sp_qc.py --all --prepare` extracts their rows into the shared row cache in one pass. Then one job runs per OMOP and script, `--jobs N` at a time (default 2), each with 1/N of the duckdb memory and threads. Each job writes its own log under `LOG_DIR/qc_all_<date>_<time>/`. With `--skip-done` (also a flag of both scripts), an OMOP whose report PDF is already there and newer than its cached rows is skipped, so after lowering MIN_ROWS only the new OMOPs run. It doesn't check whether parameters or code have changed since: in that case, run without it.
 ```
-scripts/qc_checks/run_qc_all.sh [--skip-done] [--jobs N] [MIN_ROWS] [LOG_DIR]
+scripts/test/run_qc_all.sh [--skip-done] [--jobs N] [MIN_ROWS] [LOG_DIR]
 ```
 
 **`qc_portal.py`**: a static QC portal over the reports of `sp_qc.py` and `omop_ref_audit.py`: a folder of HTML pages with inline SVG charts and the reports, to put on a shared server (no server code, no external libraries, works offline). It only collects: the concepts are those either script was run for, with at least `--min-rows` rows (default 0) and 5 people (fixed). Two stages (`--stage tables|site|all`):

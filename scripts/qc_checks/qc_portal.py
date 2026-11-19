@@ -997,17 +997,18 @@ dl.defs dd { margin: 0; }
 .namecase h4 { margin: 0 0 6px; font-size: 14px; white-space: nowrap; }
 @media (max-width: 760px) { .namecase h4 { white-space: normal; } }
 .namefig { overflow-x: auto; }
-.chart .namefig svg { min-width: 0; max-width: 500px; width: 100%; margin: 0 auto; }
+.chart .namefig svg { min-width: 0; max-width: none; width: 100%; margin: 0 auto; }
 .namefig .nd { fill: var(--surface); stroke: var(--line); stroke-width: 1.2; }
 .namefig .nd.use { stroke: var(--accent); stroke-width: 1.8; }
 .namefig .ed.use { stroke: var(--accent); stroke-opacity: .7; }
 .namefig .nd.out { fill: var(--soft); stroke: var(--accent); stroke-width: 2; }
-.namefig .hd { fill: var(--muted); font: 600 10.5px var(--font); letter-spacing: .05em; }
+.namefig .hd { fill: var(--muted); font: 600 10.5px var(--font); letter-spacing: .05em; paint-order: stroke; stroke: var(--surface); stroke-width: 5px; stroke-linejoin: round; }
 .namefig .t { fill: var(--ink); font: 12.5px var(--font); }
 .namefig .tb { fill: var(--ink); font: 600 14px var(--font); }
 .namefig .ts { fill: var(--muted); font: 12px var(--font); }
-.namefig .tc { fill: var(--muted); font: 11.5px var(--mono); }
+.namefig .tc { fill: var(--muted); font: 11px var(--mono); }
 .namefig .yt { font-weight: 700; }
+.namefig .tsp { fill: var(--ink); font: 600 16px var(--font); }
 .namefig .ed { fill: none; stroke: var(--line); stroke-width: 1.5; }
 """
 
@@ -1849,53 +1850,63 @@ def naming_case(title, cs, orgs, sp, name, region, note, colour):
     (line width = share of the service provider's rows) -> the service provider -> its name and region. What the name
     comes from (codes, organisations, lines, result) in the service provider's colour; organisations of the same region
     (they back it up) in a light shade of it; the rest grey; the region's name in the colour wherever it appears;
-    private organisations dashed. cs: [((Y-tunnus, OID tail), org index)], orgs: [(name, maakunta or None, % of rows,
-    role: "name" (the name comes from it), "region" (same region) or None)]; region: the service provider's, or None."""
-    W, n = 420, len(orgs)
-    ow, gap = (W - 16 - (n - 1) * 10) / n, 10
-    ox = [8 + i * (ow + gap) for i in range(n)]
+    private organisations dashed. cs: [((Y-tunnus, OID tail), org index[, light])], orgs: [(name, maakunta or None,
+    % of rows, role: "name" (the name comes from it), "region" (same region) or None[, extra lines])]: a box with extra
+    lines groups several organisations of one region (e.g. "+ other organisations 5%"); region: the service
+    provider's, or None."""
+    W, n, gap = 480, len(orgs), 10
+    ows = [(W - 16 - (n - 1) * gap) / n] * n
+    ox = [8 + i * (ows[0] + gap) for i in range(n)]
+    extra = [list(o[4]) if len(o) > 4 else [] for o in orgs]
+    oh = 40 + 15 * max(len(e) for e in extra)  # organisation box height
     col = [colour if o[3] else "var(--other)" for o in orgs]
     fade = lambda i: {"name": "", "region": ' opacity=".45"'}.get(orgs[i][3], ' opacity=".6"')  # noqa: E731
     reg_t = lambda mk: (f'<tspan style="fill:{colour};font-weight:600">{E(mk)}</tspan>'  # noqa: E731
                         if region and mk == region else E(mk))
-    by_org = {i: [lab for lab, o in cs if o == i] for i in range(n)}
-    k_max = max(len(v) for v in by_org.values())
+    by_org = {i: [(c[0], len(c) > 2 and c[2]) for c in cs if c[1] == i] for i in range(n)}
+    k_max = 1
     cy = 26
     oy = cy + k_max * 24 + 22
-    sy, ny = oy + 86, oy + 148
+    sy, ny = oy + oh + 38, oy + oh + 112
     el = []
     for i in range(n):  # codes (OIDs), stacked over their organisation: the Y-tunnus in it names the organisation
-        for j, (yt, tail) in enumerate(by_org[i]):
+        for j, ((yt, tail), light) in enumerate(by_org[i][:1]):  # one box per organisation: its Y-tunnus, all its codes
             y = cy + j * 24
-            el.append(f'<g{fade(i)}><rect class="nd" x="{ox[i]:.1f}" y="{y}" width="{ow:.1f}" height="20" rx="4" '
+            ow = ows[i]
+            code = f'1.2.246.10.<tspan class="yt" style="fill:{col[i]}">{yt}</tspan>.*'
+            el.append(f'<g{" opacity=\".45\"" if light else fade(i)}><rect class="nd" x="{ox[i]:.1f}" y="{y}" width="{ow:.1f}" height="20" rx="4" '
                       f'style="stroke:{col[i]};stroke-width:1.4"/><text class="tc" x="{ox[i] + ow / 2:.1f}" y="{y + 14}" '
-                      f'text-anchor="middle">1.2.246.10.<tspan class="yt" style="fill:{col[i]}">{yt}</tspan>{tail}</text></g>')
-        el.append(f'<path d="M{ox[i] + ow / 2:.1f},{cy + len(by_org[i]) * 24 - 4} L{ox[i] + ow / 2:.1f},{oy}" '
+                      f'text-anchor="middle">{code}</text></g>')
+        ow = ows[i]
+        el.append(f'<path d="M{ox[i] + ow / 2:.1f},{cy + 20} L{ox[i] + ow / 2:.1f},{oy}" '
                   f'stroke="{col[i]}" stroke-width="1.4"{fade(i)}/>')
-    for i, (org, mk, pc, use) in enumerate(orgs):  # organisation -> service provider, width = share of its rows
-        x, xs = ox[i] + ow / 2, W / 2 + (i - (n - 1) / 2) * 12
-        el.append(f'<path d="M{x:.1f},{oy + 40} C{x:.1f},{oy + 66} {xs:.1f},{sy - 26} {xs:.1f},{sy}" fill="none" '
-                  f'stroke="{col[i]}" stroke-width="{max(1.5, pc / 8):.1f}"{fade(i)}><title>{E(org)}: {pc}% of its rows</title></path>')
-        # the label on the outer side of the line (lines bend towards the centre)
-        lw, left = max(1.5, pc / 8), x < W / 2
-        el.append(f'<text class="ts" x="{x - lw / 2 - 5 if left else x + lw / 2 + 5:.1f}" y="{oy + 54}" '
-                  f'text-anchor="{"end" if left else "start"}"{fade(i)}>{pc}%</text>')
-    for i, (org, mk, pc, use) in enumerate(orgs):
-        el.append(f'<g{fade(i)}><rect class="nd" x="{ox[i]:.1f}" y="{oy}" width="{ow:.1f}" height="40" rx="5" '
+    for i, (org, mk, pc, use, *_) in enumerate(orgs):  # organisation -> service provider, straight down, width = share
+        x, lw = ox[i] + ows[i] / 2, max(1.5, pc / 8)
+        right = x > W * 0.75  # near the right edge: the label on the line's left
+        el.append(f'<path d="M{x:.1f},{oy + oh} L{x:.1f},{sy}" fill="none" stroke="{col[i]}" stroke-width="{lw:.1f}"'
+                  f'{fade(i)}><title>{E(org)}: {pc}% of its rows</title></path>')
+        el.append(f'<text class="ts" x="{x - lw / 2 - 6 if right else x + lw / 2 + 6:.1f}" y="{(oy + oh + sy) / 2 + 4:.1f}" '
+                  f'text-anchor="{"end" if right else "start"}"{fade(i)}>{pc}%</text>')
+    for i, (org, mk, pc, use, *_) in enumerate(orgs):
+        ow = ows[i]
+        el.append(f'<g{fade(i)}><rect class="nd" x="{ox[i]:.1f}" y="{oy}" width="{ow:.1f}" height="{oh}" rx="5" '
                   f'style="stroke:{col[i]};stroke-width:{2 if use == "name" else 1.6 if use else 1.4}"{"" if mk else " stroke-dasharray=\"4 3\""}/>'
                   f'<text class="t" x="{ox[i] + ow / 2:.1f}" y="{oy + 17}" text-anchor="middle">{E(org)}</text>'
-                  f'<text class="ts" x="{ox[i] + ow / 2:.1f}" y="{oy + 32}" text-anchor="middle">'
+                  + "".join(f'<text class="t" x="{ox[i] + ow / 2:.1f}" y="{oy + 32 + 15 * k}" text-anchor="middle" '
+                            f'opacity=".55">{E(line)}</text>' for k, line in enumerate(extra[i]))
+                  + f'<text class="ts" x="{ox[i] + ow / 2:.1f}" y="{oy + 32 + 15 * len(extra[i])}" text-anchor="middle">'
                   f'{reg_t(mk) if mk else "private"}</text></g>')
-    el.append(f'<rect class="nd" x="{W / 2 - 55}" y="{sy}" width="110" height="30" rx="5" style="stroke:{colour};stroke-width:1.6"/>'
-              f'<text class="tb" x="{W / 2}" y="{sy + 20}" text-anchor="middle">SP …{sp}</text>')
-    el.append(f'<path d="M{W / 2},{sy + 30} L{W / 2},{ny - 6}" stroke="var(--muted)" stroke-width="1.4"/>'
+    # the service provider: one box under all its organisations (all their rows are its rows)
+    el.append(f'<rect class="nd" x="8" y="{sy}" width="{W - 16}" height="38" rx="6" style="stroke:{colour};stroke-width:2"/>'
+              f'<text class="tsp" x="{W / 2}" y="{sy + 25}" text-anchor="middle">SP: {sp}</text>')
+    el.append(f'<path d="M{W / 2},{sy + 38} L{W / 2},{ny - 6}" stroke="var(--muted)" stroke-width="1.4"/>'
               f'<path d="M{W / 2 - 5},{ny - 9} L{W / 2},{ny - 1} L{W / 2 + 5},{ny - 9} z" fill="var(--muted)"/>')
     el.append(f'<rect class="nd out" x="{W / 2 - 105}" y="{ny}" width="210" height="62" rx="6" style="stroke:{colour}"/>'
               f'<text class="tb" x="{W / 2}" y="{ny + 21}" text-anchor="middle">{E(name)}</text>'
               f'<text class="ts" x="{W / 2}" y="{ny + 39}" text-anchor="middle">'
               f'{"region: " + reg_t(region) if region else "no region"}</text>'
               f'<text class="ts" x="{W / 2}" y="{ny + 54}" text-anchor="middle">{E(note)}</text>')
-    el.append(f'<text class="hd" x="8" y="{cy - 8}">CODING SYSTEMS (OID, Y-TUNNUS IN BOLD)</text>'
+    el.append(f'<text class="hd" x="8" y="{cy - 8}">CODING SYSTEMS (OIDS; Y-TUNNUS IN BOLD, * = ALL ITS CODES)</text>'
               f'<text class="hd" x="8" y="{oy - 8}">ORGANISATIONS (BY Y-TUNNUS)</text>')
     return (f'<div class="namecase" style="border-top-color:{colour}"><h4>{title}</h4><div class="namefig">'
             f'<svg viewBox="0 0 {W} {ny + 66}" role="img" aria-label="{E(title)}: named {E(name)}, region {E(region or 'none')}">'
@@ -1907,17 +1918,18 @@ def naming_figure():
     only; a private top organisation with regional ones; private only). The rule of scripts/sote/region/sp_names.py."""
     cases = [
         naming_case("Regional → named after its organisation",
-                    [(("11111118", ".10.1"), 0), (("11111118", ".10.2"), 0), (("22222226", ".10.1"), 1)],
+                    [(("11111118", ""), 0), (("22222226", ""), 1)],
                     [("HUS-yhtymä", "Uusimaa", 90, "name"), ("Helsingin kaupunki", "Uusimaa", 10, "region")],
-                    "1a2b3c", "HUS-yhtymä", "Uusimaa", "regional rows 100%", "var(--s1)"),
+                    "8f3a91…1a2b3c", "HUS-yhtymä", "Uusimaa", "regional rows 100%", "var(--s1)"),
         naming_case("Private + regional → named after its region",
-                    [(("33333334", ".10.1"), 0), (("33333334", ".10.4"), 0), (("44444442", ".10.1"), 1)],
-                    [("Fimlab Laboratoriot Oy", None, 62, None), ("Pirkanmaan hyvinvointialue", "Pirkanmaa", 38, "name")],
-                    "76628f", "Pirkanmaa", "Pirkanmaa", "regional rows 38%", "var(--s2)"),
+                    [(("33333334", ""), 0), (("44444442", ""), 1), (("55555550", ""), 2)],
+                    [("Fimlab Oy", None, 62, None), ("Pirkanmaan hva", "Pirkanmaa", 33, "name"),
+                     ("other organisations", "Pirkanmaa", 5, "region")],
+                    "c27e04…76628f", "Pirkanmaa", "Pirkanmaa", "regional rows 38%", "var(--s2)"),
         naming_case("Private only → named after its organisation",
-                    [(("66666668", ".10.1"), 0), (("66666668", ".10.2"), 0), (("22222226", ".10.1"), 1)],
+                    [(("66666668", ""), 0), (("22222226", ""), 1)],
                     [("Terveystalo", None, 97, "name"), ("Helsingin kaupunki", "Uusimaa", 3, None)],
-                    "9d8e7f", "Terveystalo", None, "regional 3% (< 5%)", "var(--s3)")]
+                    "5d0b6e…9d8e7f", "Terveystalo", None, "regional 3% (< 5%)", "var(--s3)")]
     return (f'<div class="chart" style="margin: 4px 0 16px"><h3>How a service provider gets its name and region</h3>'
             f'<div class="namecases">{"".join(cases)}</div>'
             f'<p class="q" style="margin-top:8px">Named after its top organisation; when that one has no maakunta (a '
