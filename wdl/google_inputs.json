@@ -10,6 +10,7 @@
 	"cpu":2,
 	"disk":"20 HDD",
 	"memory" : "4 GB",
-	"preemptible": "1"
+	"preemptible": "1",
+	"noAddress": true
     }
 }

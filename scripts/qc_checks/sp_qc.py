@@ -93,6 +93,7 @@ import math
 import os
 import re
 import shutil
+import sys
 import time
 import traceback
 from pathlib import Path
@@ -108,9 +109,12 @@ import matplotlib.ticker  # noqa: E402
 from matplotlib.backends.backend_pdf import PdfPages  # noqa: E402
 from matplotlib.colors import LinearSegmentedColormap  # noqa: E402
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "sote" / "region"))
+import sp_names  # noqa: E402  (the SP naming rule)
+
 ENGINE_DIR = Path("/mnt/disks/data/kanta/engine")
 ORG_MAP = Path(__file__).resolve().parents[2] / "src/kanta/engine/data/coding_system_map.tsv"
-ORG_CODE = re.compile(r"^1\.2\.246\.(?:537\.)?10\.(\d+)\.")
+ORG_CODE = sp_names.ORG_CODE
 OUT = Path("/mnt/disks/data/kanta/qc/sp")  # next to omop_ref_audit.py's qc/omop
 CACHE = Path("/mnt/disks/data/kanta/tmp/sp_qc")
 THREAD = ["3020564", "3006923", "3001122", "3023602", "3027238", "3009201", "43054903", "3020460", "3019550"]
@@ -244,66 +248,21 @@ def sex_label(s):
 # Labels
 # ---------------------------------------------------------------------------
 
-class Labels:
-    """SP -> label. SERVICE_PROVIDER is a pseudonym in R15, so the name is the organisation most of its rows' coding
-    systems belong to (CODING_SYSTEM_MAP, from the engine's coding_system_map.tsv; top_csm in scripts/sote's
-    sp_region.tsv), e.g. HUS-yhtymä, HELSINGIN KAUPUNKI; except when that organisation has no region of its own (a
-    private company such as Fimlab, a lab serving several regions such as NordLab) and the SP has one: then the region,
-    e.g. "Pirkanmaa" for an SP whose rows carry Fimlab's and Pirkanmaa's coding systems. A real OID
-    (1.2.246[.537].10.<code>...) is looked up by its org code first.
-    self.region: SP -> (maakunta, pct_maakunta, pct_region_of_total) as in scripts/sote's sp_region.tsv: among the SP's
-    rows whose organisation has a maakunta (CODING_SYSTEM_MAAKUNTA; not private companies, not labs serving several
-    regions), the top maakunta and its share, and those rows' share of the SP's rows with an organisation. REGION_MIN:
-    the share of regional rows under which the SP has no region (a nationwide private chain with a few stray municipal
-    rows; region_people.py's --sp-min-region-pct)."""
-    REGION_MIN = 0.05
+# The naming rule lives in scripts/sote/region/sp_names.py (also a standalone script, run by wdl/engine.wdl), so
+# the reports, the portal and the pipeline name the SPs the same way.
+Labels = sp_names.Labels
 
-    def __init__(self, org_map=None):
-        self.code, self.org, self.region, self.top_regional = {}, {}, {}, {}
-        if org_map and Path(org_map).exists():
-            m = pd.read_csv(org_map, sep="\t", dtype=str, usecols=["code", "org_name"]).dropna()
-            self.code = dict(zip(m["code"], m["org_name"]))
 
-    def add_orgs(self, orgs):
-        """Names (and regions) for the SPs not named yet, from an (k_sp, org, n[, mk]) table: the whole input's first,
-        then a per-OMOP one (no maakunta there)."""
-        if orgs is None or not len(orgs):
-            return
-        o = orgs[~orgs["org"].isin(["NA", ""])].copy()
-        o["mk"] = o["mk"].where(~o["mk"].isin(["NA", ""])) if "mk" in o.columns else None
-        o = o.groupby(["k_sp", "org"], as_index=False, dropna=False).agg(n=("n", "sum"), mk=("mk", "first"))
-        for sp, g in o.groupby("k_sp"):
-            if sp in self.org:
-                continue
-            g = g.sort_values("n", ascending=False)
-            self.org[sp] = g["org"].iloc[0].replace("_", " ")
-            self.top_regional[sp] = bool(pd.notna(g["mk"].iloc[0]))  # its top organisation has a maakunta
-            reg = g[g["mk"].notna()]
-            if len(reg):
-                by = reg.groupby("mk")["n"].sum().sort_values(ascending=False)
-                self.region[sp] = (by.index[0], float(by.iloc[0] / by.sum()), float(reg["n"].sum() / g["n"].sum()))
-
-    @staticmethod
-    def name(kind, key):
-        if key is None or (isinstance(key, float) and np.isnan(key)) or str(key) in ("", "None", "nan", "<NA>"):
-            return "NA"
-        return str(key)
-
-    def sp(self, raw):
-        if raw is None or (isinstance(raw, float) and np.isnan(raw)):
-            return "SP NA"
-        raw = str(raw)
-        code = ORG_CODE.match(raw)
-        # its top organisation, unless that one has no region (private, or serving several regions) and the SP has one
-        reg = None if self.top_regional.get(raw, True) else self.region_name(raw)
-        org = (self.code.get(code.group(1)) if code else None) or reg or self.org.get(raw)
-        tail = raw[-6:]
-        return f"{org[:28]} …{tail}" if org else f"SP …{tail}"
-
-    def region_name(self, raw):
-        """The SP's maakunta when its regional rows are >= REGION_MIN of its rows with an organisation (else None)."""
-        reg = self.region.get(raw)
-        return reg[0] if reg and reg[2] >= self.REGION_MIN else None
+def load_labels(args, rows):
+    """The SP names: from --sp-names (sp_names.py's kanta_sp_names.tsv, e.g. the pipeline's) when given, else counted over
+    the whole input into the row cache (SP_ORGS); per-OMOP organisations later only fill gaps."""
+    if getattr(args, "sp_names", None):
+        log(f"Names: service providers named from {args.sp_names}")
+        return Labels.from_tsv(args.sp_names, args.org_map)
+    labels = Labels(args.org_map)
+    if (rows / SP_ORGS).exists():
+        labels.add_orgs(pd.read_parquet(rows / SP_ORGS))
+    return labels
 
 
 # ---------------------------------------------------------------------------
@@ -389,14 +348,10 @@ def ensure_rows(omops, args, con):
         # SP -> coding-system organisation (and its maakunta) counts over the whole input (only some rows of an SP carry
         # an organisation, and for a given OMOP maybe none: naming from one OMOP's rows leaves e.g. HUS unnamed)
         types = {r[0]: r[1] for r in con.sql(f"describe select * from read_parquet({sql_str(inp)})").fetchall()}
-        csp = next((c for c in COLUMNS["sp"] if c in types), None)
-        corg = next((c for c in COLUMNS["org"] if c and c in types), None)
-        cmk = next((c for c in COLUMNS["mk"] if c and c in types), None)
-        mk = f"""nullif(nullif(trim(cast("{cmk}" as varchar)), ''), 'NA')""" if cmk else "cast(null as varchar)"
-        if csp and corg:
+        q = sp_names.org_counts_sql(inp, types)
+        if q:
             log(f"Rows: service provider names (SP x coding-system organisation x maakunta) from {inp.name} ...")
-            copy_atomic(con, f"""select "{csp}" k_sp, "{corg}" org, {mk} mk, count(*) n from read_parquet({sql_str(inp)})
-                                where "{corg}" is not null and "{corg}" not in ('NA', '') group by all""", names_p)
+            copy_atomic(con, q, names_p)
     have = {p.name.split("=", 1)[1] for p in root.glob("omop=*")}
     if omops is None:
         todo = None if not meta["all"] else []
@@ -1341,16 +1296,16 @@ def cause_context(dims):
     n = dt["n"].to_numpy(float)
     t = dt["t"].to_numpy(float)
     sk = dt["p"].to_numpy(object)
-    sp_id, sp_names = pd.factorize(dt["k_sp"])
+    sp_id, sp_keys = pd.factorize(dt["k_sp"])
     order = np.argsort(sp_id, kind="stable")
-    bounds = np.searchsorted(sp_id[order], np.arange(len(sp_names) + 1))
+    bounds = np.searchsorted(sp_id[order], np.arange(len(sp_keys) + 1))
     per_sp = {}
-    for i, sp in enumerate(sp_names):
+    for i, sp in enumerate(sp_keys):
         ix = order[bounds[i]:bounds[i + 1]]
         per_sp[sp] = (t[ix], code[ix], n[ix], np.bincount(code[ix], n[ix], k), sk[ix])
     return {"k": k, "uniq": uniq, "dim_id": dim_id, "n_dim": len(dim_names), "dim_names": dim_names,
             "total": np.bincount(code, n, k),
-            "per_sp": per_sp, "code": code, "sk": sk, "sp_id": sp_id, "sp_names": sp_names}
+            "per_sp": per_sp, "code": code, "sk": sk, "sp_id": sp_id, "sp_keys": sp_keys}
 
 
 def has_people(sketches, need):
@@ -1395,7 +1350,7 @@ def cause(fl, ctx, labels, args):
     if ref == "other labs" and "time" in dn:  # labs differ in when they sample by design: a cause only over time
         diff[dim_id == dn.index("time")] = 0.0
     own_dim = dim_id[code]
-    other = ctx["sp_id"] != ctx["sp_names"].get_loc(sp) if m is None else None
+    other = ctx["sp_id"] != ctx["sp_keys"].get_loc(sp) if m is None else None
     for i in np.argsort(-np.abs(diff))[:5]:  # the largest changes first; the first one whose shares can be shown
         if abs(diff[i]) < 0.1:
             return ""
@@ -2228,6 +2183,9 @@ def build_parser():
     p.add_argument("--min-rows", type=int, default=100_000, help="With --all: OMOPs with at least this many rows")
     p.add_argument("--input", type=Path, default=latest_engine_output(),
                    help="Engine output (or release) parquet; default: the latest run in " + str(ENGINE_DIR))
+    p.add_argument("--sp-names", type=Path, default=None,
+                   help="kanta_sp_names.tsv from scripts/sote/region/sp_names.py (e.g. the pipeline's) for the SP names; "
+                        "default: count them over --input")
     p.add_argument("--org-map", type=Path, default=ORG_MAP,
                    help="The engine's coding_system_map.tsv: fallback SP names when SERVICE_PROVIDER is a real OID (names come "
                         "from the rows' CODING_SYSTEM_MAP)")
@@ -2302,9 +2260,7 @@ def main():
         c = omop_counts(args, con)
         omops = [str(o) for o in c.loc[c["n"] >= args.min_rows].sort_values("n", ascending=False)["omop"]]
     rows = ensure_rows(omops, args, con)
-    labels = Labels(args.org_map)
-    if (rows / SP_ORGS).exists():  # names over the whole input first; per-OMOP organisations only fill gaps
-        labels.add_orgs(pd.read_parquet(rows / SP_ORGS))
+    labels = load_labels(args, rows)
     log(f"{len(omops)} OMOP(s): {', '.join(omops)}; out {args.out}")
     scales = ["raw", "uln", "lln"] if args.scale == "all" else [args.scale]
     def one(omop):

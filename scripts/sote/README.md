@@ -2,7 +2,7 @@
 
 Service-provider (SP) analyses: assigning a region to providers and people, and organisation OIDs to maakunnat. The value QC per provider is in `scripts/qc_checks/sp_qc.py`.
 
-The scripts that read the engine output (`region/sp_region_cs.py`, `region/region_people.py`, `data/coding_system_map.py`) default `--input` to the most recent run in `/mnt/disks/data/kanta/engine/`. Runs are stored as `<prefix>_<YYYY_MM_DD>/<prefix>_<YYYY_MM_DD>.parquet`, and the latest date wins. Each script prints the file it uses.
+The scripts that read the engine output (`region/sp_region_cs.py`, `region/region_people.py`, `region/sp_names.py`, `data/coding_system_map.py`) default `--input` to the most recent run in `/mnt/disks/data/kanta/engine/`. Runs are stored as `<prefix>_<YYYY_MM_DD>/<prefix>_<YYYY_MM_DD>.parquet`, and the latest date wins. Each script prints the file it uses.
 
 ## region/
 
@@ -26,6 +26,11 @@ The scripts that read the engine output (`region/sp_region_cs.py`, `region/regio
    ```
    disease_vs_thl:  maakunta         ...  n_people  n_cases  finngen_index  thl_index
                     Pohjois-Karjala  ...  21000     2400     112            115
+   ```
+
+3. **`sp_names.py`**: names each SP the way the QC reports do (`scripts/qc_checks/sp_qc.py` and `qc_portal.py` import its `Labels`, so the names agree everywhere). An SP is named after its top coding-system organisation (`CODING_SYSTEM_MAP`). If that organisation has no maakunta of its own (a private company such as Fimlab, a lab serving several regions such as NordLab) and the SP has a region, the SP is named after the region instead (e.g. `Pirkanmaa`). The region is worked out as in `sp_region.tsv`: the top maakunta among the regional rows, which must be at least `--region-min` (5%) of the SP's rows with an organisation. The script writes `kanta_sp_names.tsv`, one row per SP with an organisation: `name`, `label` (the name as the reports print it, plus the pseudonym's last 6 characters), `named_after` (organisation / region / oid), `top_org` and its share, `maakunta`, `pct_maakunta`, `pct_regional`, and `n_org_rows`. The file holds pseudonyms and row counts, so it stays on the data side. It is one group-by over the engine output, and `wdl/engine.wdl` runs it (task `sp_names`, output `service_provider_names`). To use the pipeline's table in the reports instead of counting again, pass `sp_qc.py --sp-names kanta_sp_names.tsv` (and the same to `qc_portal.py`).
+   ```
+   python3 region/sp_names.py [--input <engine_output>.parquet] [--out DIR]
    ```
 
 ## THL

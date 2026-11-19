@@ -56,6 +56,14 @@ workflow engine {
     docker = downstream_docker
   }
 
+  # Service provider -> name (coding-system organisation, or its region for private / multi-region labs), the naming
+  # the QC reports use (scripts/qc_checks/sp_qc.py --sp-names takes this table)
+  call sp_names {
+    input:
+    engine_parquet = run_engine.engine_parquet,
+    docker = downstream_docker
+  }
+
   # Nightingale metabolomics panel + risk scores, unpacked from free text into their own tables
   call metabolomics {
     input:
@@ -118,6 +126,7 @@ workflow engine {
     File ref_text_rejected = extract_regions_limits.rejected
     File coding_system_map = extract_regions_limits.coding_system_map
     File coding_system_counts = extract_regions_limits.coding_system_counts
+    File service_provider_names = sp_names.names
     File metabolomics_biomarkers = release.metabolomics_biomarkers
     File metabolomics_risks = release.metabolomics_risks
     File counts_new = release_counts.counts_new
@@ -177,11 +186,11 @@ task run_engine {
   }
 
   runtime {
+    noAddress: false
     docker: docker
     cpu: "~{cpus}"
     memory: "64 GB"
     disks: "local-disk ~{ceil(size(tidied_parquet, 'GB') * 10) + 50} SSD"
-    # a preempted VM is reported as a failed task, so retry instead of failing the workflow
     maxRetries: 2
   }
 }
@@ -273,6 +282,31 @@ task extract_regions_limits {
     cpu: 8
     memory: "32 GB"
     disks: "local-disk ~{ceil(size(engine_parquet, 'GB') * 2) + 20} HDD"
+  }
+}
+
+
+task sp_names {
+  input {
+    File engine_parquet
+    String docker
+  }
+
+  command <<<
+    set -euxo pipefail
+    # One group-by (SP x organisation x maakunta) over the engine output: few groups, little memory
+    python3 /scripts/sote/region/sp_names.py --input ~{engine_parquet} --out . --memory-limit 12GB
+  >>>
+
+  output {
+    File names = "kanta_sp_names.tsv"
+  }
+
+  runtime {
+    docker: docker
+    cpu: 4
+    memory: "16 GB"
+    disks: "local-disk ~{ceil(size(engine_parquet, 'GB')) + 20} HDD"
   }
 }
 

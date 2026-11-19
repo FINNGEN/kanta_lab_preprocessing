@@ -375,6 +375,8 @@ def lab_tables(args, con):
     root = args.cache / f"rows_{Path(args.input).stem}"
     ldir = args.tables / "labs"
     srcs = [root / "sp_org_year.parquet", root / "sp_people.parquet", root / S.SP_ORGS]
+    if args.sp_names:
+        srcs.append(args.sp_names)
     srcs.append(args.population)
     want = {"version": LABS_VERSION, "src": {str(p): p.stat().st_mtime for p in srcs if p.exists()}}
     meta_p = ldir / "meta.json"
@@ -382,9 +384,7 @@ def lab_tables(args, con):
             json.loads(meta_p.read_text()).get("want") == want:
         log(f"Labs: cached ({ldir})")
         return pd.read_parquet(ldir / "ids.parquet")
-    labels = S.Labels(S.ORG_MAP)
-    if (root / S.SP_ORGS).exists():
-        labels.add_orgs(pd.read_parquet(root / S.SP_ORGS))
+    labels = S.load_labels(argparse.Namespace(sp_names=args.sp_names, org_map=S.ORG_MAP), root)
     oy = oy[oy["k_sp"].notna()].copy()
     oy["org"] = oy["org"].fillna(NONE_ORG).astype(str).str.replace("_", " ")
     people = pp.set_index("k_sp")["people"]
@@ -2460,6 +2460,9 @@ def build_parser():
                    help="omop_ref_audit.py's reports")
     p.add_argument("--tables", type=Path, default=TABLES, help="The gated tables, per concept")
     p.add_argument("--out", type=Path, default=SITE, help="The site folder")
+    p.add_argument("--sp-names", type=Path, default=None,
+                   help="kanta_sp_names.tsv from scripts/sote/region/sp_names.py for the SP names (as given to sp_qc.py); "
+                        "default: counted over --input")
     p.add_argument("--symlink", action="store_true", help="Link the PDF reports instead of copying them")
     p.add_argument("--population", type=Path,
                    default=Path(__file__).resolve().parents[1] / "sote" / "data" / "maakunta_population.tsv",
