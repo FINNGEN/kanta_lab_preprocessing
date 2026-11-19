@@ -253,6 +253,15 @@ def sex_label(s):
 Labels = sp_names.Labels
 
 
+def up_to_date(path, rows_dir):
+    """--skip-done: the output exists and was written after the OMOP's rows were cached (a new input re-extracts the
+    rows, so its outputs count as not done). Parameters and code changes are not checked: run without the flag then."""
+    p = Path(path)
+    if not p.exists():
+        return False
+    return not Path(rows_dir).exists() or p.stat().st_mtime >= Path(rows_dir).stat().st_mtime
+
+
 def load_labels(args, rows):
     """The SP names: from --sp-names (sp_names.py's kanta_sp_names.tsv, e.g. the pipeline's) when given, else counted over
     the whole input into the row cache (SP_ORGS); per-OMOP organisations later only fill gaps."""
@@ -2228,6 +2237,12 @@ def build_parser():
     p.add_argument("--print-rows", type=int, default=15, help="Flags printed per OMOP in the terminal")
     p.add_argument("--extract-batch", type=int, default=40,
                    help="OMOPs extracted per pass over the input (more: fewer passes, more open files)")
+    p.add_argument("--skip-done", action="store_true",
+                   help="Skip the OMOPs whose report (PDF) is already in --out and newer than their cached rows, e.g. "
+                        "after lowering --min-rows; parameters and code changes are not checked")
+    p.add_argument("--prepare", action="store_true",
+                   help="Only fill the row cache (and the SP names) for the selected OMOPs, print them on an "
+                        "'OMOPS ...' line and stop (run_qc_all.sh then runs one job per OMOP in parallel)")
     p.add_argument("--memory-limit", default=f"{int(RAM_GB * 0.45)}GB", help="duckdb memory limit (spills beyond it)")
     p.add_argument("--threads", type=int, default=min(8, os.cpu_count() or 1), help="duckdb threads")
     return p
@@ -2260,6 +2275,9 @@ def main():
         c = omop_counts(args, con)
         omops = [str(o) for o in c.loc[c["n"] >= args.min_rows].sort_values("n", ascending=False)["omop"]]
     rows = ensure_rows(omops, args, con)
+    if args.prepare:  # the row cache (and the names) only, for run_qc_all.sh's parallel single-OMOP jobs
+        print("OMOPS " + " ".join(omops), flush=True)
+        return
     labels = load_labels(args, rows)
     log(f"{len(omops)} OMOP(s): {', '.join(omops)}; out {args.out}")
     scales = ["raw", "uln", "lln"] if args.scale == "all" else [args.scale]
@@ -2312,7 +2330,14 @@ def main():
                      res["raw"])
 
     failed = []
-    for omop in omops:  # one OMOP's failure (an error, or a refused TSV) is logged and skipped, not the run
+    for i, omop in enumerate(omops, 1):  # one OMOP's failure (an error, or a refused TSV) is logged and skipped, not the run
+        log(f"PROGRESS {i}/{len(omops)} OMOP {omop}")  # for run_qc_all.sh's progress bar
+        if args.skip_done:  # the PDF is written last: there, the OMOP is done
+            sfx = scale_sfx(argparse.Namespace(scale=scales[0])) if len(scales) == 1 else ""
+            pdf = args.out / f"sp_qc_{omop}{name_slug(concept_name(omop, args.names))}{sfx}.pdf"
+            if up_to_date(pdf, rows / f"omop={omop}"):
+                log(f"OMOP {omop}: done already ({pdf.name}), skipped (--skip-done)")
+                continue
         try:
             one(omop)
         except (Exception, SystemExit):

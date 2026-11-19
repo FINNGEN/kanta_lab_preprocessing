@@ -30,3 +30,6 @@ ADD scripts/summaries/summaries.py scripts/summaries/summaries.py
 # service-provider / region scripts, with their reference tables in scripts/sote/data (THL's sote register,
 # municipality -> maakunta): code and public reference data only, about 9 MB
 ADD scripts/sote scripts/sote
+
+# python:*-slim defaults to a python prompt; a shell, as with the old bioinformatics base (the WDL tasks give their own command)
+CMD ["bash"]

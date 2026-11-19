@@ -891,6 +891,9 @@ def build_parser():
     p.add_argument("--ks-d", type=float, default=0.3,
                    help="A test name's distribution differs from the rest of the concept at this KS D")
     p.add_argument("--ks-min-n", type=int, default=20, help="Harmonized rows a test name (and the rest) needs for the KS test")
+    p.add_argument("--skip-done", action="store_true",
+                   help="Skip the OMOPs whose figure (PDF) is already in --out-dir and newer than their cached rows, "
+                        "e.g. after lowering --min-rows; parameters and code changes are not checked")
     p.add_argument("--memory-limit", default=f"{int(S.RAM_GB * 0.45)}GB", help="duckdb memory limit (spills beyond it)")
     p.add_argument("--threads", type=int, default=min(8, os.cpu_count() or 1), help="duckdb threads")
     return p
@@ -958,7 +961,12 @@ def main():
     rows = S.ensure_rows(omops, rargs, con) if not args.plots_only else None
     log(f"{len(omops)} OMOP(s): {', '.join(omops)}; out {args.out_dir}")
     failed = []
-    for omop in omops:
+    for i, omop in enumerate(omops, 1):
+        log(f"PROGRESS {i}/{len(omops)} OMOP {omop}")  # for run_qc_all.sh's progress bar
+        pdf = args.out_dir / f"omop_{omop}_ref_audit.pdf"  # the figure is written last: there, the OMOP is done
+        if args.skip_done and rows is not None and S.up_to_date(pdf, rows / f"omop={omop}"):
+            log(f"OMOP {omop}: done already ({pdf.name}), skipped (--skip-done)")
+            continue
         try:
             audit_one(omop, rows, args, con)
         except SystemExit as e:  # one OMOP's problem (e.g. no canonical range) does not stop the others

@@ -78,6 +78,41 @@ def log(msg):
     print(f"[{time.time() - t0:7.1f}s] {msg}", flush=True)
 
 
+class Progress:
+    """A one-line progress bar on a terminal (i of n, elapsed, ETA, the current item), redrawn in place; when the
+    output is not a terminal (a log file, tee), a plain log line every 10% instead."""
+
+    def __init__(self, what, n):
+        self.what, self.n, self.start, self.tty = what, max(n, 1), time.time(), sys.stdout.isatty()
+        self.step = max(1, self.n // 10)
+
+    def update(self, i, item=""):
+        """Before item i (1-based) of n."""
+        el = time.time() - self.start
+        if not self.tty:
+            if i == 1 or i % self.step == 0:
+                log(f"{self.what}: {i} of {self.n} {item}")
+            return
+        done = i - 1
+        eta = f"  ETA {self.hms(el / done * (self.n - done))}" if done else ""
+        w = 30
+        fill = done * w // self.n
+        line = (f"[{time.time() - t0:7.1f}s] {self.what} [{'#' * fill}{'-' * (w - fill)}] {i}/{self.n} "
+                f"{self.hms(el)}{eta}  {item}")
+        cols = shutil.get_terminal_size((120, 20)).columns
+        print("\r\033[K" + line[:cols - 1], end="", flush=True)
+
+    def close(self):
+        if self.tty:
+            print(f"\r\033[K[{time.time() - t0:7.1f}s] {self.what}: {self.n} of {self.n} in {self.hms(time.time() - self.start)}",
+                  flush=True)
+
+    @staticmethod
+    def hms(sec):
+        sec = int(sec)
+        return f"{sec // 3600:02d}:{sec % 3600 // 60:02d}:{sec % 60:02d}"
+
+
 def npeople(sketches):
     return len(S.pset(sketches))
 
@@ -510,9 +545,10 @@ def lab_tables(args, con):
 
 def concept_labs(omop, files, ids):
     """The concept's labs from sp_qc's published lab-years (raw run): per lab the sum of its shown years, as % of the
-    shown labs' rows, against the same labs' shares of all results (re-based to them) and the ratio. No counts."""
+    shown labs' rows, against the same labs' shares of all results (re-based to them) and the ratio; rows: the sum of
+    the lab's shown years in that published table (each >= MIN_N people), so nothing that isn't public already."""
     spy = next((p for k, p in files if k == "sp" and p.name == f"sp_qc_{omop}_sp_year.tsv"), None)
-    cols = ["lab_id", "label", "pct_concept", "pct_dataset", "ratio", "year_first", "year_last"]
+    cols = ["lab_id", "label", "rows", "pct_concept", "pct_dataset", "ratio", "year_first", "year_last"]
     if spy is None or ids is None or ids.empty:
         return pd.DataFrame(columns=cols)
     d = relabel(pd.read_csv(spy, sep="\t", dtype=str, keep_default_na=False), ids)
@@ -526,7 +562,7 @@ def concept_labs(omop, files, ids):
     g["pct_concept"] = 100 * g["rows"] / g["rows"].sum()
     g["pct_dataset"] = 100 * g["n"] / g["n"].sum()
     g["ratio"] = g["pct_concept"] / g["pct_dataset"]
-    g = g.astype({"year_first": "Int64", "year_last": "Int64"})
+    g = g.astype({"year_first": "Int64", "year_last": "Int64", "rows": "int64"})
     return g.sort_values("pct_concept", ascending=False)[cols]
 
 
@@ -785,6 +821,7 @@ CSS = """/* A quiet lab-report shell: one wide column, tables first. System font
 :root {
   --bg: #f6f6f3; --surface: #ffffff; --ink: #191917; --muted: #5d5c56; --line: #dedcd3; --soft: #efeee9;
   --accent: #2a6fc4; --accent-ink: #1d4f8f; --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100;
+  --s5: #e87ba4; --s6: #008300; --s7: #6250d6; --s8: #e34948;
   --other: #a8a69c; --none: #d9d7cf; --up: #2e9e57; --down: #d03b3b; --fem: #d6589f;
   --warn-bg: #fdf1d6; --warn-ink: #7a5300; --crit-bg: #fbe1df; --crit-ink: #9c2420; --ok-bg: #e3f3e8; --ok-ink: #1d6b39;
   --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -793,12 +830,14 @@ CSS = """/* A quiet lab-report shell: one wide column, tables first. System font
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
   --bg: #141413; --surface: #1c1c1a; --ink: #edece7; --muted: #a9a8a0; --line: #36352f; --soft: #252522;
   --accent: #6ea6ec; --accent-ink: #a9cbf5; --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+  --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
   --other: #77766e; --none: #45443f; --up: #4cc47a; --down: #e66767; --fem: #e87ba4;
   --warn-bg: #3a2f12; --warn-ink: #f0c869; --crit-bg: #42201d; --crit-ink: #f3a19b; --ok-bg: #18301f; --ok-ink: #8fd3a5;
   color-scheme: dark; } }
 :root[data-theme="dark"] {
   --bg: #141413; --surface: #1c1c1a; --ink: #edece7; --muted: #a9a8a0; --line: #36352f; --soft: #252522;
   --accent: #6ea6ec; --accent-ink: #a9cbf5; --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+  --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
   --other: #77766e; --none: #45443f; --up: #4cc47a; --down: #e66767; --fem: #e87ba4;
   --warn-bg: #3a2f12; --warn-ink: #f0c869; --crit-bg: #42201d; --crit-ink: #f3a19b; --ok-bg: #18301f; --ok-ink: #8fd3a5;
   color-scheme: dark; }
@@ -910,6 +949,12 @@ td.sharecell svg { display: block; width: 210px; max-width: none; height: 18px; 
 td.strip svg { display: block; }
 table[id^="rng"] td:first-child, table[id^="fl"] td:nth-child(2) { min-width: 240px; }
 .mapcard .fimap { max-width: 300px; margin: 6px auto 0; }
+.fimap svg path[data-href] { cursor: pointer; }
+.chart svg.pie { display: block; width: 100%; max-width: 380px; margin: auto; padding: 12px 0; }
+.pie path, .pie circle { stroke: var(--surface); stroke-width: 2; }
+.pie a:hover path, .pie a:hover circle, .pie a:focus path { opacity: .78; }
+a.spc { font-weight: 600; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 2px; }
+a.spc:hover { text-decoration-thickness: 2px; }
 .fimap svg path { fill: var(--none); stroke: var(--surface); stroke-width: 0.8; }
 .fimap svg path.on { fill: var(--accent); }
 .fimap svg path:hover { stroke: var(--ink); stroke-width: 1.2; }
@@ -945,6 +990,25 @@ dl.defs { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; 
 dl.defs dt { font-weight: 600; color: var(--ink); }
 dl.defs dd { margin: 0; }
 @media (max-width: 560px) { dl.defs { grid-template-columns: 1fr; } dl.defs dd { margin-bottom: 6px; } }
+
+/* the naming figure (Service Providers tab) */
+.namecases { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); gap: 16px; }
+.namecase { border: 1px solid var(--line); border-top: 4px solid var(--accent); border-radius: 8px; padding: 10px 12px 6px; background: var(--surface); }
+.namecase h4 { margin: 0 0 6px; font-size: 14px; white-space: nowrap; }
+@media (max-width: 760px) { .namecase h4 { white-space: normal; } }
+.namefig { overflow-x: auto; }
+.chart .namefig svg { min-width: 0; max-width: 500px; width: 100%; margin: 0 auto; }
+.namefig .nd { fill: var(--surface); stroke: var(--line); stroke-width: 1.2; }
+.namefig .nd.use { stroke: var(--accent); stroke-width: 1.8; }
+.namefig .ed.use { stroke: var(--accent); stroke-opacity: .7; }
+.namefig .nd.out { fill: var(--soft); stroke: var(--accent); stroke-width: 2; }
+.namefig .hd { fill: var(--muted); font: 600 10.5px var(--font); letter-spacing: .05em; }
+.namefig .t { fill: var(--ink); font: 12.5px var(--font); }
+.namefig .tb { fill: var(--ink); font: 600 14px var(--font); }
+.namefig .ts { fill: var(--muted); font: 12px var(--font); }
+.namefig .tc { fill: var(--muted); font: 11.5px var(--mono); }
+.namefig .yt { font-weight: 700; }
+.namefig .ed { fill: none; stroke: var(--line); stroke-width: 1.5; }
 """
 
 JS = """// Sort any table.sortable by clicking a header; filter its rows with the search box and the checkboxes.
@@ -1065,6 +1129,8 @@ JS = """// Sort any table.sortable by clicking a header; filter its rows with th
     selO.addEventListener("change", draw); selM.addEventListener("change", draw);
     draw();
   });
+  // a region's page name, as qc_portal.region_slug writes it
+  function slug(k) { return k.toLowerCase().replace(/[äå]/g, "a").replace(/ö/g, "o").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""); }
   // region maps: the maakunnat from assets/finland.js, the named one highlighted
   var FM = window.FINLAND_MAP || {};
   document.querySelectorAll("[data-map-region]").forEach(function (el) {
@@ -1080,6 +1146,8 @@ JS = """// Sort any table.sortable by clicking a header; filter its rows with th
     if (!FM.regions) { el.textContent = ""; return; }
     var v = JSON.parse(el.getAttribute("data-choro")), card = el.closest(".chart");
     var sel = card ? card.querySelector("[data-choro-mode]") : null, kind = el.getAttribute("data-choro-kind") || "cov";
+    var link = el.getAttribute("data-choro-link");
+    el.addEventListener("click", function (e) { var h = e.target.getAttribute && e.target.getAttribute("data-href"); if (h) location.href = h; });
     var up = rgb(getComputedStyle(document.documentElement).getPropertyValue("--up")),
         down = rgb(getComputedStyle(document.documentElement).getPropertyValue("--down"));
     var css = getComputedStyle(document.documentElement), lo = rgb(css.getPropertyValue("--soft")), hi = rgb(css.getPropertyValue("--accent"));
@@ -1096,7 +1164,8 @@ JS = """// Sort any table.sortable by clicking a header; filter its rows with th
           var t = (x === null || x === undefined) ? "no service provider with this region" :
             (mode === "cov" ? x.toFixed(1) + "% of the population have results here" :
              mode === "ratio" ? (x >= 1 ? "×" + x.toFixed(2) : "/" + (1 / x).toFixed(2)) + (el.closest("#panel-sp section") ? " its share of all results" : " its share of the population, in tests") : x.toFixed(1) + "% of the tests");
-          return '<path d="' + FM.regions[k] + '" style="fill:' + f + '"><title>' + k + ': ' + t + '</title></path>';
+          var href = (link && v[k]) ? ' data-href="' + link + slug(k) + '.html"' : '';
+          return '<path d="' + FM.regions[k] + '"' + href + ' style="fill:' + f + '"><title>' + k + ': ' + t + (href ? ' (click for its service providers)' : '') + '</title></path>';
         }).join("") + '</svg>';
       var lg = card ? card.querySelector(".choro-lg") : null;
       if (lg && mode === "ratio") lg.innerHTML = '<span><i style="background:' + mix(lo, down, 1) + ';height:10px;width:16px"></i>/2 or less</span>' +
@@ -1358,7 +1427,7 @@ def concept_region_map(clabs, lab_region):
                   "the bar is the region&#39;s share of this concept&#39;s results, the dot its share of all results, "
                   "both over the regions listed; green when the region does more of this test than of all tests, red "
                   "when less. Ratio: the first over the second. Service providers without a region are left out.")
-            + f'<div class="tablebox"><table class="sortable" id="cregions"><thead><tr><th>Region</th><th>Share</th>'
+            + f'<div class="tablebox"><table class="sortable" id="cregions"><thead><tr><th>Region</th><th class="num">Service Providers</th><th>Share</th>'
             f'<th class="num">% of this concept</th><th class="num">% of all results</th><th class="num">Ratio</th>'
             f'</tr></thead><tbody>{trs}</tbody></table></div></div></div></section>')
 
@@ -1643,17 +1712,21 @@ def region_choropleth(labs, regions=None, tid="regions"):
     r["sh_pop"] = 100 * r["population"] / r["population"].sum()
     r["ratio"] = r["sh_tests"] / r["sh_pop"]
     r = r.sort_values("sh_pop", ascending=False)
+    # service providers per region: each one is listed by name in the Service Providers table (and on the region's page)
+    nsp = (labs[labs["region"].astype(str).str.len() > 0].groupby("region")["lab_id"].nunique()
+           if labs is not None and len(labs) and "region" in labs.columns else pd.Series(dtype=int))
     year = int(r["pop_year"].dropna().iloc[0]) if r["pop_year"].notna().any() else ""
     rest = max(0.0, 100.0 - float(r["results_pct"].sum()))
     xmax = max(r["sh_tests"].max(), r["sh_pop"].max()) * 1.05
     trs = "".join(
-        f'<tr><td>{E(x.region)}</td>{share_cell(x.sh_tests, x.sh_pop, xmax)}'
+        f'<tr><td>{region_link(x.region)}</td><td class="num" data-sort="{int(nsp.get(x.region, 0))}">{int(nsp.get(x.region, 0))}</td>'
+        f'{share_cell(x.sh_tests, x.sh_pop, xmax)}'
         f'<td class="num" data-sort="{x.sh_tests}">{x.sh_tests:.1f}%</td><td class="num" data-sort="{x.sh_pop}">{x.sh_pop:.1f}%</td>'
         f'<td class="num" data-sort="{x.ratio}">{ratio_s(x.ratio)}</td></tr>' for x in r.itertuples())
 
     def mapcard(t, q, kind, d):
         return (f'<div class="chart mapcard"><h3>{E(t)}</h3><p class="q">{E(q)}</p>'
-                f'<div class="fimap choro" data-choro-kind="{kind}" data-choro="{E(json.dumps(d, ensure_ascii=False))}"></div>'
+                f'<div class="fimap choro" data-choro-kind="{kind}" data-choro-link="region/" data-choro="{E(json.dumps(d, ensure_ascii=False))}"></div>'
                 f'<div class="lg choro-lg"></div></div>')
     maps = (mapcard("Tests by region", "Each region's share of the tests, summed over its service providers", "share",
                     {x.region: {"share": float(x.sh_tests)} for x in r.itertuples()})
@@ -1665,17 +1738,194 @@ def region_choropleth(labs, regions=None, tid="regions"):
             f"region&#39;s share of the tests and the dot its share of the population: green when the region has more of "
             f"the tests than of the population, red when less. Ratio: the first over the second. {rest:.1f}% of all "
             f"results are from service providers without a region (private chains, labs serving several regions) and "
-            f"are on no region.")
+            f"are on no region. Service Providers: how many have this region (click a region for them).")
     legend = ('<div class="lg" style="margin:0 0 8px"><span><i style="background:var(--up);height:9px;width:14px;display:inline-block;border-radius:2px;margin-right:5px"></i>share of the tests, higher than</span>'
               '<span style="margin-left:10px"><i style="background:var(--down);height:9px;width:14px;display:inline-block;border-radius:2px;margin-right:5px"></i>lower than</span>'
               '<span style="margin-left:14px"><i style="background:var(--ink);height:9px;width:9px;display:inline-block;border-radius:50%;margin-right:5px"></i>share of the population</span></div>')
     table = (f'<div class="chart"><h3>Regions: tests against the population</h3>{how(note)}{legend}'
-             f'<div class="tablebox"><table class="sortable" id="{tid}"><thead><tr><th>Region</th><th>Share</th>'
+             f'<div class="tablebox"><table class="sortable" id="{tid}"><thead><tr><th>Region</th><th class="num">Service Providers</th><th>Share</th>'
              f'<th class="num">% of the tests</th><th class="num">% of the population</th><th class="num">Ratio</th>'
              f'</tr></thead><tbody>{trs}</tbody></table></div></div>')
     return (f'<div style="display:grid; gap:14px; margin: 10px 0 16px">'
             f'<div class="charts" style="grid-template-columns: repeat(auto-fit, minmax(min(380px, 100%), 1fr))">{maps}</div>'
             f'{table}<p class="q" style="font-size:12px;margin:0">Maps and population: Statistics Finland, CC BY 4.0</p></div>')
+
+def region_slug(name):
+    """A region's page name: region/<slug>.html (also built by the page script, slug())."""
+    t = str(name).lower().replace("ä", "a").replace("å", "a").replace("ö", "o")
+    return re.sub(r"[^a-z0-9]+", "-", t).strip("-")
+
+
+def region_link(name, up=""):
+    return f'<a href="{up}region/{region_slug(name)}.html">{E(name)}</a>'
+
+
+PIE_SLOTS = 7  # the largest 7 service providers in the categorical colours; the rest share the grey "other" slice
+
+
+def pie_svg(parts, size=240):
+    """A pie of (label, share, colour, href or None) parts, largest first, clockwise from 12 o'clock; a slice links to
+    its page when it has one, with a tooltip. 2px surface gaps between the slices."""
+    import math
+    tot = sum(p[1] for p in parts) or 1.0
+    c, r = size / 2, size / 2 - 4
+    out, a0 = [], -math.pi / 2
+    for label, sh, col, href in parts:
+        frac = sh / tot
+        tip = f"<title>{E(label)}: {100 * frac:.1f}% of the region&#39;s results</title>"
+        if frac >= 0.9999:
+            shape = f'<circle cx="{c}" cy="{c}" r="{r}" style="fill:{col}">{tip}</circle>'
+        else:
+            a1 = a0 + 2 * math.pi * frac
+            x0, y0, x1, y1 = c + r * math.cos(a0), c + r * math.sin(a0), c + r * math.cos(a1), c + r * math.sin(a1)
+            shape = (f'<path d="M{c:.1f},{c:.1f} L{x0:.2f},{y0:.2f} A{r:.1f},{r:.1f} 0 {1 if frac > 0.5 else 0} 1 '
+                     f'{x1:.2f},{y1:.2f} Z" style="fill:{col}">{tip}</path>')
+            a0 = a1
+        out.append(f'<a href="{href}">{shape}</a>' if href else shape)
+    return (f'<svg class="pie" viewBox="0 0 {size} {size}" role="img" aria-label="Pie of the region&#39;s service '
+            f'providers by share of its results">{"".join(out)}</svg>')
+
+
+def region_page(name, rlabs, reg, paged):
+    """A region's page: its service providers (those whose region it is), largest first, as a pie and a table in the
+    same colours; shares of the region's results only (from the published % of all results)."""
+    tile = lambda k, v, d="": (f'<div class="tile"><div class="k">{k}</div><div class="v">{v}</div>'  # noqa: E731
+                               + (f'<div class="d">{d}</div>' if d else "") + "</div>")
+    rl = rlabs.sort_values("pct_results", ascending=False).reset_index(drop=True)
+    tot = float(rl["pct_results"].sum()) or 1.0
+    rl["sh"] = 100 * rl["pct_results"] / tot
+    col = {lid: f"var(--s{i + 1})" for i, lid in enumerate(rl["lab_id"].head(PIE_SLOTS))}
+    href = lambda lid: f"../lab/{E(lid)}.html" if lid in paged else None  # noqa: E731
+    parts = [(x.label, x.sh, col[x.lab_id], href(x.lab_id)) for x in rl.itertuples() if x.lab_id in col]
+    rest = rl[~rl["lab_id"].isin(col)]
+    if len(rest):
+        parts.append((f"{len(rest)} other service providers", float(rest["sh"].sum()), "var(--other)", None))
+
+    def sp_cell(x):
+        c = col.get(x.lab_id, "var(--other)")
+        sw = f'<span class="swatch" style="background:{c}"></span>'
+        if x.lab_id in paged:
+            style = f' style="color:{c}"' if x.lab_id in col else ""
+            return f'{sw}<a class="spc" href="../lab/{E(x.lab_id)}.html"{style}>{E(x.label)}</a>'
+        return f'{sw}<b style="color:{c}">{E(x.label)}</b>' if x.lab_id in col else f"{sw}{E(x.label)}"
+    trs = "".join(
+        f'<tr data-text="{E((x.label + " " + x.named_after).lower())}"><td style="white-space:nowrap">{sp_cell(x)}</td>'
+        f'<td class="num" data-sort="{x.sh}">{x.sh:.1f}%</td>'
+        f'<td class="num" data-sort="{x.pct_results}">{x.pct_results:.2f}%</td>{count_td(x.people)}'
+        f'<td>{E(x.named_after) or "<span class=muted>—</span>"}</td>'
+        f'<td class="num" data-sort="{x.regional_pct if num(x.regional_pct) else ""}">{pct_s(x.regional_pct, 0)}</td></tr>'
+        for x in rl.itertuples())
+    tiles = [tile("Service Providers", f"{len(rl)}", "whose region it is")]
+    if reg is not None:
+        tiles += [tile("Share of the tests", f"{reg['sh_tests']:.1f}%", "over the regions listed"),
+                  tile("Share of the population", f"{reg['sh_pop']:.1f}%" if num(reg.get("sh_pop")) else "—",
+                       "Statistics Finland"),
+                  tile("Tests against the population", ratio_s(reg["ratio"]) if num(reg.get("ratio")) else "—")]
+    return f"""
+<div class="crumb"><a href="../index.html#sp">← All Service Providers</a></div>
+<section><h1>{E(name)}</h1>
+  <div class="idline"><span>region (maakunta): the service providers whose region it is</span></div></section>
+<section class="tiles">{"".join(tiles)}</section>
+<section><h2>Service Providers <small>largest first, by share of the region&#39;s results</small></h2>
+  <div class="charts" style="grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%), 1fr))">
+  <div class="chart" style="display:flex; flex-direction:column"><h3>Share of the region&#39;s results</h3>
+    <p class="q">The largest {PIE_SLOTS} in colour, the same as their names in the table below; the rest together in
+    grey. Click a slice to open its page.</p>{pie_svg(parts)}</div>
+  <div class="chart mapcard"><h3>Where</h3><p class="q">{E(name)} on the map of Finland</p>
+    <div class="fimap" data-map-region="{E(name)}" style="max-width:340px"></div><p class="q" style="font-size:12px">Map: Statistics Finland, CC BY 4.0</p></div></div>
+  <div class="chart" style="margin-top:14px"><h3>The service providers</h3>
+    {how("A service provider belongs to a region when the maakunta of its coding-system organisations that have one is "
+         "this region, and those rows are at least 5% of its results with an organisation (Regional rows). Share of the "
+         "region: its share of the results of the service providers listed here; % of all results: of the whole data.")}
+    <div class="controls"><input class="search" type="search" placeholder="Filter service providers…" aria-label="Filter service providers" data-search="rlabs"><span class="count" data-count="rlabs"></span></div>
+    <div class="tablebox"><table class="sortable" id="rlabs" data-limit="20"><thead><tr><th>Service Provider</th>
+    <th class="num">Share of the region</th><th class="num">% of all results</th><th class="num">People</th>
+    <th>Top organisation</th><th class="num">Regional rows</th></tr></thead>
+    <tbody>{trs}</tbody></table></div></div></section>"""
+
+
+def naming_case(title, cs, orgs, sp, name, region, note, colour):
+    """One example of the naming rule as a small vertical figure in its own box: coding systems -> their organisations
+    (line width = share of the service provider's rows) -> the service provider -> its name and region. What the name
+    comes from (codes, organisations, lines, result) in the service provider's colour; organisations of the same region
+    (they back it up) in a light shade of it; the rest grey; the region's name in the colour wherever it appears;
+    private organisations dashed. cs: [((Y-tunnus, OID tail), org index)], orgs: [(name, maakunta or None, % of rows,
+    role: "name" (the name comes from it), "region" (same region) or None)]; region: the service provider's, or None."""
+    W, n = 420, len(orgs)
+    ow, gap = (W - 16 - (n - 1) * 10) / n, 10
+    ox = [8 + i * (ow + gap) for i in range(n)]
+    col = [colour if o[3] else "var(--other)" for o in orgs]
+    fade = lambda i: {"name": "", "region": ' opacity=".45"'}.get(orgs[i][3], ' opacity=".6"')  # noqa: E731
+    reg_t = lambda mk: (f'<tspan style="fill:{colour};font-weight:600">{E(mk)}</tspan>'  # noqa: E731
+                        if region and mk == region else E(mk))
+    by_org = {i: [lab for lab, o in cs if o == i] for i in range(n)}
+    k_max = max(len(v) for v in by_org.values())
+    cy = 26
+    oy = cy + k_max * 24 + 22
+    sy, ny = oy + 86, oy + 148
+    el = []
+    for i in range(n):  # codes (OIDs), stacked over their organisation: the Y-tunnus in it names the organisation
+        for j, (yt, tail) in enumerate(by_org[i]):
+            y = cy + j * 24
+            el.append(f'<g{fade(i)}><rect class="nd" x="{ox[i]:.1f}" y="{y}" width="{ow:.1f}" height="20" rx="4" '
+                      f'style="stroke:{col[i]};stroke-width:1.4"/><text class="tc" x="{ox[i] + ow / 2:.1f}" y="{y + 14}" '
+                      f'text-anchor="middle">1.2.246.10.<tspan class="yt" style="fill:{col[i]}">{yt}</tspan>{tail}</text></g>')
+        el.append(f'<path d="M{ox[i] + ow / 2:.1f},{cy + len(by_org[i]) * 24 - 4} L{ox[i] + ow / 2:.1f},{oy}" '
+                  f'stroke="{col[i]}" stroke-width="1.4"{fade(i)}/>')
+    for i, (org, mk, pc, use) in enumerate(orgs):  # organisation -> service provider, width = share of its rows
+        x, xs = ox[i] + ow / 2, W / 2 + (i - (n - 1) / 2) * 12
+        el.append(f'<path d="M{x:.1f},{oy + 40} C{x:.1f},{oy + 66} {xs:.1f},{sy - 26} {xs:.1f},{sy}" fill="none" '
+                  f'stroke="{col[i]}" stroke-width="{max(1.5, pc / 8):.1f}"{fade(i)}><title>{E(org)}: {pc}% of its rows</title></path>')
+        # the label on the outer side of the line (lines bend towards the centre)
+        lw, left = max(1.5, pc / 8), x < W / 2
+        el.append(f'<text class="ts" x="{x - lw / 2 - 5 if left else x + lw / 2 + 5:.1f}" y="{oy + 54}" '
+                  f'text-anchor="{"end" if left else "start"}"{fade(i)}>{pc}%</text>')
+    for i, (org, mk, pc, use) in enumerate(orgs):
+        el.append(f'<g{fade(i)}><rect class="nd" x="{ox[i]:.1f}" y="{oy}" width="{ow:.1f}" height="40" rx="5" '
+                  f'style="stroke:{col[i]};stroke-width:{2 if use == "name" else 1.6 if use else 1.4}"{"" if mk else " stroke-dasharray=\"4 3\""}/>'
+                  f'<text class="t" x="{ox[i] + ow / 2:.1f}" y="{oy + 17}" text-anchor="middle">{E(org)}</text>'
+                  f'<text class="ts" x="{ox[i] + ow / 2:.1f}" y="{oy + 32}" text-anchor="middle">'
+                  f'{reg_t(mk) if mk else "private"}</text></g>')
+    el.append(f'<rect class="nd" x="{W / 2 - 55}" y="{sy}" width="110" height="30" rx="5" style="stroke:{colour};stroke-width:1.6"/>'
+              f'<text class="tb" x="{W / 2}" y="{sy + 20}" text-anchor="middle">SP …{sp}</text>')
+    el.append(f'<path d="M{W / 2},{sy + 30} L{W / 2},{ny - 6}" stroke="var(--muted)" stroke-width="1.4"/>'
+              f'<path d="M{W / 2 - 5},{ny - 9} L{W / 2},{ny - 1} L{W / 2 + 5},{ny - 9} z" fill="var(--muted)"/>')
+    el.append(f'<rect class="nd out" x="{W / 2 - 105}" y="{ny}" width="210" height="62" rx="6" style="stroke:{colour}"/>'
+              f'<text class="tb" x="{W / 2}" y="{ny + 21}" text-anchor="middle">{E(name)}</text>'
+              f'<text class="ts" x="{W / 2}" y="{ny + 39}" text-anchor="middle">'
+              f'{"region: " + reg_t(region) if region else "no region"}</text>'
+              f'<text class="ts" x="{W / 2}" y="{ny + 54}" text-anchor="middle">{E(note)}</text>')
+    el.append(f'<text class="hd" x="8" y="{cy - 8}">CODING SYSTEMS (OID, Y-TUNNUS IN BOLD)</text>'
+              f'<text class="hd" x="8" y="{oy - 8}">ORGANISATIONS (BY Y-TUNNUS)</text>')
+    return (f'<div class="namecase" style="border-top-color:{colour}"><h4>{title}</h4><div class="namefig">'
+            f'<svg viewBox="0 0 {W} {ny + 66}" role="img" aria-label="{E(title)}: named {E(name)}, region {E(region or 'none')}">'
+            f'{"".join(el)}</svg></div></div>')
+
+
+def naming_figure():
+    """How a service provider gets its name and region: three made-up examples side by side (regional organisations
+    only; a private top organisation with regional ones; private only). The rule of scripts/sote/region/sp_names.py."""
+    cases = [
+        naming_case("Regional → named after its organisation",
+                    [(("11111118", ".10.1"), 0), (("11111118", ".10.2"), 0), (("22222226", ".10.1"), 1)],
+                    [("HUS-yhtymä", "Uusimaa", 90, "name"), ("Helsingin kaupunki", "Uusimaa", 10, "region")],
+                    "1a2b3c", "HUS-yhtymä", "Uusimaa", "regional rows 100%", "var(--s1)"),
+        naming_case("Private + regional → named after its region",
+                    [(("33333334", ".10.1"), 0), (("33333334", ".10.4"), 0), (("44444442", ".10.1"), 1)],
+                    [("Fimlab Laboratoriot Oy", None, 62, None), ("Pirkanmaan hyvinvointialue", "Pirkanmaa", 38, "name")],
+                    "76628f", "Pirkanmaa", "Pirkanmaa", "regional rows 38%", "var(--s2)"),
+        naming_case("Private only → named after its organisation",
+                    [(("66666668", ".10.1"), 0), (("66666668", ".10.2"), 0), (("22222226", ".10.1"), 1)],
+                    [("Terveystalo", None, 97, "name"), ("Helsingin kaupunki", "Uusimaa", 3, None)],
+                    "9d8e7f", "Terveystalo", None, "regional 3% (< 5%)", "var(--s3)")]
+    return (f'<div class="chart" style="margin: 4px 0 16px"><h3>How a service provider gets its name and region</h3>'
+            f'<div class="namecases">{"".join(cases)}</div>'
+            f'<p class="q" style="margin-top:8px">Named after its top organisation; when that one has no maakunta (a '
+            f'private company, a lab serving several regions), after its region instead, if it has one. Its region: the '
+            f'maakunta of its rows whose organisation has one, when those are at least 5% of its rows with an organisation. '
+            f'Each coding system is an OID whose Y-tunnus (bold) is its organisation&#39;s business ID. In colour (one per service provider): what its name comes from, from the codes on; light: '
+            f'organisations of the same region, which back it up; the region&#39;s name in the colour; grey: the rest; dashed: private (no maakunta); line width: share of the service provider&#39;s rows. Made-up examples.</p></div>')
+
 
 def labs_panel(labs, lab_conc, paged=frozenset(), regions=None):
     head = "".join(f'<th class="{c}" scope="col">{h}</th>' for h, c in (
@@ -1686,13 +1936,14 @@ def labs_panel(labs, lab_conc, paged=frozenset(), regions=None):
         f'<tr data-text="{E((r.label + " " + r.named_after).lower())}"><td>{lab_link(r.lab_id, r.label, paged)}</td>'
         f'{count_td(r.people)}<td class="num" data-sort="{r.pct_results}">{r.pct_results:.2f}%</td>'
         f'<td class="num">{"" if not num(r.year_first) else f"{int(r.year_first)}–{int(r.year_last)}"}</td>'
-        f'<td>{E(region_s(r))}</td><td class="num" data-sort="{r.regional_pct if num(r.regional_pct) else ""}">'
+        f'<td>{region_link(r.region) + E(region_s(r)[len(r.region):]) if region_s(r) else ""}</td><td class="num" data-sort="{r.regional_pct if num(r.regional_pct) else ""}">'
         f'{pct_s(r.regional_pct, 0) if region_s(r) else "<span class=muted>—</span>"}</td>'
         f'<td>{E(r.named_after) or "<span class=muted>—</span>"}</td>'
         f'<td class="num" data-sort="{r.named_pct if num(r.named_pct) else ""}">{named_chip(r.named_pct)}</td>'
         f'<td class="num" data-sort="{r.no_org_pct if num(r.no_org_pct) else ""}">{pct_s(r.no_org_pct, 0)}</td>'
         f'<td class="num">{len(lab_conc.get(r.lab_id, []))}</td></tr>' for r in labs.itertuples())
     return f"""<section id="panel-sp" hidden>
+  {naming_figure()}
   {region_choropleth(labs, regions)}
   <p class="lead" style="margin-top:0">The service providers in this release with at least {MIN_N} people. A service provider's
   name is its top coding-system organisation, as in the Service Provider reports; when that organisation has no region of
@@ -1739,11 +1990,11 @@ def lab_page(r, lo, ly, concepts):
                          else f'<b style="color:{ocol[org]}">{E(org)}</b>' if org in ocol else E(org))  # noqa: E731
     orows = "".join(f'<tr><td>{oname(org)}</td><td class="num" data-sort="{pc}">{pc:.1f}%</td></tr>'
                     for org, pc in sorted(zip(lo["org"], lo["pct"]), key=lambda t: -t[1]))
-    crows = "".join(f'<tr><td><a href="../omop/{o}.html">{E(name or "OMOP " + o)}</a></td>'
+    crows = "".join(f'<tr><td><a href="../omop/{o}.html">{E(name or "OMOP " + o)}</a></td>{count_td(n)}'
                     f'<td class="num" data-sort="{pc}">{pc:.1f}%</td><td class="num" data-sort="{rt}">{ratio_s(rt)}</td></tr>'
-                    for o, name, pc, rt in sorted(concepts, key=lambda c: -c[2]))
-    conc = (f"""<section><h2>Concepts on this portal <small>its share of each concept's results (over the service providers listed there)</small></h2>
-  <div class="tablebox"><table class="sortable" id="lconc"><thead><tr><th>Concept</th><th class="num">% of the concept</th>
+                    for o, name, pc, rt, n in sorted(concepts, key=lambda c: -c[2]))
+    conc = (f"""<section><h2>Concepts on this portal <small>its results in each concept (the years shown in the Service Provider report) and their share of the concept's results (over the service providers listed there)</small></h2>
+  <div class="tablebox"><table class="sortable" id="lconc"><thead><tr><th>Concept</th><th class="num">N rows</th><th class="num">% of the concept</th>
   <th class="num">Ratio to all results</th></tr></thead><tbody>{crows}</tbody></table></div></section>""" if crows else "")
     return f"""
 <div class="crumb"><a href="../index.html#sp">← All Service Providers</a></div>
@@ -2362,8 +2613,11 @@ def stage_site(args, omops):
     if len(labs):
         labs["named_after"] = labs["named_after"].fillna("").astype(str)
         labs["label"] = labs["label"].astype(str)
-    lab_conc = {}  # lab_id -> [(omop, name, % of the concept, ratio)]
+    lab_conc = {}  # lab_id -> [(omop, name, % of the concept, ratio, rows)]
     regions = read_tsv(ldir / "regions.tsv") if (ldir / "regions.tsv").exists() else None
+    ids_priv = pd.read_parquet(ldir / "ids.parquet") if (ldir / "ids.parquet").exists() else None  # private: joins only
+    if ids_priv is not None:
+        ids_priv["lab_id"] = ids_priv["lab_id"].astype(str)
     ids_by_label = dict(zip(labs["label"], labs["lab_id"])) if len(labs) else {}
     lab_region = ({lid: r for lid, r in zip(labs["lab_id"], labs["region"]) if isinstance(r, str) and r}
                   if len(labs) and "region" in labs.columns else {})
@@ -2372,7 +2626,9 @@ def stage_site(args, omops):
     paged = frozenset(labs.sort_values("pct_results", ascending=False).head(n_pages)["lab_id"]) if len(labs) \
         else frozenset()
     log(f"Site: {len(tdirs)} concept page(s) ...")
-    for d in tdirs:
+    bar = Progress("Site: concept pages", len(tdirs))
+    for ci, d in enumerate(tdirs, 1):
+        bar.update(ci, d.name.replace("omop_", "OMOP "))
         meta = json.loads((d / "meta.json").read_text())
         s = read_tsv(d / "summary.tsv").iloc[0].to_dict()
         s["omop"] = str(int(s["omop"]))
@@ -2397,10 +2653,13 @@ def stage_site(args, omops):
             else:
                 shutil.copy2(p, fdir / p.name)
         clabs = read_tsv(d / "labs.tsv") if (d / "labs.tsv").exists() else pd.DataFrame()
+        if len(clabs) and "rows" not in clabs.columns and ids_priv is not None:  # tables from before the rows column
+            clabs = concept_labs(o, files, ids_priv)
         if len(clabs):
             clabs["lab_id"], clabs["label"] = clabs["lab_id"].astype(str), clabs["label"].astype(str)
             for r in clabs.itertuples():
-                lab_conc.setdefault(r.lab_id, []).append((o, s["name"], float(r.pct_concept), float(r.ratio)))
+                lab_conc.setdefault(r.lab_id, []).append((o, s["name"], float(r.pct_concept), float(r.ratio),
+                                                          getattr(r, "rows", None)))
         for n, pub in (("composition", "composition"), ("years", "years"), ("labs", "service_providers")):
             if (d / f"{n}.tsv").exists():
                 shutil.copy2(d / f"{n}.tsv", fdir / f"{pub}.tsv")
@@ -2411,6 +2670,7 @@ def stage_site(args, omops):
         body = concept_page(s, comp, years, files, verdicts, clabs, paged, tim, d, ids_by_label, lab_region)
         (part / "omop" / f"{o}.html").write_text(page(f"{s['name'] or 'OMOP ' + o} · Kanta lab QC", body, 1, release, built))
         sums.append(s)
+    bar.close()
     sums.sort(key=lambda s: -int(s["rows"]))
     if len(labs):
         (part / "lab").mkdir()
@@ -2419,11 +2679,32 @@ def stage_site(args, omops):
         lo_by, ly_by = dict(tuple(lab_orgs.groupby("lab_id"))), dict(tuple(lab_years.groupby("lab_id")))
         empty_o, empty_y = lab_orgs.iloc[:0], lab_years.iloc[:0]
         log(f"Site: {len(paged)} service provider page(s) (of {len(labs)} service providers) ...")
+        lbar = Progress("Site: service provider pages", len(paged))
         for i, r in enumerate(labs[labs["lab_id"].isin(paged)].itertuples(), 1):
+            if i == 1 or i % 25 == 0:  # redrawing for every one of thousands of small pages costs more than the page
+                lbar.update(i, r.label)
             body = lab_page(r, lo_by.get(r.lab_id, empty_o), ly_by.get(r.lab_id, empty_y), lab_conc.get(r.lab_id, []))
             (part / "lab" / f"{r.lab_id}.html").write_text(page(f"{r.label} · Kanta lab QC", body, 1, release, built))
-            if i % 500 == 0:
-                log(f"Site: {i} of {len(paged)} lab pages")
+        lbar.close()
+    if len(labs) and "region" in labs.columns:
+        # one page per region: its service providers, as a pie and a table (shares of the region's results only)
+        rstats = {}
+        if regions is not None and len(regions):
+            g = regions.copy()
+            g["results_pct"], g["population"] = pd.to_numeric(g["results_pct"], errors="coerce"), pd.to_numeric(g["population"], errors="coerce")
+            g = g[(g["results_pct"] > 0) & (g["population"] > 0)]
+            if len(g):
+                g["sh_tests"] = 100 * g["results_pct"] / g["results_pct"].sum()
+                g["sh_pop"] = 100 * g["population"] / g["population"].sum()
+                g["ratio"] = g["sh_tests"] / g["sh_pop"]
+                rstats = {r["region"]: r for _, r in g.iterrows()}
+        reg_labs = labs[labs["region"].astype(str).str.len() > 0]
+        if len(reg_labs):
+            (part / "region").mkdir()
+            for name, rl in reg_labs.groupby("region"):
+                body = region_page(name, rl, rstats.get(name), paged)
+                (part / "region" / f"{region_slug(name)}.html").write_text(page(f"{name} · Kanta lab QC", body, 1, release, built))
+            log(f"Site: {reg_labs['region'].nunique()} region page(s)")
     (part / "index.html").write_text(page("Kanta Lab QC Portal", landing(sums, labs, lab_conc, paged, regions), 0, release, built))
     S.publish_tsv(pd.DataFrame([{k: v for k, v in s.items() if not k.startswith("_")} for s in sums]),
                   part / "omops.tsv", count_cols=COUNTS)
